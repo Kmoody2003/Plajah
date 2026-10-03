@@ -1,0 +1,1453 @@
+{
+ "courseId": "law-comparative",
+ "label": "Comparative Law and Legal Systems of the World",
+ "lessons": [
+  {
+   "id": "law-comparative.l01",
+   "title": "The Method of Comparative Law",
+   "body": [
+    "Comparative law is the systematic study of legal systems by comparing them with one another. It is not simply foreign law, which describes one other system, and it is not private international law, which decides which country's law applies to a cross-border dispute. Its purposes include understanding one's own system better by seeing alternatives, informing law reform, supporting harmonisation and treaty drafting, and helping courts and lawyers handle cross-border problems.",
+    "The dominant method of the twentieth century is functionalism, set out most influentially by Konrad Zweigert and Hein Kotz in their textbook on comparative law. Its starting point is that every society faces similar problems, and legal systems solve them in different ways. A comparatist should therefore begin with a problem, not a rule, and ask which institutions in each system serve that function. Zweigert and Kotz also proposed a presumption of similarity, praesumptio similitudinis: that different systems will tend to reach similar practical results even where doctrine differs, so a startling difference in outcome should prompt a check that the question was posed correctly.",
+    "A worked example shows the method. Take the problem of enforcing a promise to give a gift. Common law systems generally enforce promises only if supported by consideration (a bargained-for exchange) or made in a deed, so a bare promise of a gift is not enforceable. German law reaches a similar result by a different device: a promise of a gift is valid only if notarised, which is a requirement of form. Both systems screen out hasty, unreliable, gratuitous promises, one through a doctrine of substance and the other through a formality. Comparing the rules \"consideration\" and \"notarisation\" directly would suggest they are unrelated, but comparing how each solves the problem reveals the shared function.",
+    "Comparatists also classify systems into legal families. Rene David's influential classification distinguished the Romano-Germanic family, the common law family, socialist law, and systems based on religion or tradition. Such groupings help teaching and show historical connections, but critics note that they hide variation, that many systems are mixed, and that the socialist category is now largely historical. Another distinction is between macro-comparison, which looks at whole systems and their styles, and micro-comparison, which looks at specific rules or institutions.",
+    "Method has been criticised. Pierre Legrand argues that law is embedded in culture and that functional comparison can flatten differences in meaning, so that rules which look alike may be profoundly different in their social and interpretive context. Rodolfo Sacco's concept of legal formants reminds researchers that law in any system comes from several sources, including statutes, judicial decisions and scholarly doctrine, which may point in different directions: the law in the books may differ from the law in action. A further caution is ethnocentrism, the temptation to view foreign institutions through the categories of one's own system, for example calling any religious tribunal a \"court\" in the Western sense or assuming that \"civil law\" means non-criminal law, when in comparative usage it refers to a tradition.",
+    "Best practice is to combine methods: state the problem neutrally, study each system in its own terms, including its sources and its practice as well as its rules, and only then compare. Where results diverge, ask whether the difference reflects different values, different institutions, or a different way of describing the same thing."
+   ]
+  },
+  {
+   "id": "law-comparative.l02",
+   "title": "The Common Law Tradition",
+   "body": [
+    "The common law tradition began in England after the Norman Conquest of 1066. Royal judges, particularly from the reign of Henry II in the twelfth century, travelled the country applying a body of rules that became common to the whole realm, in contrast to the varying local customs. Access to the royal courts was originally through writs, formulaic commands that defined the forms of action, so early law grew through procedure first and rights second. The result was a system that developed through decided cases rather than from a comprehensive code.",
+    "The central doctrine is precedent, or stare decisis, meaning to stand by decided things. A court is bound by the decisions of higher courts in its hierarchy, and in many systems by its own earlier decisions. The binding part of a decision is its ratio decidendi, the legal reasoning necessary to the result, as distinct from obiter dicta, remarks made in passing, which may persuade but do not bind. Courts can distinguish a precedent by showing that the facts are materially different. In 1966 the House of Lords, then the highest English court, issued a Practice Statement that it would treat its former decisions as normally binding but depart from them when it appeared right to do so, a flexibility that the UK Supreme Court inherited. Reasoning moves from case to case by analogy, and a lawyer's skill lies in finding which facts matter.",
+    "The common law was supplemented by equity, which arose because the common law courts could offer only damages and the rigid forms of action sometimes produced injustice. Litigants petitioned the King's Chancellor, and the Court of Chancery developed remedies such as injunctions and specific performance, and institutions such as the trust. Equity and law were fused administratively in England by the Judicature Acts of the 1870s, though their distinct rules and remedies survive. Statutes now dominate many fields, and courts interpret them, but the common law style of reasoning from precedent remains a hallmark.",
+    "Procedure is adversarial. The parties, through their lawyers, present evidence and argument to a relatively passive judge or jury, who decides. Trial is concentrated in a single, oral event, with cross-examination as the tool for testing evidence, and in many jurisdictions a jury decides criminal cases. In England civil juries are now rare, while in the United States the Seventh Amendment preserves jury trial in many federal civil cases. Judges are generally appointed from experienced members of the legal profession and write individual opinions, with dissents published.",
+    "The tradition spread through British colonisation and later by adoption, to the United States, Canada (outside Quebec), Australia, New Zealand, India, Nigeria, Kenya and many other places. Each adapted it. The United States, for example, added a written constitution, federalism and judicial review, and has a distinctive pattern of state common law and elected judges in many states. India has a codified penal code and many statutes alongside common law precedent. The label common law should therefore not be confused with uniformity.",
+    "Worked example: a trial court in a common law jurisdiction faces a question on which a higher court has ruled in a case with similar but not identical facts. The lawyer for the losing side argues the earlier case is distinguishable because the earlier defendant had given an express warranty and the present one did not. If the court accepts that the missing warranty is material, it need not follow the earlier decision."
+   ]
+  },
+  {
+   "id": "law-comparative.l03",
+   "title": "The Civil Law Tradition: Roman Roots",
+   "body": [
+    "The civil law tradition, also called the Romano-Germanic tradition, descends from Roman law. Its sources lie in the Twelve Tables, a legislative text from about the mid fifth century before the common era, and in the work of the Roman jurists of the classical period, who gave legal opinions and shaped doctrine through reasoned responses to concrete problems. The Institutes of Gaius in the second century offered a classification of private law into persons, things and actions, a structure that influenced later codes.",
+    "The pivotal text is the Corpus Juris Civilis, compiled in the sixth century under the Eastern Roman emperor Justinian, between about 529 and 534. It had four parts: the Codex, a collection of imperial constitutions; the Digest or Pandects, an anthology of excerpts from classical jurists; the Institutes, a textbook for students; and the Novellae, later laws. Although the Western empire had fallen, Justinian's compilation preserved Roman legal thought in a systematic form.",
+    "In western Europe the texts were largely lost in practice and then revived. From the late eleventh century the University of Bologna became a centre for studying the Digest. The glossators, notably Irnerius, added explanatory notes, and later the commentators, such as Bartolus of Sassoferrato, adapted Roman principles to the needs of medieval cities and commerce. Together with canon law, which governed the Church and drew on the same methods, Roman law formed a common learned law, the ius commune, taught in universities across Europe and applied as a subsidiary source where local customs were silent. Lawyers trained at Bologna or Padua shared a common language and method, so the tradition was scholarly and transnational. The process of adopting Roman law in territories such as Germany, called reception, took place gradually from the fifteenth century.",
+    "Two further developments shaped the modern civil law. First, the natural law school of the seventeenth and eighteenth centuries, associated with figures such as Hugo Grotius and Samuel Pufendorf, argued that law could be derived rationally and arranged in a coherent system, which supported the idea that a country could set out its entire private law in a code. Second, in the nineteenth century the German Historical School, led by Friedrich Carl von Savigny, argued that law grows from the spirit of a people and should be systematised by scholars. In 1814 Savigny opposed the call by Anton Thibaut for a quick German civil code, saying the time was not ripe. Out of that scholarship came Pandectism, an elaborate conceptual science of private law built on the Digest, which strongly influenced the German code at the end of the century.",
+    "Key features of the tradition follow from this history. Legal scholars, not judges, were the main creators of doctrine, so academic writing carries great authority. Law is conceived as a system of general principles and concepts, arranged logically. Codes are the primary source of law, with judges expected to apply them. Careful classification, such as the divisions between public and private law, property and obligations, is a common habit of thought.",
+    "Worked example: a problem arises about who bears the risk of loss when a purchased item perishes before delivery. A civil law lawyer starts by locating the problem within the code's system, for example the law of sale and obligations, then reads the relevant provisions in light of doctrine written by scholars, who in turn trace the principle back to Roman texts on the risk of loss in sale."
+   ]
+  },
+  {
+   "id": "law-comparative.l04",
+   "title": "The Codes: France, Germany and Latin America",
+   "body": [
+    "Codification is the enactment of a comprehensive, systematically organised statute covering a whole area of law, intended to replace prior sources. The French Code civil of 1804, called the Code Napoleon after the First Consul who sponsored it, was drafted by a small commission that included Portalis, Tronchet, Bigot de Preameneu and Maleville. It aimed to unify the law of a country that had been divided between customary law in the north and written Roman law in the south, to abolish feudal privileges and to state rules in clear language accessible to citizens. It is organised in three books, on persons, on property and on the ways of acquiring property, which echo Roman categories.",
+    "The Code reflected the revolutionary distrust of judges. Article 4 prohibited a judge from refusing to decide on the ground that the law was silent or obscure, and Article 5 prohibited judges from laying down general rules by judgment. In practice courts developed doctrine, and the Cour de cassation, the highest civil and criminal court, supervises uniform interpretation, while a settled line of decisions, called jurisprudence constante, has authority in practice. The Code has been amended many times; a major reform of the law of contract, obligations and proof was enacted by ordinance in 2016.",
+    "The German Civil Code, the Burgerliches Gesetzbuch or BGB, took effect on 1 January 1900 after decades of drafting. Where the French Code aimed at clarity for the citizen, the BGB is a work of scholarly abstraction. It begins with a General Part containing rules that apply across private law, such as legal capacity, declarations of intention and contract formation, followed by books on the law of obligations, property, family and succession. A characteristic feature is the abstraction principle, which separates the contract of sale from the transfer of ownership, so that a defect in the contract does not automatically undo the transfer. The code uses precise technical language and general clauses, such as the duty to perform in good faith in section 242, which courts have developed extensively.",
+    "The influence of the two codes reached across the world. In Latin America independent states in the nineteenth century inherited Spanish and Portuguese colonial law and then adopted codes. The Chilean Civil Code of 1855, drafted largely by the Venezuelan-born jurist Andres Bello, drew on Roman law, the Spanish tradition and the French Code, and was adopted in a number of other countries, including Ecuador and Colombia. Argentina's code, written by Dalmacio Velez Sarsfield, took effect in 1871 and was replaced by a new Civil and Commercial Code in 2015. Brazil enacted a civil code in 1916 and a new one in 2002. Latin American law blends civil law private law with constitutions strongly influenced by the United States, including presidential systems and judicial review, and produced its own institutions such as the amparo, a remedy for protecting constitutional rights that began in Mexico, and the Colombian tutela created by the 1991 Constitution.",
+    "Codes are not fixed. They have been supplemented by special statutes, and judges and scholars interpret them. In many countries, a codification movement has been followed by decodification, in which numerous special laws on consumer protection, employment and other areas sit outside the code. The comparison with common law shows that neither approach is static.",
+    "Worked example: a Chilean court asked to decide a dispute over a sale looks first to the sale provisions of the Civil Code, informed by a doctrine that grew from Bello's text; the same problem in Colombia, which adopted a version of the same code, would yield similar reasoning, showing how a single code can be a shared legal source across borders."
+   ]
+  },
+  {
+   "id": "law-comparative.l05",
+   "title": "Civil Law and Common Law Compared",
+   "body": [
+    "Comparing the civil law and common law traditions means resisting caricature. The traditional contrast says that civil law is codified, judge-light and systematic, while common law is case-based, judge-centred and pragmatic. There is truth in it, but the two have converged substantially, and each contains great internal variety.",
+    "Start with the sources of law. In a civil law system the code and statutes are the primary source; judicial decisions are formally not binding on later courts, although in practice higher court decisions are followed. France relies on the idea of jurisprudence constante, a settled line of cases, which has persuasive force and strongly influences lower courts. In Germany the decisions of the Federal Court of Justice are heavily cited and followed even though no formal doctrine of binding precedent exists. In a common law system the doctrine of precedent binds lower courts, but statutes are also important, and in many fields, such as taxation, immigration and criminal law, statutes dominate. The contrast is real in method: a civil law judge reasons from codal provisions and principles downward to the case, while a common law judge often reasons from earlier cases to the present one by analogy.",
+    "Procedure differs. The common law trial is adversarial: the parties control the gathering and presentation of evidence, discovery in the United States is broad and party-driven, and the judge acts as umpire. Civil law procedure is often described as inquisitorial, which means the judge takes a more active role in directing proceedings, questioning witnesses and determining which evidence to gather. In civil cases in Germany the judge plays an active role in managing the case, and written submissions and documents carry great weight over live testimony. In criminal matters in Germany the prosecution directs the investigation and the court at trial is responsible for establishing the truth; France has historically used an investigating judge, though the role has diminished. The terms adversarial and inquisitorial are tendencies; modern systems blend them, and many common law jurisdictions have embraced judicial case management and plea bargaining, while civil law systems have introduced adversarial elements and plea procedures.",
+    "The judiciary also differs. In many civil law countries judges are career officials who enter after specialised training and are promoted through a hierarchy, favouring consistency and anonymity: French judgments are short and delivered as a collective voice with no published dissent. Common law judges are typically senior members of the practising bar, appointed or elected, who write individual reasoned opinions with open dissent. Legal education differs too: civil law lawyers typically study law as a first degree, while the United States requires a graduate law degree.",
+    "Doctrine, meaning scholarly writing, holds a more authoritative place in civil law systems, where treatises and commentaries on the codes are consulted by judges. In common law systems, scholars influence the law less directly, though writings such as the Restatements in the United States have considerable weight.",
+    "Common traps include equating civil law with non-criminal law, which is a different meaning of the same word, and assuming inquisitorial means unfair. Inquisitorial systems have procedural protections, and their fairness depends on matters such as the independence of the judge and the rights of the accused.",
+    "Worked example: a defendant argues that a pre-contract negotiation produced liability for walking away. A German court would apply the code's good faith provisions and the doctrine of fault in contract negotiations, built up by scholars and courts. A common law court would traditionally say that no general duty exists, finding liability only where a recognised cause of action, such as misrepresentation or estoppel, applies."
+   ]
+  },
+  {
+   "id": "law-comparative.l06",
+   "title": "Mixed Jurisdictions I: Scotland and South Africa",
+   "body": [
+    "A mixed jurisdiction is a legal system in which two or more traditions, most often civil law and common law, have combined, with neither wholly displacing the other. These systems interest comparatists because they show how traditions interact in real life. Scotland and South Africa are the classic examples of civilian-common law mixtures, and in each the combination resulted from history rather than design.",
+    "Scotland. The Treaty of Union of 1707 joined the kingdoms of Scotland and England into Great Britain and preserved Scotland's separate private law and court system. Scots law developed in the late Middle Ages and early modern period under the influence of Roman and canon law, as Scottish students attended continental universities, and it was systematised in works known as the Institutional Writings, of which Stair's Institutions of 1681 is the best known. Private law retains civilian features in the structure of property, obligations and a good-faith orientation, though it has also absorbed English law, especially in commercial law and after the House of Lords became the final civil appeal court for Scotland, where English concepts entered through the reasoning of judges from both countries. The criminal law is distinctive: Scotland has a jury of fifteen, a majority verdict system, a requirement of corroboration of evidence, and, as of this writing, three verdicts, guilty, not guilty and not proven, though reform of the not proven verdict has been in legislative debate. The High Court of Justiciary is the final court in criminal appeals, while civil appeals go to the UK Supreme Court. The Scottish Parliament, established under the Scotland Act 1998, legislates in devolved areas.",
+    "South Africa. Roman-Dutch law arrived at the Cape with the Dutch East India Company in 1652. It was the law of the province of Holland, a development of Roman law shaped by Dutch jurists such as Hugo Grotius, whose Introduction to Dutch Jurisprudence is a foundational text, along with Voet and Van Leeuwen. When Britain took control of the Cape in 1806, formalised in 1814, English law influenced the courts, procedure, evidence, company law and criminal procedure, while the substantive private law, such as the law of contract, property and delict (civil wrongs) based on the Roman Lex Aquilia, retained its Roman-Dutch character. The Union of South Africa in 1910 consolidated the mixture. Roman-Dutch law, with local variations, also applies in Namibia, Botswana, Zimbabwe, Lesotho, Eswatini and Sri Lanka.",
+    "South Africa's legal system has an extra layer. The interim Constitution of 1993 and the Constitution of 1996 created a Constitutional Court and a supreme Bill of Rights, ending parliamentary sovereignty. The Constitution recognises customary law, in section 211, subject to the Constitution, so South Africa also embraces legal pluralism. The courts interpret and develop the common law, which now includes Roman-Dutch and English elements, in line with the spirit, purport and objects of the Bill of Rights. The concept of ubuntu, a humanist ethic of mutual recognition, has been invoked in decisions.",
+    "Comparatists draw several lessons. Mixed jurisdictions tend to be pragmatic and open to both traditions, and their judges and scholars may borrow a rule from one tradition for a problem and from another for a different problem. They show that civil law and common law are not incompatible. They also show the pressure of the dominant common law influence on procedure and public law.",
+    "Worked example: A South African court faced with a claim for loss caused by a negligent act will apply a Roman-Dutch delictual framework derived from the Lex Aquilia, which requires conduct, wrongfulness, fault, causation and harm, with English ideas of negligence influencing the standard of the reasonable person."
+   ]
+  },
+  {
+   "id": "law-comparative.l07",
+   "title": "Mixed Jurisdictions II: Louisiana and Quebec",
+   "body": [
+    "Louisiana and Quebec are civil law jurisdictions inside federal states whose other parts follow the common law. They arrived at their mixed character through colonial history, cession to an English-speaking power and a deliberate choice to keep the civilian private law.",
+    "Louisiana. Louisiana was a French colony and then, from 1762, a Spanish possession, and it was returned to France before the Louisiana Purchase of 1803 transferred it to the United States. Its private law carried French and Spanish influence. After the Purchase, the territory's legislature enacted a Digest of the Civil Laws in 1808, which drew heavily on the French Code and on Spanish sources, and in 1825 adopted a Civil Code, revised extensively in 1870 and in many later partial revisions. Private law, such as property, obligations, successions and family law, remains civilian in structure and vocabulary: a person writing a contract in Louisiana speaks of obligations and of \"usufruct\" and \"servitudes\" rather than easements and life estates. Criminal law, civil procedure and public law largely follow the American common law model, and Louisiana judges rely on court decisions in ways closer to common law than Napoleonic ideals suggested. Louisiana counties are called parishes. Distinctive rules include, for example, the system of forced heirship, in which certain descendants were protected from disinheritance, though this has been narrowed in recent decades. Legislation reforming the Civil Code is carried out by the Louisiana State Law Institute.",
+    "Quebec. Quebec began as New France, where the Custom of Paris applied. After Britain's conquest in 1759 to 1760 and the Treaty of Paris of 1763, English law was introduced, but the Quebec Act of 1774 restored French civil law for private matters while keeping English criminal law. The Civil Code of Lower Canada was enacted in 1866, modelled on the French Code. A new Civil Code of Quebec came into force on 1 January 1994, restructuring the law into ten books and modernising family, contract and personality rights. Under the Constitution Act, 1867, provinces have power over property and civil rights, which is why Quebec preserves its civil law, while criminal law is a federal power and is common law throughout Canada. The Supreme Court of Canada must by statute include three judges from Quebec, to ensure expertise in civil law. Federal legislation operates in both traditions, an arrangement called bijuralism, and legislative drafting is done in both English and French versions that must be harmonised with civil law and common law terms.",
+    "Quebec's law also reflects a distinct political and cultural identity: the Charter of human rights and freedoms of 1975 is a quasi-constitutional statute, and language legislation, notably the Charter of the French Language of 1977, regulates the use of French in public life. These measures have been debated, including their relation to the Canadian Charter of Rights and Freedoms, and illustrate how legal tradition and identity intertwine.",
+    "Lessons from these two jurisdictions: first, a civil law core can persist under a common law public order if the federal structure allows private law to be defined locally. Second, interaction runs both ways: in Louisiana and Quebec judicial decisions have grown in influence, and common law remedies, such as the injunction, have found their way into civilian settings. Third, mixed systems require lawyers trained to move between two ways of thinking.",
+    "Worked example: a dispute in Quebec over a contract is decided by applying the Civil Code of Quebec, using civil law concepts such as the obligation and good faith, while an assault charge arising from the same events is prosecuted under the federal Criminal Code, a common law-based system, in the same courthouse."
+   ]
+  },
+  {
+   "id": "law-comparative.l08",
+   "title": "Legal Transplants, Reception and Convergence",
+   "body": [
+    "Legal rules and institutions travel. Comparative law calls the movement of a rule or system from one country to another a legal transplant, a term popularised by the Scottish legal historian Alan Watson. Watson argued, from the study of Roman law's spread and of codification, that borrowing is the commonest way in which law changes, and that legal development is often driven by the lawyers who choose models, rather than closely tracking the needs of the society. On this view a system can be successfully built with rules that originated elsewhere.",
+    "Critics disagree. Pierre Legrand argues that a rule is inseparable from the culture and interpretive context that gives it meaning, so that a transplanted rule is never the same rule once removed. Gunther Teubner proposed the metaphor of legal irritants: a foreign rule introduced into a domestic system does not integrate smoothly but sets off reactions that transform both the rule and the surrounding law. Empirical studies of legal origins argue that the way law was received, imposed through colonisation or voluntarily adopted, affects how well it functions, and that transplanted law is more effective where there was prior familiarity and adaptation. These claims are contested, and the quantitative indicators used in some studies have been criticised.",
+    "History offers many examples. Japan in the Meiji period, from 1868, deliberately imported Western law to modernise and renegotiate unequal treaties. It first drew on French law, with the jurist Gustave Boissonade drafting a civil code that was shelved after controversy, and then adopted a civil code in 1896 and 1898 strongly influenced by the first draft of the German BGB, so that Japanese private law belongs largely to the German-influenced branch of the civil law. Turkey in 1926 adopted the Swiss Civil Code and Code of Obligations as part of Kemal Ataturk's secularising reforms, and Swiss decisions and doctrine continue to be consulted. Ethiopia's civil code of 1960 was drafted by the French comparatist Rene David with an eclectic design. Latin American codes borrowed from France and Spain, and post-colonial African and Asian states retained colonial codes and procedure. These stories show both the possibility of borrowing and the need for adaptation.",
+    "Convergence is another theme. Regional integration and global commerce have encouraged common standards. The United Nations Convention on Contracts for the International Sale of Goods, concluded in Vienna in 1980 and in force from 1988, harmonises the law of international sales among many states, blending civil law and common law ideas. The UNIDROIT Principles of International Commercial Contracts, first published in 1994, are a non-binding restatement that parties may choose and courts and arbitrators may consult. Within Europe there are academic projects such as the Principles of European Contract Law. Convergence is incomplete, since differences remain in procedure, remedies and professional culture, and some argue that harmonisation at the cost of local variety is not always desirable.",
+    "Another viewpoint is that law is not purely transplanted but undergoes reception, in which the recipient actively selects, adapts and sometimes rejects. The Japanese example shows selection of German structure but Japanese practice in application. Similarly, constitutional models such as the Kelsenian constitutional court or the US Bill of Rights have been adopted and given local features.",
+    "Worked example: a state adopts a foreign company law statute word for word. It fails to produce the expected investor confidence because courts lack experience with the concepts, the legal profession is untrained in them and enforcement mechanisms differ. The case suggests that a transplant works best when accompanied by institutions, training and adaptation, a point on which both Watson and his critics partly agree."
+   ]
+  },
+  {
+   "id": "law-comparative.l09",
+   "title": "Islamic Law: Sources, Method and Schools",
+   "body": [
+    "Islamic law is a legal tradition that Muslims understand as a way of living in accordance with God's guidance. Two terms need to be kept apart. Sharia refers to the divine path or law, as it is held to exist in God's will; fiqh, usually translated as jurisprudence, is the human scholarly effort to understand and articulate the rules that sharia contains. Because fiqh is a human interpretive enterprise, different jurists reach different conclusions, and Muslims treat this diversity as legitimate within limits. It follows that \"sharia says\" a given rule is often shorthand for \"a particular school of fiqh holds\" that rule.",
+    "The classical theory of sources, called usul al-fiqh or the roots of jurisprudence, identifies four main sources. First is the Quran, regarded as God's word. Only a minority of its verses, some few hundred, are legal in content, and many concern family law, inheritance, contracts and ritual. Second is the Sunna, the example of the Prophet Muhammad, transmitted in reports called hadith. Scholars developed a science of hadith criticism, examining the chain of transmitters (isnad) and the text, to separate reliable reports from weak or fabricated ones. Third is ijma, the consensus of qualified scholars on a question. Fourth is qiyas, analogical reasoning, which extends a ruling from a textual case to a new case sharing the same underlying reason or cause. Some schools accept additional methods, such as considerations of public interest (maslaha) or custom (urf).",
+    "Muhammad ibn Idris al-Shafii, who died in 820, is credited with a systematic account of the sources in his Risala, which gave the methodology its form. Four Sunni schools of law, or madhhabs, survived as authoritative: the Hanafi, named after Abu Hanifa (died 767), historically prominent in the Ottoman lands, Central and South Asia; the Maliki, after Malik ibn Anas (died 795), strong in North and West Africa; the Shafii, strong in East Africa, Southeast Asia and parts of the Middle East; and the Hanbali, after Ahmad ibn Hanbal (died 855), dominant in Saudi Arabia. Shia Islam has its own tradition, principally the Jafari school of Twelver Shia, which differs in sources and in the role of the Imams, as well as the Zaydi and the Ismaili traditions, and the Ibadi school is found in Oman. The schools are regarded as mutually legitimate, and differences concern, for example, the treatment of certain contracts and evidence.",
+    "Ijtihad is the independent exercise of reasoning by a qualified jurist to reach a ruling; taqlid means following the established authority of a school. A traditional narrative says the gate of ijtihad closed around the tenth century, but modern scholarship, notably the work of Wael Hallaq, has questioned this, showing that ijtihad continued in practice, particularly through fatwas, legal opinions issued by a mufti. A qadi was the judge, applying the law to disputes, and judges in classical Islamic societies were also guided by the practices and administrative rules of the rulers.",
+    "A standard classification of acts distinguishes five categories: obligatory, recommended, permissible, discouraged and forbidden. Another organising idea is the maqasid, the higher objectives of sharia, which jurists such as al-Ghazali and al-Shatibi described as the protection of religion, life, intellect, lineage and property. Contemporary scholars use these objectives to argue for reform or for new rulings in unfamiliar situations, while others stress the need to adhere strictly to textual rulings.",
+    "Worked example: classical inheritance law fixes shares for specified relatives, drawing on Quranic verses. For instance, a widow receives one eighth of the estate if the deceased left children and one quarter if there were none, while the son as a residuary heir takes what remains after the fixed shares are paid. The rules reflect the tradition's concern to distribute estates among family members rather than allowing free testation of the whole estate."
+   ]
+  },
+  {
+   "id": "law-comparative.l10",
+   "title": "Islamic Law in the Modern State",
+   "body": [
+    "The encounter with Europe in the nineteenth century changed Islamic law more than any event since the formation of the schools. States adopted European-style codes, courts and procedure for commerce and criminal law, while leaving areas such as family law, and in some places the whole of private law, to religious rules. The result is that a Muslim-majority country today usually has a mixed legal system in which Islamic law occupies a defined place.",
+    "The first codification of Islamic law was the Mecelle, drawn up in the Ottoman Empire between 1869 and 1876 as a code of civil and commercial law based on the Hanafi school. It showed that jurists could present fiqh as an article-by-article statute, and it remained in force in several successor states for decades. The most influential civil code in the Arab world is the Egyptian Civil Code of 1948, drafted by Abd al-Razzaq al-Sanhuri, a jurist trained in France who drew on French law, on other civil codes and on Islamic law. It listed Islamic law among the supplementary sources where legislation and custom are silent, and was adopted with changes in Syria, Iraq, Libya and elsewhere. This approach is sometimes described as combining the civil law framework with Islamic principles.",
+    "Family law, known as personal status law, is the area where religious rules remain most prominent. Marriage, divorce, custody and inheritance are usually governed by codified family laws based on Islamic jurisprudence, applied by state courts, and often in a form that draws on several schools rather than one. Reform has occurred through a technique called takhayyur, selecting among the opinions of the schools, and talfiq, combining them. Tunisia's Code of Personal Status of 1956 abolished polygamy, and Morocco's family code of 2004 raised the minimum marriage age and gave women greater rights in divorce. Critics and defenders each give reasons: reformers argue that these changes are consistent with the objectives of the law, while others see some of them as departures from classical rules. Questions about gender equality in family law are among the most contested topics in the region, and views among Muslims vary widely.",
+    "Constitutional arrangements differ. Some states, such as Saudi Arabia, declare the Quran and Sunna the constitution and apply largely uncodified Hanbali jurisprudence, though recent years saw codification of some areas and more reliance on royal decrees. Iran's 1979 constitution established an Islamic Republic with a Guardian Council reviewing legislation for conformity with Islamic law. Pakistan has a Federal Shariat Court established in 1980 that examines whether laws conflict with Islamic injunctions. Turkey, by contrast, adopted a secular system in the 1920s, and many states fall between these poles, saying that Islam is the state religion or that sharia is a source of legislation, as in Egypt's constitution, whose provisions have been interpreted by its Supreme Constitutional Court. In Malaysia and Nigeria, federal structure allows sharia courts for Muslims in family matters, and in northern Nigeria several states expanded sharia into criminal law from 1999 and 2000, which attracted domestic and international debate.",
+    "Islamic commercial law has led to a modern industry of Islamic finance. Its principles prohibit riba, usually understood as interest, and excessive uncertainty (gharar) in contracts. Instruments have been developed to replicate financial functions: murabaha, a cost-plus sale, ijara, leasing, and sukuk, asset-backed certificates. Scholars and regulators disagree on whether certain structures are authentic or only formal imitations of conventional finance, and shariah boards advise institutions on compliance.",
+    "Worked example: a Muslim-majority country has a civil code on the Egyptian model and a codified family law. A dispute about a commercial lease is resolved under the civil code, while a divorce is decided under the personal status law applying the rules selected from the schools."
+   ]
+  },
+  {
+   "id": "law-comparative.l11",
+   "title": "Jewish Law: Halakha",
+   "body": [
+    "Halakha, from a Hebrew root meaning to walk, is the body of Jewish law that governs religious practice, ethics, family life, civil relations and much else. Observant Jews regard it as the way of living in fulfilment of the covenant, and its study is itself an act of devotion. The legal tradition is unusual among the world's systems because it developed for centuries without a state of its own and so rested on community authority and voluntary adherence, though it was applied by rabbinical courts, batei din, with the backing of the community and sometimes of the ruling state.",
+    "Its foundational source is the Written Torah, the five books of Moses, with the wider Hebrew Bible. Alongside it, the tradition holds that an Oral Torah was transmitted and interpreted by generations of sages. This oral tradition was compiled in the Mishnah, redacted around 200 of the common era under Judah ha-Nasi, a concise collection of rulings organised by subject in six orders. Discussion of the Mishnah by later scholars, the Amoraim, formed the Gemara, and together the Mishnah and Gemara make up the Talmud. There are two Talmuds: the Jerusalem Talmud, completed about the fifth century, and the Babylonian Talmud, completed around the sixth century, which became the more authoritative. The Talmud preserves arguments and minority opinions rather than only conclusions, which reflects a legal culture that values disputation. A well-known phrase says of conflicting opinions that both are words of the living God, indicating respect for pluralism within the system.",
+    "Later authorities sought to state the law in codes. Maimonides, in the twelfth century, wrote the Mishneh Torah, an organised statement of the whole law in clear Hebrew without citing sources. Jacob ben Asher wrote the Arba'ah Turim in the fourteenth century. Joseph Karo wrote the Shulchan Aruch in the sixteenth century, with glosses by Moses Isserles recording Ashkenazi practice, so that the work could serve both Sephardi and Ashkenazi communities. The Shulchan Aruch is the standard reference for practical halakha for most Orthodox communities. Rabbis continue to answer questions on new situations in responsa (she'elot u-teshuvot), a literature stretching over a thousand years, and decisors weigh precedent, local custom (minhag) and necessity.",
+    "The system has mechanisms for change. Rabbinic legislation (takkanot) can adapt law, as with the prozbul instituted by Hillel, which allowed loans to be collected despite the sabbatical year's cancellation of debts, thus protecting access to credit. The principle of dina de-malkhuta dina, attributed to the Babylonian sage Samuel, holds that the law of the kingdom is binding law in civil matters, allowing Jews to obey state law, including property and taxation. Jewish business law has a set of rules on contracts, damages and property, found in the portion of the code called Hoshen Mishpat.",
+    "Contemporary movements differ over authority and change. Orthodox Judaism holds the halakha as binding and changeable only within traditional procedures; Conservative or Masorti Judaism accepts a historical development and uses a rabbinical process to amend practice; Reform Judaism treats ritual law as guidance subject to individual and community choice. The debates are real, and each movement has its own legal institutions. In the State of Israel, rabbinical courts have authority over marriage and divorce of Jews, a status that has been controversial with those who prefer civil marriage, while the rest of Israeli law is mainly based on the common law and statute.",
+    "Worked example: a Jewish couple divorce in a civil court and later wish to remarry in an Orthodox community. Halakha requires a get, a bill of divorce delivered by the husband and accepted by the wife, supervised by a beit din, in addition to the civil judgment; the two legal systems operate side by side, and each has its own requirements."
+   ]
+  },
+  {
+   "id": "law-comparative.l12",
+   "title": "Canon Law and Hindu Law",
+   "body": [
+    "Canon law is the body of rules by which a church governs itself. The Catholic Church's system is the oldest continuously operating legal system in the West, and its history overlaps with the development of European law. In the early centuries, church councils and papal letters accumulated into collections. Around 1140 the monk Gratian compiled the Decretum, a systematic work that reconciled conflicting authorities by reasoning, and which became the foundation of the Corpus Iuris Canonici, the medieval compilation. Canon law and Roman law were jointly studied as the two laws, and a graduate in both was called doctor of both laws, which is the origin of the ius commune discussed earlier.",
+    "Ecclesiastical courts historically had wide jurisdiction over marriage, wills, certain contracts, and offences by clergy. They developed procedure with written pleadings, rational rules of proof and ideas of intent that influenced secular systems. In England church courts handled marriage and probate until 1857, when civil courts assumed those functions. Modern Catholic law consists of the Code of Canon Law, promulgated by Pope John Paul II in 1983 and replacing a code of 1917, for the Latin Church, and a separate Code of Canons of the Eastern Churches of 1990. Courts include diocesan tribunals and the Roman Rota, which hears appeals, notably in marriage cases. The most common cases concern declarations of nullity of marriage, which determine whether a valid sacramental marriage ever came into being and are distinct from civil divorce. Other churches have their own law: the Church of England has canons and Measures of the General Synod, and Orthodox churches follow canons of councils and national church rules.",
+    "Hindu law, at the historical level, is the tradition of dharma, a word meaning duty, order and right conduct. The Dharmashastra texts, which include the Dharmasutras and the Smritis such as the Manusmriti and the Yajnavalkya Smriti, composed over several centuries from roughly the last centuries before the common era, set out rules for life stages, family obligations, inheritance, procedure and penance. They were authored by learned Brahmin scholars and expounded in commentaries and digests, such as the Mitakshara and the Dayabhaga, which developed two major schools of inheritance and joint family property. Historians debate how far these texts described actual practice as opposed to an ideal, and how far local custom and the decisions of kings and caste or village assemblies determined real outcomes. Scholars also note that the tradition was not a single code but a developing body of commentary, and that the concept of Hindu law as a unified system is largely a product of the colonial period.",
+    "British administrators from the late eighteenth century, beginning with plans in the 1770s associated with Warren Hastings, undertook to apply Hindu law to Hindus and Muslim law to Muslims in personal matters. They relied on Brahmin pandits and on translations, and judges applied texts as if they were statutes, a result called Anglo-Hindu law, which scholars criticise for rigidifying fluid customs. After independence, India reformed Hindu personal law by statute in the 1950s: the Hindu Marriage Act 1955, the Hindu Succession Act 1956, the Hindu Minority and Guardianship Act 1956 and the Hindu Adoptions and Maintenance Act 1956, which provided for monogamy and divorce and improved women's rights. A 2005 amendment gave daughters equal coparcenary rights. These statutes apply to Hindus, Sikhs, Jains and Buddhists in India, while Muslims, Christians and others retain their own personal laws, and Article 44 of the Constitution states a directive principle to work toward a uniform civil code, whose pursuit remains politically debated.",
+    "Worked example: a Hindu family's property dispute in India is decided under the Hindu Succession Act, as amended, rather than under the old Mitakshara rules, though the vocabulary of joint family and coparcenary persists in the statutes, showing how an ancient tradition was translated into modern legislation."
+   ]
+  },
+  {
+   "id": "law-comparative.l13",
+   "title": "Customary and Indigenous Law",
+   "body": [
+    "Customary law is a body of rules that a community follows because it regards them as binding, usually unwritten and passed on through practice, oral tradition and the decisions of respected elders or leaders. Legal anthropologists emphasise that it is not a primitive precursor to state law; it is a complete way of organising social relations, with rules about land, family, wrongdoing and dispute resolution. It often aims at restoring relationships and community harmony rather than at punishing individuals, and its authority rests on social recognition more than on state coercion. It is dynamic: customary law changes as communities adapt, and codified versions, such as those produced in colonial times, may freeze it in forms that differ from living practice, a distinction between official customary law and living customary law that scholars in South Africa stress.",
+    "Legal pluralism describes the coexistence of more than one legal order in the same social field. In many African states, state courts coexist with customary courts and chiefs' tribunals, and the constitution recognises customary law alongside statute. Section 211 of the South African Constitution of 1996 recognises the institution of traditional leadership and the application of customary law, subject to the Constitution. Colonial administrations often applied customary law only if it was not repugnant to natural justice, equity and good conscience, a test that subordinated custom to colonial values. Contemporary courts face the question of how to reconcile custom with constitutional rights. In Bhe v Magistrate, Khayelitsha (Constitutional Court of South Africa, 2004), the Court held that the customary rule of male primogeniture in intestate succession, which excluded women and younger children, was inconsistent with the equality guarantee and invalid, and fashioned an interim regime for succession. The case shows both the respect for custom and the limit set by constitutional rights.",
+    "Indigenous law has also been recognised through the doctrine of aboriginal or native title. In Mabo v Queensland (No 2) (High Court of Australia, 1992) the Court rejected the doctrine that Australia had been terra nullius, land belonging to no one at British settlement, and held that native title survived where indigenous people maintained their connection and it had not been validly extinguished. Delgamuukw v British Columbia (Supreme Court of Canada, 1997) held that aboriginal title is a right to the land itself, the content of which comes from the indigenous people's own laws and occupation, and that oral histories are admissible as evidence. In the United States, the Marshall decisions of the 1820s and 1830s, including Johnson v M'Intosh (1823), Cherokee Nation v Georgia (1831) and Worcester v Georgia (1832), established the doctrine of the discovery of title for the colonising state and described tribes as domestic dependent nations with sovereignty that is limited but real, so tribal courts today apply tribal law within their jurisdictions.",
+    "New Zealand shows a different strand: the Treaty of Waitangi of 1840 between the Crown and many Maori chiefs, the Waitangi Tribunal established in 1975 to investigate claims, and recognition of tikanga Maori, the Maori system of values and practices, as part of the law of Aotearoa New Zealand. The Te Awa Tupua Act 2017 declared the Whanganui River a legal person, reflecting the Maori understanding of the river as an ancestor and indivisible living whole. The United Nations Declaration on the Rights of Indigenous Peoples of 2007 recognises rights to self-determination, lands and the maintenance of legal institutions, though it is a non-binding declaration; Australia, Canada, New Zealand and the United States first voted against it, and each later expressed support.",
+    "Debates continue on how state law should treat indigenous law. Proponents of recognition argue that it respects self-determination and legitimate authority, produces more acceptable dispute resolution and fills gaps in access to justice. Critics point to concerns about conflicts with individual rights, in particular women's rights, and about the fixing of custom by courts. A common response is to treat the issue as one of reconciling recognition with constitutional rights through dialogue and community participation.",
+    "Worked example: a family dispute over inheritance in a rural community is settled by the family council and a local chief under customary rules, as the parties prefer. A daughter dissatisfied that her share is smaller than her brother's may be able to bring the matter to a state court, which will ask whether the rule applied is consistent with the constitutional right to equality, as in Bhe."
+   ]
+  },
+  {
+   "id": "law-comparative.l14",
+   "title": "Chinese Law: From Imperial Codes to the Civil Code",
+   "body": [
+    "Chinese law has one of the longest continuous traditions in the world. Two intellectual currents shaped it. Confucian thought emphasised li, rites and proper conduct, and rule by moral example, treating law as a secondary tool to be used with restraint and in harmony with social roles. Legalism, associated with thinkers such as Shang Yang and Han Fei, stressed clear published penal laws and rewards and punishments as the foundation of order. From the Han dynasty, imperial government blended the two, a process sometimes described as the Confucianisation of law, in which codes were written in the legalist form but interpreted in light of Confucian values like filial piety and hierarchy within the family.",
+    "The classical imperial code is represented by the Tang Code, issued in 624 and reissued with official commentary in 653, a systematic text of penal provisions and general principles that became a model for Japan, Korea and Vietnam. Later dynasties, including the Ming and Qing, issued codes that largely followed this model. They focused on criminal law and administrative regulation, and much of what Western legal systems classify as private law, such as contracts and property, was governed by custom, local practice and mediation. Disputes were often resolved through mediation by family elders, guilds and local officials, and litigation carried stigma. This does not mean there was no private ordering; it was done largely outside the codes.",
+    "The late Qing dynasty, after military defeats and foreign pressure over extraterritorial jurisdiction, began legal reforms from 1902 to 1911, borrowing heavily from Japan and, through Japan, Germany. The Republic of China enacted civil and commercial codes around 1929 to 1931 influenced by German and Swiss models. After the Communist victory in 1949 the new government abolished the Nationalist codes, and the legal system drew on Soviet models, with law as an instrument of the state. During the Cultural Revolution of the 1960s and 1970s legal institutions were largely disrupted. From 1978 onward, reform and opening led to rebuilding of the legal system: a new constitution in 1982, laws on contracts, companies, property and intellectual property, and development of a legal profession.",
+    "A significant step was the Civil Code of the People's Republic of China, adopted in May 2020 and effective on 1 January 2021, the first code in the PRC's history. It consolidated earlier statutes, such as the General Principles of Civil Law of 1986, the Contract Law of 1999 and the Property Law of 2007, into a single structure with books on general provisions, property rights, contracts, personality rights, marriage and family, succession and tort liability. Its structure shows German and civil law influence, while it retains features reflecting socialist principles and Chinese policy goals.",
+    "The contemporary system is described officially as socialist rule of law with Chinese characteristics, and the Communist Party's leadership is a constitutional principle. The National People's Congress and its Standing Committee make laws, and the Standing Committee has authority to interpret the Constitution and review legislation, but there is no judicial review in the sense of courts striking down statutes. The Supreme People's Court issues judicial interpretations, and since 2010 a system of guiding cases has encouraged consistency. Mediation remains prominent in civil cases. Analysts disagree about how to characterise the system: official accounts stress the development of law and governance, while many scholars and rights organisations stress limits on judicial independence and the role of the Party. Both views reflect parts of the evidence and should be understood in context.",
+    "Hong Kong and Macau show the one country, two systems model. Under the Basic Law, which took effect on 1 July 1997, Hong Kong retains the common law and its own courts, with the Court of Final Appeal, for a period of fifty years, while Macau retains a civil law system derived from Portuguese law. The Hong Kong legal order has changed since the National Security Law imposed by the national legislature in 2020, which has been defended by Chinese authorities as restoring stability and criticised by others as affecting freedoms.",
+    "Worked example: a company in Shanghai signs a supply contract. The dispute is analysed under the Civil Code's contract book, a civil law style code, but the court may encourage mediation, may refer to a Supreme People's Court interpretation and may consider a guiding case, illustrating that the sources of law differ from the common law or classical civil law patterns."
+   ]
+  },
+  {
+   "id": "law-comparative.l15",
+   "title": "Japan, Korea and Taiwan",
+   "body": [
+    "Japan offers one of the clearest cases of a deliberate transplant. During the Edo period law was largely a matter of administrative edicts and customary practice. After the Meiji Restoration of 1868 the government pursued modernisation and sought to end the unequal treaties with Western powers, which required modern codes and courts. It engaged foreign advisers: Gustave Boissonade drafted a penal code of 1880 and a civil code on a French model, which was promulgated in 1890 but never took effect after a heated codification controversy in which critics said it ignored Japanese family traditions. A new code, strongly influenced by the German BGB draft, was enacted in 1896 and 1898, including the property and obligations parts and the family law. The Meiji Constitution of 1889 was influenced by the Prussian model and vested sovereignty in the emperor.",
+    "After 1945, the Constitution of Japan, promulgated in 1946 and in effect from 1947, reshaped public law. It declares popular sovereignty and a symbolic emperor, guarantees fundamental rights and, in Article 9, renounces war as a sovereign right. Article 81 gives the Supreme Court power to determine the constitutionality of laws, so Japan has a diffuse model of judicial review loosely influenced by the American example, though the Supreme Court is known for restraint, having struck down only a small number of statutes. Examples include the 1973 decision on the heavier penalty for killing a parent and later decisions on the unequal inheritance of children born outside marriage and on a longer waiting period for remarriage for women. Japan has a career judiciary, a small number of practising lawyers relative to population, and, since 2009, the saiban-in system, in which six lay citizens sit with three professional judges in serious criminal trials.",
+    "Scholars have long debated Japanese legal culture. In the 1960s Takeyoshi Kawashima argued that a cultural preference for harmony and informal settlement led Japanese people to avoid litigation. John Owen Haley and others countered with an institutional explanation: low litigation rates reflect limited numbers of judges and lawyers, procedural costs and delays, rather than cultural aversion, and conciliation procedures (chotei) were promoted by the state. The debate shows two ways of explaining a difference in practice, one by culture and the other by institutions. The Japanese experience also shows that formal borrowing coexists with local practice.",
+    "Korea was under Japanese rule from 1910 to 1945, and its legal system retained influences from Japanese law in codification, with later American influence after 1945. A Constitutional Court was created under the Constitution of 1987, following democratisation, and has become an active institution that has decided issues from presidential impeachment to criminal law. In 2017 it upheld the impeachment of President Park Geun-hye, a major assertion of constitutional authority.",
+    "Taiwan's legal system is based on the Republic of China's codes of 1929 to 1931, drawing on German, Swiss and Japanese law, preserved after the government's move to Taiwan in 1949. Constitutional review is carried out by the Constitutional Court, which developed from the Council of Grand Justices of the Judicial Yuan. In 2017, in Interpretation No. 748, the Court held that the existing Civil Code, by excluding same-sex couples from marriage, violated the constitutional guarantees of freedom of marriage and equal protection, and directed the legislature to act within two years. A 2019 statute then recognised same-sex marriage, the first in Asia.",
+    "Common features include a civil law base, written constitutions, and in recent decades expanding constitutional adjudication, while each reflects a distinct local politics and culture. Generalising about East Asian law as uniformly Confucian is a mistake that scholars warn against, since the systems differ greatly.",
+    "Worked example: a Japanese couple in a dispute over their business may be urged by a court to settle through conciliation, reflecting an institutional pattern that favours settlement; but a person challenging a statute as unconstitutional may bring the claim in an ordinary court, and the Supreme Court makes the final determination."
+   ]
+  },
+  {
+   "id": "law-comparative.l16",
+   "title": "The European Union Legal Order",
+   "body": [
+    "The European Union legal order is neither a traditional international organisation nor a federal state, and it is often described as a new legal order sui generis. It rests on treaties: the Treaty of Rome of 1957 created the European Economic Community, the Maastricht Treaty of 1992 created the European Union, and the Treaty of Lisbon of 2007, in force since 2009, produced the present structure in two main treaties, the Treaty on European Union and the Treaty on the Functioning of the European Union. Its institutions include the European Commission, which proposes legislation and enforces the law, the Council and the European Parliament, which legislate jointly in most fields, the European Council of heads of state and government, and the Court of Justice of the European Union in Luxembourg, which interprets EU law.",
+    "Legislation takes different forms. A regulation is directly applicable in all member states. A directive binds as to its result but leaves the form and method to national authorities and so must be transposed into national law. Decisions bind those to whom they are addressed. The EU acts only within the powers conferred on it by the member states, the principle of conferral, and where it shares competence it must respect subsidiarity, meaning it acts only if objectives cannot be sufficiently achieved by member states, and proportionality.",
+    "Two doctrines were created by the Court of Justice and form the structure of the order. In Van Gend en Loos (1963) the Court held that the Community constituted a new legal order of international law whose subjects include individuals, and that certain treaty provisions have direct effect, creating rights that individuals can invoke before national courts. In Costa v ENEL (1964) the Court held that Community law prevails over conflicting national law, because the Community was created by a permanent limitation of sovereign rights and a rule that could be overridden by later national law would undermine the system. In Simmenthal (1978) it added that national courts must set aside conflicting national law of their own motion. In Francovich v Italy (1991) the Court held that a member state can be liable in damages to individuals for loss caused by a failure to implement a directive, where the directive confers rights, the content of the rights can be identified and there is a causal link.",
+    "The cooperation of national courts is secured through the preliminary reference procedure in Article 267 TFEU, by which a national court may, and a court of last resort must, ask the Court of Justice about the interpretation or validity of EU law, after which the national court applies the answer to the case. This makes every national judge an EU judge. The Charter of Fundamental Rights of the European Union became legally binding with the Treaty of Lisbon and applies to EU institutions and to member states when implementing EU law.",
+    "The supremacy claim is not unqualified in the eyes of every national court. The German Federal Constitutional Court, in the Solange decisions of 1974 and 1986, held that it would not review EU measures for compatibility with the German Basic Law as long as the EU provided effective protection of fundamental rights, while reserving the right to do so if that protection fell short. In its 2020 decision on the European Central Bank's bond-purchase programme the court found that a ruling of the Court of Justice exceeded its competence, which was strongly criticised, and the European Commission opened proceedings against Germany. In 2021 the Polish Constitutional Tribunal ruled that provisions of the EU treaties were incompatible with the Polish constitution, a ruling that the EU institutions treated as a violation of the primacy of EU law, given concerns about the tribunal's independence. These conflicts show the debate over who has the final word: the EU Court insists on primacy and uniform application; national courts, in various ways, claim the last word in matters of constitutional identity.",
+    "Distinguish the EU from the Council of Europe, a separate organisation of 46 states after the departure of Russia in 2022, whose European Court of Human Rights in Strasbourg applies the European Convention on Human Rights. The EU Court in Luxembourg is a different court. In 2014 the Court of Justice held in Opinion 2/13 that the draft agreement for the EU's accession to the Convention was incompatible with the treaties, and negotiations have since resumed.",
+    "Worked example: a directive grants consumers a right to a refund, but a member state fails to transpose it by the deadline. A consumer who suffers loss may invoke the directive's rights against the state, and under the Francovich principle may seek damages from the state if the conditions are met."
+   ]
+  },
+  {
+   "id": "law-comparative.l17",
+   "title": "Judicial Review and Constitutional Courts Worldwide",
+   "body": [
+    "Judicial review is the power of courts to assess whether legislation or executive acts comply with the constitution and to refuse to apply or to invalidate those that do not. Two great models have spread across the world. The first is the American or diffuse model, in which every court may decide constitutional questions in the course of ordinary litigation, with the supreme court having the final say. It is traced to Marbury v. Madison (US Supreme Court, 1803), where Chief Justice Marshall reasoned that the Constitution is supreme law, that it is the duty of the judiciary to say what the law is, and that a statute repugnant to the Constitution cannot be applied by a court. The Constitution does not explicitly grant the power, and critics and defenders have debated its justification since.",
+    "The second is the European or concentrated model, associated with the Austrian jurist Hans Kelsen, who designed the Austrian Constitutional Court established in 1920. Kelsen argued that a constitution is only effective if there is a special body with the power to annul unconstitutional statutes, and that this body should be separate from the ordinary courts, since ordinary judges, trained to apply statutes, are not suited to review them. A constitutional court is a specialised tribunal, whose judges are typically chosen by parliament, the executive or both, for fixed, often non-renewable terms, and who include academics as well as judges. After the Second World War constitutional courts were created in Italy (operating from 1956) and Germany, and later in Spain, Portugal, many Central and Eastern European states after 1989, South Africa, South Korea and many others.",
+    "The German Federal Constitutional Court, the Bundesverfassungsgericht, in Karlsruhe, established under the Basic Law of 1949 and starting work in 1951, is the model most imitated. Its powers include abstract review, in which a state government or a share of the Bundestag can ask whether a law is constitutional without any concrete dispute, concrete review referred by ordinary courts, and the individual constitutional complaint, which allows any person to claim a violation of basic rights by public authority after exhausting other remedies. The complaint makes the court accessible and has produced a vast body of rights jurisprudence. The Basic Law also contains an eternity clause in Article 79(3), which prohibits amendments affecting human dignity and the basic principles of the state.",
+    "Other systems have adapted the models. France's Conseil constitutionnel, created in 1958, was originally designed to police the boundaries between legislative and executive power through review of laws before promulgation, but in 1971 it held that the preamble to the Constitution, which incorporates the Declaration of the Rights of Man of 1789, is part of the constitutional norms against which laws are measured. Since 2010, after a reform of 2008, citizens can raise a priority question of constitutionality in a pending case, so that review is available after a law has entered into force. India's Supreme Court, in Kesavananda Bharati v State of Kerala (1973), held that Parliament's power to amend the Constitution does not extend to altering its basic structure, which includes features such as judicial review and the rule of law. The decision shows a court limiting even constitutional amendments. Israel's Supreme Court in the United Mizrahi Bank case of 1995 held that Basic Laws enacted by the Knesset are supreme over ordinary legislation, a development called the constitutional revolution, though Israel still has no single written constitution.",
+    "Not every country allows review. The Netherlands constitution in Article 120 forbids courts from reviewing the constitutionality of acts of parliament, though Dutch courts may review them against treaties such as the European Convention on Human Rights. The United Kingdom traditionally held that Parliament is sovereign, though the courts now interpret legislation in light of rights, as the next lesson discusses.",
+    "Constitutional courts and supreme courts should not be confused. A constitutional court decides only constitutional questions, while a supreme court is an ordinary appellate court that may also decide constitutional matters. In some systems, such as the United States, the same court is both.",
+    "Worked example: a German citizen complains that a police search violated her rights. After exhausting the ordinary courts, she files a constitutional complaint with the Federal Constitutional Court, which can annul the court decisions and, if the underlying statute is unconstitutional, declare it void. In the American model she would raise the argument as a defence in the ordinary courts and appeal in the usual way."
+   ]
+  },
+  {
+   "id": "law-comparative.l18",
+   "title": "Strong and Weak Forms of Constitutional Review",
+   "body": [
+    "Constitutional systems can be compared by how much power the courts have over the legislature. In strong-form review, the court's decision that a statute is unconstitutional is final in practice, and can be overridden only by constitutional amendment, which is usually difficult. The United States and Germany are examples. In weak-form review, which some scholars have called the new Commonwealth model of constitutionalism, courts have a role in assessing rights but the legislature retains the last word on ordinary legislation through a simpler procedure. Canada, the United Kingdom, New Zealand and some Australian jurisdictions are the main examples.",
+    "Canada's Charter of Rights and Freedoms of 1982 contains two key provisions. Section 1 guarantees rights subject to reasonable limits that can be demonstrably justified in a free and democratic society, which is the basis of a proportionality test. Section 33, the notwithstanding clause, allows Parliament or a provincial legislature to declare that a statute operates notwithstanding certain Charter rights, such as fundamental freedoms, legal rights and equality rights, for a period of five years, renewable. The clause was a compromise at the time of patriation. It has been used sparingly, and its use has been controversial, with defenders describing it as a democratic safeguard that lets elected bodies respond to court decisions, while critics describe it as allowing the suspension of rights. Courts typically still decide whether a law violates the Charter, and the clause then affects the remedy.",
+    "In the United Kingdom, the Human Rights Act 1998 gives domestic effect to the European Convention on Human Rights without allowing courts to invalidate Acts of Parliament. Section 3 requires courts to read legislation compatibly with Convention rights as far as possible. Where this is impossible, section 4 permits higher courts to issue a declaration of incompatibility, which does not affect the validity of the law, and leaves it to Parliament and ministers to decide whether to amend. A declaration is a signal rather than an order. New Zealand's Bill of Rights Act 1990 follows a similar logic, and the states of Victoria, with its Charter of 2006, and the Australian Capital Territory have also adopted dialogue models.",
+    "The distinction raises the question of whether such weak-form systems are truly different or are converging toward strong review, since in practice governments usually respond to declarations by amending the law. Others note that the political cost of override can be high in practice, even where it is legally simple.",
+    "Behind these choices lies the democratic objection to judicial review. Alexander Bickel called it the countermajoritarian difficulty: unelected judges overturning the decisions of elected representatives. Jeremy Waldron argued that, in societies with democratic institutions and a commitment to rights, disagreements about rights should be settled by legislatures through majority voting, because judicial review disenfranchises citizens and obscures the moral issues behind technical interpretation. Defenders such as Ronald Dworkin argued that rights are limits on majority power, that courts are better placed to treat questions of principle seriously, and that democracy means more than majority rule. Other arguments stress that courts protect minorities who are poorly represented in politics and provide a forum for those who lack political power. Each side can cite experience: courts have protected rights, and have also at times upheld unjust laws or blocked social reforms.",
+    "Worked example: A statute is found to violate a protected right. In the United States, the court strikes it down and only a constitutional amendment or later change of judicial doctrine can reverse that. In the United Kingdom, the court issues a declaration of incompatibility and the statute remains valid until Parliament amends it. In Canada, the court strikes the law, but the legislature may re-enact it with a notwithstanding declaration for up to five years, subject to the political consequences."
+   ]
+  },
+  {
+   "id": "law-comparative.l19",
+   "title": "Proportionality and the Comparative Law of Rights",
+   "body": [
+    "Most constitutional systems must answer how courts decide when a right conflicts with a public interest. A major comparative finding is the global spread of proportionality analysis. Originating in German administrative and constitutional law, it has been adopted by courts in Canada, Israel, South Africa, the European Court of Human Rights and many others. The German version has four steps. First, the measure must serve a legitimate aim. Second, it must be suitable, meaning capable of advancing that aim. Third, it must be necessary, meaning that no equally effective, less restrictive means exists. Fourth is proportionality in the narrow sense or balancing: the benefit of the measure must not be outweighed by the harm to the right.",
+    "The Supreme Court of Canada developed its own version in R. v. Oakes (1986), interpreting section 1 of the Charter. The government must show a pressing and substantial objective, and that the means are proportionate: rationally connected to the objective, impairing the right as little as reasonably possible, and with effects on the right that are proportionate to the objective's benefits. South Africa's section 36 of the Constitution is a limitation clause that requires consideration of the nature of the right, the importance and purpose of the limitation, the relation between limitation and purpose and less restrictive means.",
+    "The United States has generally followed a different approach, using tiers of scrutiny. Laws that burden fundamental rights or use suspect classifications such as race are subject to strict scrutiny, which requires a compelling government interest and narrow tailoring; laws that classify on sex have been subject to intermediate scrutiny; and most other laws receive rational basis review, requiring only a legitimate purpose and a rational connection. The American approach assigns categories first and then applies a level of review, while proportionality applies one structure of reasoning across rights. Scholars debate the merits. Supporters of proportionality say it is transparent, flexible and forces courts to give reasons. Critics, including some who fear that balancing treats rights as just another interest, argue that it gives judges too much discretion and may weaken rights that should function as trumps. Defenders of tiers say that categories provide predictability and guard against judicial subjectivity, while critics say the categories are rigid and are applied inconsistently in practice.",
+    "Rights adjudication also differs on who is bound. In Luth (1958) the German Federal Constitutional Court held that the Basic Law's rights are also an objective order of values that radiates into private law, so that courts must interpret private law provisions, such as the civil code's rules on unethical conduct, in light of the fundamental rights, an indirect horizontal effect. The United States, by contrast, applies most constitutional rights to the state alone, under the state action doctrine, though private law rules enforced by courts can be affected in some circumstances.",
+    "Free speech illustrates the differences. In Brandenburg v. Ohio (1969) the US Supreme Court held that the government may not punish advocacy of unlawful conduct unless it is directed to inciting or producing imminent lawless action and is likely to produce such action, a very protective test. Germany treats dignity as the highest value and operates under the idea of a militant democracy, which holds that the constitutional order may defend itself against its enemies. German law criminalises incitement to hatred and denial of the Holocaust, and bans on certain extremist organisations are possible. Neither approach is a deviation from rights; both reflect choices about how to weigh liberty against other interests in light of history. The American approach reflects scepticism about government power to decide which ideas are dangerous, and the German approach reflects the experience of the failure of the Weimar Republic and the Nazi regime. Reasonable observers disagree about which approach is better, and the comparison helps in understanding the trade-offs.",
+    "Worked example: a statute bans a certain type of demonstration near a government building. Under German proportionality, a court asks whether the ban serves a legitimate aim, is suitable, is necessary because no less restrictive rule such as time or place limits would suffice, and whether the harm to assembly outweighs the security benefit. In the US, the court would first classify the regulation as content-based or content-neutral and then apply strict scrutiny or a time, place and manner test."
+   ]
+  },
+  {
+   "id": "law-comparative.l20",
+   "title": "Foreign Law in Courts and the Limits of Comparison",
+   "body": [
+    "Courts sometimes consult decisions and statutes of other countries. This practice, sometimes called judicial borrowing or transjudicial dialogue, ranges from citing a foreign case as an illustration to treating it as a source of authority. Its use depends on the legal system and on a court's view of its role.",
+    "Some constitutions invite it. Section 39 of the South African Constitution requires courts interpreting the Bill of Rights to consider international law and permits them to consider foreign law. The Constitutional Court has often drawn on German, Canadian and other decisions, while stating that they are used for insight and not as binding authority. Canadian, Australian, Indian and Israeli courts have also drawn on foreign materials in constitutional and other cases, and the Supreme Court of Canada and English courts regularly cite Commonwealth decisions. Common law courts have a long tradition of looking to one another's reasoning, especially where the law derives from a shared source.",
+    "In the United States the practice has been controversial. In Printz v. United States (1997), a case on whether the federal government could require state officers to conduct gun purchaser background checks, Justice Breyer in dissent referred to the experience of other federal systems, such as Switzerland and Germany, as relevant to whether the arrangement worked. Justice Scalia, for the majority, responded that such comparisons were irrelevant to the meaning of the American Constitution, though he accepted that comparative experience can be informative for judging how a rule works in practice. In Lawrence v. Texas (2003), the majority struck down a law criminalising same-sex sexual conduct and noted in passing that the European Court of Human Rights had reached a different view in Dudgeon v. United Kingdom (1981) decades before. In Roper v. Simmons (2005) the Court held that executing offenders who were under eighteen at the time of their crimes violates the Eighth Amendment and, in addition to domestic evidence of an evolving national consensus, noted that the overwhelming weight of international opinion was against the practice. Justice Scalia dissented, arguing that foreign views should not inform the interpretation of the American Constitution.",
+    "The arguments can be stated fairly. Supporters of using foreign materials argue that they are a source of reasoning and evidence, much as law review articles are: they show how other thoughtful courts have addressed similar problems, test intuitions and illuminate consequences, without binding the court. Critics offer several objections. One is democratic legitimacy: constitutional meaning should be determined by the people's own enactments and history, and foreign decisions have no authority to alter it. A second is selectivity, the risk of cherry-picking foreign sources that support a preferred result while ignoring others. A third concerns context: foreign decisions rest on different texts, institutions and cultures, which a court may misunderstand. Intermediate positions hold that foreign law is appropriate on some questions, such as the practical effects of a rule, and less so on others, such as the original meaning of the text.",
+    "There are also limits on comparative claims in scholarship. Statements such as \"common law countries have better investor protection\" were advanced in the legal origins literature, which linked legal tradition to economic outcomes, and have been criticised for coding rules too simply, for ignoring local institutions and for causal claims that are difficult to prove. A related lesson is that a rule's effect depends on the whole system around it: an apparently similar rule on jury trial or class actions may function differently with different procedures, costs and professional cultures.",
+    "Good comparative practice therefore includes several habits: understand the foreign rule in its own context, including its sources, institutions and practice; compare functions as well as texts; be explicit about why the comparison is relevant; disclose evidence against one's conclusion; and avoid treating any one system as the standard against which all others are measured.",
+    "Worked example: a court considering a novel privacy claim finds that three foreign courts have recognised similar claims and two have rejected them, with different statutes. A careful opinion explains the differences in the foreign legal frameworks, uses the decisions to illustrate possible consequences, and bases its holding on its own constitutional text and precedent."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "law-comparative.l01.q1",
+   "lessonId": "law-comparative.l01",
+   "kind": "mcq",
+   "prompt": "According to the functional method, where should a comparative study begin?",
+   "choices": [
+    "With the legal family to which each system belongs, then comparing doctrines",
+    "With the history of each system's courts, then comparing their procedures",
+    "With a social problem, then asking how each system's institutions address it",
+    "With a rule from one system, then searching for the same rule in others"
+   ]
+  },
+  {
+   "id": "law-comparative.l01.q2",
+   "lessonId": "law-comparative.l01",
+   "kind": "mcq",
+   "prompt": "A comparatist finds that English law needs consideration for enforcing a gift promise, while German law requires notarisation. What does the functional method conclude?",
+   "choices": [
+    "English law protects donors while German law protects recipients",
+    "German law is more advanced because it relies on a formality",
+    "Both devices serve the same function of screening out unreliable gratuitous promises",
+    "The systems differ so greatly that no useful comparison can be made"
+   ]
+  },
+  {
+   "id": "law-comparative.l01.q3",
+   "lessonId": "law-comparative.l01",
+   "kind": "mcq",
+   "prompt": "Which critic argues that functional comparison can flatten cultural and interpretive differences between systems?",
+   "choices": [
+    "Pierre Legrand",
+    "Konrad Zweigert",
+    "Rene David",
+    "Friedrich Savigny"
+   ]
+  },
+  {
+   "id": "law-comparative.l01.q4",
+   "lessonId": "law-comparative.l01",
+   "kind": "mcq",
+   "prompt": "A researcher compares two jurisdictions using only statutory texts and concludes the rules are almost identical, yet practitioners report very different outcomes. Which concept best explains the gap?",
+   "choices": [
+    "Private international law, because the dispute concerns conflict of laws",
+    "Legal formants, because judicial decisions and doctrine may point in different directions from the statute",
+    "Praesumptio similitudinis, because the presumption proves outcomes must be identical",
+    "Legal families, because identical statutes put the systems in the same family"
+   ]
+  },
+  {
+   "id": "law-comparative.l01.q5",
+   "lessonId": "law-comparative.l01",
+   "kind": "mcq",
+   "prompt": "A student writes that a foreign tribunal handling family disputes under religious rules is not \"really a court\" because it lacks a public prosecutor and jury. What is the main methodological error?",
+   "choices": [
+    "Functionalism: the student has begun from a social problem rather than a rule, which leads to the conclusion that the tribunal is not a court",
+    "Legal pluralism: the student has recognised more than one source of law in a system, which leads to treating religious tribunals as official",
+    "Ethnocentrism: judging a foreign institution by the categories of one's own system rather than in its own terms",
+    "Macro-comparison: the student has compared whole systems when only specific rules should be compared, and the compared institutions are unrelated"
+   ]
+  },
+  {
+   "id": "law-comparative.l02.q1",
+   "lessonId": "law-comparative.l02",
+   "kind": "mcq",
+   "prompt": "What is the ratio decidendi of a common law decision?",
+   "choices": [
+    "The statement of facts, which is binding on all later courts",
+    "The legal reasoning necessary to reach the result, which binds later courts",
+    "Any remark made by the judge about the law, binding or not",
+    "The dissenting opinion, which sets out the minority view"
+   ]
+  },
+  {
+   "id": "law-comparative.l02.q2",
+   "lessonId": "law-comparative.l02",
+   "kind": "mcq",
+   "prompt": "Why did the Court of Chancery and equity develop in England?",
+   "choices": [
+    "Common law courts offered limited remedies and rigid forms, so petitioners sought the Chancellor's discretionary relief",
+    "Parliament created Chancery to administer a code of commercial law, and equity was developed to replace the writ system with a codified civil procedure",
+    "Chancery was created to hear criminal appeals from the jury courts, and equity developed as the law of the Church applied to marriage and wills",
+    "The Judicature Acts of the 1870s created Chancery to merge the common law courts, and equity arose from the resulting fusion of the two systems"
+   ]
+  },
+  {
+   "id": "law-comparative.l02.q3",
+   "lessonId": "law-comparative.l02",
+   "kind": "mcq",
+   "prompt": "The 1966 Practice Statement of the House of Lords concerned which issue?",
+   "choices": [
+    "Whether the House of Lords could review statutes passed by Parliament and strike down those that conflicted with the European Convention on Human Rights",
+    "Whether English courts must follow decisions of continental courts, and whether the House of Lords could depart from the rulings of the Court of Justice",
+    "Whether juries could decide questions of law and whether the House of Lords could bind itself by rulings on matters of fact",
+    "Whether the House would treat its own former decisions as normally binding while allowing departure when right to do so"
+   ]
+  },
+  {
+   "id": "law-comparative.l02.q4",
+   "lessonId": "law-comparative.l02",
+   "kind": "mcq",
+   "prompt": "A trial court is asked to follow a higher court decision about liability under a sales contract. The earlier case involved an express written warranty; the present case has none, and the earlier opinion relied on the warranty's text. What is the strongest argument for the losing party?",
+   "choices": [
+    "The precedent cannot bind because common law courts never follow earlier cases",
+    "The precedent is invalid because the earlier court lacked jurisdiction over contract law",
+    "The precedent is distinguishable because its ratio depended on a fact absent here",
+    "The precedent is obiter dictum because it was decided by a higher court"
+   ]
+  },
+  {
+   "id": "law-comparative.l02.q5",
+   "lessonId": "law-comparative.l02",
+   "kind": "mcq",
+   "prompt": "A student states that all common law countries have identical legal systems because they share a tradition. Which fact best refutes this?",
+   "choices": [
+    "All common law countries have written constitutions that provide for judicial review in the same form as in the United States, with elected judges",
+    "The United States adds a written constitution, federalism and judicial review that differ from the English model",
+    "All common law countries use only juries to decide civil disputes, and all of them have the same final court of appeal, so differences are minor",
+    "All common law countries have rejected statutes in favour of precedent, so that every rule in each of them derives entirely from decisions of judges"
+   ]
+  },
+  {
+   "id": "law-comparative.l03.q1",
+   "lessonId": "law-comparative.l03",
+   "kind": "mcq",
+   "prompt": "Which is the correct list of the four parts of Justinian's Corpus Juris Civilis?",
+   "choices": [
+    "Codex, Digest, Institutes and Novellae",
+    "Twelve Tables, Digest, Institutes and Glosses",
+    "Codex, Pandects, Decretum and Novellae",
+    "Institutes, Responsa, Digest and Codex"
+   ]
+  },
+  {
+   "id": "law-comparative.l03.q2",
+   "lessonId": "law-comparative.l03",
+   "kind": "mcq",
+   "prompt": "What was the role of the glossators at Bologna?",
+   "choices": [
+    "They translated the Digest into the vernacular for lay readers",
+    "They wrote explanatory notes on the Roman texts, reviving their study in the late eleventh century onward",
+    "They drafted codes that replaced Justinian's compilation in the twelfth century",
+    "They applied Roman law as judges in royal courts of England"
+   ]
+  },
+  {
+   "id": "law-comparative.l03.q3",
+   "lessonId": "law-comparative.l03",
+   "kind": "mcq",
+   "prompt": "What was the ius commune?",
+   "choices": [
+    "The customary law of the Germanic tribes before Roman influence, which was applied by local assemblies and later recorded in royal codes",
+    "The body of rules applied by the English royal courts from the twelfth century, which became common to the whole of the realm",
+    "A learned law based on Roman and canon law taught in universities and applied as a subsidiary source in Europe",
+    "A binding code enacted by the Holy Roman Emperor for all territories, which replaced local customs and was applied by imperial courts from the thirteenth century"
+   ]
+  },
+  {
+   "id": "law-comparative.l03.q4",
+   "lessonId": "law-comparative.l03",
+   "kind": "mcq",
+   "prompt": "In 1814 Savigny opposed the proposal for a quick German civil code, arguing against it because he believed what?",
+   "choices": [
+    "Roman law was inapplicable in Germany and should be abandoned in favour of custom",
+    "Codes of any kind would give too much power to the judges",
+    "France's Code civil was a perfect model that should be copied without change",
+    "Law grows from the spirit of a people and should first be developed by scholarship, so a code was premature"
+   ]
+  },
+  {
+   "id": "law-comparative.l03.q5",
+   "lessonId": "law-comparative.l03",
+   "kind": "mcq",
+   "prompt": "Why does academic writing carry greater authority in civil law systems than in common law systems?",
+   "choices": [
+    "Doctrine was historically the main creator of systematic legal concepts, with scholars rather than judges shaping the tradition",
+    "Civil law judges are forbidden from citing any source other than scholarly writings, so scholars effectively control the outcome of every case in all civil law countries",
+    "Legal scholars sit as judges on the highest courts in all civil law countries, and their opinions in that office are binding on lower courts",
+    "The Corpus Juris Civilis made scholars official legislators, and their treatises therefore have the force of statutes in every civil law country today"
+   ]
+  },
+  {
+   "id": "law-comparative.l04.q1",
+   "lessonId": "law-comparative.l04",
+   "kind": "mcq",
+   "prompt": "On what date did the German Burgerliches Gesetzbuch enter into force?",
+   "choices": [
+    "1 January 1804",
+    "1 January 1871",
+    "1 January 1949",
+    "1 January 1900"
+   ]
+  },
+  {
+   "id": "law-comparative.l04.q2",
+   "lessonId": "law-comparative.l04",
+   "kind": "mcq",
+   "prompt": "What does the abstraction principle in German law provide?",
+   "choices": [
+    "Courts must decide cases without referring to the facts",
+    "Property rights are inferred from the general part of the code alone",
+    "The contract of sale and the transfer of ownership are separate legal acts",
+    "Contracts are valid only if written in abstract general terms"
+   ]
+  },
+  {
+   "id": "law-comparative.l04.q3",
+   "lessonId": "law-comparative.l04",
+   "kind": "mcq",
+   "prompt": "Which jurist drafted the Chilean Civil Code of 1855, a model for other Latin American countries?",
+   "choices": [
+    "Friedrich Carl von Savigny",
+    "Andres Bello",
+    "Dalmacio Velez Sarsfield",
+    "Jean-Etienne-Marie Portalis"
+   ]
+  },
+  {
+   "id": "law-comparative.l04.q4",
+   "lessonId": "law-comparative.l04",
+   "kind": "mcq",
+   "prompt": "A French judge in 1810 faces a dispute on which the Code civil is silent and refuses to decide on that ground. Under the Code as enacted, what is the position?",
+   "choices": [
+    "The judge acts unlawfully, because Article 4 forbids refusing to decide on the ground of silence or obscurity",
+    "The judge acts lawfully, because the Code forbids creating rules not found in its text",
+    "The judge must refer the question to the Emperor for a legislative answer",
+    "The judge must apply English precedent in the absence of a French rule"
+   ]
+  },
+  {
+   "id": "law-comparative.l04.q5",
+   "lessonId": "law-comparative.l04",
+   "kind": "mcq",
+   "prompt": "A scholar says that Latin American legal systems are simply copies of European ones. Which fact most undermines this claim?",
+   "choices": [
+    "All Latin American countries adopted English common law at independence and later added civil codes only for commercial law, which shows complete reliance on one European model",
+    "Latin American states rejected codification entirely until the twentieth century and relied on unwritten colonial custom, which shows that European influence was negligible",
+    "Latin American courts never cite national codes in their decisions and apply only international treaties, which shows that the codes were never actually used",
+    "Latin American constitutions combine US-style presidentialism and judicial review with civil law codes, and created remedies like the amparo and tutela"
+   ]
+  },
+  {
+   "id": "law-comparative.l05.q1",
+   "lessonId": "law-comparative.l05",
+   "kind": "mcq",
+   "prompt": "In comparative usage, what does the term civil law refer to?",
+   "choices": [
+    "Any legal system that does not use juries in trials",
+    "The body of law administered by religious tribunals",
+    "The legal tradition descended from Roman law and organised in codes",
+    "The branch of law dealing with private disputes as opposed to crimes"
+   ]
+  },
+  {
+   "id": "law-comparative.l05.q2",
+   "lessonId": "law-comparative.l05",
+   "kind": "mcq",
+   "prompt": "A German judge in a civil case directs the proceedings, questions witnesses and decides which evidence to obtain. Which tendency does this illustrate?",
+   "choices": [
+    "The party control characteristic of adversarial procedure",
+    "The jury-centred trial characteristic of common law procedure",
+    "The abolition of written submissions in civil law procedure",
+    "The more active judicial role characteristic of inquisitorial procedure"
+   ]
+  },
+  {
+   "id": "law-comparative.l05.q3",
+   "lessonId": "law-comparative.l05",
+   "kind": "mcq",
+   "prompt": "Why is a French court judgment typically short and delivered as one collective voice?",
+   "choices": [
+    "The career judiciary tradition favours anonymity, consistency and a code-based syllogistic style with no published dissent",
+    "French law forbids judges from giving reasons for their decisions, so that judgments consist of a bare order without explanation, which is why they are short",
+    "French courts follow the English practice of seriatim opinions, with each judge writing separately and publishing dissents, which is why the style is brief",
+    "French judgments are written by legislators rather than judges, who then issue them in the name of the court, which is why they are anonymous"
+   ]
+  },
+  {
+   "id": "law-comparative.l05.q4",
+   "lessonId": "law-comparative.l05",
+   "kind": "mcq",
+   "prompt": "A claimant sues because the defendant ended contract negotiations at a late stage after the claimant incurred costs. Which comparison of likely approaches is most accurate?",
+   "choices": [
+    "Both courts reject the claim because costs incurred in negotiation are never recoverable, since every legal system treats negotiation as being entirely at the party's risk",
+    "A German court may find liability under good faith and fault in negotiations, while a traditional English court recognises no general duty of good faith in negotiations",
+    "Both a German and an English court find liability automatically, because the beginning of negotiations creates a contract that binds the parties to conclude the deal",
+    "A German court rejects liability because the code forbids good faith claims, while an English court accepts liability because it recognises a general duty of good faith"
+   ]
+  },
+  {
+   "id": "law-comparative.l05.q5",
+   "lessonId": "law-comparative.l05",
+   "kind": "mcq",
+   "prompt": "A commentator claims that inquisitorial systems cannot be fair to the accused. What is the strongest response?",
+   "choices": [
+    "Fairness is unrelated to procedure in all systems, and any procedure is equally fair provided that the same court applies it consistently in every case",
+    "Adversarial systems are always fairer because they use juries, and inquisitorial systems have abandoned all safeguards for the accused since the introduction of the investigating judge",
+    "Fairness depends on safeguards such as judicial independence and the accused's procedural rights, and modern systems blend adversarial and inquisitorial elements",
+    "Inquisitorial systems have no rules of evidence and give the judge unlimited discretion, so they cannot be fair, and adversarial systems are fairer in every case because juries decide"
+   ]
+  },
+  {
+   "id": "law-comparative.l06.q1",
+   "lessonId": "law-comparative.l06",
+   "kind": "mcq",
+   "prompt": "Which event preserved Scotland's separate private law and court system?",
+   "choices": [
+    "The Judicature Acts of the 1870s",
+    "The Treaty of Union of 1707",
+    "The Scotland Act 1998",
+    "The Act of Settlement 1701"
+   ]
+  },
+  {
+   "id": "law-comparative.l06.q2",
+   "lessonId": "law-comparative.l06",
+   "kind": "mcq",
+   "prompt": "What is the origin of Roman-Dutch law in South Africa?",
+   "choices": [
+    "It arrived at the Cape with the Dutch East India Company in 1652 and was the law of Holland",
+    "It was imposed by Britain in 1806 as a code for the Cape Colony, replacing the customary law of the earlier Dutch settlers",
+    "It was drafted by the Constitutional Court in 1996 as the common law of the new republic, replacing the earlier English-influenced law",
+    "It developed from indigenous customary law and was adopted by the Dutch as the law of the colony after treaties with local chiefs"
+   ]
+  },
+  {
+   "id": "law-comparative.l06.q3",
+   "lessonId": "law-comparative.l06",
+   "kind": "mcq",
+   "prompt": "Which statement correctly describes Scottish criminal procedure?",
+   "choices": [
+    "It uses a jury of twelve who must reach unanimous verdicts",
+    "It has no juries and uses panels of professional judges only",
+    "It requires two witnesses for all civil claims",
+    "It uses a jury of fifteen, majority verdicts and a requirement of corroboration"
+   ]
+  },
+  {
+   "id": "law-comparative.l06.q4",
+   "lessonId": "law-comparative.l06",
+   "kind": "mcq",
+   "prompt": "A South African court decides a claim for loss caused by negligent conduct. Which analysis best reflects the mixed character of the system?",
+   "choices": [
+    "A purely Roman delict with no influence from any later tradition",
+    "A customary law rule that excludes the Constitution",
+    "A Roman-Dutch delictual framework derived from the Lex Aquilia, with English ideas informing the reasonable person standard",
+    "A purely English tort of negligence applied without reference to Roman-Dutch sources"
+   ]
+  },
+  {
+   "id": "law-comparative.l06.q5",
+   "lessonId": "law-comparative.l06",
+   "kind": "mcq",
+   "prompt": "Which feature distinguishes post-1994 South Africa from Scotland as a mixed system?",
+   "choices": [
+    "South Africa is governed by a purely civil law code enacted in 1910, while Scotland is a pure common law system with no civilian features in its private law",
+    "South Africa has a supreme Constitution with a Bill of Rights and recognises customary law, while the UK doctrine of parliamentary sovereignty has traditionally applied to Scotland",
+    "South Africa follows uncodified common law with no written constitution, while Scotland has a supreme constitutional court that can invalidate Acts of the Westminster Parliament",
+    "South Africa has rejected Roman-Dutch law entirely since 1994, while Scotland applies Roman law exclusively and has no English influence in any area of its private law"
+   ]
+  },
+  {
+   "id": "law-comparative.l07.q1",
+   "lessonId": "law-comparative.l07",
+   "kind": "mcq",
+   "prompt": "Which instrument restored French civil law in Quebec after the British conquest?",
+   "choices": [
+    "The Quebec Act of 1774",
+    "The Civil Code of Lower Canada of 1866",
+    "The Treaty of Paris of 1763",
+    "The Louisiana Purchase of 1803"
+   ]
+  },
+  {
+   "id": "law-comparative.l07.q2",
+   "lessonId": "law-comparative.l07",
+   "kind": "mcq",
+   "prompt": "Which statement about legal authority in Canada explains why Quebec keeps civil law in private matters but not criminal law?",
+   "choices": [
+    "The Supreme Court of Canada hears no criminal appeals from Quebec",
+    "Provinces control property and civil rights, while criminal law is a federal power applied across Canada",
+    "Quebec was exempted from federal law by the Treaty of Paris",
+    "Criminal law in Quebec is based on the Civil Code of Quebec"
+   ]
+  },
+  {
+   "id": "law-comparative.l07.q3",
+   "lessonId": "law-comparative.l07",
+   "kind": "mcq",
+   "prompt": "Which feature of Louisiana law shows its civil law heritage?",
+   "choices": [
+    "Louisiana has no connection to French or Spanish law",
+    "Louisiana's criminal law follows the French Code penal",
+    "The Civil Code uses terms like obligations, usufruct and servitudes",
+    "Private law is entirely uncodified and based on precedent"
+   ]
+  },
+  {
+   "id": "law-comparative.l07.q4",
+   "lessonId": "law-comparative.l07",
+   "kind": "mcq",
+   "prompt": "A contract dispute in Quebec and an assault prosecution arise from the same events. Which description of the law applied is most accurate?",
+   "choices": [
+    "Both are decided under the Civil Code of Quebec, because the province has jurisdiction over all legal matters arising within its territory",
+    "Both are decided under English common law as of 1763, since the Treaty of Paris extended English law to all matters in the province",
+    "The contract claim is decided under federal law and the assault under the Civil Code, since criminal law is a provincial power in Quebec",
+    "The contract claim is decided under the Civil Code of Quebec, while the assault is prosecuted under the federal Criminal Code"
+   ]
+  },
+  {
+   "id": "law-comparative.l07.q5",
+   "lessonId": "law-comparative.l07",
+   "kind": "mcq",
+   "prompt": "A student claims Louisiana is purely civilian because its private law is codified. Which observation best qualifies the claim?",
+   "choices": [
+    "Its criminal law, civil procedure and public law largely follow the American common law model, and court decisions have grown in influence",
+    "Its Civil Code was enacted in the twentieth century by the United States Congress, and its courts apply the code as a federal statute with no local variation",
+    "It has no legislature capable of amending its Civil Code, which can be changed only by the United States Supreme Court in the course of ordinary litigation",
+    "Its courts are forbidden from citing earlier decisions, so the influence of common law is confined to criminal procedure and has no effect on private law"
+   ]
+  },
+  {
+   "id": "law-comparative.l08.q1",
+   "lessonId": "law-comparative.l08",
+   "kind": "mcq",
+   "prompt": "Which scholar popularised the term legal transplants?",
+   "choices": [
+    "Pierre Legrand",
+    "Gunther Teubner",
+    "Rodolfo Sacco",
+    "Alan Watson"
+   ]
+  },
+  {
+   "id": "law-comparative.l08.q2",
+   "lessonId": "law-comparative.l08",
+   "kind": "mcq",
+   "prompt": "What does Teubner's metaphor of legal irritants suggest?",
+   "choices": [
+    "A foreign rule can never be transplanted under any circumstances, because its meaning depends entirely on the culture in which it first developed",
+    "A foreign rule is irrelevant if it is not written in the local language, since a translated text has no authority as a source of law in the host system",
+    "A foreign rule disturbs the domestic system and sets off reactions that change both the rule and its surroundings",
+    "A foreign rule always integrates smoothly into a new system, leaving both the rule and the host law unchanged, so long as the text is translated accurately"
+   ]
+  },
+  {
+   "id": "law-comparative.l08.q3",
+   "lessonId": "law-comparative.l08",
+   "kind": "mcq",
+   "prompt": "Which statement correctly describes Turkey's 1926 reforms?",
+   "choices": [
+    "Turkey adopted the German BGB in 1900, as part of the Ottoman reform movement, and replaced it with the Swiss code only in 1960",
+    "Turkey adopted the Swiss Civil Code and Code of Obligations as part of a secularising programme",
+    "Turkey adopted the French Code civil unchanged in 1804, after Napoleon's expansion, and has retained it to the present day without amendment",
+    "Turkey adopted English common law for private matters in 1926, as part of a programme of alignment with the British Commonwealth"
+   ]
+  },
+  {
+   "id": "law-comparative.l08.q4",
+   "lessonId": "law-comparative.l08",
+   "kind": "mcq",
+   "prompt": "A country copies a foreign company law statute verbatim, but investor confidence does not rise because judges are unfamiliar with the concepts and enforcement is weak. Which conclusion best fits the debate?",
+   "choices": [
+    "Transplants work best with accompanying institutions, training and adaptation, a point on which Watson and his critics partly agree",
+    "The failure proves that borrowing law is never possible, because a rule is inseparable from its culture and cannot function in a different society under any circumstances",
+    "The failure proves that law is unrelated to economic behaviour, since the same statute produced no change in investor confidence in the borrowing country",
+    "The failure shows that the statute should have been written in the local language, because translation errors are the main reason that borrowed laws do not work"
+   ]
+  },
+  {
+   "id": "law-comparative.l08.q5",
+   "lessonId": "law-comparative.l08",
+   "kind": "mcq",
+   "prompt": "Why is the CISG of 1980 often cited as an example of convergence?",
+   "choices": [
+    "It abolishes national contract law in all participating states",
+    "It creates a single international court with jurisdiction over all sales",
+    "It applies only to contracts between states and not between businesses",
+    "It harmonises the law of international sales among many states by blending civil law and common law ideas"
+   ]
+  },
+  {
+   "id": "law-comparative.l09.q1",
+   "lessonId": "law-comparative.l09",
+   "kind": "mcq",
+   "prompt": "In the classical theory of Islamic jurisprudence, which list gives the four main sources?",
+   "choices": [
+    "Quran, hadith, fatwa and ijtihad",
+    "Sunna, qiyas, taqlid and ijtihad",
+    "Quran, Sunna, ijma (consensus) and qiyas (analogy)",
+    "Quran, Sunna, urf (custom) and maslaha (public interest)"
+   ]
+  },
+  {
+   "id": "law-comparative.l09.q2",
+   "lessonId": "law-comparative.l09",
+   "kind": "mcq",
+   "prompt": "What is the difference between sharia and fiqh as the terms are commonly distinguished?",
+   "choices": [
+    "Sharia is a modern code, while fiqh is the ancient revelation",
+    "Sharia applies to Sunnis and fiqh applies to Shia",
+    "Sharia means ritual only, while fiqh means civil law only",
+    "Sharia refers to the divine path, while fiqh is the human scholarly effort to understand it"
+   ]
+  },
+  {
+   "id": "law-comparative.l09.q3",
+   "lessonId": "law-comparative.l09",
+   "kind": "mcq",
+   "prompt": "Which school of Sunni law is named after Malik ibn Anas and is historically strong in North and West Africa?",
+   "choices": [
+    "The Maliki school",
+    "The Hanafi school",
+    "The Shafii school",
+    "The Hanbali school"
+   ]
+  },
+  {
+   "id": "law-comparative.l09.q4",
+   "lessonId": "law-comparative.l09",
+   "kind": "mcq",
+   "prompt": "A student claims that Islamic law is a single code on which all Muslims agree. Which fact most directly refutes this?",
+   "choices": [
+    "All Muslim-majority states apply identical statutes derived from a single school, which shows that Muslims agree on every question of law and practice",
+    "Several Sunni schools, the Jafari Shia school and others hold different positions, and are regarded as mutually legitimate",
+    "The Quran contains no legal verses at all, and all rules of Islamic law were created by modern states, which therefore differ from one country to another",
+    "Islamic law has no tradition of scholarship and was devised by colonial administrators, who applied one uniform code to all Muslim communities in the empire"
+   ]
+  },
+  {
+   "id": "law-comparative.l09.q5",
+   "lessonId": "law-comparative.l09",
+   "kind": "mcq",
+   "prompt": "A scholar argues that new rulings on unfamiliar problems may be derived by considering the protection of life, intellect, lineage, property and religion. Which concept is being invoked?",
+   "choices": [
+    "Isnad, the chain of transmission of a hadith report",
+    "Qadi, the office of judge",
+    "Maqasid al-sharia, the higher objectives of the law",
+    "Taqlid, following the authority of an established school"
+   ]
+  },
+  {
+   "id": "law-comparative.l10.q1",
+   "lessonId": "law-comparative.l10",
+   "kind": "mcq",
+   "prompt": "What was the Mecelle?",
+   "choices": [
+    "An Ottoman codification of civil and commercial law based on the Hanafi school, drawn up between 1869 and 1876",
+    "A twentieth-century Egyptian civil code modelled on the French Code and drafted by al-Sanhuri, which listed Islamic law as a supplementary source",
+    "A collection of hadith compiled by the Maliki school in the eighth century, setting out reports of the Prophet's sayings on commercial transactions",
+    "A constitutional charter of the Islamic Republic of Iran, adopted in 1979, which established a Guardian Council to review legislation"
+   ]
+  },
+  {
+   "id": "law-comparative.l10.q2",
+   "lessonId": "law-comparative.l10",
+   "kind": "mcq",
+   "prompt": "What did the Egyptian Civil Code of 1948, drafted by al-Sanhuri, do?",
+   "choices": [
+    "It applied the common law of England in Egyptian courts",
+    "It combined a French-style civil code structure with Islamic law as a supplementary source",
+    "It abolished all Islamic influence in private law",
+    "It adopted the Hanbali school as the sole source of law"
+   ]
+  },
+  {
+   "id": "law-comparative.l10.q3",
+   "lessonId": "law-comparative.l10",
+   "kind": "mcq",
+   "prompt": "Which term describes the reform technique of selecting among the opinions of the different schools to produce a modern family law?",
+   "choices": [
+    "Gharar",
+    "Murabaha",
+    "Takhayyur",
+    "Qiyas"
+   ]
+  },
+  {
+   "id": "law-comparative.l10.q4",
+   "lessonId": "law-comparative.l10",
+   "kind": "mcq",
+   "prompt": "A civil dispute over a commercial lease and a divorce proceeding arise in a Muslim-majority state with an Egyptian-style civil code and codified personal status law. Which description of the law applied is most accurate?",
+   "choices": [
+    "Both are decided under uncodified classical fiqh with no statutes, because Muslim-majority states leave all private law to the schools and apply no civil code",
+    "Both are decided under the civil code, since personal status law in such states is entirely secular and takes no account of Islamic jurisprudence",
+    "The lease is decided in sharia courts under Islamic law, and the divorce is decided under the civil code, which reverses the usual allocation",
+    "The lease is decided under the civil code, while the divorce is decided under the personal status law drawing on Islamic jurisprudence"
+   ]
+  },
+  {
+   "id": "law-comparative.l10.q5",
+   "lessonId": "law-comparative.l10",
+   "kind": "mcq",
+   "prompt": "A bank offers a product where it buys an asset and sells it to the client at a disclosed higher price payable in instalments. Which concept does this correspond to in Islamic finance?",
+   "choices": [
+    "Murabaha, a cost-plus sale used in place of an interest-bearing loan",
+    "Sukuk, a certificate of ownership in an asset pool issued to investors",
+    "Riba, the prohibited increase on a loan",
+    "Takhayyur, the selection among school opinions"
+   ]
+  },
+  {
+   "id": "law-comparative.l11.q1",
+   "lessonId": "law-comparative.l11",
+   "kind": "mcq",
+   "prompt": "Which work, completed around the sixth century, became the more authoritative of the two Talmuds?",
+   "choices": [
+    "The Shulchan Aruch",
+    "The Babylonian Talmud",
+    "The Jerusalem Talmud",
+    "The Mishneh Torah"
+   ]
+  },
+  {
+   "id": "law-comparative.l11.q2",
+   "lessonId": "law-comparative.l11",
+   "kind": "mcq",
+   "prompt": "What does the principle dina de-malkhuta dina mean?",
+   "choices": [
+    "The law of the kingdom is binding law in civil matters",
+    "Jewish law applies only in the land of Israel",
+    "Rabbinical courts may overrule any state court",
+    "Civil law is invalid if it conflicts with the Mishnah"
+   ]
+  },
+  {
+   "id": "law-comparative.l11.q3",
+   "lessonId": "law-comparative.l11",
+   "kind": "mcq",
+   "prompt": "The Shulchan Aruch of Joseph Karo became widely authoritative for both Sephardi and Ashkenazi communities because of which feature?",
+   "choices": [
+    "It was commanded by the Roman emperor as an official code",
+    "It abolished all local custom in favour of one rule",
+    "It was written in Aramaic by the compilers of the Mishnah",
+    "The glosses of Moses Isserles recorded Ashkenazi practice alongside Karo's rulings"
+   ]
+  },
+  {
+   "id": "law-comparative.l11.q4",
+   "lessonId": "law-comparative.l11",
+   "kind": "mcq",
+   "prompt": "A couple married in an Orthodox ceremony obtain a civil divorce decree. The wife wishes to remarry within the Orthodox community. What does halakha additionally require?",
+   "choices": [
+    "A declaration of nullity from the Roman Rota",
+    "A fatwa from a mufti recognising the civil decree",
+    "A get, a bill of divorce delivered by the husband and accepted by the wife under a beit din's supervision",
+    "Nothing, since the civil decree is automatically accepted as a Jewish divorce"
+   ]
+  },
+  {
+   "id": "law-comparative.l11.q5",
+   "lessonId": "law-comparative.l11",
+   "kind": "mcq",
+   "prompt": "Hillel's prozbul is cited as an example of which feature of halakha?",
+   "choices": [
+    "A canon of Talmudic reasoning by analogy that allows a court to extend a Biblical penalty to a new offence by comparing the two cases",
+    "A rabbinic enactment adapting the law to economic needs so that creditors could still lend despite the sabbatical cancellation of debts",
+    "A rule that forbids any change to the Written Torah and requires that all loans be cancelled at the sabbatical year without exception, so that creditors lose their claims",
+    "A form of state law that overrides rabbinic law whenever civil authorities determine that a debt should be enforced, following the principle that the law of the kingdom applies"
+   ]
+  },
+  {
+   "id": "law-comparative.l12.q1",
+   "lessonId": "law-comparative.l12",
+   "kind": "mcq",
+   "prompt": "Which twelfth-century work by Gratian became the foundation of the medieval Corpus Iuris Canonici?",
+   "choices": [
+    "The Mishneh Torah",
+    "The Mecelle",
+    "The Decretum",
+    "The Digest"
+   ]
+  },
+  {
+   "id": "law-comparative.l12.q2",
+   "lessonId": "law-comparative.l12",
+   "kind": "mcq",
+   "prompt": "What does an annulment, properly called a declaration of nullity, decide in Catholic canon law?",
+   "choices": [
+    "Whether a civil divorce may be granted by the church",
+    "Whether a marriage may be dissolved at the will of the spouses",
+    "Whether the children of the marriage are legitimate under civil law",
+    "Whether a valid sacramental marriage ever came into being"
+   ]
+  },
+  {
+   "id": "law-comparative.l12.q3",
+   "lessonId": "law-comparative.l12",
+   "kind": "mcq",
+   "prompt": "The Hindu Marriage Act 1955 and Hindu Succession Act 1956 in India are best described how?",
+   "choices": [
+    "Statutes reforming Hindu personal law, introducing monogamy and divorce and improving women's rights",
+    "Translations of the Manusmriti into English, given the force of law by the British Parliament and applied by the Privy Council to all Indians",
+    "Colonial regulations enacted by Warren Hastings in the 1770s, setting out the rules to be applied by courts in disputes among Hindus",
+    "Religious rulings issued by a council of Brahmin scholars, binding on Hindu communities without any enactment by the legislature"
+   ]
+  },
+  {
+   "id": "law-comparative.l12.q4",
+   "lessonId": "law-comparative.l12",
+   "kind": "mcq",
+   "prompt": "A historian says Hindu law was a single codified system before colonial rule. Which fact best qualifies that claim?",
+   "choices": [
+    "The Mitakshara and the Dayabhaga were identical commentaries applying one rule of inheritance, which shows that Hindu law had already been unified before any colonial intervention",
+    "The Dharmashastra was a developing body of commentary and digests, with local custom and assemblies shaping outcomes, and the idea of a unified Hindu law largely emerged in the colonial period",
+    "The Dharmashastra was a single binding code enacted by one ruler and applied uniformly by state courts across the subcontinent, so colonial administrators merely continued an existing practice",
+    "The Dharmashastra was written by British administrators in the eighteenth century from local customs, and Indian scholars had no earlier legal literature of comparable character"
+   ]
+  },
+  {
+   "id": "law-comparative.l12.q5",
+   "lessonId": "law-comparative.l12",
+   "kind": "mcq",
+   "prompt": "Which explanation best describes how canon law influenced secular legal systems in medieval Europe?",
+   "choices": [
+    "Canon law was applied only to clergy and had no effect on secular law, since church courts never heard cases about marriage, wills or contracts",
+    "Canon law adopted the common law's jury system and spread it to the continent, so that continental trials came to resemble those of the English royal courts",
+    "Church courts developed written pleadings, rational proof and ideas of intent, and jointly with Roman law formed the ius commune",
+    "Canon law abolished Roman law across Europe by decree in the twelfth century and replaced it with a single code that secular courts applied without modification"
+   ]
+  },
+  {
+   "id": "law-comparative.l13.q1",
+   "lessonId": "law-comparative.l13",
+   "kind": "mcq",
+   "prompt": "What did the High Court of Australia decide in Mabo v Queensland (No 2) (1992)?",
+   "choices": [
+    "It held that all land in Australia belonged to the Crown without exception, and that indigenous peoples had no rights recognised by the common law",
+    "It transferred ownership of all land in Australia to indigenous peoples and ordered the return of every parcel held by private owners",
+    "It held that native title could be recognised only by a statute of the Commonwealth Parliament, and that courts had no power to recognise it at common law",
+    "It rejected the doctrine of terra nullius and recognised that native title survived where not validly extinguished"
+   ]
+  },
+  {
+   "id": "law-comparative.l13.q2",
+   "lessonId": "law-comparative.l13",
+   "kind": "mcq",
+   "prompt": "What is the difference between official customary law and living customary law?",
+   "choices": [
+    "Official customary law applies to indigenous peoples, while living customary law applies to colonists, who brought their own customs to the territory",
+    "Official customary law is unwritten and passed on by elders, while living customary law is the version recorded in colonial codes and treatises",
+    "Official customary law is a codified or recorded version that may freeze rules, while living customary law is the practice as it actually evolves",
+    "Official customary law is applied in villages by chiefs, while living customary law is the version applied by the state's courts and codified in statutes"
+   ]
+  },
+  {
+   "id": "law-comparative.l13.q3",
+   "lessonId": "law-comparative.l13",
+   "kind": "mcq",
+   "prompt": "In Bhe v Magistrate, Khayelitsha (2004), what did the South African Constitutional Court hold about the customary rule of male primogeniture?",
+   "choices": [
+    "It was replaced by the common law of England",
+    "It was inconsistent with the constitutional right to equality and invalid",
+    "It was valid because customary law is immune from constitutional review",
+    "It was valid but should be applied only to men"
+   ]
+  },
+  {
+   "id": "law-comparative.l13.q4",
+   "lessonId": "law-comparative.l13",
+   "kind": "mcq",
+   "prompt": "A community resolves an inheritance dispute through a family council applying customary rules that give a daughter a smaller share than her brother. She challenges the outcome in a state court in a country whose constitution recognises customary law subject to the equality guarantee. How is the court likely to approach the claim?",
+   "choices": [
+    "It asks whether the customary rule is consistent with the constitutional equality right, giving weight to custom but not exempting it from review",
+    "It refuses jurisdiction because customary law lies entirely outside the state legal order, and a state court has no power to examine any decision of a customary forum",
+    "It applies the customary rule automatically because customary law overrides the constitution wherever the community has long followed it, whatever the equality guarantee provides",
+    "It applies the English common law of inheritance in place of custom, since colonial law is the default rule wherever the customary rule is thought unfair"
+   ]
+  },
+  {
+   "id": "law-comparative.l13.q5",
+   "lessonId": "law-comparative.l13",
+   "kind": "mcq",
+   "prompt": "Which statement best reflects the debate over recognising indigenous legal orders in state law?",
+   "choices": [
+    "Supporters argue that indigenous law should replace state law entirely, while critics argue that it should be abolished, and no one proposes any middle course of dialogue or reconciliation",
+    "All commentators agree that indigenous law should be exempt from constitutional review, and the debate concerns only which community may decide the question of exemption in each case",
+    "The debate concerns only the language in which customary rules are recorded, since both supporters and critics accept that questions of rights and authority are fully settled",
+    "Supporters stress self-determination and legitimacy, while critics raise conflicts with individual rights and the freezing of custom, and many propose reconciling the two through dialogue"
+   ]
+  },
+  {
+   "id": "law-comparative.l14.q1",
+   "lessonId": "law-comparative.l14",
+   "kind": "mcq",
+   "prompt": "Which code, issued in 624 and reissued with commentary in 653, became a model for Japan, Korea and Vietnam?",
+   "choices": [
+    "The Tang Code",
+    "The Qing Code",
+    "The Civil Code of 2020",
+    "The Legalist Code of Shang Yang"
+   ]
+  },
+  {
+   "id": "law-comparative.l14.q2",
+   "lessonId": "law-comparative.l14",
+   "kind": "mcq",
+   "prompt": "What is distinctive about the Civil Code of the People's Republic of China adopted in 2020?",
+   "choices": [
+    "It is an imperial code of the Qing dynasty, issued in the eighteenth century, which consolidated penal provisions and was later adopted by Japan",
+    "It is the first code of its kind in the PRC, consolidating earlier statutes into a single structure effective 1 January 2021",
+    "It replaced the Constitution as the supreme law of the country and was adopted in 1949 after the Communist victory, abolishing all earlier statutes and codes",
+    "It applies only in Hong Kong and Macau, where it replaced the common law and Portuguese civil law under the Basic Law in 1997"
+   ]
+  },
+  {
+   "id": "law-comparative.l14.q3",
+   "lessonId": "law-comparative.l14",
+   "kind": "mcq",
+   "prompt": "Who has authority to interpret the Constitution and review legislation in the People's Republic of China?",
+   "choices": [
+    "A specialised constitutional court established in 1982",
+    "The Hong Kong Court of Final Appeal",
+    "The Standing Committee of the National People's Congress",
+    "The Supreme People's Court by striking down statutes"
+   ]
+  },
+  {
+   "id": "law-comparative.l14.q4",
+   "lessonId": "law-comparative.l14",
+   "kind": "mcq",
+   "prompt": "A commercial dispute in Shanghai is analysed under the Civil Code's contract provisions. The court encourages mediation and considers a Supreme People's Court interpretation and a guiding case. What does this show?",
+   "choices": [
+    "The system is identical to English common law in every respect, because the court relies on binding precedent from higher courts and does not refer to any code or administrative interpretation",
+    "The system rejects codification and relies on unwritten custom, so the Civil Code plays no part and the Supreme People's Court has no role in guiding lower courts",
+    "The Civil Code excludes mediation entirely, and judges have no discretion to encourage settlement, which makes the process identical to a pure adversarial trial",
+    "The sources and practice combine a civil law style code with mediation and judicial guidance that differ from both classical civil law and common law patterns"
+   ]
+  },
+  {
+   "id": "law-comparative.l14.q5",
+   "lessonId": "law-comparative.l14",
+   "kind": "mcq",
+   "prompt": "Analysts disagree on how to characterise the contemporary Chinese legal system. Which statement best represents the range of views?",
+   "choices": [
+    "Official accounts stress the development of law and governance, while many scholars and rights groups stress limits on judicial independence and the Party's role",
+    "Official accounts and independent scholars agree that the courts are fully independent of the Party, and the debate concerns only the number of statutes enacted by the National People's Congress",
+    "All analysts agree that the system is a common law system governed by precedent, and differ only about the number of judges who sit in the Supreme People's Court",
+    "Both official and scholarly accounts hold that there are no codes and no courts, since the system relies exclusively on mediation conducted by local officials and family elders"
+   ]
+  },
+  {
+   "id": "law-comparative.l15.q1",
+   "lessonId": "law-comparative.l15",
+   "kind": "mcq",
+   "prompt": "Which foreign code most strongly influenced the Japanese Civil Code enacted in 1896 and 1898?",
+   "choices": [
+    "The Napoleonic Code of 1804 without change",
+    "The German Civil Code draft (BGB)",
+    "The English common law",
+    "The Swiss Civil Code of 1907"
+   ]
+  },
+  {
+   "id": "law-comparative.l15.q2",
+   "lessonId": "law-comparative.l15",
+   "kind": "mcq",
+   "prompt": "What did Article 81 of the 1947 Constitution of Japan provide?",
+   "choices": [
+    "The Supreme Court has the power to determine the constitutionality of laws and regulations",
+    "The emperor is the sovereign of Japan and the symbol of the state, and the Diet is the highest organ of state power in a system of imperial rule",
+    "War is renounced as a sovereign right of the nation, and the maintenance of land, sea and air forces is prohibited as a consequence of that renunciation",
+    "Lay judges sit with professional judges in all civil trials, and their decisions are subject to review by the Supreme Court on constitutional grounds"
+   ]
+  },
+  {
+   "id": "law-comparative.l15.q3",
+   "lessonId": "law-comparative.l15",
+   "kind": "mcq",
+   "prompt": "The institutional explanation of Japan's low litigation rate, associated with John Owen Haley, emphasises what?",
+   "choices": [
+    "A cultural preference for harmony that prevents Japanese people from using courts at all, together with the absence of any courts before 1945",
+    "A constitutional ban on civil litigation introduced in 1947, together with the requirement that all disputes be settled by the emperor's officials",
+    "The fact that Japan has far more judges and lawyers per capita than the United States, which makes informal settlement cheaper than a trial",
+    "Limited numbers of judges and lawyers and procedural barriers, rather than a cultural aversion to litigation"
+   ]
+  },
+  {
+   "id": "law-comparative.l15.q4",
+   "lessonId": "law-comparative.l15",
+   "kind": "mcq",
+   "prompt": "In Interpretation No. 748 (2017), what did the Taiwan Constitutional Court hold?",
+   "choices": [
+    "That the Civil Code's marriage provisions were constitutional and that the question of same-sex marriage belonged to the legislature alone, with no deadline for action",
+    "That marriage was a matter for the executive branch, which could extend registration to same-sex couples by regulation, and that courts had no role in the question",
+    "That excluding same-sex couples from marriage in the Civil Code violated freedom of marriage and equal protection, and that the legislature must act within two years",
+    "That same-sex marriage was immediately valid with no legislation required, because the Court held that existing Civil Code provisions should be read to include same-sex couples from that day"
+   ]
+  },
+  {
+   "id": "law-comparative.l15.q5",
+   "lessonId": "law-comparative.l15",
+   "kind": "mcq",
+   "prompt": "A commentator says all East Asian legal systems are Confucian and therefore alike. Which observation best undermines this claim?",
+   "choices": [
+    "All four use the common law system and the doctrine of binding precedent, and differ only in the language in which decisions are written",
+    "Japan, Korea, Taiwan and China differ in codes, constitutional courts, party systems and the role of judicial review",
+    "All four have identical constitutions drafted by the same body, and all four apply a single Confucian code through the same type of court",
+    "All four reject written law in favour of custom and have no constitutional courts, which shows that they share one Confucian legal culture"
+   ]
+  },
+  {
+   "id": "law-comparative.l16.q1",
+   "lessonId": "law-comparative.l16",
+   "kind": "mcq",
+   "prompt": "What did the Court of Justice hold in Van Gend en Loos (1963)?",
+   "choices": [
+    "A member state can be liable in damages to individuals for loss caused by a failure to implement a directive that confers rights on them",
+    "The Court of Justice may review decisions of national constitutional courts and annul them where they conflict with the Community treaties",
+    "Certain Community treaty provisions have direct effect and create rights that individuals can invoke in national courts",
+    "Community law always prevails over national constitutions, including their fundamental rights provisions, and national courts have no authority to disapply it"
+   ]
+  },
+  {
+   "id": "law-comparative.l16.q2",
+   "lessonId": "law-comparative.l16",
+   "kind": "mcq",
+   "prompt": "What is the difference between a regulation and a directive in EU law?",
+   "choices": [
+    "A directive is directly applicable in all member states, while a regulation binds as to result but must be transposed into national law by national authorities",
+    "Both are non-binding recommendations addressed to member states, and neither can create rights or duties that national courts must enforce in a dispute",
+    "A regulation applies only to individuals and a directive applies only to states, so that no single instrument can bind both categories of subject",
+    "A regulation is directly applicable in all member states, while a directive binds as to its result but must be transposed by national authorities"
+   ]
+  },
+  {
+   "id": "law-comparative.l16.q3",
+   "lessonId": "law-comparative.l16",
+   "kind": "mcq",
+   "prompt": "What is the function of the preliminary reference procedure under Article 267 TFEU?",
+   "choices": [
+    "National courts ask the Court of Justice about the interpretation or validity of EU law, and then apply the answer in the case",
+    "The Court of Justice hears appeals from national supreme courts and may reverse their decisions in individual cases, replacing the judgment of the national court with its own",
+    "The European Commission refers disputes between member states to the Council, which then decides the case by qualified majority without any judicial involvement",
+    "Citizens file complaints directly with the European Parliament, which then issues a binding ruling on whether a national measure complies with EU law"
+   ]
+  },
+  {
+   "id": "law-comparative.l16.q4",
+   "lessonId": "law-comparative.l16",
+   "kind": "mcq",
+   "prompt": "A state fails to transpose a directive conferring rights on consumers, and a consumer suffers loss. Under Francovich, when may the state be liable in damages?",
+   "choices": [
+    "Only when the national legislature has expressly voted to refuse implementation and the Court of Justice has first declared the directive to have direct effect",
+    "When the directive confers rights, the content of the rights can be identified and there is a causal link between the failure and the loss",
+    "Only when the state has acted in bad faith in failing to implement the directive and the Commission has already begun infringement proceedings against that state before the Court",
+    "Never, because directives bind only states and cannot create rights for individuals, so no individual can claim damages for a failure to implement one"
+   ]
+  },
+  {
+   "id": "law-comparative.l16.q5",
+   "lessonId": "law-comparative.l16",
+   "kind": "mcq",
+   "prompt": "Which statement best describes the relationship between the Court of Justice and national constitutional courts?",
+   "choices": [
+    "The Court of Justice has no authority to interpret EU law, which is left entirely to national constitutional courts, so national courts decide the meaning of the treaties independently",
+    "National constitutional courts have no role in applying EU law, because the preliminary reference procedure transfers all cases from national courts to Luxembourg for decision",
+    "The Court of Justice asserts primacy and uniform application of EU law, while some national courts, as in the Solange decisions, reserve a final word on constitutional identity or fundamental rights",
+    "All national constitutional courts accept the absolute primacy of EU law over their national constitutions without reservation, so no conflict about the final word has ever arisen between Luxembourg and national courts"
+   ]
+  },
+  {
+   "id": "law-comparative.l17.q1",
+   "lessonId": "law-comparative.l17",
+   "kind": "mcq",
+   "prompt": "Which feature distinguishes the Kelsenian or concentrated model of constitutional review from the American model?",
+   "choices": [
+    "Every ordinary court decides constitutional questions in the course of litigation",
+    "Parliament alone decides whether a law is constitutional",
+    "Constitutional review is forbidden by the constitution",
+    "A specialised court, separate from the ordinary courts, has the power to annul unconstitutional statutes"
+   ]
+  },
+  {
+   "id": "law-comparative.l17.q2",
+   "lessonId": "law-comparative.l17",
+   "kind": "mcq",
+   "prompt": "What does the individual constitutional complaint in Germany allow?",
+   "choices": [
+    "An ordinary court to refuse to apply a statute in a case before it, without referring the matter to the Federal Constitutional Court, as in the diffuse American model",
+    "A person to challenge a private contract as unconstitutional directly before the Federal Constitutional Court, without exhausting any remedy before the ordinary courts",
+    "A person claiming a violation of basic rights by public authority to bring a claim to the Federal Constitutional Court after exhausting other remedies",
+    "The government or a group of legislators to ask the court for an abstract opinion on a law without any concrete dispute between parties, before any person has been affected"
+   ]
+  },
+  {
+   "id": "law-comparative.l17.q3",
+   "lessonId": "law-comparative.l17",
+   "kind": "mcq",
+   "prompt": "What did the Indian Supreme Court hold in Kesavananda Bharati v State of Kerala (1973)?",
+   "choices": [
+    "Constitutional amendments are subject to approval by state governors",
+    "Parliament may amend the Constitution but cannot alter its basic structure",
+    "Parliament has unlimited power to amend any part of the Constitution",
+    "The Constitution cannot be amended in any respect"
+   ]
+  },
+  {
+   "id": "law-comparative.l17.q4",
+   "lessonId": "law-comparative.l17",
+   "kind": "mcq",
+   "prompt": "A citizen raises a constitutional challenge to a statute as a defence in a state trial court in the United States, and later appeals through the ordinary system. A German citizen files a constitutional complaint with the Federal Constitutional Court after exhausting other remedies. What does the comparison illustrate?",
+   "choices": [
+    "The diffuse American model uses ordinary courts for constitutional questions, while the German concentrated model channels them to a specialised court",
+    "Both countries use identical procedures for constitutional review, with every ordinary court deciding constitutional questions and the highest court having only advisory power over them",
+    "The American system forbids individuals from raising constitutional challenges, while the German system permits only the government to ask a specialised court to review statutes",
+    "The German system allows no judicial review of statutes, while the American system gives a specialised court exclusive power to annul laws before they enter into force"
+   ]
+  },
+  {
+   "id": "law-comparative.l17.q5",
+   "lessonId": "law-comparative.l17",
+   "kind": "mcq",
+   "prompt": "The Netherlands, by Article 120 of its constitution, forbids courts from reviewing acts of parliament for constitutionality. A Dutch court nonetheless refuses to apply a statute because it conflicts with the European Convention on Human Rights. How is this consistent?",
+   "choices": [
+    "The court has acted unlawfully by exceeding its powers, because Article 120 forbids any review of a statute for conflict with a higher norm of any kind",
+    "The European Convention is part of the Dutch constitution, so the court is applying the constitution itself and Article 120 is not engaged by the review",
+    "Article 120 applies only to local regulations and municipal by-laws, so courts are free to review national statutes against any standard they choose",
+    "Dutch courts may review statutes against treaties, even though they cannot review them against the constitution"
+   ]
+  },
+  {
+   "id": "law-comparative.l18.q1",
+   "lessonId": "law-comparative.l18",
+   "kind": "mcq",
+   "prompt": "What does Section 33 of the Canadian Charter, the notwithstanding clause, allow?",
+   "choices": [
+    "A legislature to declare that a statute operates despite certain Charter rights for up to five years, renewable",
+    "The Supreme Court to amend the Charter itself whenever it finds a right to be inadequately protected, for as long as the court considers appropriate",
+    "The federal government to dismiss judges who have issued decisions that conflict with a federal statute, for a period of five years, renewable",
+    "Courts to override legislation permanently by declaring it invalid, with no possibility of response by the legislature, in any circumstances"
+   ]
+  },
+  {
+   "id": "law-comparative.l18.q2",
+   "lessonId": "law-comparative.l18",
+   "kind": "mcq",
+   "prompt": "What is the effect of a declaration of incompatibility under section 4 of the UK Human Rights Act 1998?",
+   "choices": [
+    "It requires the European Court of Human Rights to rehear the case",
+    "It states that a statute is incompatible with Convention rights but does not affect the statute's validity",
+    "It invalidates the statute immediately",
+    "It requires the monarch to withhold assent"
+   ]
+  },
+  {
+   "id": "law-comparative.l18.q3",
+   "lessonId": "law-comparative.l18",
+   "kind": "mcq",
+   "prompt": "Who described the countermajoritarian difficulty in judicial review?",
+   "choices": [
+    "Hans Kelsen",
+    "Ronald Dworkin",
+    "Alexander Bickel",
+    "Jeremy Waldron"
+   ]
+  },
+  {
+   "id": "law-comparative.l18.q4",
+   "lessonId": "law-comparative.l18",
+   "kind": "mcq",
+   "prompt": "A court finds that a statute violates a protected right. In the United States the court strikes it down, in the United Kingdom it issues a declaration of incompatibility, and in Canada it strikes the statute but the legislature re-enacts it with a notwithstanding declaration. What do these outcomes illustrate?",
+   "choices": [
+    "That all three countries have identical constitutional review",
+    "That Canada has no judicial review",
+    "That the UK court has more power than the US court",
+    "Different degrees of judicial power over the legislature, from strong-form to weak-form review"
+   ]
+  },
+  {
+   "id": "law-comparative.l18.q5",
+   "lessonId": "law-comparative.l18",
+   "kind": "mcq",
+   "prompt": "Which statement best captures the Waldron-Dworkin debate?",
+   "choices": [
+    "Waldron argues that disagreement about rights should be settled by legislatures through majority voting, while Dworkin argues that rights limit majority power and courts can treat questions of principle seriously",
+    "Waldron argues that courts should have unlimited power to strike down legislation because legislators lack moral understanding, while Dworkin argues that disagreements about rights belong only to elected assemblies",
+    "Waldron and Dworkin both argue that judicial review is unconstitutional in every system, and differ only on whether the abolition should be carried out by amendment or by a referendum",
+    "Waldron argues that rights have no moral basis and are only political conventions, while Dworkin argues that rights exist only if a legislature has expressly enacted them in a statute"
+   ]
+  },
+  {
+   "id": "law-comparative.l19.q1",
+   "lessonId": "law-comparative.l19",
+   "kind": "mcq",
+   "prompt": "Which list correctly states the four steps of German proportionality analysis?",
+   "choices": [
+    "Notice, hearing, decision and appeal",
+    "Legitimate aim, suitability, necessity and balancing in the narrow sense",
+    "Compelling interest, narrow tailoring, least restrictive means and rational basis",
+    "Standing, ripeness, mootness and political question"
+   ]
+  },
+  {
+   "id": "law-comparative.l19.q2",
+   "lessonId": "law-comparative.l19",
+   "kind": "mcq",
+   "prompt": "What was the test in R. v. Oakes (1986) concerned with?",
+   "choices": [
+    "Whether a limit on a Charter right is justified under section 1 as demonstrably justified in a free and democratic society",
+    "Whether a criminal trial must be held before a jury and whether a defendant has a right to counsel under the Charter's legal rights provisions",
+    "Whether provincial and federal powers overlap and which level of government may legislate on a given matter under the division of powers",
+    "Whether a legislature may use the notwithstanding clause to override a right and for how long such a declaration can remain in effect"
+   ]
+  },
+  {
+   "id": "law-comparative.l19.q3",
+   "lessonId": "law-comparative.l19",
+   "kind": "mcq",
+   "prompt": "In Brandenburg v. Ohio (1969), under what condition may the government punish advocacy of unlawful conduct?",
+   "choices": [
+    "Whenever the advocacy is offensive to a majority of the community, or tends to bring the government into contempt, even if no unlawful action is likely",
+    "Whenever the advocacy concerns any future crime, even in the abstract, since the First Amendment does not protect speech that praises unlawful conduct",
+    "Whenever the speaker belongs to an extremist organisation, because membership alone is enough to remove the protection of the First Amendment",
+    "When the advocacy is directed to inciting imminent lawless action and is likely to produce such action"
+   ]
+  },
+  {
+   "id": "law-comparative.l19.q4",
+   "lessonId": "law-comparative.l19",
+   "kind": "mcq",
+   "prompt": "A statute bans demonstrations near a government building. Under German proportionality, which question would a court ask that is not part of the American tiers-of-scrutiny approach in the same form?",
+   "choices": [
+    "Whether the building is publicly owned and whether the ban was enacted before the demonstration, because proportionality focuses on property rights and timing rather than on the aim and the means",
+    "Whether the court has first classified the speech as protected or unprotected, and then whether the demonstrators gave notice, which are the steps of German proportionality analysis",
+    "Whether a less restrictive means, such as time or place limits, would equally achieve the aim and whether the harm to assembly outweighs the benefit",
+    "Whether the demonstrators are citizens, and whether the legislature passed the ban by a supermajority, since German proportionality is concerned chiefly with the identity of the speakers and the legislative procedure"
+   ]
+  },
+  {
+   "id": "law-comparative.l19.q5",
+   "lessonId": "law-comparative.l19",
+   "kind": "mcq",
+   "prompt": "A commentator says Germany is less protective of free speech than the United States and therefore wrong. What is the best response from a comparative perspective?",
+   "choices": [
+    "The comparison is meaningless because constitutional rights cannot be compared across countries, since each text is unique and no court may consider any other system's reasoning",
+    "The two systems reflect different historical experiences and ways of weighing liberty against dignity and democratic defence, and the comparison clarifies trade-offs rather than proving one right",
+    "Germany protects speech as strongly as the United States in every respect, so the apparent difference is only a matter of translation and the two systems actually apply identical tests",
+    "The United States has the better rule because it imposes no limits at all, and the German approach shows that rights adjudication always ends in suppression of unpopular views"
+   ]
+  },
+  {
+   "id": "law-comparative.l20.q1",
+   "lessonId": "law-comparative.l20",
+   "kind": "mcq",
+   "prompt": "What does section 39 of the South African Constitution require of courts interpreting the Bill of Rights?",
+   "choices": [
+    "To refer all cases to the United Nations",
+    "To consider international law, and permits them to consider foreign law",
+    "To apply foreign law as binding authority",
+    "To ignore all foreign and international sources"
+   ]
+  },
+  {
+   "id": "law-comparative.l20.q2",
+   "lessonId": "law-comparative.l20",
+   "kind": "mcq",
+   "prompt": "In Roper v. Simmons (2005), what role did international opinion play?",
+   "choices": [
+    "The majority held the juvenile death penalty unconstitutional and noted that international opinion supported the conclusion in addition to domestic evidence",
+    "The Court held that foreign law was binding on the United States and that the juvenile death penalty was therefore invalid, without any reference to domestic evidence of national consensus",
+    "The Court ignored all foreign sources and relied exclusively on a ratified treaty, which it held to be directly enforceable against the states under the Supremacy Clause",
+    "The Court upheld the juvenile death penalty on the basis of foreign practice, reasoning that a majority of nations still permitted executions of offenders under eighteen"
+   ]
+  },
+  {
+   "id": "law-comparative.l20.q3",
+   "lessonId": "law-comparative.l20",
+   "kind": "mcq",
+   "prompt": "Which objection to citing foreign law concerns the risk of selecting sources that support a preferred result?",
+   "choices": [
+    "Standing",
+    "Stare decisis",
+    "Federalism",
+    "Cherry-picking, or selectivity"
+   ]
+  },
+  {
+   "id": "law-comparative.l20.q4",
+   "lessonId": "law-comparative.l20",
+   "kind": "mcq",
+   "prompt": "A court considers a novel privacy claim. Three foreign courts have recognised similar claims and two have rejected them, under different statutes. Which approach is best aligned with careful comparative practice?",
+   "choices": [
+    "Ignore the foreign decisions without comment, since any reference to another country's courts is forbidden in every legal system and would invalidate the judgment on appeal",
+    "Adopt the most protective foreign decision as binding authority, because a court must always follow the foreign court whose result best advances the right in question",
+    "Explain the foreign frameworks and differences, use the decisions to illustrate possible consequences, and rest the holding on domestic text and precedent",
+    "Count the foreign decisions on each side and follow the majority, because a larger number of courts reaching a result shows the result is correct regardless of differences in statutes"
+   ]
+  },
+  {
+   "id": "law-comparative.l20.q5",
+   "lessonId": "law-comparative.l20",
+   "kind": "mcq",
+   "prompt": "A study codes legal rules in many countries, finds that common law countries have better investor protection, and concludes the common law tradition causes better economic outcomes. Which methodological criticism is strongest?",
+   "choices": [
+    "The study should have compared only religious legal systems, since the economic effect of a legal tradition can be observed only where the law is derived from scripture",
+    "Coding rules simply ignores local institutions and context, and causal claims are difficult to establish from the correlation",
+    "Studies of legal origins can never use quantitative data, because law is unique to each country, and any coding of rules is therefore forbidden in comparative research",
+    "Common law countries do not have investors, so the study measured the wrong variable and the conclusion cannot be tested against any real market conditions"
+   ]
+  }
+ ]
+}

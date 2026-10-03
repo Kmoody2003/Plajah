@@ -1,0 +1,1254 @@
+{
+ "courseId": "med-micro",
+ "verifier": "A",
+ "questions": [
+  {
+   "id": "med-micro.l01.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l01.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l01.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l01.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l02.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l02.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l02.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l03.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l03.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l03.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l03.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l04.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l04.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l04.q3",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Terminal complement deficiency (Neisseria) also predisposes, but asplenia is the classic encapsulated-organism answer",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l04.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l05.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l05.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l05.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l05.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l06.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l06.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l06.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l07.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l07.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l07.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l07.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l08.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l08.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l08.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l08.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l09.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l09.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l09.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l09.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l10.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l10.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l10.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l11.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l11.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l11.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": [
+    "https://www.cdc.gov/rocky-mountain-spotted-fever/hcp/clinical-overview/index.html"
+   ]
+  },
+  {
+   "id": "med-micro.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l12.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l12.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l12.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l13.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l13.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l13.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l13.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l14.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l14.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l14.q4",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Atypical lymphocytes are reactive CD8 T cells; option 1 (infected B cells) is the distractor",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l14.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l15.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l15.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l15.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": [
+    "https://www.cdc.gov/measles/hcp/clinical-overview/index.html"
+   ]
+  },
+  {
+   "id": "med-micro.l15.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l16.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l16.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l16.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l17.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l17.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l17.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l17.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l17.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l18.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l18.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l18.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l19.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l19.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l19.q4",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Neurocysticercosis is acquired by ingesting T. solium eggs from a carrier, not by eating pork",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l19.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": [
+    "https://www.cdc.gov/strongyloides/hcp/clinical-care/index.html"
+   ]
+  },
+  {
+   "id": "med-micro.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l20.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "Chlorhexidine is not sporicidal; soap and water preferred (alcohol rub does not kill spores)",
+   "sources": [
+    "https://www.cdc.gov/c-diff/hcp/clinical-overview/index.html"
+   ]
+  },
+  {
+   "id": "med-micro.l20.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "med-micro.l20.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": [
+    "https://www.cdc.gov/infection-control/hcp/isolation-precautions/index.html"
+   ]
+  },
+  {
+   "id": "med-micro.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-micro.l01",
+   "claim": "Lipid A is the endotoxin acting via TLR4",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l01",
+   "claim": "Gram-negative walls: thin peptidoglycan between inner and outer membranes",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l01",
+   "claim": "Transpeptidases (PBPs) cross-link peptidoglycan; beta-lactams inhibit them",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l02",
+   "claim": "Obligate anaerobes lack SOD and catalase",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l02",
+   "claim": "Aminoglycosides need oxygen-dependent uptake",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l02",
+   "claim": "S. pneumoniae, Haemophilus, Neisseria naturally competent",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l03",
+   "claim": "Diphtheria toxin and Pseudomonas exotoxin A ADP-ribosylate EF-2",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l03",
+   "claim": "Shiga toxin cleaves adenine from 28S rRNA",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l03",
+   "claim": "Cholera toxin ADP-ribosylates Gs",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l04",
+   "claim": "Terminal complement (C5-C9) deficiency predisposes to Neisseria",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l04",
+   "claim": "Vaginal flora dominated by Lactobacillus",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l04",
+   "claim": "Asplenia predisposes to encapsulated organisms",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l05",
+   "claim": "mecA encodes PBP2a causing MRSA",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l05",
+   "claim": "S. saprophyticus novobiocin-resistant, UTI in young women",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l05",
+   "claim": "Group A strep bacitracin-sensitive, PYR-positive",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l06",
+   "claim": "C. difficile produces toxins A and B",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/c-diff/hcp/clinical-overview/index.html"
+   ],
+   "note": "CDC describes C. difficile as producing exotoxins A and B; the lesson's mechanism detail (Rho glucosylation) was not on the page."
+  },
+  {
+   "lessonId": "med-micro.l06",
+   "claim": "Infant botulism from spores in honey",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l06",
+   "claim": "Anthrax toxin: PA, EF adenylate cyclase, LF protease",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l07",
+   "claim": "Meningococcal vaccines cover A, C, W, Y plus separate B vaccine",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l07",
+   "claim": "O157:H7 does not ferment sorbitol",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l07",
+   "claim": "Lactose fermenters: E. coli, Klebsiella, Enterobacter; Salmonella/Shigella/Proteus/Yersinia non-fermenters",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l08",
+   "claim": "Pseudomonas: oxidase-positive, pyocyanin, grape-like odour",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l08",
+   "claim": "H. pylori urease-positive; urea breath test, stool antigen, biopsy urease",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l08",
+   "claim": "Campylobacter grows at 42 C; GBS trigger",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l09",
+   "claim": "Mycolic acids make mycobacteria acid-fast",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l09",
+   "claim": "Th1/IFN-gamma granulomas with caseation; apical reactivation",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l09",
+   "claim": "TST false positives after BCG; false negatives with immunosuppression",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l10",
+   "claim": "RPR/VDRL nontreponemal; FTA-ABS/TP-PA treponemal",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l10",
+   "claim": "Jarisch-Herxheimer reaction after first penicillin dose",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l10",
+   "claim": "Ixodes ticks transmit B. burgdorferi",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l11",
+   "claim": "RMSF most common in southeastern and south-central US",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/rocky-mountain-spotted-fever/hcp/clinical-overview/index.html"
+   ],
+   "note": "CDC: >60% of cases in NC, OK, AR, TN, MO."
+  },
+  {
+   "lessonId": "med-micro.l11",
+   "claim": "Q fever acquired by inhalation, not by vector",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l11",
+   "claim": "Chlamydia elementary body infectious, reticulate body replicative",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l12",
+   "claim": "Brucella from unpasteurised dairy; undulant fever",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l12",
+   "claim": "Yersinia pestis bipolar staining; US reservoirs in Southwest",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l12",
+   "claim": "Pasteurella multocida cellulitis within a day of cat/dog bite",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l13",
+   "claim": "Poxviruses replicate in cytoplasm with own enzymes",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l13",
+   "claim": "Antigenic shift by reassortment, drift by point mutation",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l13",
+   "claim": "HPV 6/11 genital warts; high-risk E6/E7",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l14",
+   "claim": "HSV-1 trigeminal / HSV-2 sacral latency",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l14",
+   "claim": "VZV latent in dorsal root ganglia; recombinant zoster vaccine for older adults",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l14",
+   "claim": "CMV owl-eye inclusions, congenital hearing loss",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l15",
+   "claim": "Oseltamivir is a neuraminidase inhibitor; baloxavir polymerase endonuclease inhibitor",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l15",
+   "claim": "Measles: Koplik spots, head-to-toe rash, rare SSPE, vitamin A for severe cases",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/measles/hcp/clinical-overview/index.html"
+   ],
+   "note": "CDC page supports Koplik spots, downward rash, SSPE and vitamin A for severe cases."
+  },
+  {
+   "lessonId": "med-micro.l15",
+   "claim": "SARS-CoV-2 uses ACE2; RSV prevention includes maternal vaccine and monoclonal antibodies",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l16",
+   "claim": "AIDS defined by CD4 <200 or AIDS-defining illness",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l16",
+   "claim": "Fourth-generation assay followed by differentiation immunoassay and NAT",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "CDC testing page URLs returned 404; algorithm not confirmed from an opened page."
+  },
+  {
+   "lessonId": "med-micro.l16",
+   "claim": "MAC prophylaxis below CD4 ~50 'in older practice'",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Current guidelines no longer recommend routine MAC prophylaxis if ART started immediately; lesson hedges correctly but not checked against an opened page."
+  },
+  {
+   "lessonId": "med-micro.l17",
+   "claim": "Dimorphic fungi mold at room temp, yeast at body temp",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l17",
+   "claim": "Histoplasma endemic to Ohio and Mississippi River valleys",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l17",
+   "claim": "Amphotericin targets ergosterol",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l18",
+   "claim": "P. vivax/ovale hypnozoites; G6PD testing before primaquine/tafenoquine",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://www.cdc.gov/malaria/hcp/clinical-guidance/index.html"
+   ],
+   "note": "Page opened but did not give details on G6PD/hypnozoites; not confirmed."
+  },
+  {
+   "lessonId": "med-micro.l18",
+   "claim": "P. falciparum infects red cells of all ages, PfEMP1 sequestration",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l18",
+   "claim": "Vivax requires Duffy antigen",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l19",
+   "claim": "Strongyloides hyperinfection with corticosteroids; screen/treat with ivermectin before immunosuppression",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/strongyloides/hcp/clinical-care/index.html"
+   ],
+   "note": "CDC: ivermectin first-line; screen before corticosteroids."
+  },
+  {
+   "lessonId": "med-micro.l19",
+   "claim": "Pinworm scotch tape test; albendazole",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l19",
+   "claim": "Trichinella from undercooked pork",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l20",
+   "claim": "Autoclave 121 C 15-30 min with G. stearothermophilus indicators",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; memory only."
+  },
+  {
+   "lessonId": "med-micro.l20",
+   "claim": "Alcohol rubs not sporicidal; soap and water for C. difficile",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://www.cdc.gov/c-diff/hcp/clinical-overview/index.html"
+   ],
+   "note": "CDC says hand sanitizer does not kill C. diff; did not explicitly compare soap and water on the opened page."
+  },
+  {
+   "lessonId": "med-micro.l20",
+   "claim": "Airborne precautions TB/measles/varicella; droplet influenza/meningococcus/pertussis; contact MRSA/VRE/C. diff",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/infection-control/hcp/isolation-precautions/index.html"
+   ],
+   "note": "Matches CDC 2007 isolation guideline summary."
+  }
+ ],
+ "fetched": 6,
+ "note": "WebFetch worked but many CDC URLs 404'd; remaining claims marked unverifiable. No option text appeared cut off mid-sentence in the question file (lesson bodies in claims file are truncated, so lesson text could not be fully checked)."
+}

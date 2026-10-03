@@ -1,0 +1,25 @@
+# med-ethics-hs: items for expert review
+
+- l01: Beauchamp and Childress, Principles of Biomedical Ethics, first edition 1979.
+- l02: Salgo v. Leland Stanford Jr. University Board of Trustees (Cal. Ct. App. 1957) as the origin of the phrase "informed consent"; the exact court (appellate) is not named in the lesson. Verify.
+- l02: Schloendorff (NY 1914) paraphrased from Cardozo's opinion; characterization of the split between professional and reasonable-patient standards across US states ("many states follow each") is general.
+- l03: Tarasoff (Cal. 1976): this is the 1976 Tarasoff II decision (duty to protect). State variations (warn vs protect vs none) are summarized loosely.
+- l03: gunshot-wound reporting "in many states" is approximate.
+- l04: O'Connor v. Donaldson (1975) holding paraphrased; "courts have required due process before involuntary medication in many settings" is a general statement (Washington v. Harper 1990 and others not named).
+- l05: Doctors' Trial 1946 to 1947, "23 defendants", "several sentenced to death" (seven were executed; not stated). Ten principles of the Nuremberg Code. Verify the list of principles paraphrased (the "except perhaps when researchers also serve as subjects" clause).
+- l05: Declaration of Helsinki adopted 1964 by the World Medical Association and revised several times; "added independent review" is a simplification of the 1975 revision.
+- l06: Tuskegee figures (about 600 men, roughly 400 with syphilis and 200 controls; 1932 to 1972); "officials took steps to keep them from getting treatment elsewhere"; Peter Buxtun and the Associated Press story; Belmont Report 1979; Clinton apology 1997.
+- l06: statement that some wives and children were infected is standard but should be verified against a current source.
+- l07: HeLa details (1951, Johns Hopkins, died 1951, 2013 genome publication and NIH agreement with the family); "consent for research use of leftover tissue was not required" at the time is a simplification.
+- l07: Moore v. Regents (Cal. 1990) holding stated as disclosure duty without property right; verify nuance (conversion claim rejected, breach of fiduciary duty and lack of informed consent allowed).
+- l07: Common Rule revision effective 2018 and its changes on biospecimen consent are stated generally.
+- l08: IRB review criteria and Common Rule citation (45 CFR part 46) summarized.
+- l09: Jacobson v. Massachusetts (1905) detail of "modest fine" and "police power" language; statement that modern courts apply later doctrines is general. Vaccination exemption policy varies by state and changes.
+- l10: Most countries other than Iran ban organ sales: Iran's regulated kidney market is widely cited, but verify. Opt-out evidence "mixed" is a general summary. Allocation factors differ by organ and change over time (liver ranking by a severity score is stated generally).
+- l10: Uniform Determination of Death Act 1981 wording paraphrased.
+- l11: Casgevy-type therapy: "in 2023 regulators in the UK and US approved the first CRISPR-based therapy for sickle cell disease" (exagamglogene autotemcel). Verify dates and indications. He Jiankui "sentenced to prison" (reported three years, December 2019).
+- l11: GINA 2008 scope (health insurance and employment; not life, disability or long-term care insurance).
+- l12: Roe 1973, Casey 1992, Dobbs 2022 stated; state law is changing and not described.
+- l13: Quinlan: age 21, 1975, NJ 1976, survived "about nine more years" (she died 1985). Cruzan 1990 holding paraphrased. Glucksberg and Vacco 1997. Oregon Death with Dignity Act: approved 1994, in effect 1997. Patient Self-Determination Act 1990. "Several other US states" and country laws are changing.
+- l14: Crisis standards, SOFA-type scores (not named), ADA and Section 504 as legal constraints; the instrumental priority for health workers is described as a position that is "sometimes defended".
+- l15: the 2019 Science study on a cost-based algorithm and racial bias (Obermeyer et al.), described in general terms; EU AI Act classification of medical AI as high risk; WHO 2021 guidance title. Verify.

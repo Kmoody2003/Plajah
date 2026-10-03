@@ -1,0 +1,11 @@
+# med-pharm-systems fixes (asOf 2026-10)
+
+- l15 doxycycline. Was: tetracyclines incl. doxycycline avoided under 8. Now: older tetracyclines avoided; doxycycline advised at any age for rickettsial disease (short courses do not stain permanent teeth). Source opened: https://www.cdc.gov/rocky-mountain-spotted-fever/hcp/clinical-care/index.html. The verifier's "<=21 days" figure was not confirmed, so not taught.
+- l01 hypertension guideline. 2017 ACC/AHA -> 2025 AHA/ACC (PREVENT; first-line thiazide-type, long-acting dihydropyridine CCB, ACEI/ARB). Anchor updated. Source opened: https://www.acc.org/latest-in-cardiology/articles/2025/10/01/01/new-in-clinical-guidance-hbp
+- l05 cholesterol guideline. 2018 -> 2026 ACC/AHA dyslipidemia (published 2026-03-13; PREVENT risk, LDL goals <70 / <55, nonstatin add-ons). Old indication list (LDL>=190, diabetes 40-75) removed as not re-verified under the new guideline. Anchor updated. Source opened: https://www.acc.org/latest-in-cardiology/journal-scans/2026/03/13/15/20/acc-aha-release-new-clinical-guideline-for-managing-dyslipidemia (AHA professional page returned 403).
+- l05/l28 statins in pregnancy. Was: avoid / teratogen list. Now: usually stopped when pregnancy recognised; FDA 2021 removed blanket contraindication; breastfeeding not advised. Removed from the l28 avoid list. Source: https://www.fda.gov/drugs/fda-drug-safety-podcasts/fda-requests-removal-strongest-warning-against-using-cholesterol-lowering-statins-during-pregnancy (via search summary).
+- l20 clozapine. Lesson never named the REMS; added that FDA removed it (effective 2025-06-13) while boxed warning and label ANC monitoring remain. Source opened: https://www.fda.gov/drugs/drug-safety-communications/fda-removes-risk-evaluation-and-mitigation-strategy-rems-program-antipsychotic-drug-clozapine
+- l01.q5: ethacrynic acid option replaced by cisplatin; stem asks about hearing and calcium loss only (thiazides also waste magnesium); explanation notes ethacrynic acid is ototoxic.
+- l10.q4: weak distractors (oral cromolyn, high-dose theophylline) replaced by LABA alone, theophylline alone, LAMA alone; key unchanged.
+- l05.q5: stem no longer says patient both is on max statin and cannot take statins.
+- l21.q3 and lesson: buspirone "no sedation" -> "minimal sedation".

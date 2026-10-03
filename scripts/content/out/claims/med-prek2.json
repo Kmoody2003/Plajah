@@ -1,0 +1,845 @@
+{
+ "courseId": "med-prek2",
+ "label": "My Body and Staying Healthy",
+ "lessons": [
+  {
+   "id": "med-prek2.l01",
+   "title": "My Body Parts",
+   "body": [
+    "Your body is amazing. It has many parts, and each part has a job.",
+    "Your head sits on top. Inside your head is your brain. Your brain is like the boss of your body. It helps you think, remember, and tell your body what to do.",
+    "You have two eyes for seeing and two ears for hearing. You have a nose for smelling and a mouth for eating, talking, and smiling. Your arms and hands help you wave, hold, and draw. Your legs and feet help you walk, run, and jump.",
+    "Inside your body there are parts you cannot see. Your heart pumps blood all around you. Your lungs help you breathe in air. Your stomach helps break down the food you eat. Your bones are strong and hold you up, and your muscles help you move.",
+    "Every body is a little different. Some people are tall and some are short. Some people use glasses, a wheelchair, or a hearing aid. All bodies are special, and all bodies deserve care."
+   ]
+  },
+  {
+   "id": "med-prek2.l02",
+   "title": "My Five Senses",
+   "body": [
+    "You have five senses. Your senses tell your brain what is happening around you.",
+    "You see with your eyes. You can see colors, shapes, and faces. You hear with your ears. You can hear music, a dog barking, and a friend saying hello.",
+    "You smell with your nose. Cookies baking smell yummy. You taste with your tongue. Your tongue can tell if food is sweet, sour, salty, or bitter. You touch with your skin. Your skin can feel if something is soft, rough, hot, cold, or sharp.",
+    "Your senses help keep you safe. You see a car and you stop. You hear a siren and you move out of the way. You feel a hot cup and you pull your hand back. You smell smoke and you tell a grown-up.",
+    "Try this game. Close your eyes and listen. What can you hear? Then open your eyes and look. What can you see? Using one sense at a time helps you notice more."
+   ]
+  },
+  {
+   "id": "med-prek2.l03",
+   "title": "Inside Me: Heart, Lungs, and Brain",
+   "body": [
+    "Some of your body helpers work inside you, all day and all night. You do not even have to ask them.",
+    "Your heart is about the size of your fist. It squeezes again and again to push blood around your body. Blood carries good things your body needs. You can feel your heart beating. Put your hand on your chest after you run. Does it beat faster?",
+    "Your lungs are inside your chest. When you breathe in, your lungs fill up with air, like balloons. Air has a part called oxygen that your body needs. When you breathe out, the air goes back out.",
+    "Your brain is inside your head, and your skull keeps it safe like a helmet. Your brain helps you think, learn, feel, and move. It also takes care of things you never think about, like breathing and your heartbeat.",
+    "You can help these helpers. Running and playing make your heart strong. Deep breaths feel calming. A helmet protects your head when you ride a bike."
+   ]
+  },
+  {
+   "id": "med-prek2.l04",
+   "title": "Germs and Washing Hands",
+   "body": [
+    "Germs are very, very tiny living things. They are so small that you cannot see them with just your eyes. Most germs are harmless. A few can make us sick, like when we get a cold or a tummy ache.",
+    "Germs can get on your hands. They get on your hands when you cough into them, play outside, touch a pet, or use the bathroom. Then, if you touch your eyes, nose, or mouth, the germs can get inside you.",
+    "Washing your hands helps a lot. Use clean water and soap. Rub the soap all over your hands, between your fingers, and on your thumbs. Keep rubbing while you sing the Happy Birthday song two times. Then rinse the soap away and dry your hands with a clean towel.",
+    "Wash your hands before you eat. Wash them after you use the bathroom, after you play outside, and after you sneeze or cough.",
+    "When you cough or sneeze, cover your mouth and nose with a tissue or your elbow. That keeps germs from flying to your friends."
+   ]
+  },
+  {
+   "id": "med-prek2.l05",
+   "title": "Sleep Helps My Body Grow",
+   "body": [
+    "When you sleep, you are not just resting. Your body is busy doing important work.",
+    "While you sleep, your body grows and fixes itself. Your brain sorts through what you learned that day, so you can remember it. Sleep also helps you feel happy and ready to play.",
+    "When you do not get enough sleep, you can feel grumpy, wiggly, or very tired. It can be hard to listen and learn.",
+    "Children your age need a lot of sleep, more than grown-ups do. Most young children need about ten to thirteen hours in a whole day, including naps for the littlest ones.",
+    "A bedtime routine helps your body know it is time to sleep. You might take a bath, brush your teeth, put on pajamas, read a story, and say goodnight. Try to go to bed at about the same time each night.",
+    "A dark, quiet room helps. Screens like TVs and tablets should be turned off before bed. If you feel scared at night, tell a grown-up. They can help you feel safe."
+   ]
+  },
+  {
+   "id": "med-prek2.l06",
+   "title": "Food and Water",
+   "body": [
+    "Food is fuel for your body. It gives you energy to play, think, and grow. Different foods help your body in different ways.",
+    "Fruits and vegetables have vitamins that keep you healthy. Bread, rice, and pasta give you energy. Milk, cheese, and yogurt help build strong bones and teeth. Foods like beans, eggs, fish, and chicken help build strong muscles.",
+    "A good plate has many colors. Try to eat some fruit or vegetables at most meals. Treats like candy and cake are fine once in a while. They are not good as everyday food, because they do not give your body what it needs to grow.",
+    "Water is the best drink. Your body needs water to stay cool, to move, and to think well. When you play hard or the weather is hot, drink more water. If your mouth feels dry or you feel thirsty, that is your body asking for water.",
+    "It is okay to try new foods. Sometimes you need to taste a food many times before you like it. Eat when you are hungry and stop when you feel full.",
+    "Some people have allergies, which means certain foods make their bodies very sick. If you have an allergy, only eat food that a trusted grown-up says is safe."
+   ]
+  },
+  {
+   "id": "med-prek2.l07",
+   "title": "Moving and Playing",
+   "body": [
+    "Moving your body is good for you, and it is fun too. When you run, jump, dance, climb, swim, or ride a bike, your body gets stronger.",
+    "Exercise makes your heart and lungs stronger. It makes your muscles and bones stronger too. It helps you sleep well at night. It can also help your mood. Many people feel happier after they have played outside.",
+    "You do not need special tools to be active. You can play tag, jump rope, kick a ball, play follow the leader, or have a dance party in the living room. Children your age should be active for a good part of every day.",
+    "Resting is important too. If you feel tired, dizzy, or sore, stop and rest. Drink some water. Tell a grown-up if something hurts.",
+    "Play safely. Wear a helmet when you ride a bike or scooter. Look around before you run. Play with a grown-up nearby when you are somewhere new, like a playground or a pool, and never go in the water without one.",
+    "Playing with friends is good for your heart in another way. Sharing and taking turns helps everyone feel included."
+   ]
+  },
+  {
+   "id": "med-prek2.l08",
+   "title": "Feelings Are Okay",
+   "body": [
+    "Everyone has feelings. You might feel happy, sad, mad, scared, excited, or silly. Feelings are not good or bad. They are just feelings, and they are part of being a person.",
+    "Your body can give you clues about your feelings. When you are scared, your heart might beat fast. When you are mad, your face might feel hot. When you are sad, your tummy or your throat might feel heavy. When you are excited, you might wiggle.",
+    "Giving a feeling a name helps. You can say, \"I feel mad,\" or, \"I feel nervous.\" Naming a feeling helps it feel smaller.",
+    "Feelings do not last forever. A big feeling will come and then it will get smaller, like a wave on the beach.",
+    "It is okay to feel a feeling. What we choose to do with the feeling matters. It is okay to be mad, but it is not okay to hit. We can use words, ask for space, or find another way to let the feeling out.",
+    "Your feelings are important. When you have a big one, you can tell someone you trust."
+   ]
+  },
+  {
+   "id": "med-prek2.l09",
+   "title": "Calming Down and Talking About Feelings",
+   "body": [
+    "Sometimes a feeling gets very big, and it is hard to feel calm. Luckily, there are things you can try.",
+    "Take a deep breath. Breathe in slowly through your nose, like you are smelling a flower. Then breathe out slowly through your mouth, like you are blowing out a candle. Do it three times.",
+    "You can squeeze your hands tight and then let them go loose. You can hug a stuffed animal. You can count to ten. You can go to a quiet spot, drink some water, or draw a picture of how you feel.",
+    "Talking is one of the best tools. You can tell a grown-up you trust, like a parent, a teacher, or a school nurse. You might say, \"I feel sad and I do not know why,\" or, \"Something is bothering me.\" You do not have to have the perfect words. You can also say, \"I need help.\"",
+    "Good listeners will not laugh at your feelings. They will listen and help you.",
+    "If you ever feel sad or worried for many days, or something scary is going on, it is very important to tell a grown-up. Asking for help is brave and smart."
+   ]
+  },
+  {
+   "id": "med-prek2.l10",
+   "title": "Doctors, Nurses, and Dentists Are Helpers",
+   "body": [
+    "Some people have jobs that help keep us healthy. They are community helpers, and they like helping children.",
+    "A doctor checks how your body is growing and works to find out why you feel sick. A doctor can help you get better. A nurse helps doctors and also takes care of patients directly. A nurse might measure how tall you are, check your temperature, or give a shot to keep you healthy.",
+    "A dentist takes care of your teeth. A dental hygienist cleans your teeth and shows you how to brush well. Dentists look for places where food might be hurting your teeth, and they help fix them.",
+    "Other helpers include eye doctors who check your eyes, and pharmacists who give out medicine to grown-ups. Firefighters, paramedics, and emergency workers help in emergencies.",
+    "You can help your teeth by brushing twice a day, in the morning and before bed, with a small dab of toothpaste. Brush every side of every tooth. Eating less sugary food and drinks helps your teeth too.",
+    "If you are ever hurt or sick, helpers are ready to help you. They are on your side."
+   ]
+  },
+  {
+   "id": "med-prek2.l11",
+   "title": "Going to the Doctor Without Fear",
+   "body": [
+    "A check-up is a visit to the doctor when you are well. It helps make sure your body is growing the way it should.",
+    "Here is what might happen. A nurse may ask you to stand on a scale to see your weight, and against a wall to see how tall you are. The doctor may look in your ears, eyes, and mouth. They may listen to your heart and lungs with a stethoscope, which is a tool that helps them hear inside your chest. They may gently press on your tummy. They will ask you questions, and you can ask questions too.",
+    "Sometimes you get a shot. A shot is a quick pinch that helps your body get ready to fight certain germs. It can feel like a pinch for a moment, and then it is over. It is okay to feel nervous.",
+    "Here are ways to feel brave. Bring a favorite toy or book. Take slow, deep breaths. Look away and think about something fun. Hold a grown-up's hand. Ask the doctor to tell you what will happen before it happens.",
+    "A doctor visit is also a good time to ask about anything that worries you. The doctor wants to help.",
+    "Doctors and nurses never make a visit to be mean. It is their job to help you grow healthy."
+   ]
+  },
+  {
+   "id": "med-prek2.l12",
+   "title": "My Body Belongs to Me",
+   "body": [
+    "Your body belongs to you. You get to decide who hugs you, who gets close, and who touches you. You can say no even to a person you know.",
+    "Some touches are safe, like a hug from a family member that you want, or a doctor checking you while a parent is there. Some touches are not okay. It is not okay for anyone to touch the private parts of your body, the parts covered by a bathing suit, except to keep you clean or healthy, like a parent or doctor helping when you need it. It is also not okay for anyone to ask you to touch their private parts, or to show you pictures of private parts.",
+    "No one should ask you to keep a secret about touching. Surprises, like a birthday gift, are fun and are told in the end. But secrets that make you feel worried, scared, or confused should be told.",
+    "If anything makes you feel uncomfortable, you can say, \"Stop! I do not like that,\" and walk away. Then tell a trusted grown-up right away.",
+    "Think about who your trusted grown-ups are. They could be a parent, grandparent, teacher, or school nurse. If the first person does not listen, tell another until someone helps.",
+    "It is never your fault. You will never be in trouble for telling."
+   ]
+  },
+  {
+   "id": "med-prek2.l13",
+   "title": "Medicine Safety",
+   "body": [
+    "Medicine can help people get better. But medicine is very strong. Too much, or the wrong kind, can make a person very sick. That is why medicine has rules.",
+    "Rule one: only a trusted grown-up gives you medicine. That may be a parent, a caregiver, or a school nurse. Never take medicine on your own, even if you feel sick.",
+    "Rule two: never take medicine that belongs to someone else. Medicine that helps your grandma may hurt you.",
+    "Rule three: medicine is not candy. Some medicine looks and tastes like candy, but it is not. Never eat or drink anything just because it looks yummy.",
+    "Rule four: if you find pills or medicine on the floor or in a bag, do not touch them. Get a grown-up right away.",
+    "Medicine and cleaning products should be kept up high or locked away, where small children cannot reach them. Many things around the house can be harmful if swallowed, such as cleaning sprays and laundry pods.",
+    "If you think you or a friend swallowed something that is not food, tell a grown-up right away. Grown-ups can call Poison Control or the emergency number to get help fast. Telling quickly is the right thing to do."
+   ]
+  },
+  {
+   "id": "med-prek2.l14",
+   "title": "Staying Safe from Sun and Strangers",
+   "body": [
+    "The sun gives us light and warmth, and it is good to play outside. But the sun's rays can hurt our skin and eyes. Too much sun can give you a sunburn, which is red, sore skin.",
+    "To stay safe in the sun, wear sunscreen that a grown-up helps you put on. Wear a hat and sunglasses. Play in the shade when the sun is strongest, usually in the middle of the day. Drink plenty of water, and go inside if you feel dizzy or very hot. Never stay in a hot car.",
+    "Now let us talk about people you do not know. Most people are kind, but you should still be careful. A stranger is a person you do not know well.",
+    "If a stranger offers you a ride, candy, or a puppy, or asks you to come with them, say no. Do not go with them, and do not keep it secret. A grown-up who is safe will ask other grown-ups for help, not children.",
+    "Stay with your trusted grown-up in stores and parks. Know your full name and a phone number or address of someone you trust.",
+    "If you feel unsafe or lost, find a helper, like a police officer, a store worker with a name tag, or a parent with children. Tell them you need help."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-prek2.l01.q1",
+   "lessonId": "med-prek2.l01",
+   "kind": "mcq",
+   "prompt": "What is the job of your brain?",
+   "choices": [
+    "It pumps blood to the rest of your body",
+    "It breaks down the food that you eat",
+    "It lets you breathe air in and out",
+    "It helps you think and tells your body what to do"
+   ]
+  },
+  {
+   "id": "med-prek2.l01.q2",
+   "lessonId": "med-prek2.l01",
+   "kind": "mcq",
+   "prompt": "Which body part helps you walk, run, and jump?",
+   "choices": [
+    "Your mouth and your nose",
+    "Your hands and your arms",
+    "Your legs and feet",
+    "Your eyes and your ears"
+   ]
+  },
+  {
+   "id": "med-prek2.l01.q3",
+   "lessonId": "med-prek2.l01",
+   "kind": "mcq",
+   "prompt": "What do your lungs help you do?",
+   "choices": [
+    "Bend your knees",
+    "Breathe in air",
+    "Taste a snack",
+    "Hear music"
+   ]
+  },
+  {
+   "id": "med-prek2.l01.q4",
+   "lessonId": "med-prek2.l01",
+   "kind": "mcq",
+   "prompt": "A friend uses a wheelchair to get around. What is true about bodies?",
+   "choices": [
+    "All bodies are special and different, and deserve care",
+    "Only some bodies are good bodies that work well",
+    "Bodies must look the same to be healthy and strong",
+    "Bodies that are different cannot play or learn here"
+   ]
+  },
+  {
+   "id": "med-prek2.l02.q1",
+   "lessonId": "med-prek2.l02",
+   "kind": "mcq",
+   "prompt": "Which sense do you use with your ears?",
+   "choices": [
+    "Hearing",
+    "Seeing",
+    "Smelling",
+    "Tasting"
+   ]
+  },
+  {
+   "id": "med-prek2.l02.q2",
+   "lessonId": "med-prek2.l02",
+   "kind": "mcq",
+   "prompt": "How many senses do you have?",
+   "choices": [
+    "Ten",
+    "Five",
+    "Two",
+    "Eight"
+   ]
+  },
+  {
+   "id": "med-prek2.l02.q3",
+   "lessonId": "med-prek2.l02",
+   "kind": "mcq",
+   "prompt": "You touch a very hot cup and quickly pull your hand back. Which sense helped keep you safe?",
+   "choices": [
+    "Smell, with your nose",
+    "Hearing, with your ears",
+    "Touch, with your skin",
+    "Taste, with your tongue"
+   ]
+  },
+  {
+   "id": "med-prek2.l02.q4",
+   "lessonId": "med-prek2.l02",
+   "kind": "mcq",
+   "prompt": "You smell smoke in your home. What should you do?",
+   "choices": [
+    "Keep playing until it goes away",
+    "Look for the smoke by yourself",
+    "Wait to see if it gets stronger",
+    "Tell a grown-up right away"
+   ]
+  },
+  {
+   "id": "med-prek2.l03.q1",
+   "lessonId": "med-prek2.l03",
+   "kind": "mcq",
+   "prompt": "What does your heart do?",
+   "choices": [
+    "Keeps your skin warm and dry",
+    "Pumps blood around your body",
+    "Helps you smell flowers",
+    "Holds your body up straight"
+   ]
+  },
+  {
+   "id": "med-prek2.l03.q2",
+   "lessonId": "med-prek2.l03",
+   "kind": "mcq",
+   "prompt": "What keeps your brain safe, like a helmet?",
+   "choices": [
+    "Your skull",
+    "Your lungs",
+    "Your stomach",
+    "Your muscles"
+   ]
+  },
+  {
+   "id": "med-prek2.l03.q3",
+   "lessonId": "med-prek2.l03",
+   "kind": "mcq",
+   "prompt": "After you run fast, your heart beats faster. Why might that be?",
+   "choices": [
+    "Your heart is broken and needs to stop beating",
+    "Your brain has gone to sleep for a little while",
+    "Your lungs are turning into balloons to fly away",
+    "Your body wants more blood and air to keep going"
+   ]
+  },
+  {
+   "id": "med-prek2.l03.q4",
+   "lessonId": "med-prek2.l03",
+   "kind": "mcq",
+   "prompt": "Which is a good way to protect your head?",
+   "choices": [
+    "Wear a helmet only on rainy, wet days",
+    "Skip the helmet when you ride very slowly",
+    "Wear a helmet when you ride a bike",
+    "Ride a bike without any gear on at all"
+   ]
+  },
+  {
+   "id": "med-prek2.l04.q1",
+   "lessonId": "med-prek2.l04",
+   "kind": "mcq",
+   "prompt": "What do you need to wash your hands well?",
+   "choices": [
+    "Warm air from a blow dryer alone",
+    "A dry paper towel with nothing else",
+    "Clean water and soap",
+    "Only a quick wipe on your shirt"
+   ]
+  },
+  {
+   "id": "med-prek2.l04.q2",
+   "lessonId": "med-prek2.l04",
+   "kind": "mcq",
+   "prompt": "How long should you rub your hands with soap?",
+   "choices": [
+    "Just one very quick second under the water",
+    "Until your hands are completely dry and warm",
+    "Only until you can see the bubbles appear",
+    "About as long as singing Happy Birthday twice"
+   ]
+  },
+  {
+   "id": "med-prek2.l04.q3",
+   "lessonId": "med-prek2.l04",
+   "kind": "mcq",
+   "prompt": "When is it a good time to wash your hands?",
+   "choices": [
+    "Before you eat and after you use the bathroom",
+    "Only when your hands look very, very dirty",
+    "Once in the morning and then not again",
+    "Just on days when you are feeling sick"
+   ]
+  },
+  {
+   "id": "med-prek2.l04.q4",
+   "lessonId": "med-prek2.l04",
+   "kind": "mcq",
+   "prompt": "You need to sneeze and have no tissue. What is a good thing to do?",
+   "choices": [
+    "Hold your breath and hope it stops",
+    "Sneeze into your elbow",
+    "Sneeze into your bare hands",
+    "Sneeze straight at your friends"
+   ]
+  },
+  {
+   "id": "med-prek2.l05.q1",
+   "lessonId": "med-prek2.l05",
+   "kind": "mcq",
+   "prompt": "What does sleep do for your body?",
+   "choices": [
+    "Makes you smaller than before",
+    "Stops your heart for the night",
+    "Takes away all of your feelings",
+    "Helps it grow and fix itself"
+   ]
+  },
+  {
+   "id": "med-prek2.l05.q2",
+   "lessonId": "med-prek2.l05",
+   "kind": "mcq",
+   "prompt": "Which is part of a good bedtime routine?",
+   "choices": [
+    "Running around until you are dizzy",
+    "Eating a big plate of candy",
+    "Brushing teeth and reading a story",
+    "Watching a loud show on a tablet"
+   ]
+  },
+  {
+   "id": "med-prek2.l05.q3",
+   "lessonId": "med-prek2.l05",
+   "kind": "mcq",
+   "prompt": "You feel grumpy and cannot listen well after a night of very little sleep. Why?",
+   "choices": [
+    "Your pajamas were the wrong color on you",
+    "Your body and brain did not get enough rest",
+    "Your bed was too big for you to use",
+    "Your teeth were too clean for sleeping"
+   ]
+  },
+  {
+   "id": "med-prek2.l05.q4",
+   "lessonId": "med-prek2.l05",
+   "kind": "mcq",
+   "prompt": "You feel scared in the dark at bedtime. What can you do?",
+   "choices": [
+    "Tell a grown-up so they can help you feel safe",
+    "Stay quiet and not tell anybody at all",
+    "Get up and wander around outside alone",
+    "Pretend that you are not scared and stay up"
+   ]
+  },
+  {
+   "id": "med-prek2.l06.q1",
+   "lessonId": "med-prek2.l06",
+   "kind": "mcq",
+   "prompt": "What is the best drink for your body?",
+   "choices": [
+    "Water",
+    "Soda pop",
+    "Fruit-flavored candy drink",
+    "Sweet syrup"
+   ]
+  },
+  {
+   "id": "med-prek2.l06.q2",
+   "lessonId": "med-prek2.l06",
+   "kind": "mcq",
+   "prompt": "Which food helps build strong bones and teeth?",
+   "choices": [
+    "Marshmallows and lollipops",
+    "Milk, cheese, and yogurt",
+    "Cotton candy and gumdrops",
+    "Plain frosting and sprinkles"
+   ]
+  },
+  {
+   "id": "med-prek2.l06.q3",
+   "lessonId": "med-prek2.l06",
+   "kind": "mcq",
+   "prompt": "It is a hot day and you have been running. What should you do?",
+   "choices": [
+    "Eat a salty snack only",
+    "Stay in the sun and rest",
+    "Drink water",
+    "Skip all drinks"
+   ]
+  },
+  {
+   "id": "med-prek2.l06.q4",
+   "lessonId": "med-prek2.l06",
+   "kind": "mcq",
+   "prompt": "A friend has a food allergy. What is the right thing to do?",
+   "choices": [
+    "Give a small bite to see if it bothers them",
+    "Trade snacks without asking anyone first",
+    "Tell them that a tiny bit will not matter",
+    "Only share food that a trusted grown-up says is safe"
+   ]
+  },
+  {
+   "id": "med-prek2.l07.q1",
+   "lessonId": "med-prek2.l07",
+   "kind": "mcq",
+   "prompt": "What can moving and playing do for your body?",
+   "choices": [
+    "Stop you from growing taller",
+    "Make your heart and muscles stronger",
+    "Make your bones disappear",
+    "Take away your need for sleep"
+   ]
+  },
+  {
+   "id": "med-prek2.l07.q2",
+   "lessonId": "med-prek2.l07",
+   "kind": "mcq",
+   "prompt": "What should you wear when riding a bike or scooter?",
+   "choices": [
+    "A helmet",
+    "A scarf",
+    "A heavy coat",
+    "Slippers"
+   ]
+  },
+  {
+   "id": "med-prek2.l07.q3",
+   "lessonId": "med-prek2.l07",
+   "kind": "mcq",
+   "prompt": "You feel dizzy while running at recess. What is the best choice?",
+   "choices": [
+    "Run faster so that the dizzy feeling goes away",
+    "Keep playing hard and tell nobody anything",
+    "Spin around and around until you feel better",
+    "Stop, rest, drink water, and tell a grown-up"
+   ]
+  },
+  {
+   "id": "med-prek2.l07.q4",
+   "lessonId": "med-prek2.l07",
+   "kind": "mcq",
+   "prompt": "Which of these counts as moving your body?",
+   "choices": [
+    "Lying still and quiet in your bed",
+    "Sitting still while you eat a meal",
+    "Dancing in your living room",
+    "Watching a long show on the couch"
+   ]
+  },
+  {
+   "id": "med-prek2.l08.q1",
+   "lessonId": "med-prek2.l08",
+   "kind": "mcq",
+   "prompt": "Which of these is a feeling?",
+   "choices": [
+    "Table",
+    "Window",
+    "Sad",
+    "Shoe"
+   ]
+  },
+  {
+   "id": "med-prek2.l08.q2",
+   "lessonId": "med-prek2.l08",
+   "kind": "mcq",
+   "prompt": "What can happen in your body when you are scared?",
+   "choices": [
+    "Your hair might change colors",
+    "Your feet might get bigger",
+    "Your teeth might fall out",
+    "Your heart might beat fast"
+   ]
+  },
+  {
+   "id": "med-prek2.l08.q3",
+   "lessonId": "med-prek2.l08",
+   "kind": "mcq",
+   "prompt": "You feel mad because a friend took your toy. What is a good choice?",
+   "choices": [
+    "Use words to say how you feel",
+    "Hit your friend to get it back",
+    "Throw the toy across the room",
+    "Never speak to your friend again"
+   ]
+  },
+  {
+   "id": "med-prek2.l08.q4",
+   "lessonId": "med-prek2.l08",
+   "kind": "mcq",
+   "prompt": "Why does it help to name a feeling, like saying \"I feel nervous\"?",
+   "choices": [
+    "It makes other people feel the same way too",
+    "It helps the feeling seem smaller and easier to share",
+    "It makes the feeling stay forever and ever",
+    "It means that you are in trouble with others"
+   ]
+  },
+  {
+   "id": "med-prek2.l09.q1",
+   "lessonId": "med-prek2.l09",
+   "kind": "mcq",
+   "prompt": "What is one way to calm down when a feeling is big?",
+   "choices": [
+    "Hold your breath for a long, long time",
+    "Yell until you feel tired out",
+    "Hide so no one ever sees you",
+    "Take slow, deep breaths"
+   ]
+  },
+  {
+   "id": "med-prek2.l09.q2",
+   "lessonId": "med-prek2.l09",
+   "kind": "mcq",
+   "prompt": "Who can you talk to about your feelings?",
+   "choices": [
+    "Nobody, because feelings should be hidden",
+    "Someone who laughs at you when you cry",
+    "A trusted grown-up, like a parent or teacher",
+    "Only people you have never met before"
+   ]
+  },
+  {
+   "id": "med-prek2.l09.q3",
+   "lessonId": "med-prek2.l09",
+   "kind": "mcq",
+   "prompt": "You have felt sad and worried for many days. What is the best next step?",
+   "choices": [
+    "Tell yourself that you are just being silly",
+    "Tell a trusted grown-up so they can help",
+    "Wait quietly and hope it goes away alone",
+    "Pretend that you are fine every single day"
+   ]
+  },
+  {
+   "id": "med-prek2.l09.q4",
+   "lessonId": "med-prek2.l09",
+   "kind": "mcq",
+   "prompt": "You do not know the right words for how you feel. What can you say?",
+   "choices": [
+    "\"Something is bothering me and I need help.\"",
+    "\"Nothing is wrong, so I will not say more.\"",
+    "\"I am not allowed to tell anyone anything.\"",
+    "\"It is a secret that nobody should hear.\""
+   ]
+  },
+  {
+   "id": "med-prek2.l10.q1",
+   "lessonId": "med-prek2.l10",
+   "kind": "mcq",
+   "prompt": "What does a dentist take care of?",
+   "choices": [
+    "Your hair",
+    "Your teeth",
+    "Your toes",
+    "Your elbows"
+   ]
+  },
+  {
+   "id": "med-prek2.l10.q2",
+   "lessonId": "med-prek2.l10",
+   "kind": "mcq",
+   "prompt": "How often should you brush your teeth?",
+   "choices": [
+    "Twice a day, morning and before bed",
+    "Only once each week on a weekend",
+    "Only after eating a sweet snack",
+    "Never, because teeth clean themselves"
+   ]
+  },
+  {
+   "id": "med-prek2.l10.q3",
+   "lessonId": "med-prek2.l10",
+   "kind": "mcq",
+   "prompt": "Which helper checks how your body is growing and can help you feel better when you are sick?",
+   "choices": [
+    "A bus driver",
+    "A baker",
+    "A mail carrier",
+    "A doctor"
+   ]
+  },
+  {
+   "id": "med-prek2.l10.q4",
+   "lessonId": "med-prek2.l10",
+   "kind": "mcq",
+   "prompt": "Why are doctors, nurses, and dentists called helpers?",
+   "choices": [
+    "Their jobs are to give out candy to patients",
+    "Their jobs are to tell people what to wear",
+    "Their jobs are to help keep people healthy",
+    "Their jobs are to make children feel scared"
+   ]
+  },
+  {
+   "id": "med-prek2.l11.q1",
+   "lessonId": "med-prek2.l11",
+   "kind": "mcq",
+   "prompt": "What do we call a check-up visit to the doctor?",
+   "choices": [
+    "A visit to the doctor when you are well, to make sure you are growing",
+    "A visit to the doctor only when you are very sick at home",
+    "A trip where a person tests your spelling for school",
+    "A test where you must sit still for an entire hour"
+   ]
+  },
+  {
+   "id": "med-prek2.l11.q2",
+   "lessonId": "med-prek2.l11",
+   "kind": "mcq",
+   "prompt": "What is a stethoscope used for?",
+   "choices": [
+    "Looking closely into your eyes",
+    "Listening to your heart and lungs",
+    "Cleaning plaque off your teeth",
+    "Measuring how tall you are growing"
+   ]
+  },
+  {
+   "id": "med-prek2.l11.q3",
+   "lessonId": "med-prek2.l11",
+   "kind": "mcq",
+   "prompt": "You feel nervous about getting a shot. What might help?",
+   "choices": [
+    "Pretend that you do not know anything",
+    "Tell yourself that nothing ever hurts",
+    "Take slow breaths and look away at something fun",
+    "Run out of the room and hide somewhere"
+   ]
+  },
+  {
+   "id": "med-prek2.l11.q4",
+   "lessonId": "med-prek2.l11",
+   "kind": "mcq",
+   "prompt": "Why is it good to ask the doctor questions?",
+   "choices": [
+    "It makes the visit last as long as possible all day",
+    "It means you do not have to see the doctor again",
+    "It helps the doctor skip your check-up completely",
+    "It helps you understand what is happening and not feel scared"
+   ]
+  },
+  {
+   "id": "med-prek2.l12.q1",
+   "lessonId": "med-prek2.l12",
+   "kind": "mcq",
+   "prompt": "Who decides who can touch your body?",
+   "choices": [
+    "Only your friends",
+    "Only strangers",
+    "Nobody does",
+    "You do"
+   ]
+  },
+  {
+   "id": "med-prek2.l12.q2",
+   "lessonId": "med-prek2.l12",
+   "kind": "mcq",
+   "prompt": "If something makes you feel uncomfortable, what should you do?",
+   "choices": [
+    "Wait until it happens one more time to be sure",
+    "Decide that it is your own fault and stay quiet",
+    "Say stop, go away, and tell a trusted grown-up",
+    "Keep it a secret so you do not get in trouble"
+   ]
+  },
+  {
+   "id": "med-prek2.l12.q3",
+   "lessonId": "med-prek2.l12",
+   "kind": "mcq",
+   "prompt": "A person asks you to keep a secret about touching your private parts. What is right?",
+   "choices": [
+    "Only tell someone if you are completely sure",
+    "Tell a trusted grown-up, even if the person said not to",
+    "Keep the secret to make the person happy",
+    "Wait a year to see if the person asks again"
+   ]
+  },
+  {
+   "id": "med-prek2.l12.q4",
+   "lessonId": "med-prek2.l12",
+   "kind": "mcq",
+   "prompt": "You told a grown-up about something scary, but they did not listen. What next?",
+   "choices": [
+    "Tell another trusted grown-up until someone helps",
+    "Decide that nobody can ever help you at all",
+    "Never speak about it again for the rest of your life",
+    "Believe that you were wrong to tell anyone about it"
+   ]
+  },
+  {
+   "id": "med-prek2.l13.q1",
+   "lessonId": "med-prek2.l13",
+   "kind": "mcq",
+   "prompt": "Who should give you medicine?",
+   "choices": [
+    "A friend at school",
+    "A younger child",
+    "A trusted grown-up",
+    "You, on your own"
+   ]
+  },
+  {
+   "id": "med-prek2.l13.q2",
+   "lessonId": "med-prek2.l13",
+   "kind": "mcq",
+   "prompt": "Is medicine the same thing as candy?",
+   "choices": [
+    "Yes, if it is a nice color",
+    "Yes, if there is some left in the bottle",
+    "Yes, as long as you only eat one",
+    "No, even if it looks or tastes like candy"
+   ]
+  },
+  {
+   "id": "med-prek2.l13.q3",
+   "lessonId": "med-prek2.l13",
+   "kind": "mcq",
+   "prompt": "You find a pill on the floor at a friend's house. What should you do?",
+   "choices": [
+    "Do not touch it, and tell a grown-up right away",
+    "Pick it up and put it in your pocket to keep",
+    "Taste it to see what kind of pill it might be",
+    "Give it to your friend to try first as a test"
+   ]
+  },
+  {
+   "id": "med-prek2.l13.q4",
+   "lessonId": "med-prek2.l13",
+   "kind": "mcq",
+   "prompt": "Your sibling feels sick and you have your grandma's medicine. What is the best choice?",
+   "choices": [
+    "Mix some into a drink so it tastes better",
+    "Tell a grown-up and do not give the medicine yourself",
+    "Give your sibling some from the bottle at once",
+    "Share a bit because it helped Grandma feel better"
+   ]
+  },
+  {
+   "id": "med-prek2.l14.q1",
+   "lessonId": "med-prek2.l14",
+   "kind": "mcq",
+   "prompt": "How can you protect your skin from the sun?",
+   "choices": [
+    "Rub on lots of water and nothing else",
+    "Wear sunscreen, a hat, and play in the shade",
+    "Stay outside in the middle of the day with nothing on",
+    "Only use sunscreen on days that are cloudy and cold"
+   ]
+  },
+  {
+   "id": "med-prek2.l14.q2",
+   "lessonId": "med-prek2.l14",
+   "kind": "mcq",
+   "prompt": "What do we mean when we say stranger?",
+   "choices": [
+    "A person you do not know well",
+    "A person who is your best friend",
+    "A person in your own family",
+    "A person who is your teacher"
+   ]
+  },
+  {
+   "id": "med-prek2.l14.q3",
+   "lessonId": "med-prek2.l14",
+   "kind": "mcq",
+   "prompt": "A stranger offers you candy and asks you to come to their car. What do you do?",
+   "choices": [
+    "Go along since the candy is so very nice",
+    "Ask them to meet you at home for the candy",
+    "Say yes if the stranger seems very friendly",
+    "Say no, go away, and tell a trusted grown-up"
+   ]
+  },
+  {
+   "id": "med-prek2.l14.q4",
+   "lessonId": "med-prek2.l14",
+   "kind": "mcq",
+   "prompt": "You get lost in a store. Who is a good person to ask for help?",
+   "choices": [
+    "Nobody, because you should wait alone",
+    "A person who asks you to follow them home",
+    "A worker with a name tag or a police officer",
+    "Anyone who offers to take you outside"
+   ]
+  }
+ ]
+}

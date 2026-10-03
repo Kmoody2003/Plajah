@@ -1,0 +1,23 @@
+# med-clin-surgery: claims for expert review
+
+- l01: ACC/AHA perioperative guideline "most recently revised in 2024" (year and details); 4 METs threshold; BRIDGE trial summary; SGLT2 inhibitor hold wording; stress-dose steroid threshold wording.
+- l02: postoperative fever "five Ws" day ranges and the statement that evidence linking atelectasis to fever is modest; typical timing of leak (days 5-7 or 5-10) and dehiscence drainage (days 5-10).
+- l03: statement that lactated Ringer is not contraindicated in hyperkalemia; PROPPR (1:1:1) and CRASH-2 (tranexamic acid within 3 hours) summaries; target urine output.
+- l04: fasting intervals (2 h clears, 6 h light meal, 8 h fatty); evolving GLP-1 agonist guidance (as of this writing); etomidate adrenal effect; thiopental "largely withdrawn" (US availability).
+- l05: CODA trial summary (proportion needing appendectomy); Alvarado score reference; imaging order in pregnancy.
+- l06: cecal diameter threshold (about 12 cm); Hartmann as common operation for fecal peritonitis; "partial SBO observed several days".
+- l07: femoral hernia "repair urgently even if reducible"; umbilical hernia closure age (4-5); watchful waiting trial statement for men.
+- l08: diverticulitis management without antibiotics in selected patients; abscess size threshold 3-4 cm; Hinchey; bariatric BMI criteria (35, or 30 with comorbidity; newer society statements may lower thresholds).
+- l09: Tokyo Guidelines 2018 timing wording; ASGE choledocholithiasis risk criteria (bilirubin above 4 mg/dL stated loosely); stone type associations.
+- l10: PANTER trial summary; Milan criteria named without numbers; adenoma management; Pringle maneuver interpretation.
+- l11: AAA threshold 5.5 cm (men), growth over 1 cm/year; USPSTF 2019 AAA screening; NASCET timing wording (within about two weeks) and ranges; cilostazol contraindication; ABI thresholds.
+- l12: Rutherford classification described loosely; compartment pressure within about 30 mmHg of diastolic (delta pressure) rule; phlegmasia treatment.
+- l13: ATLS 10th edition (2018) ordering with catastrophic hemorrhage first; needle cricothyroidotomy age cutoff (about 12 years); thoracotomy thresholds (1,500 mL, 200 mL/h); a newer ATLS edition may exist.
+- l14: hemorrhage class percentages; tranexamic acid within 3 hours; vaccines after splenic injury; Kehr sign.
+- l15: GCS bands; steroid recommendation against use in spinal cord injury; femoral neck fracture timing (about 48 hours).
+- l16: Parkland formula (4 mL/kg/%TBSA), urine output target; ABA referral criteria (2022 anchor year uncertain); mafenide and silver sulfadiazine adverse effects; palm approximately 1 percent.
+- l17: USPSTF 2024 breast screening; BI-RADS statement; adjuvant therapy summaries (tamoxifen premenopausal, aromatase inhibitors postmenopausal).
+- l18: parathyroidectomy criteria (calcium over 1 mg/dL above normal, age below 50); adrenal mass size threshold (about 4 cm); hypocalcemia timing; Bethesda categories described loosely.
+- l19: torsion viability window (about 6 hours); stone size threshold about 5 mm; scaphoid and SCFE descriptions; Salmonella osteomyelitis in sickle cell.
+- l20: collagen scar strength (about 80 percent); prophylaxis timing (within 60 minutes, stop within 24 hours); CDC 2017 SSI guideline anchor; LRINEC mention; supplemental oxygen recommendation (guideline differences between CDC and WHO).
+- Questions l18.q2 and l17.q3 use short answer forms; some distractors in short items are single words and may be less parallel.

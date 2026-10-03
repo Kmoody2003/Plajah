@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Landmark, Church, HeartHandshake, Sparkles, Search, MapPin, BadgeCheck, Users, Plus, ArrowRight, Wand2 } from 'lucide-react';
 import { fetchPublicOrganizations } from '../services/organizationService';
 import { DEMO_CHURCH, DEMO_CHURCH_ID } from '../data/demoShowcase';
+import { orgMediaUids, fetchLiveOwnerSet } from '../services/orgMedia';
 import { Organization, OrgType } from '../types';
 import { AdaptiveGrid, TYPE } from '../src/lib/designSystem';
 
@@ -43,7 +44,7 @@ const SECTIONS: { key: string; orgType: OrgType; title: string; blurb: string; i
   },
 ];
 
-const OrgCard: React.FC<{ org: Organization; accent: string; onOpen: () => void }> = ({ org, accent, onOpen }) => {
+const OrgCard: React.FC<{ org: Organization; accent: string; onOpen: () => void; live?: boolean }> = ({ org, accent, onOpen, live }) => {
   const city = org.location?.city || org.campuses?.[0]?.location;
   return (
     <button
@@ -53,6 +54,11 @@ const OrgCard: React.FC<{ org: Organization; accent: string; onOpen: () => void 
       {/* Cover / accent band */}
       <div className="h-20 w-full relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${accent}33, ${accent}11)` }}>
         {org.coverUrl && <img src={org.coverUrl} alt="" className="absolute inset-0 w-full h-full object-cover opacity-80" />}
+        {live && (
+          <span className="absolute top-2 right-2 flex items-center gap-1 px-2 py-0.5 rounded-full bg-red-600 text-white text-[8px] font-black uppercase tracking-widest">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" /> Live
+          </span>
+        )}
       </div>
       <div className="px-4 pb-4 -mt-8 relative">
         <div className="w-14 h-14 rounded-2xl border-2 border-black/40 overflow-hidden bg-white/10 flex items-center justify-center shadow-lg">
@@ -91,6 +97,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, isSi
   const [query, setQuery] = useState('');
   const [activeSection, setActiveSection] = useState<string>('all');
   const [seeding, setSeeding] = useState(false);
+  const [liveUids, setLiveUids] = useState<Set<string>>(new Set());
 
   const load = async () => {
     const results = await Promise.all(SECTIONS.map(s => fetchPublicOrganizations(s.orgType).catch(() => [] as Organization[])));
@@ -101,6 +108,9 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, isSi
     map['spiritual'] = [DEMO_CHURCH, ...(map['spiritual'] || []).filter(o => o.id !== DEMO_CHURCH_ID)];
     setOrgsByType(map);
     setLoading(false);
+    // One batched live_feeds query for every listed org's linked account → small "LIVE" pill.
+    const accountUids = Object.values(map).flat().flatMap(o => orgMediaUids(o));
+    fetchLiveOwnerSet(accountUids).then(setLiveUids).catch(() => {});
   };
 
   useEffect(() => { let cancelled = false; (async () => { if (!cancelled) await load(); })(); return () => { cancelled = true; }; }, []);
@@ -217,7 +227,7 @@ const PlajahElevate: React.FC<PlajahElevateProps> = ({ onOpenOrg, onCreate, isSi
                 ) : (
                   <AdaptiveGrid phone={1} tablet={2} desktop={3} gap="1rem">
                     {list.map(org => (
-                      <OrgCard key={org.id} org={org} accent={section.accent} onOpen={() => onOpenOrg(org.id)} />
+                      <OrgCard key={org.id} org={org} accent={section.accent} onOpen={() => onOpenOrg(org.id)} live={orgMediaUids(org).some(u => liveUids.has(u))} />
                     ))}
                   </AdaptiveGrid>
                 )}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, lazy, Suspense, useCallback, useRef } from 'react';
+import React, { useState, useEffect, lazy, Suspense, useCallback, useRef, useMemo } from 'react';
 import { Album, AppView, ThemeType, Game, IPWorld, LiveFeed, PhotoGallery, Photo } from './types';
 import { fetchGallery } from './services/galleryService';
 import Logo from './components/Logo';
@@ -113,6 +113,8 @@ const SkyRoute = retryLazy(() => import('./components/academia/SkyRoute'));
 const PlajahLabsView = retryLazy(() => import('./components/PlajahLabsView'));
 // Health & Fitness hub
 const PlajahHealthFitnessView = retryLazy(() => import('./components/PlajahHealthFitnessView'));
+// Plajah Home — smart home controller, repurposed device hub, intercom & digital frames
+const PlajahHomeView = retryLazy(() => import('./components/PlajahHomeView'));
 // Plajah Research Manifesto
 const PlajahResearchPage = retryLazy(() => import('./components/PlajahResearchPage'));
 // TV Studio — browser production switcher
@@ -175,6 +177,8 @@ const UserDashboard = retryLazy(() => import('./components/UserDashboard'));
 const GlobalPhotosView = retryLazy(() => import('./components/GlobalPhotosView'));
 const NativePhotoViewer = retryLazy(() => import('./components/photo/NativePhotoViewer'));
 import { onMediaFileActivated, isWindowsApp, type WindowsPickedFile } from './services/windowsBridgeService';
+import { onLaunchMedia, onLaunchExperience } from './services/launchService';
+import { experienceView } from './src/lib/launchTarget';
 import { MediaPlajahPlayer } from './components/player/MediaPlajahPlayer';
 
 // Pre-warm viewer chunks on Windows for near-instant boot and viewer opening
@@ -216,6 +220,11 @@ const PodcastListen = retryLazy(() => import('./components/PodcastListen'));
 const ClassPointsView = retryLazy(() => import('./components/ClassPointsView'));
 const AcademiaTourView = retryLazy(() => import('./components/AcademiaTourView'));
 const AcademiaHomeView = retryLazy(() => import('./components/AcademiaHomeView'));
+const AcademiaDirectory = retryLazy(() => import('./components/AcademiaDirectory'));
+const LearnMapView = retryLazy(() => import('./components/learn/LearnMapView'));
+const InvestigationStudio = retryLazy(() => import('./components/inquiry/InvestigationStudio'));
+const NotesStudio = retryLazy(() => import('./components/notes/NotesStudio'));
+const HomeschoolHub = retryLazy(() => import('./components/academia/HomeschoolHub'));
 const AcademiaLandingView = retryLazy(() => import('./components/AcademiaLandingView'));
 const MoneySchoolView = retryLazy(() => import('./components/MoneySchoolView'));
 const BusinessSchoolView = retryLazy(() => import('./components/BusinessSchoolView'));
@@ -236,6 +245,8 @@ const LanguageQuestView = retryLazy(() => import('./components/LanguageQuestView
 const EducationSocialView = retryLazy(() => import('./components/EducationSocialView'));
 const EducationRail = retryLazy(() => import('./components/EducationRail'));
 const ReadingQuestView = retryLazy(() => import('./components/ReadingQuestView'));
+const VocaView = retryLazy(() => import('./components/voca/VocaView'));
+const HomeroomView = retryLazy(() => import('./components/homeroom/HomeroomView'));
 const HandwritingWorkshopView = retryLazy(() => import('./components/HandwritingWorkshopView'));
 const ScienceQuestView = retryLazy(() => import('./components/ScienceQuestView'));
 const HistoryQuestView = retryLazy(() => import('./components/HistoryQuestView'));
@@ -244,6 +255,9 @@ const TeacherToolsView = retryLazy(() => import('./components/TeacherToolsView')
 const KidsLibraryView = retryLazy(() => import('./components/KidsLibraryView'));
 import KidsSessionGuard from './components/KidsSessionGuard';
 import KidsModeBar from './components/KidsModeBar';
+import RoleLensBar from './components/academia/RoleLensBar';
+import LearnBar, { LEARN_VIEW_TITLES } from './components/academia/LearnBar';
+import { getRoleLens, onRoleLensChange, applyRoleLens, isPlatformAdmin, type LensRole } from './services/roleLens';
 import PersonaSwitcherModal from './components/PersonaSwitcherModal';
 import {
   getActivePersonaKey,
@@ -329,6 +343,10 @@ const ArticleView = retryLazy(() => import('./components/ArticleView'));
 const BrandDashboard = retryLazy(() => import('./components/BrandDashboard'));
 const OrgHub = retryLazy(() => import('./components/OrgHub'));
 const PlajahElevate = retryLazy(() => import('./components/PlajahElevate'));
+const InviteRedeemView = retryLazy(() => import('./components/elevate/InviteRedeemView'));
+const EstimatePublicView = retryLazy(() => import('./components/billing/EstimatePublicView'));
+const ChmsClaimCard = retryLazy(() => import('./components/elevate/chms/PeopleMyProfileCard').then(m => ({ default: m.ClaimRecordCard })));
+const ChmsCheckinCard = retryLazy(() => import('./components/elevate/chms/PeopleMyProfileCard').then(m => ({ default: m.MyProfileCard })));
 const PlatformChangelog = retryLazy(() => import('./components/PlatformChangelog'));
 const WelcomePackage = retryLazy(() => import('./components/WelcomePackage'));
 const Onboarding = retryLazy(() => import('./components/Onboarding'));
@@ -384,6 +402,7 @@ const TV_BLOCKED_VIEWS: Partial<Record<string, { feature: TvDisabledFeature; tit
   CROSSOVER:       { feature: 'fileConversion', title: 'Crossover' },
   MEDIA_CONVERTER: { feature: 'fileConversion', title: 'Media Converter' },
   SPATIAL_MIXER:   { feature: 'creatorStudio', title: 'Spatial Mixer' },
+  CHORA_MIXER:     { feature: 'creatorStudio', title: 'Chora Studio Mixer' },
   LD_MODE:         { feature: 'creatorStudio', title: 'LD' },
   TELEPROMPTER:    { feature: 'documentEditing', title: 'Teleprompter' },
   ARTICLE_EDITOR:  { feature: 'documentEditing', title: 'The editor' },
@@ -397,6 +416,7 @@ const PlajahPixelsView = retryLazy(() => import('./components/PlajahPixelsView')
 const LightingDesigner = retryLazy(() => import('./components/LightingDesigner'));
 const TeleprompterApp = retryLazy(() => import('./components/teleprompter/TeleprompterApp'));
 const SpatialMixer = retryLazy(() => import('./components/spatialMixer/SpatialMixer'));
+const ChoraStudioMixer = retryLazy(() => import('./components/chora/ChoraStudioMixer'));
 const MediaConverter = retryLazy(() => import('./components/MediaConverter'));
 const MelosBeatsRoom = retryLazy(() => import('./components/melos/beats/BeatsRoom'));
 const DJConsoleView = retryLazy(() => import('./components/DJModeView'));
@@ -437,6 +457,7 @@ import { fetchAudiusArtistById, fetchAudiusPlaylistTracks, audiusAlbumToNativeAl
 import { completeAudiusRedirect } from './services/audiusAuth';
 const BusinessDashboard = retryLazy(() => import('./components/BusinessDashboard'));
 const PlajahBusinessHub = retryLazy(() => import('./components/PlajahBusinessHub'));
+const BusinessSimView = retryLazy(() => import('./components/bizsim/BusinessSimView'));
 const PraxisView = retryLazy(() => import('./components/praxis/PraxisView'));
 const TerraHub = retryLazy(() => import('./components/terra/TerraHub'));
 const TerraExplorer = retryLazy(() => import('./components/terra/TerraExplorer'));
@@ -608,6 +629,8 @@ import CommandSplitNav from './components/CommandSplitNav';
 import CommandSplitBar from './components/CommandSplitBar';
 import CommandPlayer from './components/CommandPlayer';
 import { ChoraNavBar, NavLayoutSwitcher, type NavPage } from './components/ChoraCompactNav';
+import DesktopGlobalToolbar from './components/DesktopGlobalToolbar';
+import { onNativeMessage, requestWindowState, toggleNativeFullscreen } from './services/windowsBridgeService';
 
 const App: React.FC = () => {
   // Dedicated physical output window for secondary displays, video walls, and switcher feeds.
@@ -640,13 +663,17 @@ const App: React.FC = () => {
     pitchParam === 'crossover'    ? 'CROSSOVER'          :
     pitchParam === 'terra'        ? 'TERRA'              :
     pitchParam === 'business'     ? 'PLAJAH_BUSINESS'    :
+    pitchParam === 'home'         ? 'PLAJAH_HOME'        :
     pitchParam === 'ora'          ? 'ORA'                :
     pitchParam === 'assignment'   ? 'STUDENT_ASSIGNMENT' :
     pitchParam === 'lesson'       ? 'STUDENT_LESSON'     :
+    pitchParam === 'voca'         ? 'VOCA'               :
+    pitchParam === 'homeroom'     ? 'STUDENT_HOME'       :
     pitchParam === 'fse' || pitchParam === 'experience' || pitchParam === 'plajah-fse' ? 'PLAJAH_FSE' :
     pitchParam === 'live-fx-lab' || pitchParam === 'livefx' ? 'LIVE_FX_LAB' :
-    isWindowsApp() ? 'DASHBOARD' :
-    'LANDING';
+    // Per-experience launcher icons (Android activity-alias / Windows Start tiles): ?view=chora etc.
+    experienceView(pitchParam) ??
+    (isWindowsApp() ? 'DASHBOARD' : 'LANDING');
 
   // Is the app being opened on a shared deep link? If so, a signed-out visitor must
   // NOT be bounced to LANDING — the deep-link handler owns the initial view.
@@ -675,6 +702,58 @@ const App: React.FC = () => {
   // Load platform feature flags (config/featureFlags) + live-update — without this,
   // isFeatureEnabled() always returns the built-in defaults (e.g. CONTENT_LICENSING off).
   useEffect(() => { const unsub = initFeatureFlagListener(); return () => unsub(); }, []);
+
+  // Desktop window & fullscreen mode management
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(() => {
+    if (typeof document !== 'undefined') return !!document.fullscreenElement;
+    return false;
+  });
+
+  useEffect(() => {
+    const handleFsChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFsChange);
+    document.addEventListener('webkitfullscreenchange', handleFsChange);
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFsChange);
+      document.removeEventListener('webkitfullscreenchange', handleFsChange);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isWindowsApp()) return;
+    const unsub = onNativeMessage((msg) => {
+      if (msg.type === 'WINDOW_STATE_CHANGED' && typeof (msg as any).isFullscreen === 'boolean') {
+        setIsFullscreen((msg as any).isFullscreen);
+      }
+    });
+    requestWindowState();
+    return () => { unsub(); };
+  }, []);
+
+  const handleToggleFullscreen = useCallback(() => {
+    if (isWindowsApp()) {
+      toggleNativeFullscreen();
+    } else if (typeof document !== 'undefined') {
+      if (document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      } else {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'F11') {
+        e.preventDefault();
+        handleToggleFullscreen();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [handleToggleFullscreen]);
 
   // Time authority. Measures this device's clock skew against the server and re-checks periodically
   // and on resume, so FAST playout, the EPG and every other scheduled feature agree on "now" even on
@@ -844,7 +923,7 @@ const App: React.FC = () => {
 
   // Enter Kids Mode for a child — the app then behaves as that child + lands on a safe home.
   useEffect(() => {
-    const h = (e: Event) => { const child = (e as CustomEvent)?.detail?.child; if (child) { setActiveChildProfile(child); setView('KIDS_LIBRARY'); } };
+    const h = (e: Event) => { const child = (e as CustomEvent)?.detail?.child; if (child) { setActiveChildProfile(child); setView('STUDENT_HOME'); } };
     window.addEventListener('plajah:enter-kids', h);
     return () => window.removeEventListener('plajah:enter-kids', h);
   }, [setView]);
@@ -896,6 +975,18 @@ const App: React.FC = () => {
       window.removeEventListener('plajah:open-live-fx-lab', open);
     };
   }, [setView]);
+
+  // Jump to Live Feed from alerts, drawer, or notifications
+  useEffect(() => {
+    const handleWatchLive = (e: Event) => {
+      const feed = (e as CustomEvent)?.detail;
+      if (feed) {
+        setActiveLiveFeed(feed as any);
+      }
+    };
+    window.addEventListener('plajah:watch-live', handleWatchLive);
+    return () => window.removeEventListener('plajah:watch-live', handleWatchLive);
+  }, []);
 
   // Platform-wide error capture (uncaught errors + unhandled rejections → errorReports).
   useEffect(() => { installGlobalErrorReporting(); installSessionTrace(); installHealthMonitor(); }, []);
@@ -977,9 +1068,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     else setArchiveTab(tab as any);
   };
   const [musicInitialTab, setMusicInitialTab] = useState<'NEW' | 'FOR_YOU' | 'ARTISTS' | 'ALBUMS' | 'GENRES' | 'VAULT' | 'PODCASTS' | 'AUDIO_BOOKS' | 'MY_LIBRARY' | 'PLAYLISTS'>('NEW');
+  // Declared before first use (lensProfile's dependency array reads it during render).
+  const [user, setUser] = useState<FirebaseUser | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   // The profile the app behaves as — the active child overrides the logged-in parent.
-  const effectiveProfile = activeChildProfile || userProfile;
+  // Admin-only "experience as teacher / student / parent" lens: same account + real data, different role.
+  const [roleLens, setRoleLensState] = useState<LensRole | null>(() => getRoleLens());
+  useEffect(() => onRoleLensChange(setRoleLensState), []);
+  const lensProfile = useMemo(() => applyRoleLens(userProfile, user, roleLens), [userProfile, user, roleLens]);
+  const effectiveProfile = activeChildProfile || lensProfile;
 
   // Universal back: return to the previous screen via real browser history (so back
   // never jumps to a hardcoded destination). Falls back to a sensible view only when
@@ -1044,7 +1141,6 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [isPublicView, setIsPublicView] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [cloudStatus, setCloudStatus] = useState<'CONNECTED' | 'OFFLINE' | 'CHECKING'>('CHECKING');
-  const [user, setUser] = useState<FirebaseUser | null>(null);
 
   // A production invite is a direct enrollment route: after sign-in, open Film Staffing
   // where the token is validated and accepted. This must live after the user state declaration;
@@ -1118,11 +1214,24 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         }
         e.preventDefault();
         setShowDesktopLauncher(prev => !prev);
+      } else if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'h') {
+        const target = e.target as HTMLElement;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) {
+          return;
+        }
+        e.preventDefault();
+        setShowDesktopLauncher(false);
+        setView('PLAJAH_HOME');
       }
     };
     const handleOpenEvent = () => setShowDesktopLauncher(true);
+    const handleHomeNavigate = () => {
+      setShowDesktopLauncher(false);
+      setView('PLAJAH_HOME');
+    };
     window.addEventListener('keydown', handleLauncherKey);
     window.addEventListener('plajah:open-desktop-launcher', handleOpenEvent);
+    window.addEventListener('plajah:open-home', handleHomeNavigate);
 
     // If launching inside Windows desktop shell and not already popped, open launcher automatically
     let t1: any;
@@ -1154,6 +1263,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     return () => {
       window.removeEventListener('keydown', handleLauncherKey);
       window.removeEventListener('plajah:open-desktop-launcher', handleOpenEvent);
+      window.removeEventListener('plajah:open-home', handleHomeNavigate);
       if (t1) clearTimeout(t1);
       if (t2) clearTimeout(t2);
     };
@@ -1360,7 +1470,20 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // Smart Guide
   const [smartGuideEnabled, setSmartGuideEnabled] = useState(false);
   const [hasSeenSmartGuide, setHasSeenSmartGuide] = useState(false);
-  const [orgHubInitial, setOrgHubInitial] = useState<{ orgId: string; give?: boolean; contentHq?: boolean } | null>(null);
+  const [orgHubInitial, setOrgHubInitial] = useState<{ orgId?: string; give?: boolean; contentHq?: boolean; create?: boolean; fromElevate?: boolean } | null>(null);
+  const [chmsLink, setChmsLink] = useState<{ claim?: string; checkinOrg?: string; eventKey?: string; eventLabel?: string } | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const q = new URLSearchParams(window.location.search);
+    const claim = q.get('elevateClaim'); const checkinOrg = q.get('elevateCheckin');
+    return claim || checkinOrg ? { claim: claim || undefined, checkinOrg: checkinOrg || undefined, eventKey: q.get('event') || undefined, eventLabel: q.get('label') || undefined } : null;
+  });
+  // Public estimate link: /estimate/<token> — no sign-in required (the token is the credential).
+  const [estimateToken, setEstimateToken] = useState<string | null>(() => {
+    if (typeof window === 'undefined') return null;
+    const m = window.location.pathname.match(/^\/estimate\/([a-f0-9]{48})\/?$/i);
+    return m ? m[1] : null;
+  });
+  const [elevateInviteToken, setElevateInviteToken] = useState<string | null>(() => (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('elevateInvite') : null));
   const [relloInitialVideoId, setRelloInitialVideoId] = useState<string | undefined>(undefined);
   const [videoPlaylistInitialId, setVideoPlaylistInitialId] = useState<string | undefined>(undefined);
   const [clubInitialId, setClubInitialId] = useState<string | undefined>(undefined);
@@ -1614,6 +1737,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     const handleOpenSpatialMixer = () => setView('SPATIAL_MIXER' as AppView);
     window.addEventListener('OPEN_SPATIAL_MIXER', handleOpenSpatialMixer);
 
+    const handleOpenChoraMixer = () => setView('CHORA_MIXER' as AppView);
+    window.addEventListener('OPEN_CHORA_MIXER', handleOpenChoraMixer);
+
     const handleOpenMediaConverter = () => setView('MEDIA_CONVERTER' as AppView);
     window.addEventListener('OPEN_MEDIA_CONVERTER', handleOpenMediaConverter);
 
@@ -1645,6 +1771,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       if (id) { setLabsDiscipline(id); setView('PLAJAH_LABS' as AppView); }
     };
     window.addEventListener('OPEN_LABS_DISCIPLINE', handleOpenLabsDiscipline);
+
+    // Language Arts: open a classic in the Lorea reader, or a Chora Vault shelf. See services/loreaOpen.ts.
+    const handleOpenLoreaBook = (e: Event) => {
+      const album = (e as CustomEvent)?.detail?.album;
+      if (album) { setSelectedBook(album); setView('BOOK_READER' as AppView); }
+    };
+    const handleOpenChoraVault = () => { setMusicInitialTab('VAULT'); setView('MUSIC' as AppView); };
+    const handleOpenNotes = () => { setView('NOTES' as AppView); };
+    window.addEventListener('OPEN_NOTES', handleOpenNotes);
+    window.addEventListener('OPEN_LOREA_BOOK', handleOpenLoreaBook);
+    window.addEventListener('OPEN_CHORA_VAULT', handleOpenChoraVault);
 
     const handleOpenBrandActivation = () => { if (!user) { loginWithGoogle(); return; } setShowBrandActivation(true); };
     window.addEventListener('OPEN_BRAND_ACTIVATION', handleOpenBrandActivation);
@@ -1786,12 +1923,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('OPEN_SACRED_LIBRARY', handleOpenSacredLibrary);
       window.removeEventListener('OPEN_TELEPROMPTER', handleOpenTeleprompter);
       window.removeEventListener('OPEN_SPATIAL_MIXER', handleOpenSpatialMixer);
+      window.removeEventListener('OPEN_CHORA_MIXER', handleOpenChoraMixer);
       window.removeEventListener('OPEN_MEDIA_CONVERTER', handleOpenMediaConverter);
       window.removeEventListener('OPEN_DJ_CONSOLE', handleOpenDJConsole);
       window.removeEventListener('OPEN_MELOS_BEATS', handleOpenMelosBeats);
       window.removeEventListener('OPEN_POSTMAN', handleOpenPostman);
       window.removeEventListener('OPEN_SMART_DIRECTOR', handleOpenSmartDirector);
       window.removeEventListener('OPEN_LABS_DISCIPLINE', handleOpenLabsDiscipline);
+      window.removeEventListener('OPEN_NOTES', handleOpenNotes);
+      window.removeEventListener('OPEN_LOREA_BOOK', handleOpenLoreaBook);
+      window.removeEventListener('OPEN_CHORA_VAULT', handleOpenChoraVault);
       window.removeEventListener('OPEN_BRAND_ACTIVATION', handleOpenBrandActivation);
       window.removeEventListener('audius-artist', handleAudiusArtist);
       window.removeEventListener('OPEN_LIVESTREAM', handleOpenLivestream);
@@ -2014,7 +2155,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   // ── Native Windows Media Routing (Chora Album View for Audio, Photos Experience for Visual Media, Universal Video Player for Video) ──
   useEffect(() => {
-    const unsub = onMediaFileActivated(({ activeFile, folderFiles, mediaKind }) => {
+    const route = ({ activeFile, folderFiles, mediaKind }: { activeFile: WindowsPickedFile; folderFiles: WindowsPickedFile[]; mediaKind?: string }) => {
       const ext = activeFile.name.toLowerCase();
       const isVideo = mediaKind === 'VIDEO' || activeFile.kind === 'VIDEO' || activeFile.mediaKind === 'VIDEO' || /\.(mp4|mov|m4v|webm|mkv|avi|mpg|mpeg|wmv|flv|ts|m2ts|vob|ogv|3gp)$/i.test(ext);
       const isAudio = mediaKind === 'AUDIO' || activeFile.kind === 'AUDIO' || activeFile.kind === 'audio' || activeFile.mediaKind === 'AUDIO' || /\.(mp3|wav|flac|aac|m4a|ogg|wma|aiff|opus|alac)$/i.test(ext);
@@ -2033,9 +2174,22 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         setActivatedNativeFile(activeFile);
         setActivatedNativeFolderFiles(folderFiles || [activeFile]);
       }
-    });
-    return unsub;
+    };
+    // Windows: a file opened into this live window. Android: "Open with" while Plajah is running
+    // (cold "Open with" boots the LocalMediaLaunch shell instead — see index.tsx).
+    const offWin = onMediaFileActivated(route);
+    const offAndroid = onLaunchMedia(route);
+    return () => { offWin(); offAndroid(); };
   }, [handleSelectItem, playTrack, setView]);
+
+  // An experience launcher icon (Chora, Reello, …) tapped while Plajah is already running.
+  useEffect(() => onLaunchExperience(slug => {
+    const target = experienceView(slug);
+    if (!target) return;
+    setIsMediaPlajahMode(false);
+    setActivatedNativeFile(null);
+    setView(target);
+  }), [setView]);
 
   const handleGlobalNavigate = async (target: string, params?: any) => {
     if (target !== 'PLAYER') {
@@ -2169,6 +2323,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('SCHOOL_PACKAGE');
     } else if (target === 'PRAXIS') {
       setView('PRAXIS');
+    } else if (target === 'BIZ_SIM') {
+      setView('BIZ_SIM');
+    } else if (target === 'LEARN') {
+      setView('LEARN');
+    } else if (target === 'INQUIRY') {
+      setView('INQUIRY');
+    } else if (target === 'NOTES') {
+      setView('NOTES');
+    } else if (target === 'HOMESCHOOL') {
+      setView('HOMESCHOOL');
     } else if (target === 'MONEY_SCHOOL') {
       setView('MONEY_SCHOOL');
     } else if (target === 'CIVICS_HALL') {
@@ -2189,6 +2353,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('EDU_SOCIAL');
     } else if (target === 'READING_QUEST') {
       setView('READING_QUEST');
+    } else if (target === 'VOCA') {
+      setView('VOCA');
+    } else if (target === 'STUDENT_HOME') {
+      setView('STUDENT_HOME');
     } else if (target === 'HISTORY_QUEST') {
       setView('HISTORY_QUEST');
     } else if (target === 'SCIENCE_QUEST') {
@@ -2349,7 +2517,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
         // so Nibbles-eligible). Only override the default landing views (DASHBOARD, or the mobile
         // MUSIC default) so an in-progress deep link is left alone.
         if (isEducationAccount(p) || (p as any)?.accountType === 'PARENT') {
-          setViewInternal(prev => (prev === 'DASHBOARD' || prev === 'MUSIC') ? 'ACADEMIA_HOME' : prev);
+          // Students and children land on Homeroom (their school-first home); teachers + parents on the portal.
+          const studentLike = (p as any)?.accountType === 'STUDENT' || (p as any)?.accountType === 'CHILD' || (p as any)?.isChild
+            || (p as any)?.childState === 'SCHOOL_PROVISIONED' || !!(p as any)?.provisionedByTeacherUid;
+          const landing: AppView = studentLike ? 'STUDENT_HOME' : 'ACADEMIA_HOME';
+          setViewInternal(prev => (prev === 'DASHBOARD' || prev === 'MUSIC') ? landing : prev);
         }
 
         if (p?.uiSettings?.lastTheme) {
@@ -2490,9 +2662,10 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   useEffect(() => {
     const init = async () => {
-      // Run connectivity check
-      const isConnected = await checkCloudConnection();
-      setCloudStatus(isConnected ? 'CONNECTED' : 'OFFLINE');
+      // Connectivity check — reported, NOT awaited. It is a Firestore server round trip, and
+      // awaiting it held every launch behind the "Synchronizing" gate (indefinitely-feeling when
+      // offline, i.e. exactly when someone is using Plajah as a local media player).
+      checkCloudConnection().then(isConnected => setCloudStatus(isConnected ? 'CONNECTED' : 'OFFLINE'));
 
       const params = new URLSearchParams(window.location.search);
       const projectId = params.get('id');
@@ -3537,7 +3710,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             onVisitUser={handleVisitUser}
           />
         ) : (
-          <div className={`h-real-screen w-full flex flex-col lg:flex-row relative z-0 overflow-hidden bg-transparent no-select ${((view === 'USER_PROFILE' ? visitedProfile : userProfile)?.frostedBackground || (view === 'USER_PROFILE' ? visitedProfile : userProfile)?.videoBackgroundUrl) ? 'is-custom-bg' : ''}`}>
+          <div className={`h-real-screen w-full flex flex-col relative z-0 overflow-hidden bg-transparent no-select ${((view === 'USER_PROFILE' ? visitedProfile : userProfile)?.frostedBackground || (view === 'USER_PROFILE' ? visitedProfile : userProfile)?.videoBackgroundUrl) ? 'is-custom-bg' : ''}`}>
             {/* Universal Background Layer — inline styles bypass CSS/Tailwind layer conflicts */}
             <div
               id="universal-background"
@@ -3644,6 +3817,26 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 )}
               </>
             )}
+
+            {/* ── Persistent Universal Global Toolbar (Desktop) ── */}
+            {(!getPlatformInfo().isTV && !isMobile && theme !== 'PHONE' && view !== 'MOVIE_UX' && view !== 'GAME_PLAYER' && view !== 'PLAJAH_FSE') && (
+              <DesktopGlobalToolbar
+                view={view}
+                onNavigate={(v) => setView(v as any)}
+                user={user}
+                userProfile={userProfile}
+                activePersonaKey={activePersonaKey}
+                onOpenPersonaModal={() => setIsPersonaModalOpen(true)}
+                onOpenSearch={() => setView('SEARCH')}
+                isFullscreen={isFullscreen}
+                onToggleFullscreen={handleToggleFullscreen}
+                isWindowsNative={isWindowsApp()}
+              />
+            )}
+
+            {/* ── Main Application Workspace (billboard + navigation rail + platform application viewport) ── */}
+            <div className="flex-1 flex flex-col lg:flex-row w-full overflow-hidden min-h-0 relative">
+
             {/* Ad Billboard — full-height canvas. Sits on the LEFT normally; Split (B) AND the
                 horizontal Bar (C) move it to the FAR RIGHT (order + left border); Bar makes it
                 narrower and drops it below the fixed top nav bar. */}
@@ -3651,7 +3844,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               apps, while social feeds, Chora, Reello, Taleo, and Lorea always retain it. */}
           {(!isPublicView && !getPlatformInfo().isTV && view !== 'MOVIE_UX' && view !== 'GAME_PLAYER' && view !== 'EVENT_PHOTO_POOL' && view !== 'ORA' && !(
             (isWindowsApp() || getPlatformInfo().type === 'android' || (typeof window !== 'undefined' && (window as any).Capacitor?.getPlatform?.() === 'android')) &&
-            (view === 'AMBO' || view === 'AMBO_PRO' || view === 'PLAJAH_PIXELS' || view === 'TELA' || view === 'TELA_EMBED_DEMO' || view === 'MELOS' || view === 'MELOS_BEATS' || view === 'SPATIAL_MIXER' || view === 'EVENT_PRODUCTION_STUDIO' || view === 'TICKET_DESIGNER' || view === 'PODCAST_STUDIO' || view === 'CROSSOVER' || view === 'MEDIA_ROUTER' || view === 'MEDIA_CONVERTER' || view === 'TERRA_STUDIO' || view === 'TELEPROMPTER' || view === 'SMART_DIRECTOR' || view === 'CREATOR')
+            (view === 'AMBO' || view === 'AMBO_PRO' || view === 'PLAJAH_PIXELS' || view === 'TELA' || view === 'TELA_EMBED_DEMO' || view === 'MELOS' || view === 'MELOS_BEATS' || view === 'SPATIAL_MIXER' || view === 'CHORA_MIXER' || view === 'EVENT_PRODUCTION_STUDIO' || view === 'TICKET_DESIGNER' || view === 'PODCAST_STUDIO' || view === 'CROSSOVER' || view === 'MEDIA_ROUTER' || view === 'MEDIA_CONVERTER' || view === 'TERRA_STUDIO' || view === 'TELEPROMPTER' || view === 'SMART_DIRECTOR' || view === 'CREATOR')
           )) && (
             <aside className={`hidden lg:block z-50 shrink-0 overflow-hidden border-white/[0.06] relative ${
               navLayout.isBar
@@ -3660,7 +3853,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   ? 'lg:order-last border-l lg:w-80 sticky top-0 h-screen'
                   : 'lg:w-80 border-r sticky top-0 h-screen'
             }`}>
-              {isEducationAccount(userProfile) ? (
+              {isEducationAccount(effectiveProfile) ? (
                 /* Education accounts never see ads here — a rotating learning rail instead:
                    the Chora/Taleo "history of the day", real Met/Art-Institute open-access art,
                    and nano-lesson factoids across disciplines. */
@@ -4141,6 +4334,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                     { id: 'BOOKS', order: 6, isVisible: true },
                     { id: 'SACRED_LIBRARY', order: 6.1, isVisible: true },
                     { id: 'PLAJAH_LABS', order: 6.5, isVisible: true },
+                    { id: 'PLAJAH_HOME', order: 6.6, isVisible: true },
                     { id: 'RADIO', order: 7, isVisible: true },
                     { id: 'APPS', order: 8.5, isVisible: true },
                     { id: 'CROSSOVER', order: 8.6, isVisible: crossoverSystemEnabled },
@@ -4203,6 +4397,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         SACRED_LIBRARY: { label: 'Sacred Library', icon: Library },
                         BIBLE: { label: 'Lectio', icon: Cross },
                         PLAJAH_LABS: { label: 'Museion', icon: FlaskConical },
+                        PLAJAH_HOME: { label: 'Plajah Home', icon: Home },
                         RADIO: { label: 'Radio', icon: Radio },
                         APPS: { label: 'Apps', icon: AppWindow },
                         CROSSOVER: { label: 'Crossover', icon: Repeat },
@@ -4249,6 +4444,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         ARTICLES: "Read newsletters and articles from your favorite writers.",
                         BOOKS: "Browse and read digital books, comics, and graphic novels.",
                         PLAJAH_LABS: "Science, engineering, and academia hub — research tools, STEM classrooms, and peer discussion.",
+                        PLAJAH_HOME: 'Smart home, device automation, repurposed devices & ambient displays.',
                         RADIO: "Tune into live artist stations and curated broadcasts.",
                         APPS: "Install and run community web applications and tools.",
                         CROSSOVER: "Convert video, audio, and images into almost any format - hardware-accelerated, no paid encoders.",
@@ -4363,6 +4559,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       ARTICLES: { label: 'The Newstand', icon: Newspaper },
                       BOOKS: { label: 'Lorea', icon: BookOpen }, SACRED_LIBRARY: { label: 'Sacred Library', icon: Library }, BIBLE: { label: 'Lectio', icon: Cross },
                       PLAJAH_LABS: { label: 'Museion', icon: FlaskConical },
+                      PLAJAH_HOME: { label: 'Plajah Home', icon: Home },
                       RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow }, CROSSOVER: { label: 'Crossover', icon: Repeat },
                       GAMES: { label: 'Games', icon: Gamepad2 }, CLUBS: { label: 'Clubs', icon: Users },
                       CHARITY: { label: 'Charity', icon: Heart }, PLAJAH_ELEVATE: { label: 'Plajah Elevate', icon: Landmark }, SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
@@ -4405,7 +4602,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       { id: 'education', label: 'Education', ids: ['BOOKS', 'CLASSROOMS', 'PLAJAH_LABS'] },
                       { id: 'community', label: 'Community', ids: ['CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'SACRED_LIBRARY', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB'] },
                       { id: 'creator', label: 'Creator Tools', ids: ['CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : []), 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'AMBO_PRO', 'MEDIA_ROUTER', 'POSTMAN'] },
-                      { id: 'platform', label: 'Platform', ids: ['HELP_CENTER', 'BROWSER'] },
+                      { id: 'platform', label: 'Platform', ids: ['PLAJAH_HOME', 'HELP_CENTER', 'BROWSER'] },
                     ];
                     return groups.map(group => {
                       const expanded = expandedGroups.includes(group.id);
@@ -4458,6 +4655,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       ARTICLES: { label: 'The Newstand', icon: Newspaper },
                       BOOKS: { label: 'Lorea', icon: BookOpen }, SACRED_LIBRARY: { label: 'Sacred Library', icon: Library }, BIBLE: { label: 'Lectio', icon: Cross },
                       PLAJAH_LABS: { label: 'Museion', icon: FlaskConical },
+                      PLAJAH_HOME: { label: 'Plajah Home', icon: Home },
                       RADIO: { label: 'Radio', icon: Radio }, APPS: { label: 'Apps', icon: AppWindow }, CROSSOVER: { label: 'Crossover', icon: Repeat },
                       GAMES: { label: 'Games', icon: Gamepad2 }, CLUBS: { label: 'Clubs', icon: Users },
                       CHARITY: { label: 'Charity', icon: Heart }, PLAJAH_ELEVATE: { label: 'Plajah Elevate', icon: Landmark }, SANCTUARY_HUB: { label: 'Sanctuary', icon: Shield },
@@ -4473,7 +4671,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                       PLAJAH_STUDIO: { label: 'Marketing', icon: Megaphone },
                       CREATOR: { label: 'Creator Hub', icon: Clapperboard },
                     };
-                    const allNavIds = ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS', 'PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES', 'BOOKS', 'CLASSROOMS', 'PLAJAH_LABS', 'CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB', 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'MEDIA_ROUTER', 'POSTMAN', 'HELP_CENTER', 'BROWSER', 'CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : [])];
+                    const allNavIds = ['USER_PROFILE', 'DASHBOARD', 'FEED', 'WORLDS', 'SEARCH', 'MUSIC', 'VIDEOS', 'MOVIES_TV', 'RADIO', 'GAMES', 'APPS', 'GLOBAL_PHOTOS', 'PLAJAH_SPORTS', 'HEALTH_FITNESS', 'ARTICLES', 'BOOKS', 'CLASSROOMS', 'PLAJAH_LABS', 'PLAJAH_HOME', 'CLUBS', 'CHAT', 'DISCUSSION', 'PLAJAH_ELEVATE', 'CHARITY', 'PAY_IT_FORWARD', 'SANCTUARY_HUB', 'STORE_HUB', 'LIVE_HUB', 'FABULA', 'TV_STUDIO', 'MEDIA_ROUTER', 'POSTMAN', 'HELP_CENTER', 'BROWSER', 'CREATOR', ...(user ? ['ARTIST_MANAGER', 'PLAJAH_STUDIO', 'BUSINESS_DASHBOARD', 'TERRA', 'AD_PACKAGES'] : [])];
                     const handleNavClick = (id: string) => {
                       if (id === 'PAY_IT_FORWARD') { setIsPIFModalOpen(true); return; }
                       if (id === 'USER_PROFILE') { if (user) { handleVisitUser(user.uid); } else { loginWithGoogle(); } return; }
@@ -4980,7 +5178,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   </defs>
                 </svg>
                 <div className="flex items-center px-1 pt-1 pb-android-nav gap-0">
-                  {getBottomTabsForPersona(activePersonaKey, userProfile).map((tab, idx, arr) => {
+                  {getBottomTabsForPersona(activePersonaKey, effectiveProfile).map((tab, idx, arr) => {
                     const Icon = tab.icon;
                     const isActive = view === tab.id;
                     const isHoldable = tab.id === 'DASHBOARD' || tab.id === 'USER_PROFILE' || idx === 0 || idx === arr.length - 1;
@@ -5145,6 +5343,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                         { id: 'MOVIES_TV', icon: Film, label: 'Movies' },
                         { id: 'BOOKS', icon: BookOpen, label: 'Lorea' },
                         { id: 'PLAJAH_LABS', icon: FlaskConical, label: 'Labs' },
+                        { id: 'PLAJAH_HOME', icon: Home, label: 'Home' },
                         { id: 'ARTICLES', icon: Newspaper, label: 'Newsstand' },
                         { id: 'RADIO', icon: Radio, label: 'Radio' },
                         { id: 'LIVE_HUB', icon: Sparkles, label: 'Live' },
@@ -5324,7 +5523,42 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'ACADEMIA_HOME' && (
               <Suspense fallback={null}>
-                <AcademiaHomeView profile={userProfile} onNavigate={(v) => setView(v as AppView)} />
+                <AcademiaHomeView user={user} profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} />
+              </Suspense>
+            )}
+
+            {LEARN_VIEW_TITLES[view as string] && (
+              <LearnBar view={view as string} onBack={() => goBack('LEARN')} onNavigate={(v) => setView(v as AppView)}
+                homeView={(isEducationAccount(effectiveProfile) || (effectiveProfile as any)?.accountType === 'PARENT') ? 'ACADEMIA_HOME' : 'ACADEMIA_LANDING'} />
+            )}
+
+            {view === 'NOTES' && (
+              <Suspense fallback={null}>
+                <NotesStudio user={user} profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} onBack={() => goBack('ACADEMIA_HOME')} />
+              </Suspense>
+            )}
+
+            {view === 'INQUIRY' && (
+              <Suspense fallback={null}>
+                <InvestigationStudio user={user} profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} onBack={() => goBack('LEARN')} />
+              </Suspense>
+            )}
+
+            {view === 'HOMESCHOOL' && (
+              <Suspense fallback={null}>
+                <HomeschoolHub user={user} profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} />
+              </Suspense>
+            )}
+
+            {view === 'LEARN' && (
+              <Suspense fallback={null}>
+                <LearnMapView user={user} profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} onBack={() => goBack('ACADEMIA_LANDING')} />
+              </Suspense>
+            )}
+
+            {view === 'ACADEMIA_DIRECTORY' && (
+              <Suspense fallback={null}>
+                <AcademiaDirectory profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} />
               </Suspense>
             )}
 
@@ -5342,7 +5576,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'EDU_SOCIAL' && (
               <Suspense fallback={null}>
-                <EducationSocialView currentUser={user} profile={userProfile} onVisitUser={handleVisitUser} />
+                <EducationSocialView currentUser={user} profile={effectiveProfile || userProfile} eduRole={roleLens ? ({ teacher: 'TEACHER', student: 'STUDENT', parent: 'PARENT' } as const)[roleLens] : undefined} onVisitUser={handleVisitUser} />
               </Suspense>
             )}
 
@@ -5376,6 +5610,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'READING_QUEST' && (
               <ReadingQuestView onBack={() => goBack('LANGUAGE_ARTS_SCHOOL')} user={user} />
+            )}
+
+            {view === 'STUDENT_HOME' && (
+              <HomeroomView user={user} profile={effectiveProfile || userProfile} onNavigate={(v) => setView(v as AppView)} />
+            )}
+
+            {view === 'VOCA' && (
+              <VocaView onBack={() => goBack('ACADEMIA_HOME')} user={user} profile={effectiveProfile || userProfile} />
             )}
 
             {view === 'HANDWRITING_WORKSHOP' && (
@@ -5420,6 +5662,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
 
+            {view === 'PLAJAH_HOME' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-[#D0BCFF]/30 border-t-[#D0BCFF] rounded-full animate-spin" /></div>}>
+                <PlajahHomeView currentUser={userProfile} onBack={() => setView('DASHBOARD')} />
+              </Suspense>
+            )}
+
             {view === 'ARTICLE_EDITOR' && userProfile && (
               <ArticleEditor 
                 article={editingArticle || undefined}
@@ -5447,9 +5695,43 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               />
             )}
 
+            {estimateToken && (
+              <Suspense fallback={null}>
+                <EstimatePublicView token={estimateToken} onClose={() => { setEstimateToken(null); try { window.history.replaceState({}, '', '/'); } catch {} }} />
+              </Suspense>
+            )}
+            {chmsLink && (
+              <div className="fixed inset-0 z-[300] bg-black/80 backdrop-blur flex items-center justify-center p-4" onClick={(e) => { if (e.target === e.currentTarget) setChmsLink(null); }}>
+                <div className="w-full max-w-md bg-[#0c0c0f] border border-white/10 rounded-3xl p-6 relative">
+                  <button onClick={() => { setChmsLink(null); try { const u = new URL(window.location.href); ['elevateClaim', 'elevateCheckin', 'event', 'label'].forEach(k => u.searchParams.delete(k)); window.history.replaceState({}, '', u.toString()); } catch {} }} className="absolute top-3 right-4 text-white/40 hover:text-white text-xs font-black uppercase tracking-widest">Close</button>
+                  {!user ? (
+                    <div className="text-center py-6">
+                      <p className="text-white font-bold mb-4">Sign in to Plajah to continue.</p>
+                      <button onClick={() => loginWithGoogle()} className="px-6 py-3 bg-small-orange text-black rounded-full text-[10px] font-black uppercase tracking-widest">Sign in</button>
+                    </div>
+                  ) : (
+                    <Suspense fallback={null}>
+                      {chmsLink.claim && <ChmsClaimCard token={chmsLink.claim} onDone={(orgId) => { setChmsLink(null); setOrgHubInitial({ orgId }); setView('ORG_HUB'); }} />}
+                      {chmsLink.checkinOrg && <ChmsCheckinCard orgId={chmsLink.checkinOrg} uid={user.uid} eventKey={chmsLink.eventKey} eventLabel={chmsLink.eventLabel} />}
+                    </Suspense>
+                  )}
+                </div>
+              </div>
+            )}
+            {elevateInviteToken && (
+              <Suspense fallback={null}>
+                <InviteRedeemView
+                  token={elevateInviteToken}
+                  signedIn={!!user}
+                  onSignIn={() => loginWithGoogle()}
+                  onClose={() => { setElevateInviteToken(null); try { const u = new URL(window.location.href); u.searchParams.delete('elevateInvite'); window.history.replaceState({}, '', u.toString()); } catch {} }}
+                  onOpenOrg={(orgId) => { setElevateInviteToken(null); setOrgHubInitial({ orgId }); setView('ORG_HUB'); }}
+                />
+              </Suspense>
+            )}
             {view === 'ORG_HUB' && user && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <OrgHub user={user} onBack={() => { setOrgHubInitial(null); setView('CREATOR'); }} initialOrgId={orgHubInitial?.orgId} initialGive={orgHubInitial?.give} initialContentHq={orgHubInitial?.contentHq} onVisitUser={(uid) => { setViewedUserId(uid); setView('USER_PROFILE'); }} />
+                <OrgHub user={user} onBack={() => { const fromElevate = !!orgHubInitial?.fromElevate; setOrgHubInitial(null); setView(fromElevate ? 'PLAJAH_ELEVATE' : 'CREATOR'); }} initialCreate={orgHubInitial?.create} initialOrgId={orgHubInitial?.orgId} initialGive={orgHubInitial?.give} initialContentHq={orgHubInitial?.contentHq} onVisitUser={(uid) => { setViewedUserId(uid); setView('USER_PROFILE'); }} onOpenVideo={handleSelectItem} onOpenAlbum={handleSelectItem} onOpenLive={setActiveLiveFeed} onOpenChannel={(ownerId, sourceId) => { setLiveChannelFocus({ ownerId, sourceId }); setView('LIVE_HUB' as AppView); }} />
               </Suspense>
             )}
 
@@ -5458,8 +5740,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <PlajahElevate
                   isSignedIn={!!user}
                   isAdmin={userProfile?.role === 'admin' || user?.email === 'kmoody2003@gmail.com'}
-                  onOpenOrg={(orgId) => { if (user) { setOrgHubInitial({ orgId }); setView('ORG_HUB'); } else { loginWithGoogle(); } }}
-                  onCreate={() => { if (user) { setView('CREATOR'); } else { loginWithGoogle(); } }}
+                  onOpenOrg={(orgId) => { if (user) { setOrgHubInitial({ orgId, fromElevate: true }); setView('ORG_HUB'); } else { loginWithGoogle(); } }}
+                  onCreate={() => { if (user) { setOrgHubInitial({ create: true, fromElevate: true }); setView('ORG_HUB'); } else { loginWithGoogle(); } }}
                 />
               </Suspense>
             )}
@@ -5577,6 +5859,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   currentUser={userProfile}
                   isLoggedIn={!!user}
                 />
+              </Suspense>
+            )}
+
+            {view === 'BIZ_SIM' && (
+              <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <BusinessSimView user={user} profile={userProfile} onBack={() => goBack('BUSINESS_SCHOOL')} onNavigate={handleGlobalNavigate} />
               </Suspense>
             )}
 
@@ -6071,18 +6359,33 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
             {view === 'TICKET_DESIGNER' && user && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <TicketDesigner onBack={() => setView('EVENT_PRODUCTION_STUDIO')} />
+                <TicketDesigner onBack={() => setView('EVENT_DASHBOARD')} />
               </Suspense>
             )}
 
             {view === 'EVENTS' && (
               <Suspense fallback={<div className="flex items-center justify-center h-full"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
-                <LiveEventsGallery />
+                <LiveEventsGallery
+                  onSelectEvent={id => {
+                    setSelectedEventId(id);
+                    setView('EVENT_DETAIL');
+                  }}
+                  onCreateEvent={() => setView('EVENT_CREATE')}
+                />
               </Suspense>
             )}
 
             {view === 'EVENT_DETAIL' && selectedEventId && (
-              <EventLandingPage eventId={selectedEventId} currentUser={userProfile} onBack={() => setView('EVENTS')} onSignIn={() => loginWithGoogle()} />
+              <EventLandingPage
+                eventId={selectedEventId}
+                currentUser={userProfile}
+                onBack={() => setView('EVENTS')}
+                onSignIn={() => loginWithGoogle()}
+                onOpenPhotoPool={poolId => {
+                  setSelectedPoolId(poolId);
+                  setView('EVENT_PHOTO_POOL');
+                }}
+              />
             )}
 
             {view === 'EVENT_CREATE' && userProfile && (
@@ -6097,11 +6400,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onViewEvent={id => { setSelectedEventId(id); setView('EVENT_DETAIL'); }}
                 onLaunchKiosk={id => { setKioskEventId(id); setView('EVENT_KIOSK'); }}
                 onLaunchScanner={id => { setScannerEventId(id); setView('EVENT_DASHBOARD'); }}
+                onOpenPhotoPool={poolId => {
+                  setSelectedPoolId(poolId);
+                  setView('EVENT_PHOTO_POOL');
+                }}
               />
             )}
 
             {view === 'MY_TICKETS' && selectedTicketId && userProfile && (
-              <TicketView ticketId={selectedTicketId} currentUser={userProfile} onBack={() => setView('MY_TICKETS')} />
+              <TicketView
+                ticketId={selectedTicketId}
+                currentUser={userProfile}
+                onBack={() => setView('DASHBOARD')}
+                onOpenPhotoPool={poolId => {
+                  setSelectedPoolId(poolId);
+                  setView('EVENT_PHOTO_POOL');
+                }}
+              />
             )}
 
             {view === 'EVENT_KIOSK' && kioskEventId && userProfile && (
@@ -6331,7 +6646,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </ErrorBoundary>
               </div>
             )}
-            {view === 'CREATOR' && user && <UserDashboard user={user} initialTab={dashboardInitialTab} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} onOpenScriptStudio={(fmt) => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }} />}
+            {view === 'CREATOR' && user && <UserDashboard user={user} initialTab={dashboardInitialTab} onOpenOrg={(orgId) => { setOrgHubInitial({ orgId }); setView('ORG_HUB'); }} onBack={() => setView('DASHBOARD')} onOpenTVStudio={() => setView('TV_STUDIO')} onOpenScriptStudio={(fmt) => { setSelectedScriptId(undefined); setView('SCRIPT_STUDIO'); }} />}
             {view === 'CREATOR_HUB' && (
               <CreatorHub
                 user={user}
@@ -6426,6 +6741,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <SpatialMixer onClose={() => setView('APPS')} />
               </Suspense>
             )}
+            {view === 'CHORA_MIXER' && (
+              <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
+                <ChoraStudioMixer onClose={() => setView('MELOS')} />
+              </Suspense>
+            )}
             {view === 'MEDIA_CONVERTER' && (
               <Suspense fallback={<div className="fixed inset-0 grid place-items-center bg-zinc-950"><div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" /></div>}>
                 <MediaConverter onClose={() => setView('APPS')} />
@@ -6460,7 +6780,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'FOLLOW_ALONG' && <FollowAlongView sessionId={followSessionId} onBack={() => setView('APPS')} />}
             {view === 'VESPERS' && vespersRecapId && <VespersRecap recapId={vespersRecapId} onBack={() => setView('APPS')} />}
             {view === 'CLASSROOMS' && (
-              (isEducationAccount(userProfile) || (userProfile as any)?.accountType === 'PARENT')
+              (isEducationAccount(effectiveProfile) || (effectiveProfile as any)?.accountType === 'PARENT')
                 ? <ClassroomsView onBack={() => setView('DASHBOARD')} user={user} onNavigate={(v) => setView(v as any)} />
                 : (
                   <Suspense fallback={null}>
@@ -6656,7 +6976,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             {view === 'EVENT_PHOTO_POOL' && selectedPoolId && (
               <EventPhotoPoolView 
                 poolId={selectedPoolId} 
-                onBack={() => setView('PPV_EVENTS')} 
+                onBack={() => selectedEventId ? setView('EVENT_DETAIL') : setView('EVENT_DASHBOARD')} 
               />
             )}
             {view === 'CHAT' && (
@@ -6678,6 +6998,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onSelectAlbum={handleSelectItem}
                   onSelectGame={handleSelectGame}
                   onVisitUser={handleVisitUser}
+                  onOpenOrg={(orgId) => { setOrgHubInitial({ orgId }); setView('ORG_HUB'); }}
                   onMessage={handleMessage}
                   onSelectArticle={(article) => { setSelectedArticle(article); setView('ARTICLE_VIEW'); }}
                   initialTab={initialProfileTab as any}
@@ -6913,6 +7234,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               </Suspense>
             )}
           </SpatialUIRoot>
+          </div>
           {showCreator && (
             <AlbumCreator
               onCreated={(alb, opts) => {
@@ -6973,6 +7295,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
           <KidsSessionGuard profile={effectiveProfile} />
           {activeChildProfile && <KidsModeBar child={activeChildProfile} onExit={() => setActiveChildProfile(null)} />}
+          {!activeChildProfile && isPlatformAdmin(user, userProfile) && (roleLens || ['ACADEMIA_HOME', 'STUDENT_HOME', 'ACADEMIA_DIRECTORY', 'CLASSROOMS', 'TEACHER_TOOLS'].includes(view as string)) && (
+            <RoleLensBar lens={roleLens} onChange={(r) => { setRoleLensState(r); if (r) setView('ACADEMIA_HOME'); }} />
+          )}
           {shellNext.enabled && !isMobile && !getPlatformInfo().isTV && currentTrack && !isNanoView ? (
             <div className="fixed inset-x-0 bottom-0 z-[240]">
               <CommandPlayer
@@ -7449,7 +7774,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           }}
           onUploadToReello={() => {
             setIsMediaPlajahMode(false);
-            setView('REELLO');
+            setView('VIDEOS');
           }}
           onAddToFabula={() => {
             setIsMediaPlajahMode(false);

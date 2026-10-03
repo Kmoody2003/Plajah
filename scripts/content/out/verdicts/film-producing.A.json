@@ -1,0 +1,1186 @@
+{
+ "courseId": "film-producing",
+ "verifier": "A",
+ "note": "Mostly general-practice course; several fetch attempts 404'd or returned generic pages. Many industry-practice claims left unverifiable rather than guessed.",
+ "fetched": 27,
+ "questions": [
+  {
+   "id": "film-producing.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l02.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l02.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l02.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l04.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l06.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l06.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l06.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l07.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l08.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l10.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l10.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l10.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l10.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l10.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l11.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l11.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l11.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l11.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l12.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l12.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l13.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l13.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l13.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l13.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l14.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l14.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l14.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l14.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l15.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l15.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l15.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l15.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l16.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l16.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l17.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l17.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l17.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l17.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l17.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l18.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l18.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l18.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l18.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l19.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l19.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l19.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l19.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l20.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l20.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l20.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l21.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l21.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l21.q3",
+   "answer": 0,
+   "confidence": "medium",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l21.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l21.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l22.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l22.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l22.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l22.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-producing.l22.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "film-producing.l01",
+   "claim": "Producer responsible for whole project from development through distribution",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Producer_(film)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l01",
+   "claim": "Stages: development, pre-production, production, post, release",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against a page"
+  },
+  {
+   "lessonId": "film-producing.l01",
+   "claim": "Director responsible for creative vision",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l02",
+   "claim": "Executive producer often funds project or brings investors; line producer manages day-to-day",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Producer_(film)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l02",
+   "claim": "Co-producer shares producing functions; associate producer assists",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Producer_(film)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l02",
+   "claim": "Some awards limit number of producers credited",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Academy_Award_for_Best_Picture"
+   ],
+   "note": "Academy Best Picture limit is three producers, with exceptions"
+  },
+  {
+   "lessonId": "film-producing.l03",
+   "claim": "Development precedes approval to make; adaptations require licences",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l03",
+   "claim": "Real-person stories may involve life-rights agreements",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l03",
+   "claim": "Most developed projects never made",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l04",
+   "claim": "Option agreement gives exclusive right to buy rights for a set period",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Option_(filmmaking)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l04",
+   "claim": "Rights return to owner if option expires; ~18 months typical",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Option_(filmmaking)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l04",
+   "claim": "Chain of title is documentation of rights; buyers rely on it",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Chain_of_title"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l05",
+   "claim": "Package = script plus director/cast",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l05",
+   "claim": "Letter of interest not binding like a contract",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l05",
+   "claim": "Comps help judge earnings",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l06",
+   "claim": "Above-the-line: writer/rights, producer, director, principal cast; below-the-line: crew, camera, art, etc.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Above-the-line_(filmmaking)"
+   ],
+   "note": "Wikipedia lists post-production as below-the-line; lesson says conventions differ, which is fair"
+  },
+  {
+   "lessonId": "film-producing.l06",
+   "claim": "Fringes are payroll taxes/benefits on top of salary",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Fringe_benefits"
+   ],
+   "note": "General definition only; film payroll-tax specifics not checked"
+  },
+  {
+   "lessonId": "film-producing.l06",
+   "claim": "Top sheet summarises major categories",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l07",
+   "claim": "Contingency ~10% often mentioned",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l07",
+   "claim": "Cost reports compare budget, actual/committed, forecast",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l07",
+   "claim": "Cash flow schedule",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l08",
+   "claim": "Scenes measured in eighths of a page",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Script_breakdown"
+   ],
+   "note": "That page did not mention eighths; standard industry practice from memory"
+  },
+  {
+   "lessonId": "film-producing.l08",
+   "claim": "Breakdown elements: cast, extras, stunts, SFX, props, wardrobe, vehicles, animals, equipment, sound, with colour conventions",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Script_breakdown"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l08",
+   "claim": "Interior/exterior and day/night noted per scene",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Production_board"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l09",
+   "claim": "Stripboard: colour-coded strips per scene with scene number, page count, location, cast; now software",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Production_board"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l09",
+   "claim": "Films shot out of sequence, grouped by location",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Production_board"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l09",
+   "claim": "Day breaks separate shooting days",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Production_board"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l10",
+   "claim": "SAG-AFTRA, DGA, WGA, IATSE, Teamsters as US unions",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l10",
+   "claim": "DGA represents film and TV directors in the US",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Directors_Guild_of_America"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l10",
+   "claim": "Agreements set pay, hours, rest, benefits",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l11",
+   "claim": "E&O covers copyright infringement/defamation claims; distributors require it",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Opened page did not address film E&O"
+  },
+  {
+   "lessonId": "film-producing.l11",
+   "claim": "General liability and workers' comp descriptions",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l11",
+   "claim": "Completion bond is a third-party guarantee",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Fetch of completion guaranty page returned 404"
+  },
+  {
+   "lessonId": "film-producing.l12",
+   "claim": "Call sheet issued ahead of shoot day with who/where/when, weather, safety",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Call_sheet"
+   ],
+   "note": "Source says usually no later than 12 hours before next work day"
+  },
+  {
+   "lessonId": "film-producing.l12",
+   "claim": "Production report, dailies, script supervisor roles",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l12",
+   "claim": "Wrap tasks",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l13",
+   "claim": "Final cut is right to determine final version of film",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Final_cut_privilege"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l13",
+   "claim": "Many directors lack final cut; studios often hold it",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Final_cut_privilege"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l13",
+   "claim": "Producer protects budget/schedule",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l14",
+   "claim": "Halyna Hutchins died October 2021 during filming of Rust after a gun was discharged",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Halyna_Hutchins"
+   ],
+   "note": "Died 21 Oct 2021; revolver loaded with live round (lesson says 'prop gun', acceptable)"
+  },
+  {
+   "lessonId": "film-producing.l14",
+   "claim": "Intimacy coordinators common with consent",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Intimacy_coordinator"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l14",
+   "claim": "Union agreements set rest periods",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l15",
+   "claim": "Picture lock means all changes done and approved; later changes costly",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Picture_lock"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l15",
+   "claim": "Colourist does grading",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l15",
+   "claim": "Post often longer than shoot",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l16",
+   "claim": "DCP is the standard delivery format to cinemas",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Digital_Cinema_Package"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l16",
+   "claim": "M&E track enables dubbing",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l16",
+   "claim": "Cue sheets, chain of title, E&O delivered",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l17",
+   "claim": "Sundance, Cannes, Venice, Toronto, Berlin are major launch festivals",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Sundance_Film_Festival"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l17",
+   "claim": "Premiere status matters to top festivals",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l17",
+   "claim": "Festival not guarantee of sale",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l18",
+   "claim": "Sales agent sells territory by territory for commission",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Fetched page was generic, not film-specific"
+  },
+  {
+   "lessonId": "film-producing.l18",
+   "claim": "Minimum guarantee is an advance against earnings",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Fetch of minimum guarantee page returned 404"
+  },
+  {
+   "lessonId": "film-producing.l18",
+   "claim": "Distributor recoups expenses first",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l19",
+   "claim": "First-look deal: studio gets first look at projects, often paying development fee",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/First-look_deal"
+   ],
+   "note": "Overhead deal not verified"
+  },
+  {
+   "lessonId": "film-producing.l19",
+   "claim": "Studios typically hold final cut",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Final_cut_privilege"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l19",
+   "claim": "Independent producers raise financing per film",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l20",
+   "claim": "US fair use is case-by-case, no guarantee",
+   "verdict": "supported",
+   "sources": [
+    "https://www.copyright.gov/fair-use/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l20",
+   "claim": "Archive material must be licensed",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l20",
+   "claim": "Participants sign releases",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l21",
+   "claim": "Streamers commission outright with broad rights",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l21",
+   "claim": "Viewing data held by service",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l21",
+   "claim": "Terms vary by service",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l22",
+   "claim": "Four-step risk handling",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l22",
+   "claim": "Trust is key asset",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-producing.l22",
+   "claim": "Abandoning project can be right",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  }
+ ]
+}

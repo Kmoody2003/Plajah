@@ -19,8 +19,15 @@
 // still opens and the operator drags it, which is how every projector has been
 // set up since 1998.
 
-import type { LayerSlot, LiveStack, MaskSpec, TransformSpec } from './showModel';
+import type { LayerContent, LayerSlot, LiveStack, MaskSpec, TransformSpec } from './showModel';
+import { isWindowsApp, postNativeMessage } from '../windowsBridgeService';
 import { LAYER_ORDER } from './showModel';
+import {
+  getOrCreateDeviceId,
+  detectDeviceType,
+  getFriendlyDeviceName
+} from './amboPartyEventService';
+import type { PartyEventDevice, EventDeviceType } from './amboPartyEventService';
 
 export const AMBO_CHANNEL = 'ambo-output-v1';
 
@@ -36,16 +43,16 @@ export type OutputKind =
 
 /** Sensible layer sets per kind — the operator can override any of them. */
 export const DEFAULT_LAYERS: Record<OutputKind, LayerSlot[]> = {
-  PROGRAM: ['background', 'fill', 'slide', 'scripture', 'prop', 'overlay', 'mask'],
+  PROGRAM: ['background', 'fill', 'slide', 'scripture', 'lyrics', 'prop', 'overlay', 'mask'],
   // A key must NOT carry the background, or it keys a filled rectangle.
-  KEY: ['slide', 'scripture', 'prop', 'overlay'],
+  KEY: ['slide', 'scripture', 'lyrics', 'prop', 'overlay'],
   // Props are for the congregation; the speaker gets text and timers.
-  STAGE: ['slide', 'scripture', 'overlay'],
-  AUX: ['background', 'fill', 'slide', 'scripture', 'prop', 'mask'],
+  STAGE: ['slide', 'scripture', 'lyrics', 'overlay'],
+  AUX: ['background', 'fill', 'slide', 'scripture', 'lyrics', 'prop', 'mask'],
   LOOP: ['background', 'fill'],
-  STREAM: ['background', 'fill', 'slide', 'scripture', 'prop', 'overlay', 'mask'],
+  STREAM: ['background', 'fill', 'slide', 'scripture', 'lyrics', 'prop', 'overlay', 'mask'],
   SIGNAGE: ['background', 'fill', 'slide', 'prop', 'overlay'],
-  LED_WALL: ['background', 'fill', 'slide', 'scripture', 'prop', 'overlay', 'mask'],
+  LED_WALL: ['background', 'fill', 'slide', 'scripture', 'lyrics', 'prop', 'overlay', 'mask'],
 };
 
 export interface DetectedScreenInfo {
@@ -66,6 +73,10 @@ export interface AmboOutput {
   id: string;
   name: string;
   kind: OutputKind;
+  /** For self-registration / mesh devices */
+  deviceTag?: 'THIS_DEVICE' | 'MESH_DEVICE' | 'LOCAL_SCREEN';
+  deviceTypeHint?: EventDeviceType;
+  isOnline?: boolean;
   /** Layers this output composites. Defaults from DEFAULT_LAYERS. */
   layers: LayerSlot[];
   /** Transparent background so a switcher can key it. */
@@ -143,6 +154,9 @@ export function stackForOutput(
   busClearedSlots?: Set<LayerSlot> | LayerSlot[]
 ): LiveStack {
   const allow = new Set(output.layers);
+  // Outputs saved before the lyrics slot existed: anything that shows slides
+  // shows lyrics too, or a projector set up last month silently drops them.
+  if (allow.has('slide') && !allow.has('lyrics')) allow.add('lyrics');
   const cleared = busClearedSlots instanceof Set
     ? busClearedSlots
     : new Set(busClearedSlots || output.clearedSlots || []);
@@ -159,7 +173,7 @@ export function stackForOutput(
 // ── The wire ─────────────────────────────────────────────────────────────────
 
 export interface OutputMessage {
-  type: 'STATE' | 'PING' | 'CLOSE';
+  type: 'STATE' | 'PING' | 'HELLO' | 'CLOSE';
   /** Monotonic — a late window can tell it has stale state. */
   seq: number;
   stack?: LiveStack;
@@ -183,12 +197,19 @@ export class OutputRouter {
   private channel: BroadcastChannel | null = null;
   private windows = new Map<string, Window>();
   private busClearingMasks = new Map<string, Set<LayerSlot>>();
+  /** Native (WinUI) output windows — no Window ref, the shell owns them. */
+  private nativeOpen = new Set<string>();
+  private lastStack: LiveStack = {};
+  private lastTimers?: Record<string, number>;
   private seq = 0;
   outputs: AmboOutput[] = [];
 
   constructor(outputs: AmboOutput[] = []) {
     this.outputs = outputs;
-    try { this.channel = new BroadcastChannel(AMBO_CHANNEL); } catch { this.channel = null; }
+    try {
+      this.channel = new BroadcastChannel(AMBO_CHANNEL);
+      this.channel.addEventListener('message', this.onChannelMessage);
+    } catch { this.channel = null; }
   }
 
   add(output: AmboOutput): void {
@@ -244,33 +265,79 @@ export class OutputRouter {
 
   /** Broadcast the live stack to every open output window. */
   send(stack: LiveStack, timers?: Record<string, number>): void {
+    this.lastStack = stack;
+    this.lastTimers = timers;
+    this.post();
+  }
+
+  /**
+   * (Re)send the current state. An output window that opens or reloads after
+   * the last TAKE would otherwise sit on "Waiting for the studio" until the
+   * operator happened to fire another cue.
+   */
+  private post(): void {
     const busClearing: Record<string, LayerSlot[]> = {};
     for (const out of this.outputs) {
       const cleared = this.getBusClearedSlots(out.id);
-      if (cleared.size > 0) {
-        busClearing[out.id] = [...cleared];
-      }
+      if (cleared.size > 0) busClearing[out.id] = [...cleared];
     }
 
     const msg: OutputMessage = {
       type: 'STATE',
       seq: ++this.seq,
-      stack,
+      stack: wireSafeStack(this.lastStack),
       outputs: this.outputs,
-      timers,
+      timers: this.lastTimers,
       busClearing,
       at: Date.now(),
     };
-    try { this.channel?.postMessage(msg); } catch { /* channel closed */ }
+    try { this.channel?.postMessage(msg); } catch (e) {
+      // One non-cloneable value drops the WHOLE message and the projector
+      // freezes on whatever it last had. Say so instead of hiding it.
+      console.warn('[ambo] output broadcast failed', e);
+    }
+  }
+
+  /** An output window just came up and is asking for the current state. */
+  private onChannelMessage = (e: MessageEvent) => {
+    if ((e.data as { type?: string } | null)?.type === 'HELLO') this.post();
+  };
+
+  /** The ?amboOut= URL every output loads — same origin, so BroadcastChannel reaches it. */
+  static outputUrl(id: string): string {
+    return `${location.origin}${location.pathname}?amboOut=${encodeURIComponent(id)}`;
   }
 
   /**
    * Open a physical window for an output. Returns false when the browser blocks
    * it (popup blocker) so the UI can tell the operator to allow popups rather
    * than silently showing nothing on the projector.
+   *
+   * Synchronous on purpose: window.open must run inside the click's user
+   * activation, and an `await` before it is how popups get blocked.
    */
   openWindow(output: AmboOutput, screens?: Array<{ left: number; top: number; width: number; height: number }>): boolean {
     if (typeof window === 'undefined') return false;
+    const url = OutputRouter.outputUrl(output.id);
+
+    // Windows app: a native borderless window on the target display, loading
+    // the SAME-ORIGIN ?amboOut= page in the main WebView2 environment. An
+    // inline NavigateToString page has an opaque origin and never receives the
+    // BroadcastChannel — that is why the projector showed nothing.
+    if (isWindowsApp()) {
+      postNativeMessage({
+        type: 'OPEN_OUTPUT_WINDOW',
+        outputId: output.id,
+        displayIndex: output.screenIndex ?? 1,
+        feedUrl: url,
+        title: output.name || 'Ambo Output',
+        width: output.width || 0,
+        height: output.height || 0,
+      });
+      this.nativeOpen.add(output.id);
+      return true;
+    }
+
     const existing = this.windows.get(output.id);
     if (existing && !existing.closed) { existing.focus(); return true; }
 
@@ -279,24 +346,6 @@ export class OutputRouter {
     const features = s
       ? `left=${s.left},top=${s.top},width=${s.width},height=${s.height},${baseFeatures}`
       : `width=1280,height=720,${baseFeatures}`;
-
-    const url = `${location.origin}${location.pathname}?amboOut=${encodeURIComponent(output.id)}`;
-
-    // Try Windows native hardware Clean-Feed if running in desktop app
-    void (async () => {
-      try {
-        const { isWindowsApp, openStudioCleanFeed } = await import('../windowsBridgeService');
-        if (isWindowsApp()) {
-          await openStudioCleanFeed({
-            displayIndex: output.screenIndex ?? 1,
-            feedUrl: url,
-            title: output.name || 'Ambo Audience Output',
-            width: output.width,
-            height: output.height,
-          });
-        }
-      } catch {}
-    })();
 
     const w = window.open(url, `ambo_${output.id}`, features);
     if (!w) return false;
@@ -308,17 +357,14 @@ export class OutputRouter {
     const w = this.windows.get(id);
     try { if (w && !w.closed) w.close(); } catch { /* */ }
     this.windows.delete(id);
-    void (async () => {
-      try {
-        const { isWindowsApp, closeStudioCleanFeed } = await import('../windowsBridgeService');
-        if (isWindowsApp()) closeStudioCleanFeed();
-      } catch {}
-    })();
+    if (this.nativeOpen.delete(id)) {
+      postNativeMessage({ type: 'CLOSE_OUTPUT_WINDOW', outputId: id });
+    }
   }
 
   /** How many output windows are actually open — the real count, not intent. */
   openCount(): number {
-    let n = 0;
+    let n = this.nativeOpen.size;
     for (const w of this.windows.values()) if (w && !w.closed) n++;
     return n;
   }
@@ -331,22 +377,55 @@ export class OutputRouter {
         at: Date.now(),
       });
     } catch {}
-    for (const id of [...this.windows.keys()]) this.closeWindow(id);
-    try { this.channel?.close(); } catch { /* */ }
+    for (const id of [...this.windows.keys(), ...this.nativeOpen]) this.closeWindow(id);
+    try {
+      this.channel?.removeEventListener('message', this.onChannelMessage);
+      this.channel?.close();
+    } catch { /* */ }
     this.channel = null;
   }
+}
+
+/**
+ * Strip what structured clone can't carry. A LIVE layer holds a MediaStream for
+ * the studio's own monitor; posting it throws DataCloneError and the WHOLE
+ * message is lost. Output windows resolve live inputs by `inputId` instead.
+ */
+export function wireSafeStack(stack: LiveStack): LiveStack {
+  const out: LiveStack = {};
+  for (const slot of Object.keys(stack) as LayerSlot[]) {
+    const layer = stack[slot];
+    if (!layer) continue;
+    const c = layer.content as LayerContent & { stream?: unknown };
+    if (c && c.stream) {
+      const { stream: _drop, ...rest } = c;
+      out[slot] = { ...layer, content: rest as LayerContent };
+    } else {
+      out[slot] = layer;
+    }
+  }
+  return out;
 }
 
 /** The output-window side: subscribe and render whatever arrives. */
 export function subscribeToStudio(onState: Listener): () => void {
   let ch: BroadcastChannel | null = null;
   try { ch = new BroadcastChannel(AMBO_CHANNEL); } catch { return () => {}; }
+  let gotState = false;
   const handler = (e: MessageEvent) => {
     const m = e.data as OutputMessage;
-    if (m && m.type === 'STATE') onState(m);
+    if (!m) return;
+    if (m.type === 'STATE') { gotState = true; onState(m); }
+    else if (m.type === 'CLOSE') onState(m);
   };
   ch.addEventListener('message', handler);
+  // Ask for the current state — this window may have opened after the last
+  // cue. Keep asking until answered: the studio may still be mounting.
+  const hello = () => { if (!gotState) { try { ch?.postMessage({ type: 'HELLO', at: Date.now() }); } catch { /* */ } } };
+  hello();
+  const retry = setInterval(hello, 1500);
   return () => {
+    clearInterval(retry);
     try { ch?.removeEventListener('message', handler); ch?.close(); } catch { /* */ }
   };
 }
@@ -493,4 +572,213 @@ export function publishAmboLiveOutput(
   label = 'Ambo Program Output',
 ): void {
   publishAppOutput(channelId, stream, label, 'ambo');
+}
+
+// ── Device Registration & Discovery ──────────────────────────────────────────
+
+export interface SelfDeviceInfo {
+  deviceId: string;
+  deviceType: EventDeviceType;
+  deviceName: string;
+  screens: DetectedScreenInfo[];
+  isPrimary: boolean;
+}
+
+export async function detectSelfDevice(): Promise<SelfDeviceInfo> {
+  const deviceId = getOrCreateDeviceId();
+  const deviceType = detectDeviceType();
+  const deviceName = getFriendlyDeviceName();
+  const screens = await detectScreens();
+  return {
+    deviceId,
+    deviceType,
+    deviceName,
+    screens,
+    isPrimary: true,
+  };
+}
+
+export function buildOutputsFromDevices(selfDevice: SelfDeviceInfo, meshDevices: PartyEventDevice[]): AmboOutput[] {
+  const outputs: AmboOutput[] = [];
+
+  // 1. Create default outputs from detected physical screens
+  if (selfDevice.screens && selfDevice.screens.length > 1) {
+    const sortedScreens = [...selfDevice.screens].sort((a, b) => a.index - b.index);
+    const secondary = sortedScreens.find(s => !s.primary) || sortedScreens[1];
+    if (secondary) {
+      outputs.push(makeOutput('PROGRAM', `Main Display (${secondary.resolutionLabel || secondary.label})`, {
+        deviceTag: 'LOCAL_SCREEN',
+        deviceTypeHint: selfDevice.deviceType,
+        isOnline: true,
+        screenIndex: secondary.index,
+        displayIndex: secondary.index,
+        width: secondary.width,
+        height: secondary.height,
+        refreshRate: secondary.refreshRate,
+        aspectRatio: secondary.aspectRatio,
+        autoDetectDisplay: true
+      }));
+    }
+    
+    if (sortedScreens.length > 2) {
+      const tertiary = sortedScreens.find(s => !s.primary && s.index !== secondary.index) || sortedScreens[2];
+      if (tertiary) {
+        outputs.push(makeOutput('STAGE', `Stage Display (${tertiary.resolutionLabel || tertiary.label})`, {
+          deviceTag: 'LOCAL_SCREEN',
+          deviceTypeHint: selfDevice.deviceType,
+          isOnline: true,
+          screenIndex: tertiary.index,
+          displayIndex: tertiary.index,
+          width: tertiary.width,
+          height: tertiary.height,
+          refreshRate: tertiary.refreshRate,
+          aspectRatio: tertiary.aspectRatio,
+          autoDetectDisplay: true
+        }));
+      }
+    }
+  }
+
+  // 2. Add the self-device as a THIS_DEVICE tagged output
+  outputs.push(makeOutput('AUX', selfDevice.deviceName || 'This Device', {
+    id: `self_${selfDevice.deviceId}`,
+    deviceTag: 'THIS_DEVICE',
+    deviceTypeHint: selfDevice.deviceType,
+    isOnline: true,
+    width: selfDevice.screens[0]?.width || 1920,
+    height: selfDevice.screens[0]?.height || 1080
+  }));
+
+  // 3. Merge in online mesh devices from the Party Event system
+  for (const md of meshDevices) {
+    if (md.deviceId !== selfDevice.deviceId) {
+      const w = md.screen?.width || 1920;
+      const h = md.screen?.height || 1080;
+      outputs.push(makeOutput('AUX', md.deviceName || md.deviceId, {
+        id: `mesh_${md.deviceId}`,
+        deviceTag: 'MESH_DEVICE',
+        deviceTypeHint: md.deviceType,
+        isOnline: md.isOnline,
+        width: w,
+        height: h,
+        aspectRatio: md.screen?.aspectRatio
+      }));
+    }
+  }
+
+  return outputs;
+}
+
+export function subscribeToDisplayChanges(callback: (screens: DetectedScreenInfo[]) => void): () => void {
+  let isSubscribed = true;
+  let unsubscribeWindows = () => {};
+  let unsubscribeWeb = () => {};
+
+  const notify = async () => {
+    if (!isSubscribed) return;
+    const screens = await detectScreens();
+    callback(screens);
+  };
+
+  if (typeof window !== 'undefined') {
+    // Windows Native Bridge
+    import('../windowsBridgeService').then(({ isWindowsApp, onNativeMessage }) => {
+      if (!isSubscribed) return;
+      if (isWindowsApp()) {
+        unsubscribeWindows = onNativeMessage((msg: any) => {
+          if (msg.type === 'DISPLAY_CHANGE' || msg.type === 'STUDIO_DISPLAYS_CHANGED') {
+            notify();
+          }
+        });
+      }
+    }).catch(() => {});
+
+    // Chromium Window Management API
+    if ('getScreenDetails' in window) {
+      (window as any).getScreenDetails().then((details: any) => {
+        if (!isSubscribed) return;
+        const handler = () => notify();
+        details.addEventListener('screenschange', handler);
+        unsubscribeWeb = () => {
+          details.removeEventListener('screenschange', handler);
+        };
+      }).catch(() => {});
+    } else if (window.screen) {
+      const handler = () => notify();
+      window.screen.addEventListener('change', handler);
+      unsubscribeWeb = () => {
+        window.screen.removeEventListener('change', handler);
+      };
+    }
+  }
+
+  return () => {
+    isSubscribed = false;
+    unsubscribeWindows();
+    unsubscribeWeb();
+  };
+}
+
+// ── QR Code Pairing for Guest / Non-Signed-In Devices ────────────────────────
+
+export interface PairingInfo {
+  pairingCode: string;     // 6-character alphanumeric code
+  pairingUrl: string;      // Full URL to open on the guest device
+  sessionId: string;       // Unique session ID
+  expiresAt: number;       // Timestamp when the code expires
+}
+
+let _activePairing: PairingInfo | null = null;
+
+export function generatePairingInfo(uid: string): PairingInfo {
+  // Generate a 6-char alphanumeric code
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no I,O,0,1 to avoid confusion
+  let code = '';
+  for (let i = 0; i < 6; i++) code += chars[Math.floor(Math.random() * chars.length)];
+  
+  const sessionId = `pair_${uid}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  
+  // Build the URL — works for web, Android, and Windows
+  const baseUrl = typeof window !== 'undefined' 
+    ? `${window.location.origin}` 
+    : 'https://plajah.com';
+  const pairingUrl = `${baseUrl}/ambo/join?code=${code}&session=${sessionId}&host=${uid}`;
+  
+  _activePairing = {
+    pairingCode: code,
+    pairingUrl,
+    sessionId,
+    expiresAt: Date.now() + 30 * 60 * 1000, // 30 minutes
+  };
+  
+  return _activePairing;
+}
+
+export function getActivePairing(): PairingInfo | null {
+  if (_activePairing && _activePairing.expiresAt < Date.now()) {
+    _activePairing = null;
+  }
+  return _activePairing;
+}
+
+export function clearPairing(): void {
+  _activePairing = null;
+}
+
+export function flashDisplayIdentifier(output: AmboOutput): void {
+  // Send a message over BroadcastChannel telling the output window to show
+  // a full-screen overlay with the output name for 3 seconds
+  const channel = new BroadcastChannel(AMBO_CHANNEL);
+  channel.postMessage({
+    type: 'IDENTIFY_DISPLAY',
+    outputId: output.id,
+    outputName: output.name,
+    outputKind: output.kind,
+    duration: 3000,
+  });
+  channel.close();
+}
+
+export function flashAllDisplayIdentifiers(outputs: AmboOutput[]): void {
+  outputs.forEach(output => flashDisplayIdentifier(output));
 }

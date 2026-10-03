@@ -1,0 +1,1458 @@
+{
+ "courseId": "law-intl-humanitarian-criminal",
+ "label": "Laws of War and International Criminal Law",
+ "lessons": [
+  {
+   "id": "law-intl-humanitarian-criminal.l01",
+   "title": "Jus ad Bellum and Jus in Bello: Two Separate Questions",
+   "body": [
+    "The law of armed conflict is built on a deliberate separation. Jus ad bellum (the law on the resort to force) asks whether a state may use armed force against another state in the first place. Jus in bello (the law in war, today usually called international humanitarian law or IHL) asks how force may be used once hostilities exist, and how the people caught up in them must be treated. A third, newer label, jus post bellum, is sometimes used for the law of transition after conflict, though it is less settled as a distinct field.",
+    "Jus ad bellum is now centred on the UN Charter. Article 2(4) obliges members to refrain from the threat or use of force against the territorial integrity or political independence of any state. There are two main exceptions. Article 51 preserves the inherent right of individual or collective self-defence if an armed attack occurs, and Chapter VII lets the Security Council authorise force after finding a threat to the peace, breach of the peace or act of aggression under Article 39. The earlier Kellogg-Briand Pact of 1928 renounced war as an instrument of national policy, but it lacked the Charter's institutional machinery. In Nicaragua v. United States (ICJ, 1986) the Court treated the prohibition on the use of force as reflected in customary law as well as the Charter, and it held that only the gravest forms of force amount to an armed attack that triggers self-defence.",
+    "Jus in bello is a different system with a different logic. Its rules apply once an armed conflict exists, whether or not the conflict began lawfully. This is the principle of the equal application of IHL: the soldiers of an aggressor state and those of the state defending itself have the same rights and the same duties under the Geneva Conventions. The preamble of Additional Protocol I of 1977 states that the protections of the Conventions and of the Protocol must be applied without adverse distinction based on the nature or origin of the armed conflict or on the causes espoused by or attributed to the parties.",
+    "Why keep the two apart? If a belligerent's treatment of prisoners depended on whether its cause was just, every side would claim the just cause, and each would feel free to deny protection to the enemy. Humanitarian rules would collapse exactly when they are needed. Separation also reflects the reality that the protected people, wounded soldiers and civilians, did nothing to choose the war.",
+    "The separation has limits worth knowing. A state that violates jus ad bellum bears state responsibility and its leaders may face the crime of aggression, but that does not strip its soldiers of prisoner-of-war status. Likewise, a state acting in lawful self-defence still must obey distinction and proportionality; its right to respond does not authorise any means at all. Necessity and proportionality also appear in jus ad bellum, but there they ask whether the whole defensive response is justified, not whether a single strike on a particular building is lawful. Students often confuse the two uses of \"proportionality,\" so keep the question straight: ad bellum proportionality concerns the scale of the response to the armed attack, in bello proportionality concerns expected civilian harm against the military advantage of a specific attack.",
+    "Worked example: State A invades State B in plain violation of Article 2(4). A captured A soldier is held by B. B may not mistreat or prosecute him merely for fighting in an unlawful war; he is entitled to prisoner-of-war treatment if he qualifies. A's leaders, however, may be accountable for aggression, and A owes reparation to B."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l02",
+   "title": "Sources: Hague Law, Geneva Law, Custom and the Martens Clause",
+   "body": [
+    "IHL has two historical strands that are now largely merged. \"Hague law\" governs the means and methods of warfare: what weapons and tactics are permitted. Its landmark is the 1907 Hague Convention IV and its annexed Regulations respecting the laws and customs of war on land, which refined earlier work from 1899. \"Geneva law\" protects victims of war: the wounded, the sick, shipwrecked, prisoners and civilians. Its origins lie in Henri Dunant's experience after the battle of Solferino and the first Geneva Convention of 1864, and it reached its modern form in the four Geneva Conventions of 1949. Additional Protocol I of 1977 deliberately fused both strands by regulating the conduct of hostilities and protecting victims in one instrument.",
+    "The four 1949 Conventions cover: wounded and sick armed forces in the field (I), wounded, sick and shipwrecked armed forces at sea (II), prisoners of war (III) and civilians in the hands of an adversary (IV). They are among the most widely ratified treaties in the world, with participation essentially universal. The 1977 Additional Protocols are less widely accepted: Protocol I on international armed conflicts and Protocol II on non-international armed conflicts have many parties but not all states, and the United States, for example, signed both in 1977 without ratifying them. A third Protocol of 2005 added the red crystal as a protective emblem.",
+    "Customary law fills the gap. A rule of custom arises from consistent state practice accompanied by opinio juris, the belief that the practice is legally required. Custom binds states that are not party to a given treaty. In 2005 the ICRC published a study of customary IHL identifying a long list of rules, many of them applicable in both international and non-international conflicts. The study has been influential but not uncontroversial: some governments, including the United States in a formal response, challenged its methodology and some of its conclusions. A careful student treats it as a leading but contested reference.",
+    "The Martens clause is a safety net for situations the treaties do not cover. Drafted by the Russian jurist Friedrich Martens and placed in the preamble of the Hague conventions, it says that in cases not covered by specific rules, civilians and combatants remain under the protection of the principles of international law derived from established custom, the principles of humanity and the dictates of public conscience. It is repeated in Additional Protocol I, Article 1(2). Its legal effect is debated. The weak reading says it only confirms that custom continues to apply where treaties are silent. The strong reading says humanity and public conscience are independent sources of limits. Courts and states have used it cautiously, and the ICJ cited it in its 1996 advisory opinion on nuclear weapons.",
+    "Trap: do not say a treaty does not bind a non-party and stop there. The right question is whether the rule has also crystallised as custom, and whether the state persistently objected while the custom formed.",
+    "Worked example: Suppose State X has never ratified Additional Protocol I. It still may not deliberately attack civilians, because that prohibition is accepted as customary law, binding X whether or not X has joined the Protocol. If X also argued that the rule did not bind it, it would have to show that it persistently objected while the custom formed, which is very hard for a rule this widely accepted."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l03",
+   "title": "Classifying Conflicts: International, Non-International and the Thresholds",
+   "body": [
+    "IHL does not apply to every act of violence. It applies when there is an armed conflict, and the type of conflict decides which treaty provisions govern. The Geneva Conventions use two categories.",
+    "International armed conflict (IAC) is addressed by common Article 2, which applies to declared war or any other armed conflict between two or more High Contracting Parties, even if a state of war is not recognised, and to cases of partial or total occupation, even without armed resistance. The threshold is low: resort to armed force between states is generally enough, and no minimum duration or intensity is required. Additional Protocol I, Article 1(4), also extends IAC rules to armed conflicts in which peoples fight against colonial domination, alien occupation and racist regimes in the exercise of self-determination, though this provision binds only parties to the Protocol and has little practical use today.",
+    "Non-international armed conflict (NIAC) is addressed by common Article 3, which applies to armed conflict not of an international character occurring in the territory of one party. The Conventions do not define it. The ICTY Appeals Chamber in Prosecutor v. Tadic (1995) supplied the standard formula: a NIAC exists whenever there is protracted armed violence between governmental authorities and organised armed groups, or between such groups within a state. Two elements are therefore used in practice: a minimum level of intensity and a minimum level of organisation of the non-state party. Internal disturbances such as riots, isolated and sporadic acts of violence and similar acts fall below the threshold, as Additional Protocol II, Article 1(2), explicitly states. Protocol II itself has a higher threshold than common Article 3: it requires that the armed group be under responsible command and exercise control over part of the territory so as to carry out sustained and concerted military operations and implement the Protocol.",
+    "Why does classification matter? The detailed regimes for prisoners of war and for occupation apply only in IACs. In NIACs, the treaty rules are thinner, though customary law has extended many conduct-of-hostilities rules to both categories. Classification can also be mixed. A conflict may be internationalised when another state intervenes, and courts have debated how much control over a rebel group a foreign state needs before the conflict becomes international. The ICJ in Nicaragua required effective control of specific operations to attribute rebel acts to a state, while the ICTY in Tadic preferred a looser overall control test for the purpose of classifying the conflict. The ICJ later reaffirmed effective control for the purposes of state responsibility.",
+    "Trap: a state that denies there is a \"war\" does not escape IHL. The legal test is factual. Governments often describe fighting as law enforcement or counter-terrorism, but if the facts meet the thresholds, IHL applies.",
+    "Worked example: Armed police clash with protesters for two days and several people die. The violence is serious but disorganised and sporadic, so no NIAC exists and human rights law and domestic criminal law govern. Months later, a well-organised group controls a district, fights government forces daily and holds prisoners. The Tadic standard is now met and common Article 3 applies."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l04",
+   "title": "Distinction, Proportionality and Precaution",
+   "body": [
+    "Three principles structure the conduct of hostilities. They are codified in Additional Protocol I and are accepted as customary law.",
+    "Distinction (Articles 48, 51, 52). Parties must at all times distinguish between civilians and combatants and between civilian objects and military objectives, and direct attacks only at combatants and military objectives. Civilians are protected unless and for such time as they take a direct part in hostilities (Article 51(3)). Under Article 52(2), a military objective is an object which by its nature, location, purpose or use makes an effective contribution to military action and whose total or partial destruction, capture or neutralisation, in the circumstances ruling at the time, offers a definite military advantage. In case of doubt whether an object normally dedicated to civilian purposes, such as a school or house, is used for military action, it is presumed to be civilian (Article 52(3)). Indiscriminate attacks, those not directed at a specific military objective, using means that cannot be directed, or whose effects cannot be limited, are prohibited by Article 51(4). Using civilians as human shields is prohibited, and the presence of a shield does not remove the attacker's obligations (Article 51(7)).",
+    "Proportionality (Articles 51(5)(b) and 57(2)(a)(iii)). An attack is prohibited if it may be expected to cause incidental loss of civilian life, injury to civilians or damage to civilian objects that would be excessive in relation to the concrete and direct military advantage anticipated. Three features need care. First, the test applies to incidental harm; deliberately targeting civilians is not a proportionality question but a violation of distinction. Second, the standard is \"excessive,\" not \"any,\" so lawful attacks may kill civilians. Third, the judgment is made on information reasonably available to the commander at the time, not with hindsight. The two quantities are incommensurable, which critics note, and states have said that only clearly excessive imbalance is a violation, a threshold also found in the Rome Statute's war crime in Article 8(2)(b)(iv).",
+    "Precautions in attack (Article 57) and against the effects of attack (Article 58). Attackers must do everything feasible to verify that targets are military objectives, choose means and methods that minimise civilian harm, cancel or suspend an attack if it becomes apparent that it would violate the rules, and give effective advance warning of attacks that may affect the civilian population unless circumstances do not permit. Defenders must, to the extent feasible, remove civilians from the vicinity of military objectives and avoid locating military objectives within densely populated areas. Feasible means practicable given all circumstances at the time, including humanitarian and military considerations.",
+    "Worked example: A commander learns that an enemy ammunition store sits next to an apartment block. The store is a military objective. If an attack with a large bomb would be expected to kill many residents for the destruction of one depot, the commander must consider a smaller weapon, a different time of day, or a warning. If no feasible measure reduces the expected harm and the harm is still excessive relative to the advantage, the attack must not go ahead. If the same commander simply aims at the apartment block because enemy sympathisers live there, that is not a proportionality failure but a direct attack on civilians, a war crime."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l05",
+   "title": "The Wounded, the Sick, Medical Personnel and the Emblems",
+   "body": [
+    "The oldest strand of humanitarian law protects those who can no longer fight. Geneva Convention I (1949) covers wounded and sick members of armed forces on land, and Convention II extends the same ideas to the wounded, sick and shipwrecked at sea. Their core rule is that such persons must be respected, collected and cared for without adverse distinction founded on sex, race, nationality, religion or political opinion. The only permissible ground for priority in treatment is urgent medical need (Convention I, Article 12). Parties must take all possible measures to search for and collect the wounded and to protect them against pillage and ill-treatment (Article 15).",
+    "Additional Protocol I generalises the idea in the notion of a person hors de combat (Article 41). A person is hors de combat if he is in the power of an adverse party, clearly expresses an intention to surrender, or has been rendered unconscious or is otherwise incapacitated by wounds or sickness and is therefore incapable of defending himself, provided that in each case he abstains from hostile acts and does not try to escape. Such a person may not be made the object of attack. Linked rules prohibit ordering that there shall be no survivors, or conducting hostilities on that basis, which is the prohibition of denial of quarter (Article 40), and protect parachutists leaving an aircraft in distress during their descent (Article 42).",
+    "Medical personnel, units and transports are protected because the healing mission benefits everyone. The protection depends on their exclusive assignment to medical purposes. They display the distinctive emblem: the red cross, the red crescent, and since Protocol III of 2005, the red crystal, all of which have the same legal value and are protective devices, not religious symbols. The emblem is the visible signal of a status the law already confers; a unit does not need to display it to be protected, but the display helps attackers identify it at a distance.",
+    "Protection can end, but only narrowly. Under Article 21 of Convention I, protection of fixed medical establishments and mobile units ceases if they are used outside their humanitarian duties to commit acts harmful to the enemy, and only after a warning that sets a reasonable time limit and goes unheeded. Several things do not count as acts harmful to the enemy: staff carrying light individual weapons for their own defence or that of the wounded in their charge, the presence of weapons collected from the wounded and not yet handed to the proper service, and the care of wounded combatants in the facility (Article 22). Using the emblem to cover military activity is perfidy, a serious violation, and it also harms the wider system of protection.",
+    "Trap: do not say that medical personnel become targets whenever they carry any weapon. Light personal arms used only for defence do not forfeit protection. Equally, do not say that a hospital cannot ever lose its protection; using a hospital as a firing position or arms store, after a warning, can.",
+    "Worked example: A field hospital flying the red cross is used by some soldiers as a mortar position. The attacking force cannot lawfully shell it at once. It must warn the occupants, fix a reasonable period for the misuse to stop, and attack only if the warning is ignored; even then it must apply proportionality and precautions for the wounded still inside, who remain protected persons."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l06",
+   "title": "Prisoners of War: Status, Treatment and Release",
+   "body": [
+    "Prisoner-of-war (POW) status is a legal category, not a description of anyone who is captured. It exists only in international armed conflicts. Convention III, Article 4, lists the persons who qualify: members of the armed forces of a party and of militias or volunteer corps forming part of them, members of other militias and organised resistance movements belonging to a party who meet four conditions (a responsible commander, a fixed distinctive sign recognisable at a distance, arms carried openly, and conduct in accordance with the laws and customs of war), and inhabitants of unoccupied territory who spontaneously take up arms to resist an invasion, the levee en masse, if they carry arms openly and respect the laws of war. Additional Protocol I, Article 44, relaxes the rules for fighters in special situations where they cannot distinguish themselves, provided they carry arms openly during each engagement and while visible to the enemy in a deployment preceding an attack.",
+    "Status brings two things: combatant immunity, meaning a lawful combatant cannot be prosecuted merely for taking part in hostilities and for acts that comply with IHL, and the protections of captivity. If there is doubt about status, Article 5 says the person keeps POW treatment until a competent tribunal decides. Spies and mercenaries are not entitled to POW status (Protocol I, Articles 46 and 47), and a combatant who is captured while failing to distinguish himself from civilians in the way the law requires may lose it.",
+    "Treatment in captivity is governed by humane treatment as the master principle. Article 13 requires that POWs be humanely treated and protected against acts of violence, intimidation, insults and public curiosity, and it prohibits reprisals against them. They must be evacuated from the combat zone, housed in conditions no less favourable than the detaining power's own troops, and given adequate food, clothing and medical care. Interrogation is limited: a POW is bound to give only name, rank, date of birth and service number, and no physical or mental torture or any other form of coercion may be used to obtain more information (Article 17). Officers and other ranks can be required to work only under defined conditions, and prisoners may be punished only through the same courts and procedures that apply to the detaining power's own forces. The International Committee of the Red Cross must be allowed to visit them.",
+    "Captivity ends with release and repatriation without delay after the cessation of active hostilities (Article 118). The duty is not suspended by disputes over a peace treaty, and the Convention also requires direct repatriation of the seriously wounded and sick during the conflict. Transfer to another state is allowed only if that state is a party to the Convention and willing and able to apply it, and the transferring power stays responsible (Article 12).",
+    "What about those who fall outside the category? The Conventions have no term \"unlawful combatant\", and the label has been controversial. A person who is not a POW is not left without law. Civilians who are detained fall under Convention IV, and in all cases the fundamental guarantees of Protocol I, Article 75, and common Article 3 apply as a minimum. In Hamdan v. Rumsfeld (US Supreme Court, 2006), the Court held that common Article 3 applied to the armed conflict with al Qaeda, which it described as a conflict not of an international character, so that military commissions had to meet its requirement of a regularly constituted court.",
+    "Worked example: A uniformed soldier is captured by the enemy. He may be asked his name and rank and nothing more, must be moved from the front, may not be displayed to the press, may not be prosecuted for lawfully shooting enemy soldiers, and must be sent home once active hostilities end."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l07",
+   "title": "Civilians, Protected Persons and the Law of Occupation",
+   "body": [
+    "Convention IV protects civilians who find themselves, in a conflict or occupation, in the hands of a party of which they are not nationals (Article 4). It has two main parts: general protections for the population against the consequences of war, and a detailed regime for aliens in the territory of a party and for people in occupied territory. Its basic standards include humane treatment, a ban on physical or moral coercion to obtain information, a prohibition on collective punishment, pillage and reprisals against protected persons, and a prohibition on taking hostages (Articles 27 to 34).",
+    "Occupation is a factual situation. Under Article 42 of the 1907 Hague Regulations, territory is occupied when it is actually placed under the authority of a hostile army, and the occupation extends only to the territory where that authority has been established and can be exercised. This is effective control without the consent of the local sovereign. In Armed Activities on the Territory of the Congo (DRC v. Uganda, ICJ, 2005), the Court found that Uganda was an occupying power in the Ituri district because its forces had substituted their own authority for the Congolese government's there, and that it was responsible for violations including looting and plunder of natural resources, both by its forces and for failing to prevent them in the territory it controlled.",
+    "The occupant is a temporary administrator, not a sovereign. It acquires no title to the territory, and Article 43 of the Hague Regulations requires it to take all measures in its power to restore and ensure public order and civil life, while respecting, unless absolutely prevented, the laws in force in the country. Convention IV adds that the penal laws of the occupied territory remain in force subject to limited exceptions for security and compliance (Article 64). Private property may not be confiscated, and pillage is prohibited (Hague Regulations, Articles 46 and 47). Public immovable property is held under a usufruct: the occupant may use it and its fruits but must safeguard the capital (Article 55). Destruction of property is prohibited except where rendered absolutely necessary by military operations (Convention IV, Article 53).",
+    "Two prohibitions generate the most controversy. Article 49 forbids individual or mass forcible transfers and deportations of protected persons from occupied territory, regardless of motive, although total or partial evacuation is allowed where the security of the population or imperative military reasons demand it. Article 49(6) provides that the occupying power shall not deport or transfer parts of its own civilian population into the territory it occupies. The ICJ in its 2004 Advisory Opinion on the Legal Consequences of the Construction of a Wall in the Occupied Palestinian Territory held Convention IV applicable there and treated settlements as contrary to Article 49(6); Israel disputes the applicability of the Convention to the territories and the interpretation of that provision. Rome Statute Article 8(2)(b)(viii) makes such transfers a war crime in international armed conflict.",
+    "Security detention is permitted only under strict conditions: internment or assigned residence is allowed only if absolutely necessary or, in occupied territory, for imperative reasons of security (Articles 42 and 78), with a right of appeal and periodic review by a competent body.",
+    "Trap: occupation law is not a licence to govern as the occupier wishes. It also continues for as long as effective control lasts, and it does not depend on a formal declaration of occupation.",
+    "Worked example: An occupying power closes a local radio station that broadcasts calls to arms against its troops. This may be justified for security under the penal and security powers. If it instead rewrites the territory's civil code to suit its own economic interests and settles its own citizens in the area, those acts conflict with the obligation to respect existing laws and with Article 49(6)."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l08",
+   "title": "Non-International Armed Conflicts: Common Article 3, Protocol II and Custom",
+   "body": [
+    "Most armed conflicts today are non-international, and the treaty law for them is much shorter than for wars between states. States were reluctant to regulate how they fight their own insurgents. The result is a small core, common Article 3, and a longer but less widely accepted Additional Protocol II.",
+    "Common Article 3 requires each party, including non-state armed groups, to treat humanely persons taking no active part in hostilities, including members of armed forces who have laid down their arms or are hors de combat through sickness, wounds or detention, without adverse distinction. It prohibits at any time and in any place violence to life and person (murder, mutilation, cruel treatment and torture), the taking of hostages, outrages upon personal dignity (in particular humiliating and degrading treatment), and passing sentences or carrying out executions without a judgment by a regularly constituted court affording the judicial guarantees recognised as indispensable. It also requires that the wounded and sick be collected and cared for, allows the ICRC to offer its services, and encourages special agreements bringing other provisions into force. The last sentence says that application does not affect the legal status of the parties, a clause meant to reassure governments that engaging with rebels does not grant them recognition.",
+    "Additional Protocol II develops these rules for conflicts that meet its higher threshold. It contains fundamental guarantees (Article 4, including a specific protection for children), rules on persons deprived of liberty (Article 5), penal prosecutions (Article 6), care of the wounded and sick and medical personnel (Articles 7 to 12), and protection of the civilian population (Articles 13 to 18), including a prohibition on attacking civilians, on starvation as a method of combat (Article 14) and on forced displacement unless civilian security or imperative military reasons require it (Article 17).",
+    "Custom has done much of the bridging. In Tadic (1995), the ICTY Appeals Chamber held that many rules of the law of international conflicts had come to apply in internal ones, including the protection of civilians and rules on means and methods of warfare, and that serious violations of common Article 3 can entail individual criminal responsibility. The ICRC customary law study reaches similar conclusions for many rules. The Rome Statute lists war crimes in non-international conflicts separately, in Article 8(2)(c) for violations of common Article 3 and 8(2)(e) for other serious violations.",
+    "Several gaps remain. First, there is no prisoner-of-war status and no combatant immunity in a non-international conflict. Fighters of an armed group can be prosecuted under domestic law for taking up arms, though they cannot be punished for war crimes without a fair trial and, as noted in Protocol II, Article 6(5), authorities are encouraged at the end of hostilities to grant the broadest possible amnesty to those who took part in the conflict or are deprived of liberty for reasons related to it. The ICRC reads this as excluding persons suspected of war crimes. Second, the treaty text says little about the legal basis and procedures for detention by either side. Third, the question of how armed groups are bound is debated; the common explanations are that they are bound because the state of which they are nationals is bound, because they exercise government-like functions, or because customary law binds all parties.",
+    "Trap: describing a captured rebel as a \"prisoner of war\" is a classification error. In a non-international conflict he is a detainee entitled to humane treatment and fair trial, but not to POW status.",
+    "Worked example: A rebel group executes captured soldiers after a \"trial\" by its commander without any independent court. This violates common Article 3's ban on sentences without a regularly constituted court and, as murder of persons hors de combat, is a war crime under Rome Statute Article 8(2)(c)(i)."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l09",
+   "title": "Weapons Law: General Principles and Specific Treaties",
+   "body": [
+    "Weapons law rests on two general rules. The first is that the right of parties to choose methods or means of warfare is not unlimited (Additional Protocol I, Article 35(1), echoing the Hague Regulations). The second has two limbs: a ban on weapons and methods that are of a nature to cause superfluous injury or unnecessary suffering (Article 35(2), whose lineage goes back to the 1868 St Petersburg Declaration), and a ban on weapons that are indiscriminate by nature because they cannot be directed at a specific military objective or their effects cannot be limited (Article 51(4)). Superfluous injury asks whether the harm to combatants exceeds what any legitimate military purpose requires; indiscriminate weapons concern civilians. Note that a weapon is not unlawful merely because it is terrible. The issue is whether harm is unnecessary relative to its military purpose.",
+    "On top of these principles sits a patchwork of specific treaties. The Geneva Gas Protocol of 1925 bans the use in war of asphyxiating, poisonous or other gases and bacteriological methods. The Biological Weapons Convention of 1972 prohibits developing, producing and stockpiling biological and toxin weapons, but it has no standing verification body. The Chemical Weapons Convention of 1993, in force since 1997, goes further: it bans the development, production, stockpiling, transfer and use of chemical weapons and creates an organisation (the OPCW) to verify destruction and inspect. The 1980 Convention on Certain Conventional Weapons and its Protocols restrict, among others, non-detectable fragments, mines and booby-traps, incendiary weapons, and (Protocol IV of 1995) laser weapons specifically designed to cause permanent blindness. The 1997 Ottawa Convention bans anti-personnel mines, and the 2008 Convention on Cluster Munitions bans cluster munitions of the kind it defines, though a number of major military powers have not joined either treaty. Treaties bind only parties, so non-parties remain subject to the general rules and any customary prohibitions, such as the widely accepted prohibition on the use of chemical weapons.",
+    "Nuclear weapons are governed by a particular blend of law. In its 1996 Advisory Opinion on the Legality of the Threat or Use of Nuclear Weapons, the ICJ found no comprehensive and universal prohibition in customary or treaty law, held that any threat or use must comply with IHL and would generally be contrary to its rules, and said it could not conclude definitively whether use would be lawful or unlawful in an extreme circumstance of self-defence in which the very survival of a state was at stake. It also unanimously affirmed an obligation to pursue negotiations on nuclear disarmament in good faith. The Treaty on the Prohibition of Nuclear Weapons, adopted in 2017 and in force since 2021, bans them for its parties, but the states possessing nuclear weapons are not among them.",
+    "States must also look at weapons before they use them. Article 36 of Additional Protocol I requires a state party, when studying, developing, acquiring or adopting a new weapon, means or method of warfare, to determine whether its employment would be prohibited. Many states without the Protocol conduct such reviews as a matter of practice.",
+    "Trap: do not equate \"banned\" with \"dangerous\". Many lawful weapons are very destructive. A weapon is prohibited by a specific treaty, because it is by nature indiscriminate, or because it causes unnecessary suffering. Even a lawful weapon may be used unlawfully, for instance when it is aimed at civilians.",
+    "Worked example: A state develops a munition that scatters tiny bomblets over a wide area, many of which fail to explode. Review proceeds on two tracks: whether a specific treaty, such as the Cluster Munitions Convention, forbids it for that state, and whether general principles forbid it as indiscriminate in the areas where it would be used, taking into account the risk to civilians from unexploded remnants."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l10",
+   "title": "Methods of Warfare: Perfidy, Starvation, Cultural Property and the Environment",
+   "body": [
+    "Methods of warfare are the tactics used. Several are restricted or prohibited by rules of general application.",
+    "Perfidy versus ruses. Additional Protocol I, Article 37, prohibits killing, injuring or capturing an adversary by resort to perfidy: acts inviting the confidence of an adversary to lead him to believe that he is entitled to, or obliged to accord, protection under the rules of armed conflict, with intent to betray that confidence. Examples are feigning an intent to negotiate under a flag of truce or to surrender, feigning incapacitation by wounds or sickness, feigning civilian status, and feigning protected status by using signs of the United Nations or of neutral states. Ruses of war, by contrast, are lawful: camouflage, decoys, mock operations and false information are meant to mislead but do not invoke legal protection. The test is whether the deception exploits a duty the law imposes on the adversary to refrain from attack. A fighter who hides in foliage uses a ruse; a fighter who raises a white flag and then opens fire commits perfidy. Perfidy that causes death or injury is a war crime, and the misuse of the distinctive emblems is separately prohibited (Article 38).",
+    "Starvation and relief. Article 54 prohibits starvation of civilians as a method of warfare and attacking, destroying, removing or rendering useless objects indispensable to the survival of the civilian population, such as foodstuffs, crops, livestock and drinking water installations, for the specific purpose of denying them to civilians. Rome Statute Article 8(2)(b)(xxv) makes intentional use of starvation as a method of warfare a war crime in international armed conflicts, including wilfully impeding relief supplies. In December 2019 the Assembly of States Parties adopted an amendment adding a parallel offence for non-international conflicts (Article 8(2)(e)(xix)). Under Article 121(5) it binds only states parties that have accepted it; it entered into force on 14 October 2021 and, as of October 2026, about 25 states have accepted it, so the Court's reach over starvation in a non-international conflict depends on whether the state concerned is one of them. Sieges are not unlawful as such, but a besieging party may not use starvation of civilians as a method of war, and relief operations that are humanitarian and impartial must be allowed, subject to agreement of the parties concerned, which may not be arbitrarily withheld (Article 70). In 2018 the Security Council, in Resolution 2417, condemned starving civilians as a method of warfare.",
+    "Cultural property. The 1954 Hague Convention and its two Protocols (1954 and 1999) oblige parties to safeguard cultural property in peacetime and respect it in war, which means refraining from use of it for military purposes and from directing hostilities against it, subject to a waiver for imperative military necessity whose conditions are tightened in the Second Protocol. Additional Protocol I, Article 53, separately protects historic monuments, works of art and places of worship that constitute the cultural or spiritual heritage of peoples. In Prosecutor v. Al Mahdi (ICC, 2016), the accused pleaded guilty to the war crime of intentionally directing attacks against religious and historic buildings, namely mausoleums and a mosque in Timbuktu, Mali, and was sentenced to nine years.",
+    "The natural environment. Articles 35(3) and 55 of Protocol I prohibit methods or means of warfare intended or expected to cause widespread, long-term and severe damage to the natural environment. The words are cumulative and the threshold is deliberately high, so that few conflicts have met it. The Rome Statute covers environmental damage only where it is clearly excessive in relation to the concrete and direct overall military advantage (Article 8(2)(b)(iv)). A separate 1976 treaty, ENMOD, prohibits hostile use of environmental modification techniques having widespread, long-lasting or severe effects. Outside these provisions, the environment is protected indirectly as a civilian object.",
+    "Worked example: Soldiers approach an enemy position holding up their hands as if to surrender, and when the defenders stand to take them prisoner they throw grenades. This is perfidy: it exploits the defenders' duty to accept surrender. A different unit that places inflatable tank decoys in a field to attract enemy bombers has used a lawful ruse."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l11",
+   "title": "Targeting in Practice: Direct Participation, Dual-Use Objects, Cyber Operations and Autonomy",
+   "body": [
+    "Real conflicts are messy: fighters do not wear uniforms, civilian infrastructure serves armies, and weapons increasingly rely on software. IHL answers by applying the same principles with careful tests, though several of those tests are contested.",
+    "Direct participation in hostilities. Civilians are protected from attack unless and for such time as they take a direct part in hostilities (Article 51(3)). The ICRC's 2009 Interpretive Guidance proposed three cumulative conditions: the act must be likely to adversely affect military operations or inflict harm on protected persons or objects (threshold of harm); there must be a direct causal link between the act and the harm in a single causal step (direct causation); and the act must be designed to support one party and harm another (belligerent nexus). Examples include shooting at soldiers or laying roadside bombs; merely paying taxes, selling food to soldiers or expressing support does not qualify. For members of an organised armed group, the Guidance suggests that a \"continuous combat function\" makes a person targetable for as long as he holds it, even when not actively fighting. Many states and scholars criticise parts of the Guidance, particularly the time and membership issues, so treat it as influential but disputed. A civilian who has taken part regains protection once the participation ends, and in cases of doubt the person is to be considered civilian (Article 50(1)).",
+    "Dual-use objects. Some objects serve both military and civilian purposes: a power plant, a bridge, a telecommunications network. There is no separate category of \"dual-use object\" in the treaties. Each is assessed under Article 52(2): if its use makes an effective contribution to military action and its destruction offers a definite military advantage, it is a military objective, and the civilian side then enters the proportionality and precaution analysis. Being a military objective does not mean any attack is lawful. Destroying a grid that also supplies hospitals can cause severe indirect civilian harm that must be counted among the foreseeable effects.",
+    "Cyber operations. There is broad agreement among states that IHL applies to cyber operations that occur in the context of an armed conflict. The hard question is what counts as an attack and as an object. An operation expected to cause death, injury or physical damage is clearly an attack. Operations that disable a network without physical damage, or that delete civilian data, are debated: some states and the ICRC argue that loss of functionality should count, while others require physical effects. The Tallinn Manual, written by independent experts at the invitation of a NATO centre, is a respected academic restatement but is not a treaty and does not bind states.",
+    "Autonomous weapon systems. These are systems that select and engage targets without further human intervention. No treaty specifically regulates them as of October 2026. A Group of Governmental Experts under the Convention on Certain Conventional Weapons has developed a draft \"rolling text\" of elements of an instrument and is due to report to the CCW's Seventh Review Conference in November 2026, which will decide on next steps; the UN General Assembly has also considered the subject. There is wide agreement that existing IHL applies, including weapons review under Article 36, and that distinction, proportionality and precautions require human judgment that cannot simply be delegated. Contested questions include how much human control is required, who bears responsibility for an unlawful strike, and whether a specific prohibition or regulation is needed.",
+    "Worked example: A hacker group not formally part of the armed forces ceases to be protected only while it carries out acts that meet the three conditions, for example by disabling an air defence system for a military operation. Selling antivirus software to the same army would not count, though it may support the war effort."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l12",
+   "title": "Compliance and Enforcement: Grave Breaches, Universal Jurisdiction and Responsibility",
+   "body": [
+    "IHL has no police force, so compliance depends on a layered system. At the base is the obligation in common Article 1 of the Geneva Conventions for states to respect and to ensure respect for the Conventions in all circumstances. The second limb is generally read to oblige states to use lawful means to encourage others to comply and not to assist violations, though the precise reach of that duty is debated. Armed forces must be trained in IHL and have legal advisers, and commanders must ensure subordinates know the rules.",
+    "The Conventions create a special regime for grave breaches. Each Convention lists acts, if committed against protected persons or property, that are grave breaches. Under Convention IV (Article 147) these include wilful killing, torture or inhuman treatment, wilfully causing great suffering or serious injury, unlawful deportation or transfer, unlawful confinement, compelling a protected person to serve in hostile forces, taking hostages, and extensive destruction and appropriation of property not justified by military necessity. Additional Protocol I, Article 85, adds, among others, launching an indiscriminate attack affecting civilians with knowledge that it will cause excessive loss, and the transfer by an occupier of its own population. Parties must enact legislation, search for persons alleged to have committed or ordered such breaches, and bring them before their own courts regardless of nationality, or hand them over for trial to another party with a prima facie case (Convention IV, Article 146). This obligation to prosecute or extradite is the basis of universal jurisdiction in treaty terms. Strictly, the grave breaches regime applies to international armed conflicts, though customary law and later tribunals have extended war crimes liability to non-international conflicts. For other violations, states must take measures necessary to suppress them.",
+    "Universal jurisdiction lets a state prosecute certain crimes regardless of where they occurred or the nationality of the perpetrator or victim. National courts have used it in recent years, but it is politically sensitive and often restricted by domestic law or prosecutorial discretion. Immunity is a major limit. In Arrest Warrant of 11 April 2000 (DRC v. Belgium, 2002), the ICJ held that an incumbent foreign minister enjoys immunity from the criminal jurisdiction of other states, including for alleged war crimes and crimes against humanity, while in office, but stressed that immunity from jurisdiction is not impunity. A person may be prosecuted by his own state, if his state waives immunity, once he leaves office for acts committed in a private capacity or before or after the term, or before an international court whose statute provides for it. How far the rule applies to former officials and to acts in an official capacity is debated.",
+    "State responsibility sits beside individual responsibility. A state that violates IHL commits an internationally wrongful act for which it owes cessation and reparation; Hague Convention IV (Article 3) and Additional Protocol I (Article 91) say a party is liable to pay compensation for violations by persons forming part of its armed forces. Reprisals, once the classic enforcement tool, are now heavily restricted: they are prohibited against protected persons under the Conventions and against civilians and civilian objects, cultural property, objects indispensable to survival, the environment and works containing dangerous forces under Protocol I. Other mechanisms include the ICRC's role in visiting detainees, the Protecting Power system (rarely used), and the Protocol I fact-finding commission, which has seen little use.",
+    "Worked example: A visiting foreign minister is accused of ordering torture of civilians at home. A third state may not arrest him for trial while he holds office, but a tribunal with jurisdiction might, or his own state could prosecute, or immunity could be waived. After he leaves office, a court may be able to act depending on the conduct and the court's rules."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l13",
+   "title": "The Nuremberg and Tokyo Legacy",
+   "body": [
+    "Before 1945, international law was mostly addressed to states. Individuals who committed atrocities were punished, if at all, by their own governments or by the victors under national military law. The Nuremberg trials changed the premise: individuals can bear criminal responsibility directly under international law, and official position is no shield.",
+    "The International Military Tribunal at Nuremberg was created by the London Agreement and Charter of 8 August 1945 among the United States, the United Kingdom, France and the Soviet Union. Its Charter gave jurisdiction over three categories: crimes against peace (planning, preparing, initiating or waging a war of aggression or a war in violation of international treaties, including participation in a common plan or conspiracy to do so), war crimes (violations of the laws and customs of war), and crimes against humanity (murder, extermination, enslavement, deportation and other inhumane acts against civilians, and persecutions on political, racial or religious grounds, in execution of or in connection with the other crimes in the tribunal's jurisdiction). Twenty-four leaders were indicted and twenty-two were tried in the main proceedings; judgments were delivered at the end of September and on 1 October 1946, with twelve death sentences and three acquittals. Several organisations were also declared criminal. A parallel tribunal for the Far East, the International Military Tribunal for the Far East, sat in Tokyo from 1946 and delivered judgments in 1948, with one judge, Radhabinod Pal of India, dissenting on important points. Twelve further trials of doctors, judges, industrialists and others were held by US tribunals at Nuremberg under Control Council Law No. 10.",
+    "The legal contributions were large. The Tribunal rejected the defence of superior orders as a complete defence (it could at most mitigate punishment), rejected the argument that acts of state shielded officials, and treated the crimes as committed by individuals, not abstract entities. The UN General Assembly affirmed the principles of the Charter and judgment in 1946, and the International Law Commission formulated seven Nuremberg Principles in 1950.",
+    "The trials were also criticised then and since. The first objection is \"victors' justice\": the judges came only from the victorious powers, and Allied conduct, including the Soviet role in the invasion of Poland, was not tried. The second is nullum crimen sine lege, the principle that no one should be punished for conduct that was not criminal when committed, which was raised against crimes against peace and crimes against humanity. The Tribunal answered that the principle is one of justice and not a limit on sovereignty, that the Kellogg-Briand Pact of 1928 had already made aggressive war illegal, and that those who attacked their neighbours in knowing violation of treaties could not claim surprise. Critics remain unconvinced on crimes against humanity, which had a weaker pre-1945 pedigree. In practice, the Tribunal tied crimes against humanity to the other crimes in its jurisdiction, a link later dropped.",
+    "A related precedent is In re Yamashita (US Supreme Court, 1946), in which a Japanese general was convicted by a US military commission for failing to control troops who committed atrocities in the Philippines. It is a landmark of command responsibility but is also criticised for the thinness of the findings on his knowledge and control.",
+    "The post-war period also produced the Genocide Convention of 1948, the Geneva Conventions of 1949 and the Nuremberg legacy of personal accountability, which fed into the later ad hoc tribunals and the ICC.",
+    "Worked example: A minister argues that he cannot be tried because he acted as head of a department under orders from the head of state. Under the Nuremberg principles, neither official position nor superior orders is a complete defence; the orders may be considered only in mitigation where justice requires."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l14",
+   "title": "Individual and Command Responsibility: Modes of Liability and Defences",
+   "body": [
+    "International crimes are usually committed by groups and organisations. The law therefore needs doctrines that reach people at every level. The Rome Statute is the most systematic statement. Article 25(3) lists forms of individual responsibility: committing a crime, whether individually, jointly with another or through another person; ordering, soliciting or inducing it; aiding, abetting or otherwise assisting, including by providing the means; and contributing to the commission of a crime by a group acting with a common purpose, with the aim of furthering the group's criminal activity or with knowledge of its intent. Direct and public incitement is separately covered for genocide, and attempts are punishable. Article 27 says official capacity is irrelevant: heads of state and ministers are not exempt from responsibility or entitled to a reduction in sentence on that ground. Article 29 provides that crimes within the Court's jurisdiction are not subject to any statute of limitations.",
+    "Joint criminal enterprise (JCE) was developed by the ICTY Appeals Chamber in Prosecutor v. Tadic (1999) as a form of liability for participants in a common plan, drawing on post-war cases. It distinguishes forms by the participants' mental state, including an extended form for foreseeable crimes outside the plan. It was criticised as too broad, and the ICC has used different concepts, such as co-perpetration based on control over the crime.",
+    "Superior or command responsibility is different in kind. Under Article 28 of the Rome Statute, a military commander (or person effectively acting as one) is criminally responsible for crimes committed by forces under his effective command and control, or effective authority and control, as a result of his failure to exercise control properly, if he either knew or, owing to the circumstances at the time, should have known that the forces were committing or about to commit such crimes, and failed to take all necessary and reasonable measures within his power to prevent or repress their commission or to submit the matter to the competent authorities. The standard for civilian superiors is stricter on knowledge: the superior must have known or consciously disregarded information which clearly indicated that the subordinates were committing or about to commit the crimes, and the crimes must concern activities within his effective responsibility and control. The key concept is effective control, meaning the material ability to prevent or punish, which the ICTY applied in Celebici (Trial Chamber 1998, affirmed 2001). Responsibility under Article 28 is for failure to supervise, which is often argued as a form of liability for the crimes of others, not a separate offence.",
+    "In Prosecutor v. Bemba Gombo, an ICC Trial Chamber convicted a Congolese politician in 2016 under Article 28 for crimes committed by his militia in the Central African Republic. In 2018 the Appeals Chamber, by majority, reversed the conviction, holding among other things that the Trial Chamber had erred in assessing whether Bemba took all necessary and reasonable measures given his limited ability to act from abroad. It remains an important illustration that the \"reasonable measures\" element is judged on what was actually possible for the commander.",
+    "Superior orders and other defences. Article 33 states that a person who commits a crime pursuant to an order of a government or superior is not relieved of responsibility unless he was under a legal obligation to obey, did not know the order was unlawful, and the order was not manifestly unlawful; orders to commit genocide or crimes against humanity are manifestly unlawful. Article 31 recognises grounds for excluding responsibility, including mental disease, intoxication in limited cases, self-defence or defence of others (with a proportionality requirement and, for war crimes, defence of property essential for survival or a mission), and duress. Mistakes of fact or law may negate the mental element. Article 26 excludes persons under eighteen at the time of the alleged crime from the Court's jurisdiction.",
+    "Worked example: A general knows his troops are looting villages and executing prisoners, receives reports each week, and takes no steps to stop them or to refer the cases for prosecution. He may be responsible under command responsibility for the crimes. A private soldier who obeyed an order to shoot unarmed civilians cannot rely on superior orders, because the order was manifestly unlawful."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l15",
+   "title": "War Crimes: Grave Breaches, Serious Violations and the Rome Statute List",
+   "body": [
+    "A war crime is a serious violation of the laws and customs applicable in armed conflict that entails individual criminal responsibility. Not every violation of IHL is a war crime; the violation must be serious (endangering protected persons or objects, or breaching important values) and, under customary law, individual responsibility must attach.",
+    "Article 8 of the Rome Statute organises war crimes into four groups. For international armed conflicts: (a) grave breaches of the Geneva Conventions, such as wilful killing, torture or inhuman treatment, wilfully causing great suffering, extensive destruction of property not justified by military necessity, unlawful deportation or confinement, and taking hostages; and (b) other serious violations of the laws and customs applicable in international armed conflict, a long list including intentionally directing attacks against the civilian population or against civilians not taking direct part in hostilities, intentionally directing attacks against civilian objects, launching an attack knowing it will cause incidental civilian harm clearly excessive in relation to the concrete and direct overall military advantage anticipated (Article 8(2)(b)(iv)), attacking undefended towns, pillaging, using poison or prohibited gases, killing or wounding treacherously, improper use of emblems, transfer by an occupying power of parts of its own civilian population into occupied territory, and conscripting or enlisting children under fifteen or using them to participate actively in hostilities. For non-international armed conflicts: (c) serious violations of common Article 3, and (e) other serious violations of laws and customs, a shorter list that includes attacks on civilians, on medical and",
+    "humanitarian personnel, on protected buildings, pillage, sexual violence, and the use of child soldiers. Article 8(2)(d) and (f) fix the threshold: non-international conflict provisions do not cover internal disturbances, and they apply to protracted armed conflict between governmental authorities and organised armed groups or between such groups.",
+    "Article 8(1) says the Court shall have jurisdiction over war crimes \"in particular\" when committed as part of a plan or policy or as part of a large-scale commission. The words are a guide to the Court's focus and not a strict element, though the Court has used them in selecting cases. A war crime must have a nexus to an armed conflict: the conduct must take place in the context of and be associated with it, and the perpetrator must be aware of the factual circumstances establishing that the conflict exists. The victims must also be protected persons or objects under the relevant rule.",
+    "The first judgment of the ICC was Prosecutor v. Lubanga Dyilo (2012), in which a Trial Chamber convicted the Congolese militia leader of the war crimes of conscripting and enlisting children under the age of fifteen and using them to participate actively in hostilities in an armed conflict not of an international character. The conviction was upheld on appeal in 2014. The case illustrates the nexus requirement, the NIAC list, and the Court's treatment of child soldiers, including that \"participation\" extends beyond direct combat to roles exposing children to danger as targets.",
+    "War crimes can be prosecuted nationally and internationally, and the grave breaches regime requires states to prosecute or extradite. Some experts argue that the distinction between grave breaches and other war crimes is a historical artefact that has lost most of its meaning.",
+    "Trap: do not confuse a violation of the proportionality rule with a war crime. The Rome Statute requires that the harm be clearly excessive, and that the perpetrator know the attack will cause such harm, a much higher bar than the treaty rule in Additional Protocol I.",
+    "Worked example: A battalion commander orders artillery on a village he knows contains only civilians, to punish residents for supporting the enemy. This is intentionally directing attacks against civilians, a war crime in both international and non-international conflicts, and no proportionality calculation arises."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l16",
+   "title": "Crimes Against Humanity and Genocide",
+   "body": [
+    "Crimes against humanity and genocide are both crimes that may be committed in peacetime or in armed conflict. They differ in what they protect and in the intent they require.",
+    "Crimes against humanity. Article 7 of the Rome Statute defines them as listed acts committed as part of a widespread or systematic attack directed against any civilian population, with knowledge of the attack. The acts include murder, extermination, enslavement, deportation or forcible transfer of population, imprisonment in violation of fundamental rules of international law, torture, rape and other forms of sexual violence of comparable gravity, persecution against an identifiable group on political, racial, national, ethnic, cultural, religious, gender or other grounds in connection with another act or crime in the Statute, enforced disappearance, apartheid, and other inhumane acts of a similar character causing great suffering or serious injury. \"Widespread\" refers to large scale or number of victims; \"systematic\" to an organised pattern. The attack is a course of conduct involving multiple commission of the acts against a civilian population, pursuant to or in furtherance of a State or organisational policy to commit the attack (Article 7(2)(a)). The single act of the accused need not be widespread, but it must form part of the attack, and he must know of it. Unlike at Nuremberg, no link to armed conflict is required under the Rome Statute, and no discriminatory intent is required except for persecution. There is currently no stand-alone treaty on crimes against humanity;",
+    "the International Law Commission adopted draft articles in 2019. In December 2024 the General Assembly (resolution 79/122) decided to convene a conference of plenipotentiaries, with negotiating sessions planned for 2028 and 2029, so a convention has not yet been concluded as of October 2026.",
+    "Genocide. The 1948 Convention (Article II) defines genocide as any of five acts committed with intent to destroy, in whole or in part, a national, ethnical, racial or religious group, as such: killing members of the group; causing serious bodily or mental harm; deliberately inflicting conditions of life calculated to bring about physical destruction in whole or in part; imposing measures intended to prevent births; and forcibly transferring children of the group to another group. The Rome Statute repeats the definition in Article 6. Two features define the crime. First, the special intent (dolus specialis) to destroy the group as such, in addition to the intent to commit the underlying act. Second, the protected groups are limited to the four listed; political and social groups are not covered, a gap noted by many critics. \"In whole or in part\" has been interpreted to require a substantial part. Genocide is also punishable when committed through conspiracy, direct and public incitement, attempt, or complicity (Article III), and states have duties to prevent and punish (Article I).",
+    "The ICJ in Bosnia and Herzegovina v. Serbia and Montenegro (2007) held that genocide was committed at Srebrenica in July 1995, that Serbia had not committed genocide through its organs or direction and control of the perpetrators, nor conspired or was complicit, but that Serbia had breached its obligation to prevent genocide and failed to cooperate with the ICTY. The case shows that state responsibility for genocide is a separate question from individual criminal responsibility, and that the duty to prevent depends on a state's capacity to influence the perpetrators. Later ICJ cases on genocide, such as Croatia v. Serbia (2015), found no genocide on the facts.",
+    "How to tell them apart on an exam: a massacre of civilians as part of a government campaign may be a crime against humanity even if its victims are a political group; to be genocide it must target a protected group with intent to destroy it. A single crime can also be both. Persecution is often confused with genocide: persecution requires a discriminatory purpose but not the intent to destroy.",
+    "Worked example: A regime rounds up members of an ethnic minority, kills the men and sends the children to be raised in other communities, with statements declaring the aim of eliminating the group from the region. The facts support genocide, through the acts of killing and the forcible transfer of children, and also crimes against humanity."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l17",
+   "title": "The Ad Hoc and Hybrid Tribunals: ICTY, ICTR and Beyond",
+   "body": [
+    "After Nuremberg and Tokyo, international criminal justice lay dormant for almost half a century. The wars in the former Yugoslavia and the genocide in Rwanda revived it. The UN Security Council, acting under Chapter VII of the Charter, created the International Criminal Tribunal for the former Yugoslavia (ICTY) by Resolution 827 in 1993 and the International Criminal Tribunal for Rwanda (ICTR) by Resolution 955 in 1994. These are called ad hoc tribunals because each was created for a particular situation, with limited temporal and territorial jurisdiction. Their statutes covered genocide, crimes against humanity and violations of the laws or customs of war (and, for Rwanda, violations of common Article 3 and Additional Protocol II). Primacy was a notable feature: they could request national courts to defer to them, the reverse of the ICC's complementarity. Both completed their work and closed in the 2010s, and a residual body, the International Residual Mechanism for Criminal Tribunals, continues functions such as appeals and enforcement.",
+    "In Prosecutor v. Tadic, the ICTY Appeals Chamber's 1995 decision on jurisdiction was foundational. It held that the Security Council had power under Chapter VII to establish the tribunal as a measure to maintain or restore peace, that the conflict could be treated as both international and internal for the purposes of the statute, and that serious violations of common Article 3 and other rules for internal conflicts can be prosecuted as war crimes under customary law. This ruling was a major step towards the modern law of war crimes in non-international conflicts.",
+    "The ICTR's Prosecutor v. Akayesu (1998) was the first conviction for genocide by an international tribunal after a trial. The Trial Chamber found a mayor guilty of genocide and crimes against humanity, and held that rape and sexual violence can constitute acts of genocide when committed with intent to destroy a protected group, as well as crimes against humanity. At the ICTY, key proceedings included the trials of Slobodan Milosevic, who died in custody in 2006 before judgment, Radovan Karadzic (convicted in 2016, with the sentence increased to life imprisonment on appeal in 2019 before the Residual Mechanism) and Ratko Mladic (life imprisonment in 2017, upheld on appeal in 2021). The ICTY Appeals Chamber in Krstic (2004) held that the killing of the men of Srebrenica amounted to genocide, a finding the ICJ later shared.",
+    "Hybrid or internationalised tribunals combine international and domestic elements, in staffing, law or both. The Special Court for Sierra Leone, created by agreement between the UN and the government, convicted Liberia's former president Charles Taylor in 2012 of aiding and abetting war crimes and crimes against humanity; the Appeals Chamber affirmed in 2013. The Extraordinary Chambers in the Courts of Cambodia tried leaders of the Khmer Rouge, and in 2018 convicted Nuon Chea of genocide against the Vietnamese and Cham groups and Khieu Samphan of genocide against the Vietnamese group only, among other crimes. Nuon Chea died in 2019 before his appeal was decided, and in 2022 the Supreme Court Chamber affirmed Khieu Samphan's convictions and life sentence. Other examples include the Special Tribunal for Lebanon and the Kosovo Specialist Chambers.",
+    "The tribunals had strengths and limits. They built a large body of case law on command responsibility, joint criminal enterprise, sexual violence and the elements of crimes, and they showed that heads of state could be tried. Critics point to cost and duration, the distance from affected communities, and perceived selectivity, as when the ICTY chose not to open an investigation into NATO's 1999 bombing campaign. Defenders say the tribunals contributed to documenting events and shaping the Rome Statute.",
+    "Trap: do not confuse the Security Council-created ICTY and ICTR, which had primacy over national courts, with the ICC, created by treaty and based on complementarity.",
+    "Worked example: A state refuses to hand over a suspect sought by the ICTY. Because the tribunal was created under Chapter VII, states were obliged to cooperate with it under the Council's binding resolution, a source of authority that the ICC, a treaty body, lacks for non-parties."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l18",
+   "title": "The International Criminal Court: Structure and Jurisdiction",
+   "body": [
+    "The Rome Statute was adopted on 17 July 1998 and entered into force on 1 July 2002. It created a permanent court, seated in The Hague, to try individuals for the most serious crimes of concern to the international community. It is a treaty body: it binds only its states parties, which numbered 125 according to the UN Secretary-General as depositary in early October 2026, although important states including the United States, Russia, China, India and Israel are not parties. Several states have signed but later declared they would not become parties. Withdrawal takes effect one year after notice (Article 127), and several notices are pending: Niger, Burkina Faso and Mali (June 2026), Venezuela and Chad (July 2026) and Nauru (September 2026), each effective one year later. If all take effect, the number of parties will fall to 119. Burundi and the Philippines have already withdrawn, and Hungary withdrew its 2025 notice of withdrawal in May 2026, so it remains a party.",
+    "Structure. The Court has four organs: the Presidency, the Chambers (Pre-Trial, Trial and Appeals divisions, with eighteen judges), the Office of the Prosecutor, and the Registry. The Assembly of States Parties oversees management and the budget. Victims may participate in proceedings and seek reparations, and the Trust Fund for Victims supports them. The maximum sentence is thirty years, or life imprisonment where justified by the extreme gravity of the crime (Article 77).",
+    "Subject-matter jurisdiction (Article 5) covers genocide, crimes against humanity, war crimes and the crime of aggression. Temporal jurisdiction is prospective only: the Court cannot try crimes committed before the Statute entered into force for the state concerned (Article 11). The Court has no jurisdiction over persons under eighteen at the time of the crime (Article 26).",
+    "Preconditions (Article 12). Where a situation reaches the Court through a state party referral or by the Prosecutor's own initiative, the Court may act only if the crime was committed on the territory of a state party (including on its vessels or aircraft), or by a national of a state party. A non-party may also accept jurisdiction for a specific situation by lodging a declaration (Article 12(3)). This is why a national of a non-party can be investigated if he commits crimes on the territory of a state party.",
+    "Trigger mechanisms (Article 13). There are three: a referral of a situation by a state party; a referral by the Security Council acting under Chapter VII, which can reach non-parties without the Article 12 preconditions (as with Darfur in Resolution 1593 of 2005 and Libya in Resolution 1970 of 2011); and an investigation opened by the Prosecutor on her own initiative (proprio motu), which requires authorisation by a Pre-Trial Chamber (Article 15). The Security Council may also, by a Chapter VII resolution, request the Court to defer an investigation or prosecution for twelve months, renewable (Article 16).",
+    "The crime of aggression. The Statute listed aggression in Article 5 but left its definition and conditions for later. At the 2010 Review Conference in Kampala, states adopted amendments defining the crime of aggression (Article 8 bis) and setting conditions for jurisdiction (Article 15 bis and ter). The Court's jurisdiction was activated on 17 July 2018. For state-party referrals and proprio motu investigations, the regime is narrower than for other crimes: it does not cover aggression by nationals or on the territory of non-parties, and states parties may opt out by declaration. Security Council referrals are not subject to these limits. The crime requires a leader, defined as a person in a position effectively to exercise control over or direct the political or military action of a state, and an act of aggression that, by its character, gravity and scale, constitutes a manifest violation of the UN Charter.",
+    "Worked example: A national of a non-party state commits a war crime on the territory of a state party. The Court may exercise jurisdiction because the crime occurred on a party's territory, even though the accused's state never joined. If the same person committed the crime in a non-party state, the Court could act only if that state lodged an Article 12(3) declaration or the Security Council referred the situation."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l19",
+   "title": "Complementarity, Admissibility, Cooperation and Immunities",
+   "body": [
+    "Complementarity is the principle that the ICC complements, and does not replace, national criminal jurisdictions. The preamble says it, and Article 1 establishes the Court \"complementary to national criminal jurisdictions.\" States keep the primary responsibility to investigate and prosecute, and the Court steps in only when they fail.",
+    "Article 17 sets the admissibility test. A case is inadmissible where it is being investigated or prosecuted by a state which has jurisdiction over it, unless the state is unwilling or unable genuinely to carry out the investigation or prosecution; where a state with jurisdiction has investigated and decided not to prosecute, unless the decision resulted from unwillingness or inability; or where the person has already been tried for the conduct (see also Article 20 on ne bis in idem), and where the case is not of sufficient gravity. Unwillingness is assessed by looking at whether proceedings are or were undertaken for the purpose of shielding a person from responsibility, whether there has been an unjustified delay inconsistent with an intent to bring the person to justice, or whether proceedings are not independent or impartial. Inability concerns a total or substantial collapse or unavailability of the national judicial system. The key word is \"genuinely\": a sham domestic process does not block the Court, and a real one, even if it reaches a different result, does.",
+    "Procedure follows from this. When the Prosecutor opens an investigation, she notifies states parties and states that would normally exercise jurisdiction, and a state may inform the Court within a month that it is investigating, in which case the Prosecutor defers unless the Pre-Trial Chamber authorises the investigation (Article 18). A state, an accused or a state whose consent is required may challenge admissibility or jurisdiction (Article 19). In practice, the principle also encourages \"positive complementarity\", in which the Court's existence prompts national reform and prosecutions.",
+    "Cooperation. The ICC has no police. It relies on states parties to arrest and surrender suspects and to provide evidence (Part 9 of the Statute). Non-party states are not obliged unless the Security Council has required it. Non-cooperation is a persistent weakness: several warrants have remained unexecuted for years.",
+    "Immunities. Article 27 removes the relevance of official capacity before the Court. But Article 98(1) states that the Court may not proceed with a request for surrender or assistance that would require a state to act inconsistently with its obligations under international law regarding the state or diplomatic immunity of a person or property of a third state, unless the Court first obtains the third state's cooperation for a waiver. The reconciliation of these provisions has been contested. In the Al-Bashir proceedings, concerning the sitting President of Sudan, the Court issued warrants in 2009 (war crimes and crimes against humanity) and 2010 (genocide, added). When Jordan failed to arrest him in 2017 on a visit, the Appeals Chamber held in 2019 that there is no rule of customary international law recognising head-of-state immunity vis-a-vis an international court, and that Jordan had failed to comply with its obligations. The reasoning was influential but has been criticised by some commentators, who note differences between that holding and the ICJ's reasoning in the Arrest Warrant case about national courts.",
+    "The Prosecutor and the Court must also manage a limited budget and a vast number of potential cases. Selection of situations and cases involves prosecutorial discretion, guided by the gravity of the crimes, the interests of victims and, under Article 53, the \"interests of justice.\"",
+    "Worked example: State S is investigating a general for a massacre, but its prosecutors are removed whenever they approach the general and the file has been dormant for ten years. The ICC may find that S is unwilling genuinely to prosecute, because of unjustified delay and lack of independence, and rule the case admissible. If S instead is conducting real trials, even leading to an acquittal, the case remains inadmissible."
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l20",
+   "title": "Accountability Debates: Selectivity, Amnesties, Universal Jurisdiction and Peace",
+   "body": [
+    "International criminal justice is contested. This lesson separates the law as it stands from the debates about it, and presents the main positions at their strongest. As of this writing, several of the situations mentioned are ongoing and developing, so check current sources.",
+    "What the law provides. The Court can act only within its jurisdiction: crimes on the territory of states parties or by their nationals, situations referred by the Security Council, or by consent of a non-party. States have primary responsibility to prosecute. There is no international rule by treaty that blanket amnesties for the gravest crimes are always void, but the Statute of the Special Court for Sierra Leone expressly stated that amnesties granted would not bar prosecution, and in its 2004 decision in Kallon and Kamara the Court held that the Lome Accord amnesty did not bar prosecution for international crimes. Many UN bodies and human rights courts take the view that amnesties for genocide, crimes against humanity and serious war crimes are impermissible. The Rome Statute is silent on amnesties; Article 53 allows the Prosecutor to decline to proceed where it would not serve the interests of justice. Immunities and universal jurisdiction are as discussed above, and national courts have used universal jurisdiction in some cases. For example, in 2022 a German court at Koblenz convicted a former Syrian intelligence officer of crimes against humanity and sentenced him to life imprisonment.",
+    "Debate 1: selectivity. Critics argue that the Court's caseload has been dominated by African situations while powerful states and their allies have escaped scrutiny, and that the Security Council's power of referral and deferral, with the veto, politicises the process. Defenders reply that many African situations were referred by the states themselves, that the Prosecutor has since opened investigations elsewhere, and that imperfect enforcement is not a reason to prosecute no one. Recent warrants have generated sharp disputes. On 17 March 2023 the Court issued warrants for Vladimir Putin and Maria Lvova-Belova for the alleged war crimes of unlawful deportation and transfer of children from occupied areas of Ukraine to Russia. On 21 November 2024 it issued warrants for Benjamin Netanyahu and Yoav Gallant for alleged war crimes (including starvation as a method of warfare) and crimes against humanity in the situation in Palestine, and for Mohammed Deif of Hamas; proceedings against Deif were terminated on 26 February 2025 after the Prosecution notified the Chamber of his death. On 8 July 2025 it issued warrants for the Taliban's Supreme Leader Haibatullah Akhundzada and Chief Justice Abdul Hakim Haqqani for the alleged crime against humanity of persecution on gender grounds. These are allegations at the warrant stage, not findings of guilt. Some states reject the Court's",
+    "jurisdiction or the legitimacy of the proceedings, others emphasise equal application of the law, and the matters are still developing.",
+    "Debate 2: peace versus justice. One position holds that threats of prosecution can prolong conflicts by removing the incentive for leaders to negotiate their exit, and that amnesties, truth commissions and national processes may secure more peace. The opposing position holds that impunity breeds further atrocity, that victims have a right to justice, and that sustainable peace requires accountability. Compromise models, such as Colombia's transitional justice system with reduced sanctions in exchange for full confession, test whether conditional accountability satisfies complementarity.",
+    "Debate 3: sovereignty and non-parties. The United States has long opposed the Court's jurisdiction over nationals of non-parties and has concluded bilateral agreements and imposed sanctions on Court officials in some periods. Supporters of the Court point to the territorial basis of jurisdiction, which is a standard principle of criminal law.",
+    "Debate 4: effectiveness. Detractors point to a small number of convictions relative to the Court's cost and the problems of arrest. Supporters stress deterrent and normative effects, the role of national prosecutions it prompts, and the role of the Court in victim participation and reparations.",
+    "Trap: do not mistake a debate for a rule. That the Court's legitimacy is contested does not alter the legal question of whether it has jurisdiction over a given situation, and that a state rejects jurisdiction does not by itself decide the matter.",
+    "Worked example: After a civil war, a government offers an amnesty covering all combatants, including those accused of mass killings of civilians. Under the SCSL's approach, and the view of most UN bodies, the amnesty would not prevent prosecution for crimes under international law before an international court, though it could be relevant to the ICC's \"interests of justice\" assessment or to the question of genuine national proceedings."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "law-intl-humanitarian-criminal.l01.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l01",
+   "kind": "mcq",
+   "prompt": "Which provision of the UN Charter contains the general prohibition on the threat or use of force between states?",
+   "choices": [
+    "Article 2(4), which obliges members to refrain from force against the territorial integrity or political independence of any state",
+    "Article 51, which obliges members to refrain from force except where the General Assembly has authorised it in advance by a two-thirds majority vote",
+    "Article 39, which obliges members to refrain from force unless the Security Council has been notified within twenty-four hours",
+    "Article 33, which obliges members to refrain from force during any period in which a peaceful settlement is being negotiated"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l01.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l01",
+   "kind": "mcq",
+   "prompt": "What does the principle of equal application of international humanitarian law mean?",
+   "choices": [
+    "Soldiers of a state that unlawfully resorted to force are denied prisoner-of-war protection until a competent tribunal confirms the nature of the conflict",
+    "Humanitarian rules bind all parties to an armed conflict in the same way, whatever the legality of the resort to force or the cause they espouse",
+    "Humanitarian rules apply only if both belligerents have ratified the same treaties, so that obligations between them remain strictly reciprocal and conditional",
+    "Humanitarian rules bind states equally whether a conflict is international or internal, so that classification has no consequence for the applicable law"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l01.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l01",
+   "kind": "mcq",
+   "prompt": "State P invades State Q in violation of Article 2(4). Q captures a P soldier who wore a uniform and carried arms openly. Which statement is correct?",
+   "choices": [
+    "Q may deny him prisoner-of-war status because P is the aggressor, so that its forces cannot invoke the protections of the Conventions in the conflict",
+    "Q may try him for murder under its domestic law for every enemy soldier he killed in lawful combat during the invasion",
+    "Q must treat him as a prisoner of war, since his status does not depend on the lawfulness of P's resort to force",
+    "Q must release him immediately, since a war begun in breach of the Charter creates no armed conflict to which the Conventions apply"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l01.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l01",
+   "kind": "mcq",
+   "prompt": "State R is lawfully acting in self-defence after an armed attack by State S. R's air force strikes a bridge used by S's supply convoys but expects heavy civilian casualties because the bridge is in a crowded market district. R's lawyers argue that the self-defence right resolves the matter. What is the best response?",
+   "choices": [
+    "The argument fails because self-defence is a justification only for actions against the aggressor's government, never against infrastructure that civilians also use",
+    "The argument fails because every strike must first be authorised by the Security Council, whose approval is needed even where Article 51 applies",
+    "The argument succeeds because a state entitled to resort to force may use any means reasonably necessary to repel the attack, since a lawful defensive purpose displaces the humanitarian limits on targeting",
+    "The argument is incomplete because the strike must still satisfy IHL, so the expected civilian harm must not be excessive relative to the concrete military advantage"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l01.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l01",
+   "kind": "mcq",
+   "prompt": "A commentator says: \"The strike was proportionate because the overall defensive campaign against S was a proportionate response to the armed attack.\" What is the main flaw in this reasoning?",
+   "choices": [
+    "It treats jus in bello proportionality, which examines expected incidental harm against the advantage of a specific attack, as if it were the jus ad bellum question of whether the whole response was proportionate",
+    "It treats jus ad bellum proportionality, which compares harm to civilians with the value of a particular target, as though it were identical to the separate necessity requirement of self-defence",
+    "It assumes that proportionality has no application in the law of self-defence, although the Charter expressly contains the test in Article 51",
+    "It confuses proportionality with distinction, since both are measured by comparing the number of enemy combatants killed with the number of allied losses"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l02.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l02",
+   "kind": "mcq",
+   "prompt": "Which 1949 Geneva Convention protects prisoners of war?",
+   "choices": [
+    "The first Convention, on wounded and sick members of armed forces in the field",
+    "The second Convention, on wounded, sick and shipwrecked members of armed forces at sea",
+    "The fourth Convention, on civilians in the hands of an adverse party to the conflict",
+    "The third Convention, on the treatment of prisoners of war"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l02.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l02",
+   "kind": "mcq",
+   "prompt": "What is the Martens clause?",
+   "choices": [
+    "A requirement that every weapon be reviewed by an independent body of experts before it is introduced into the arsenal of a state",
+    "A rule providing that a treaty prohibition on a weapon binds only the states that have ratified the specific treaty containing it",
+    "A preambular principle that, where no specific rule applies, civilians and combatants stay under the principles of humanity and the dictates of public conscience",
+    "A provision allowing a party to suspend its humanitarian obligations toward an adversary that has first committed serious violations of those same rules"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l02.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l02",
+   "kind": "mcq",
+   "prompt": "State X has not ratified Additional Protocol I. Its forces deliberately attack a civilian market. Which statement best explains X's legal position?",
+   "choices": [
+    "X is bound only if the Security Council has adopted a resolution specifically reaffirming the prohibition for the conflict in question",
+    "X is bound because the prohibition on attacking civilians reflects customary law that applies whether or not X has ratified the Protocol",
+    "X is bound only for as long as its adversary also respects the prohibition, since the rule is conditional on reciprocity between the parties",
+    "X is not bound because only ratified treaties create obligations, and the rule on attacks against civilians arises solely under the Protocol"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l02.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l02",
+   "kind": "mcq",
+   "prompt": "A state official argues that a particular rule listed in the ICRC customary law study does not bind her state. Which argument would be the strongest legally?",
+   "choices": [
+    "The state objected to the rule consistently while it was forming, and the practice and opinio juris on which the study relies are neither extensive nor uniform",
+    "The rule appears only in a treaty that the state has not ratified, and a treaty provision can never reflect or generate a rule of custom for outsiders",
+    "The rule was formulated after 1949, and only practice that existed when the Geneva Conventions were adopted can establish customary humanitarian law",
+    "The study was prepared by a private humanitarian organisation, so none of its findings can ever count as evidence of customary law"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l02.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l02",
+   "kind": "mcq",
+   "prompt": "A newly developed weapon is not mentioned in any treaty. A tribunal must assess whether its use is lawful. Which approach is most consistent with the sources of IHL discussed here?",
+   "choices": [
+    "Treat the weapon as lawful because only an express treaty prohibition can restrict a state, and silence therefore permits any use",
+    "Treat the weapon as unlawful because any weapon not authorised in an existing treaty must be assumed to be prohibited",
+    "Treat the weapon as lawful in international armed conflicts and unlawful in non-international ones because custom applies only to the latter",
+    "Assess it under general principles, such as distinction and the ban on unnecessary suffering, with the Martens clause, and look to custom for rules"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l03.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l03",
+   "kind": "mcq",
+   "prompt": "Which provision of the Geneva Conventions applies to armed conflicts not of an international character?",
+   "choices": [
+    "Article 4 of Convention III, defining who counts as a prisoner of war",
+    "Article 147 of Convention IV, listing the grave breaches against protected persons",
+    "Common Article 3, found in all four Conventions",
+    "Common Article 2, found in all four Conventions, applying where states are fighting one another"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l03.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l03",
+   "kind": "mcq",
+   "prompt": "According to the ICTY Appeals Chamber in Tadic (1995), which pair of elements is used to identify a non-international armed conflict?",
+   "choices": [
+    "Violence causing a minimum of one thousand deaths in a year and the involvement of foreign fighters",
+    "A formal declaration by the government and recognition of belligerency by at least one third state",
+    "Control of a defined area and the capture of at least one provincial capital by an armed group",
+    "Protracted armed violence and the involvement of organised armed groups as a party to the fighting"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l03.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l03",
+   "kind": "mcq",
+   "prompt": "Two states exchange a single artillery barrage across a border, killing several soldiers, and then return to diplomatic talks. How is this most likely classified?",
+   "choices": [
+    "An international armed conflict, because armed force between states generally suffices and no minimum duration or intensity is required",
+    "An internal disturbance, because a single exchange of fire between two armies falls below the threshold for any form of armed conflict",
+    "A non-international armed conflict, because it was short and limited to a border area instead of covering the whole of the territory",
+    "No conflict, because common Article 2 applies only after a formal declaration of war has been communicated to the other party by diplomatic note"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l03.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l03",
+   "kind": "mcq",
+   "prompt": "Armed Group G controls a district of State H, has a command structure and fights H's army daily. H describes the situation as \"counter-terrorism\" and denies that IHL applies. G holds three captured soldiers. Which analysis is most accurate?",
+   "choices": [
+    "IHL applies only if G has been recognised as a belligerent by H, which has the power to decide whether a conflict exists",
+    "IHL applies as a matter of fact if the intensity and organisation thresholds are met, so common Article 3 binds both H and G regardless of H's label",
+    "IHL does not apply, because armed groups cannot hold obligations under treaties they have not signed and therefore the captured soldiers have no protection",
+    "IHL applies in full, including prisoner-of-war status for the captured soldiers, because the Conventions do not distinguish between types of conflict"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l03.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l03",
+   "kind": "mcq",
+   "prompt": "Foreign State F supplies weapons and training to a rebel group fighting State H, but does not direct specific operations. Under the ICJ's approach in Nicaragua for attributing the group's conduct to F, which is the likely result?",
+   "choices": [
+    "Rebel violations are attributed to F whenever F is a party to the Geneva Conventions and H is not, since this reverses the usual burden",
+    "Rebel violations are attributed to F because financing and training alone amount to effective control over every operation of the group",
+    "Rebel violations are not attributed to F unless F exercised effective control over the specific operations in which they occurred",
+    "Rebel violations are attributed to F only if the group has been formally incorporated into F's armed forces by a legal instrument or decree"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l04.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l04",
+   "kind": "mcq",
+   "prompt": "Under Article 52(2) of Additional Protocol I, which description of a military objective is correct?",
+   "choices": [
+    "Any object located in a region inhabited by combatants, whether or not it contributes to military operations",
+    "Any object by nature, location, purpose or use that contributes effectively to military action, whose destruction gives a definite advantage",
+    "Any object that the enemy has declared to be protected, since the declaring party defines what counts as civilian",
+    "Any object owned by a state that is a party to the conflict, whatever its use or location during hostilities, because ownership shows its purpose"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l04.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l04",
+   "kind": "mcq",
+   "prompt": "If it is doubtful whether a normally civilian object, such as a school, is being used for military action, what does Article 52(3) of Protocol I provide?",
+   "choices": [
+    "It is presumed to be a civilian object and must not be attacked on a mere suspicion of military use",
+    "It may be attacked if the commander is more than half sure that the enemy is using it militarily",
+    "It loses all protection once a single warning has been issued to the people in the vicinity",
+    "It is presumed to be a military objective until the owner proves that it is used for civilian purposes"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l04.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l04",
+   "kind": "mcq",
+   "prompt": "A commander directs an attack on a building because enemy sympathisers live there, with no military use of the building. Which analysis is correct?",
+   "choices": [
+    "The attack is lawful because the sympathisers provide moral support to the adversary, which is a form of direct participation",
+    "The attack is lawful if an effective warning is given beforehand, since warnings eliminate the prohibition on directing attacks at civilian targets and persons",
+    "The attack is a proportionality problem, because expected harm to civilians must be weighed against its advantage",
+    "The attack violates distinction because it deliberately targets civilians or a civilian object, so it is never evaluated under proportionality"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l04.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l04",
+   "kind": "mcq",
+   "prompt": "An ammunition depot adjoins an apartment block. A drone strike with a small precision weapon at 3 a.m. would destroy the depot and is expected to harm few civilians. A larger bomb would be cheaper and would expect heavy civilian casualties. The commander uses the larger bomb. Which is the strongest legal criticism?",
+   "choices": [
+    "The commander violated the rule that attacks may only be carried out in daylight, so that civilians can see and avoid targets",
+    "The commander violated the duty to obtain prior consent from the owner of the apartment block before any strike nearby",
+    "The commander breached the duty of feasible precautions, and the expected harm may also be excessive",
+    "The commander violated distinction because the depot is an object that civilians live next to and so cannot count as a military objective at all"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l04.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l04",
+   "kind": "mcq",
+   "prompt": "After an attack on a lawful military target, investigators find that much more civilian harm resulted than the commander had predicted. The commander had reasonably relied on intelligence showing the building was empty. Under the prevailing standard, how should the legality of the attack be assessed?",
+   "choices": [
+    "It is judged by the actual outcome, so any attack that causes unexpectedly heavy civilian harm is unlawful on the strength of that result alone",
+    "It is judged by what the commander could reasonably have expected on available information, not by hindsight",
+    "It is judged only by whether the military advantage was achieved, so a successful attack cannot violate proportionality",
+    "It is judged by the weapon used, so any weapon that can cause heavy civilian harm is prohibited regardless of the circumstances"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l05.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l05",
+   "kind": "mcq",
+   "prompt": "Which emblem was added to the Red Cross and Red Crescent by the 2005 Additional Protocol III?",
+   "choices": [
+    "The red crystal, which has the same protective legal value as the other two emblems",
+    "The red star, which has a lesser protective value limited to conflicts between neighbouring states",
+    "The white flag, which has the same protective value but is reserved for parlementaires and surrender",
+    "The red lion and sun, which has been restored as a fourth emblem available to any party that requests it"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l05.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l05",
+   "kind": "mcq",
+   "prompt": "Under Article 21 of Geneva Convention I, what must usually happen before a medical unit loses its protection because it is used for acts harmful to the enemy?",
+   "choices": [
+    "The attacker must obtain a written ruling from the International Committee of the Red Cross that the unit is a military objective",
+    "The attacker must give a warning with a reasonable time limit, and the warning must go unheeded",
+    "The attacker must wait until the unit has fired on its forces on at least two separate occasions during the engagement",
+    "The attacker must notify the Security Council, which may then authorise the attack on the unit by resolution"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l05.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l05",
+   "kind": "mcq",
+   "prompt": "A military hospital staffed by medical personnel who carry light pistols for their own defence is attacked by an adversary who argues that the weapons forfeit its protection. What is the most accurate assessment?",
+   "choices": [
+    "The argument succeeds because any armed person inside a facility turns it into a combatant installation that may be attacked without warning",
+    "The argument succeeds because only unarmed civilians may staff medical units that wish to claim the protection of the distinctive emblem",
+    "The argument fails because medical staff may carry light individual weapons for self-defence or to defend the wounded without losing protection",
+    "The argument fails because the emblem confers an absolute immunity that cannot be lost whatever military use is made of the unit, so the weapons are irrelevant"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l05.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l05",
+   "kind": "mcq",
+   "prompt": "A unit of Army Alpha is retreating. One soldier, wounded and unconscious, lies on the ground. A rifleman from Army Bravo sees him and fires, saying that the man was an enemy combatant and might wake and resume fighting. Which analysis is correct?",
+   "choices": [
+    "The shot is lawful because enemy combatants remain legitimate targets until they have been formally taken into custody and registered by the capturing side",
+    "The shot is lawful because a combatant who is unconscious can be expected to recover and therefore remains a military objective",
+    "The shot is unlawful only if Army Bravo has ratified Additional Protocol I, because the prohibition appears nowhere in customary law or in the older Hague rules",
+    "The shot is unlawful because an incapacitated person who abstains from hostile acts is hors de combat and may not be made the object of attack"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l05.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l05",
+   "kind": "mcq",
+   "prompt": "A hospital bearing the red cross is used as a firing position by enemy forces. A commander wants to destroy it and asks what the law requires. Which answer is the most accurate?",
+   "choices": [
+    "The commander must warn, set a reasonable time for the misuse to cease and attack only if ignored, still applying proportionality and precautions for the protected patients inside",
+    "The commander may attack immediately without warning, because use as a firing position removes all protection from the building and from everyone present within it",
+    "The commander may not attack at all, because a facility bearing the emblem is protected for as long as the emblem is displayed, whatever its use",
+    "The commander may attack once the enemy has fired a single round from the hospital, since this is the only condition the Conventions attach to loss of protection"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l06.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l06",
+   "kind": "mcq",
+   "prompt": "Under Article 17 of Convention III, what information is a prisoner of war bound to give when questioned?",
+   "choices": [
+    "Name, rank, unit and the location of any ammunition stores known to the prisoner",
+    "Name, nationality, home address and the identities of other prisoners in the same unit",
+    "Name, rank, occupation before the war and any information about the plans of the forces",
+    "Name, rank, date of birth and army, regimental, personal or serial number"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l06.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l06",
+   "kind": "mcq",
+   "prompt": "Under Article 118 of Convention III, when must prisoners of war be released and repatriated?",
+   "choices": [
+    "After each prisoner has completed a period of re-education set by the detaining power, to be determined case by case",
+    "Only after a peace treaty has been signed and ratified by the governments of both parties, with the terms of release fixed by that treaty",
+    "Without delay after the cessation of active hostilities, and not upon completion of a peace treaty",
+    "After the war crimes tribunals of the detaining power have decided which prisoners are to be tried, with all others released at that stage"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l06.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l06",
+   "kind": "mcq",
+   "prompt": "Soldier S of State A is captured by State B in an international armed conflict. B charges him with murder for killing a B soldier in a lawful attack on a military barracks. What is the most likely result under IHL?",
+   "choices": [
+    "The prosecution is barred only if S was told his rights, because immunity depends on the procedures used at the time of capture",
+    "The prosecution is barred because a lawful combatant is immune for acts that comply with IHL, though he may still be tried for war crimes",
+    "The prosecution may proceed because combatant immunity protects only those captured after a formal surrender and not those taken during an active assault on a position",
+    "The prosecution may proceed because a state may punish any person for deaths of its own nationals regardless of the lawfulness of the means"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l06.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l06",
+   "kind": "mcq",
+   "prompt": "Fighters in civilian dress infiltrate State C's territory in an international armed conflict, carry no arms openly and attack a convoy. One is captured. His status is disputed by his own government, which says he is a soldier. Which is the most accurate procedural statement?",
+   "choices": [
+    "He keeps prisoner-of-war treatment until a competent tribunal determines his status under Article 5, and in any event retains minimum guarantees such as those in Article 75 of Protocol I",
+    "He is automatically a prisoner of war if his own government claims him as a member of its armed forces, whatever his conduct at the time of capture",
+    "He must be released immediately because failure to distinguish is not a violation that has any consequence for status under the Conventions",
+    "He is presumed to have no status at all and may be held without any tribunal or review, because the Conventions have no category for fighters of this kind"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l06.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l06",
+   "kind": "mcq",
+   "prompt": "In Hamdan v. Rumsfeld (2006), which conclusion did the US Supreme Court reach about the military commissions created to try a detainee captured in the conflict with al Qaeda?",
+   "choices": [
+    "The commissions were valid because the Geneva Conventions give no rights at all to persons who are not prisoners of war and cannot be invoked in court",
+    "The commissions were valid because the conflict was international and so Convention III applied in full to the detainee",
+    "The commissions were invalid because the Conventions apply only to wars between states and the detainee could rely on nothing but the Constitution of the forum state",
+    "The commissions fell short of common Article 3's regularly constituted court requirement, which applied as the conflict was not international"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l07.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l07",
+   "kind": "mcq",
+   "prompt": "Which provision of the 1907 Hague Regulations states when territory is considered occupied?",
+   "choices": [
+    "Article 23, which treats territory as occupied when the enemy has destroyed its seized property",
+    "Article 56, which treats territory as occupied when the municipal institutions have been suspended",
+    "Article 42, which treats territory as occupied once it is actually placed under the authority of a hostile army",
+    "Article 25, which treats territory as occupied when undefended towns and villages are bombarded without any previous warning to the inhabitants"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l07.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l07",
+   "kind": "mcq",
+   "prompt": "What does Article 49(6) of Convention IV prohibit?",
+   "choices": [
+    "The occupying power imposing any penal law other than that of the occupied territory, whatever the reasons for the change",
+    "The use of local civilians as unpaid labour in any form, including work for the benefit of the local population",
+    "Forcibly moving protected persons within the occupied territory in all circumstances, including for their own security during hostilities",
+    "The occupying power deporting or transferring parts of its own civilian population into the territory it occupies"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l07.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l07",
+   "kind": "mcq",
+   "prompt": "The occupying power in a territory orders the destruction of a bridge it considers dangerous, but not because of any military operation underway. Which provision is most clearly engaged?",
+   "choices": [
+    "Article 53 of Convention IV, which bars destruction of property save where military operations make it absolutely necessary",
+    "Article 118 of Convention III, which governs the repatriation of prisoners of war once active hostilities have ended in the conflict",
+    "Article 3 of the Hague Convention, which makes a belligerent liable to pay compensation for violations of the Regulations by its forces",
+    "Article 17 of Protocol II, which concerns the displacement of the civilian population in non-international conflicts"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l07.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l07",
+   "kind": "mcq",
+   "prompt": "State X occupies part of State Y. X repeals Y's criminal code and replaces it with a code designed to entrench X's economic interests, and it resettles thousands of its own citizens there. Which assessment is the most accurate?",
+   "choices": [
+    "Neither is a concern for IHL because occupation law deals only with property issues and leaves political matters to the Security Council",
+    "The code change may violate the duty to respect existing laws unless absolutely prevented, and the resettlement conflicts with Article 49(6)",
+    "Only the resettlement is a concern, because an occupant is free to change any local law it wishes without legal limit during occupation",
+    "Both are lawful exercises of the occupant's powers as temporary sovereign, because the occupant acquires all the legislative powers of the ousted government"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l07.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l07",
+   "kind": "mcq",
+   "prompt": "State U's forces control a district of State D, replacing local authority, and soldiers loot resources there. U argues it is not an occupying power because it never declared occupation and did not control the whole country. Based on the ICJ's approach in DRC v. Uganda (2005), what is the best response?",
+   "choices": [
+    "U is not responsible because natural resources of occupied territory belong to the occupier for the duration of the occupation as a spoil of war",
+    "U is not an occupier because occupation requires control of the capital city and a formal declaration to that effect by the controlling state",
+    "U may be an occupying power in the district where it substituted its authority for that of the government, and responsible for violations there including failures to prevent looting",
+    "U is responsible only for acts of its soldiers that were ordered by senior commanders, because failures to prevent looting cannot ground responsibility"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l08.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l08",
+   "kind": "mcq",
+   "prompt": "Which of the following does common Article 3 prohibit at any time and in any place regarding persons taking no active part in hostilities?",
+   "choices": [
+    "Sentences passed by courts that are regularly constituted but that sit in the territory of the party",
+    "Cruel treatment and torture, and the taking of hostages",
+    "The collection of the wounded and sick by a neutral humanitarian body such as the ICRC",
+    "The signing of special agreements between the parties to bring other Convention rules into force"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l08.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l08",
+   "kind": "mcq",
+   "prompt": "What does the final sentence of common Article 3 (that application does not affect the legal status of the parties) mean?",
+   "choices": [
+    "That applying humanitarian rules to an armed group does not give it recognition or legitimacy as a government or alter its status",
+    "That the government loses its right to prosecute members of the armed group for acts of rebellion committed during the conflict",
+    "That the armed group acquires prisoner-of-war status for its captured members and a share of governmental immunities in respect of its acts",
+    "That the government must recognise the armed group as a lawful authority with power to conclude treaties and to administer the territory"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l08.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l08",
+   "kind": "mcq",
+   "prompt": "A rebel fighter is captured by government forces in a non-international armed conflict. Which statement is correct?",
+   "choices": [
+    "He may be held without any legal limit because common Article 3 contains no rules at all about the treatment of persons deprived of liberty",
+    "He must be released at once because non-international armed conflicts permit only the detention of the fighters of the government",
+    "He is entitled to prisoner-of-war status under Convention III from the moment of capture, as with any fighter wearing a recognisable uniform",
+    "He is a detainee entitled to humane treatment and fair trial, but IHL does not give him prisoner-of-war status or combatant immunity"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l08.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l08",
+   "kind": "mcq",
+   "prompt": "An armed group tries a captured soldier in a single hearing before its commander, with no defence counsel, and shoots him that evening. Under which provision is this most clearly a war crime in a non-international armed conflict?",
+   "choices": [
+    "Rome Statute Article 7, which covers only acts committed by members of armed forces of states against enemy prisoners",
+    "Rome Statute Article 8(2)(b), which lists serious violations in international armed conflicts and which is applied to internal conflicts by analogy by the Court",
+    "Rome Statute Article 8(2)(c), which covers serious common Article 3 violations such as murder and unfair sentencing",
+    "Rome Statute Article 5(1)(d), which establishes jurisdiction over the crime of aggression committed by armed groups"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l08.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l08",
+   "kind": "mcq",
+   "prompt": "A government and a rebel movement end a civil war. The government proposes an amnesty for all who fought, including a commander who ordered the massacre of villagers. Reading Protocol II, Article 6(5), and the ICRC's interpretation, which is the best assessment?",
+   "choices": [
+    "Article 6(5) applies only to international armed conflicts, so that internal amnesties are governed by no rule of IHL at all",
+    "Article 6(5) encourages the broadest amnesty, read as excluding persons suspected of war crimes",
+    "Article 6(5) requires an amnesty for all combatants and so bars any prosecution of them, including of those suspected of war crimes and crimes against humanity",
+    "Article 6(5) prohibits all amnesties, including for ordinary fighters, because every participant in a conflict commits an offence"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l09.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l09",
+   "kind": "mcq",
+   "prompt": "What does Article 36 of Additional Protocol I require of a state party?",
+   "choices": [
+    "To determine whether the employment of a new weapon, means or method would be prohibited",
+    "To destroy any stockpiles of weapons that were manufactured before 1977, whatever their type",
+    "To submit every new weapon to the Security Council for approval before testing",
+    "To ban any weapon not previously used in an armed conflict by another state"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l09.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l09",
+   "kind": "mcq",
+   "prompt": "Which treaty created an organisation (the OPCW) to verify the destruction of a class of weapons and to carry out inspections?",
+   "choices": [
+    "The Ottawa Convention of 1997, which created the OPCW to supervise the clearance of mines",
+    "The Chemical Weapons Convention of 1993, in force from 1997",
+    "The Biological Weapons Convention of 1972, which has a standing verification body of its own",
+    "The Geneva Gas Protocol of 1925, which set up an inspectorate to verify non-use"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l09.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l09",
+   "kind": "mcq",
+   "prompt": "A weapon causes a very painful death to combatants but is also the only means of achieving a legitimate military aim in a particular scenario, and it can be directed at military objectives. Which statement best reflects the rule against superfluous injury or unnecessary suffering?",
+   "choices": [
+    "The weapon is lawful only if its use has been authorised by the Security Council for the specific conflict in which it is to be employed",
+    "The weapon is unlawful only if it is also an indiscriminate weapon, because Article 35(2) concerns civilians and not combatants",
+    "The question is whether the harm exceeds what a legitimate purpose requires, so suffering alone does not make it unlawful",
+    "The weapon is automatically unlawful because causing great pain to combatants is never permitted in any armed conflict under Article 35(2), whatever the military purpose served"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l09.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l09",
+   "kind": "mcq",
+   "prompt": "State N has not joined the Ottawa Convention and uses anti-personnel mines. A neighbouring state says N breaches the treaty. What is the most accurate analysis?",
+   "choices": [
+    "N is bound by the treaty because it has become universal custom, so the question of ratification has no bearing on N's legal position",
+    "N is bound by the treaty only for as long as its neighbour also remains a party, since obligations under it are strictly reciprocal",
+    "N is not bound by any rule of IHL regarding mines because only the Ottawa Convention regulates mine use in armed conflict at all",
+    "N is not bound by the treaty as a non-party, but general rules such as distinction still apply to its mine use"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l09.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l09",
+   "kind": "mcq",
+   "prompt": "A state claims that the ICJ 1996 Advisory Opinion on nuclear weapons proves that all use of nuclear weapons is lawful. Which response is most accurate?",
+   "choices": [
+    "The Court said any threat or use must comply with IHL and would generally be contrary to its rules, while leaving open an extreme case of survival",
+    "The Court said that nuclear weapons are prohibited in all circumstances, including where the very survival of a state is at stake in self-defence",
+    "The Court said that only the Security Council may decide whether the use of nuclear weapons is lawful in a given conflict and in what circumstances",
+    "The Court said that IHL does not apply to nuclear weapons because they were invented after the Hague and Geneva rules were written"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l10.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l10",
+   "kind": "mcq",
+   "prompt": "Which of the following is a lawful ruse of war under Article 37 of Additional Protocol I?",
+   "choices": [
+    "Feigning a wish to surrender in order to draw the enemy into the open and then attacking",
+    "Feigning civilian status to approach enemy soldiers before launching an ambush",
+    "Using inflatable decoy tanks and camouflage to mislead the enemy about positions",
+    "Wearing the insignia of the United Nations to pass through enemy lines unnoticed"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l10.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l10",
+   "kind": "mcq",
+   "prompt": "A besieging force blocks all food and fuel entering a city with the aim of making civilians so desperate that the defenders will surrender. Which rule is most directly engaged?",
+   "choices": [
+    "The prohibition on the use of any weapon that is inherently indiscriminate in effect, which is held to apply to every form of siege",
+    "The prohibition on sieges as such, which are unlawful under all circumstances when they cause shortages among civilians",
+    "The prohibition on reprisals against prisoners of war, which applies when a blockade prevents their supply",
+    "The ban on starving civilians as a method of warfare and on attacking objects indispensable to survival"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l10.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l10",
+   "kind": "mcq",
+   "prompt": "In Prosecutor v. Al Mahdi (ICC, 2016), what was the charged conduct?",
+   "choices": [
+    "Attacks on religious and historic buildings in Timbuktu, Mali, as a war crime",
+    "Recruitment of children under the age of fifteen as soldiers by an armed group",
+    "Persecution on political grounds as a crime against humanity in a region of Kenya",
+    "Forced displacement of populations from villages in the course of a military offensive"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l10.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l10",
+   "kind": "mcq",
+   "prompt": "Soldiers of State A put on civilian clothes, approach a checkpoint of State B as if they were farmers and, when the guards relax and let them near, open fire and kill two guards. Which analysis is correct?",
+   "choices": [
+    "It is a lawful ruse because the soldiers did not use any recognised emblem and civilian clothes are not a form of protected status",
+    "It is perfidy because feigning civilian status invited the guards to accord protection and the confidence was betrayed, causing death",
+    "It is lawful because the guards were combatants who could be attacked at any time and so no protection was being betrayed",
+    "It is unlawful only because the soldiers failed to give a warning before attacking, which is required for every attack on military personnel"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l10.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l10",
+   "kind": "mcq",
+   "prompt": "A commander destroys an oil installation, causing a spill that harms a river for some weeks before it recovers. Which statement about the legal consequences of this damage is correct on the facts given?",
+   "choices": [
+    "Article 52 of Protocol I makes the attack unlawful, because an installation that is also civilian in use may never be attacked",
+    "Article 8(2)(b)(iv) of the Rome Statute is necessarily violated, because any environmental damage is a war crime",
+    "The damage does not meet the widespread, long-term and severe threshold of Article 55 of Protocol I, because those requirements are cumulative",
+    "Article 55 of Protocol I is violated, because any damage to a river counts as long-term and severe damage"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l11.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l11",
+   "kind": "mcq",
+   "prompt": "Under Article 51(3) of Additional Protocol I, when do civilians lose protection from attack?",
+   "choices": [
+    "Whenever they live in an area controlled by an adversary armed group",
+    "From the moment they express political support for a party",
+    "Permanently, once they have taken any part in hostilities at all",
+    "Unless and for such time as they take a direct part in hostilities"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l11.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l11",
+   "kind": "mcq",
+   "prompt": "Which of the following would not count as direct participation in hostilities under the ICRC's three-part test?",
+   "choices": [
+    "A civilian who operates a drone armed with explosives to attack positions of the other party",
+    "A civilian who plants a roadside bomb that is designed to destroy an enemy convoy passing nearby",
+    "A civilian who sells groceries to soldiers of a party and pays taxes that fund the war effort",
+    "A civilian who acts as a lookout to report troop movements to a unit which will launch an attack"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l11.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l11",
+   "kind": "mcq",
+   "prompt": "A power station supplies both an army base and a city hospital. Under the treaties, how is it classified?",
+   "choices": [
+    "It is a medical facility under Convention I because it supplies power to a hospital, and so it benefits from the red cross emblem",
+    "It is a military objective only if it satisfies Article 52(2), and, if so, any attack is still limited by proportionality and precautions",
+    "It is a protected civilian object in all circumstances because the treaties contain a separate rule that dual-use objects cannot be attacked",
+    "It is a military objective in all circumstances because any object used by an army loses its civilian character completely"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l11.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l11",
+   "kind": "mcq",
+   "prompt": "A state's cyber unit launches malware that corrupts the records of a civilian bank during an armed conflict, with no physical damage or injury. Which statement best describes the current state of the law?",
+   "choices": [
+    "IHL applies to cyber operations, but whether data loss alone is an attack is debated among states",
+    "The Tallinn Manual is a binding treaty that settles the question and requires states to treat all data as civilian objects",
+    "The operation is lawful because banks are military objectives whenever their data could assist the economy of the adversary",
+    "IHL clearly does not apply because no physical harm resulted, and therefore the operation falls wholly outside the law of armed conflict and its rules on objects"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l11.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l11",
+   "kind": "mcq",
+   "prompt": "A state deploys a weapon that selects and engages targets without further human input. After an erroneous strike on civilians, the state argues that no human decided to fire and so no one is responsible. What is the best response under the prevailing view?",
+   "choices": [
+    "The argument succeeds because autonomous weapons are governed by a treaty that places responsibility on the manufacturer alone",
+    "The argument succeeds because responsibility under IHL attaches only to a person who personally selects a target at the time of firing",
+    "The argument fails only if the weapon was developed by a private company, whose liability then replaces that of the deploying state completely and permanently",
+    "The argument fails because IHL applies, the state remains responsible and commanders deploying the system may incur responsibility"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l12.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l12",
+   "kind": "mcq",
+   "prompt": "Which obligation of common Article 1 of the Geneva Conventions requires states to act beyond their own conduct?",
+   "choices": [
+    "To ensure respect for the Conventions in all circumstances, in addition to respecting them itself",
+    "To abolish all standing armies in time of peace and maintain only civilian police forces",
+    "To submit every dispute about the Conventions to the ICJ for a binding final decision",
+    "To appoint an independent prosecutor in every state to investigate each armed conflict abroad"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l12.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l12",
+   "kind": "mcq",
+   "prompt": "What does Article 146 of Convention IV require states to do regarding persons alleged to have committed grave breaches?",
+   "choices": [
+    "Grant them an amnesty if their state has made a formal declaration that the acts were ordered by a superior authority",
+    "Search for them and prosecute them regardless of nationality, or hand them over to another party with a prima facie case",
+    "Wait until the International Criminal Court requests surrender, and then transfer them only after a Security Council resolution has authorised it",
+    "Prosecute only their own nationals and leave the nationals of other states to the courts of the states concerned"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l12.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l12",
+   "kind": "mcq",
+   "prompt": "In DRC v. Belgium (Arrest Warrant, ICJ 2002), what did the Court hold about an incumbent foreign minister?",
+   "choices": [
+    "He had immunity only for acts in his private capacity, and never for acts done in the exercise of his official functions",
+    "He had no immunity from foreign criminal jurisdiction where the charge was a war crime or a crime against humanity",
+    "He had immunity from criminal jurisdiction of other states while in office, though immunity is not the same as impunity",
+    "He had immunity in all courts, including before international courts and his own national courts, for the whole of his life"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l12.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l12",
+   "kind": "mcq",
+   "prompt": "State A's forces attack a village of State B's civilians as a reprisal for earlier attacks on A's soldiers by B. A says the action is a lawful belligerent reprisal. Which analysis is the best?",
+   "choices": [
+    "The reprisal is unlawful only if State A is a party to the Geneva Conventions, because reprisals are otherwise governed solely by custom",
+    "The reprisal is lawful if it was proportionate to the earlier violation and has been preceded by a formal notice to the Security Council",
+    "The reprisal is lawful because belligerent reprisals against civilians remain permitted if the adversary violated the law first",
+    "The reprisal is unlawful because reprisals against civilians are prohibited, and the earlier violation does not justify them"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l12.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l12",
+   "kind": "mcq",
+   "prompt": "A retired general accused of ordering war crimes while in office travels abroad as a private citizen. An ICC-style case is not available, and the host state is considering prosecution on a universal jurisdiction basis. Which statement is the most accurate?",
+   "choices": [
+    "Immunity is not impunity: the host's ability to prosecute depends on its law and on whether immunity of former officials covers the acts, which is debated",
+    "The host state cannot prosecute any former official for conduct while in office because immunity for official acts is absolute and permanent under customary law, regardless of the crime alleged",
+    "The host state must prosecute because all states have a duty to arrest any person accused of any war crime who enters their territory under the Geneva Conventions",
+    "The host state may prosecute only if the general's own state consents, since universal jurisdiction is not recognised in any form under international law"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l13.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l13",
+   "kind": "mcq",
+   "prompt": "Which three categories of crime did the Charter of the International Military Tribunal at Nuremberg give the Tribunal jurisdiction over?",
+   "choices": [
+    "Crimes against humanity, genocide and slavery in every form",
+    "Crimes against peace, war crimes and crimes against humanity",
+    "Genocide, piracy and crimes against the peace of nations",
+    "War crimes, terrorism and crimes of aggression against states"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l13.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l13",
+   "kind": "mcq",
+   "prompt": "What was the Tribunal's position on the defence of superior orders?",
+   "choices": [
+    "It was not a complete defence, though it could be considered in mitigation of punishment where justice required",
+    "It was a complete defence only for officers of rank below general, since only senior leaders could be responsible",
+    "It was irrelevant in every circumstance, including for sentencing, whatever the degree of compulsion on the accused",
+    "It was a complete defence for any soldier who could show that he had followed the instruction of a higher-ranking officer"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l13.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l13",
+   "kind": "mcq",
+   "prompt": "Which objection to the Nuremberg trials relied on the principle nullum crimen sine lege?",
+   "choices": [
+    "That the judges were all appointed by the Allied powers and that none of them had any experience of criminal proceedings of any kind before the war",
+    "That the defendants had been tried in a country that was not their own, which was said to violate the sovereignty of Germany as a state",
+    "That the Tribunal had no power to impose the death penalty on persons whose actions had been expressly authorised by their own government",
+    "That some defined crimes, such as crimes against peace and crimes against humanity, were not clearly criminal when committed"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l13.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l13",
+   "kind": "mcq",
+   "prompt": "A defendant in a modern international trial argues that, as in In re Yamashita, he cannot be convicted for subordinates' crimes unless he personally ordered them. What is the best response based on the Yamashita precedent and modern law?",
+   "choices": [
+    "The argument succeeds because command responsibility was abolished by the Geneva Conventions of 1949 in favour of direct participation",
+    "The argument succeeds because Yamashita held that only personal orders can ground criminal responsibility of a commander",
+    "The argument fails because a commander can answer for failing to control subordinates, though modern law requires knowledge and effective control",
+    "The argument fails because Yamashita made commanders strictly liable for every act of their troops irrespective of knowledge or control"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l13.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l13",
+   "kind": "mcq",
+   "prompt": "A commentator says the Nuremberg Charter's requirement that crimes against humanity be linked to other crimes in the Tribunal's jurisdiction shows that the crime was only a form of war crime. Which comment is the most accurate?",
+   "choices": [
+    "It is wrong because the Charter made crimes against humanity a stand-alone crime with no link to any other crime at all in the Tribunal's jurisdiction",
+    "It is partly right for Nuremberg, but the link was a jurisdictional limit that later instruments such as the Rome Statute dropped",
+    "It is correct because crimes against humanity can be committed only by members of armed forces in a time of international war",
+    "It is correct because the link has remained a required feature of the crime in every later instrument, including the Rome Statute and the 2019 draft articles"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l14.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l14",
+   "kind": "mcq",
+   "prompt": "Under Article 27 of the Rome Statute, what is the effect of official capacity such as being a head of state?",
+   "choices": [
+    "It reduces the sentence automatically because of the heavy responsibilities of high office",
+    "It requires the consent of the state concerned before the Court may proceed to any trial",
+    "It is irrelevant to criminal responsibility",
+    "It gives absolute immunity before the Court for all acts taken while in office, whatever their character or gravity"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l14.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l14",
+   "kind": "mcq",
+   "prompt": "Which element is required for a military commander to be responsible under Article 28(a) of the Rome Statute?",
+   "choices": [
+    "That the commander held the formal rank of general in a regular army that is a party to the Geneva Conventions",
+    "That the crimes were committed after the commander had been formally warned by the Prosecutor of the Court in writing, giving him specific notice",
+    "That the commander personally gave an order to commit the crime and was present when it was carried out in the field by his own forces",
+    "That the forces were under his effective control and he failed to take all necessary and reasonable measures to prevent crimes"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l14.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l14",
+   "kind": "mcq",
+   "prompt": "A soldier shoots unarmed prisoners after being ordered to do so by his sergeant. Under Article 33 of the Rome Statute, which statement is correct?",
+   "choices": [
+    "He is not relieved of responsibility on this ground alone, because an order to kill prisoners is manifestly unlawful",
+    "He is not relieved of responsibility only because killing prisoners is a crime against humanity and not a war crime",
+    "He is relieved of responsibility because he was legally obliged to obey and the order came from a lawful superior",
+    "He is relieved of responsibility if the sergeant threatened him with disciplinary action for refusing in front of other soldiers"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l14.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l14",
+   "kind": "mcq",
+   "prompt": "A politician controls a militia from abroad. Evidence shows he knew of its crimes, but he had little practical ability to discipline it from outside the country and did take some measures. The Appeals Chamber in Bemba Gombo (2018) reversed the conviction. What was the central legal lesson?",
+   "choices": [
+    "Superior responsibility is established once a commander knew of the crimes, so the reversal turned on the sentence and not on liability, which was reduced",
+    "Whether he took all necessary and reasonable measures must be judged on what he could realistically do",
+    "Superior responsibility requires that the commander personally commit the crimes, so an absent superior can never be held responsible",
+    "Superior responsibility applies only to officers of a state, so the leader of a private militia was outside Article 28 altogether"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l14.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l14",
+   "kind": "mcq",
+   "prompt": "An accused argues that as a civilian official he cannot be liable under Article 28(b) because he did not command soldiers. Which response is most accurate?",
+   "choices": [
+    "Civilian superiors are liable on the same terms as military commanders, including liability on the basis of what they should have known",
+    "Civilian superiors are liable only if they personally ordered the crimes, since the second paragraph of Article 28 covers orders only",
+    "Civilian superiors can be liable if they knew or consciously disregarded clear information about crimes within their effective responsibility",
+    "Civilian superiors cannot ever be liable because Article 28 applies only to persons in uniform who are members of the regular armed forces of states"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l15.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l15",
+   "kind": "mcq",
+   "prompt": "Which of the following is a war crime listed in both the international and non-international armed conflict provisions of the Rome Statute?",
+   "choices": [
+    "Transfer by an occupying power of its own civilians into occupied territory",
+    "Extensive destruction of property as a grave breach of the Geneva Conventions",
+    "Compelling a prisoner of war to serve in the forces of a hostile power",
+    "Intentionally directing attacks against the civilian population as such"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l15.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l15",
+   "kind": "mcq",
+   "prompt": "What was the first conviction by the ICC, and for what?",
+   "choices": [
+    "Al Mahdi, in 2016, for crimes against humanity committed during an attack on civilians in northern Mali",
+    "Katanga, in 2010, for the crime of aggression committed in the course of an invasion of neighbouring Uganda",
+    "Lubanga Dyilo, in 2012, for child soldier war crimes",
+    "Bemba Gombo, in 2016, for genocide committed by militia members against an ethnic group in Central Africa"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l15.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l15",
+   "kind": "mcq",
+   "prompt": "What does the nexus requirement for a war crime mean?",
+   "choices": [
+    "The accused must be a member of the armed forces of a state that has ratified the Geneva Conventions before the conflict began",
+    "The conduct must be associated with an armed conflict, and the accused must know the facts establishing it",
+    "The conduct must be authorised or tolerated by a government that is itself a party to the armed conflict",
+    "The conduct must be committed on a large scale as part of a plan or policy, with at least a hundred victims in the area"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l15.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l15",
+   "kind": "mcq",
+   "prompt": "A commander orders an attack on a legitimate military objective, knowing that it will cause some civilian casualties. He did not expect harm clearly excessive in relation to the anticipated advantage, but a later investigation finds the casualties were heavier than predicted. Which analysis is the best?",
+   "choices": [
+    "The commander has not committed the crime because it requires knowledge that the attack would cause clearly excessive harm",
+    "The commander has committed a grave breach because every attack that causes civilian harm falls within Article 147 of Convention IV and the Protocol",
+    "The commander has committed the Rome Statute war crime because any incidental civilian harm above what he predicted is a crime",
+    "The commander has committed the war crime of disproportionate attack because civilian deaths were the outcome of his decision to strike"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l15.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l15",
+   "kind": "mcq",
+   "prompt": "An armed group carries out sporadic bombings in a state, with no sustained fighting or organised command, and civilians die. A prosecutor charges war crimes in a non-international armed conflict. What is the strongest defence argument?",
+   "choices": [
+    "The attacks were committed by civilians, who cannot commit war crimes because the law applies only to uniformed soldiers",
+    "The attacks were not committed on the scale of a plan or policy, which the Rome Statute strictly requires for every war crime",
+    "The attacks occurred in the territory of a state that had not ratified the Geneva Conventions, and so no war crimes law applied",
+    "The violence did not reach the Article 8(2)(f) threshold of protracted conflict, so the conduct is not a war crime"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l16.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l16",
+   "kind": "mcq",
+   "prompt": "Which feature distinguishes genocide from crimes against humanity?",
+   "choices": [
+    "Genocide requires the intent to destroy a national, ethnical, racial or religious group in whole or in part",
+    "Genocide requires an armed conflict, while crimes against humanity can occur in peacetime",
+    "Genocide can be committed only by state officials, while crimes against humanity may be committed by any person",
+    "Genocide requires at least one million victims, while crimes against humanity have no numeric threshold"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l16.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l16",
+   "kind": "mcq",
+   "prompt": "Which group would not be protected by the definition of genocide in the 1948 Convention?",
+   "choices": [
+    "A religious community that has been persecuted by a government over many years for its beliefs",
+    "A political party whose members are killed because of their political opinions",
+    "An ethnic minority that is being targeted for destruction by an armed group",
+    "A racial group that is subjected to measures intended to prevent births"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l16.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l16",
+   "kind": "mcq",
+   "prompt": "Under Article 7 of the Rome Statute, what does the \"widespread or systematic attack\" requirement apply to?",
+   "choices": [
+    "The identity of the victims, who must all belong to one national, ethnical, racial or religious group",
+    "The accused's individual act, which must itself affect a large number of people in order to be a crime against humanity",
+    "The attack on a civilian population, of which his act must form part",
+    "The place where the act occurs, which must be a territory under the control of an armed group at war"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l16.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l16",
+   "kind": "mcq",
+   "prompt": "A government campaign kills thousands of civilians suspected of supporting an opposition party, with a systematic policy and open orders. No evidence shows an intent to destroy a national, ethnic, racial or religious group. Which charge best fits?",
+   "choices": [
+    "Genocide, because the scale and organisation of the killing are sufficient to infer intent to destroy any group of civilians",
+    "Genocide, because political groups have been recognised as protected groups by the Rome Statute since its adoption",
+    "No international crime, because killings of political opponents inside a state are matters of domestic jurisdiction only",
+    "Crimes against humanity, because the acts form part of a systematic attack against a civilian population, but not genocide"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l16.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l16",
+   "kind": "mcq",
+   "prompt": "In Bosnia v. Serbia (ICJ, 2007), which conclusion did the Court reach about Serbia's responsibility in relation to Srebrenica?",
+   "choices": [
+    "Serbia breached its obligation to prevent genocide, though the Court did not find that it committed genocide or was complicit in it",
+    "Serbia was directly responsible for committing genocide through its own organs, having directed the Bosnian Serb forces in the operation",
+    "Serbia bore no responsibility of any kind, since genocide could be attributed only to the individuals who carried it out",
+    "Serbia was responsible for conspiracy and complicity in genocide because it supplied weapons and funds to the perpetrators"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l17.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l17",
+   "kind": "mcq",
+   "prompt": "How was the ICTY created?",
+   "choices": [
+    "By a decision of the International Court of Justice on a request for an advisory opinion",
+    "By a resolution of the Security Council acting under Chapter VII of the UN Charter",
+    "By a treaty concluded among the states that had been parties to the conflict",
+    "By a General Assembly vote under the Uniting for Peace procedure"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l17.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l17",
+   "kind": "mcq",
+   "prompt": "What did Prosecutor v. Akayesu (ICTR, 1998) decide about sexual violence?",
+   "choices": [
+    "That rape can be an act of genocide if committed with intent to destroy a protected group, and a crime against humanity",
+    "That rape is a crime only when committed by members of armed forces of a state against the nationals of another state",
+    "That rape cannot be prosecuted before an international tribunal because the statute did not name it expressly in any of its articles on crimes",
+    "That rape is a form of persecution only and can never be charged as a separate crime under the statute"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l17.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l17",
+   "kind": "mcq",
+   "prompt": "Which statement best describes the relationship between the ICTY and national courts?",
+   "choices": [
+    "The ICTY could act only if national courts first declared themselves unable to prosecute the person concerned",
+    "The ICTY had no relationship to national courts because its statute prohibited any parallel domestic proceedings at all",
+    "The ICTY applied complementarity in the same way as the ICC, so national courts always had the first opportunity",
+    "The ICTY had primacy and could request national courts to defer to it, the opposite of ICC complementarity"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l17.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l17",
+   "kind": "mcq",
+   "prompt": "A defendant before an international tribunal argues that the tribunal was not lawfully established because the Security Council has no power to create judicial bodies. Which answer reflects the ICTY Appeals Chamber's reasoning in Tadic (1995)?",
+   "choices": [
+    "The argument fails because the Charter provides expressly in Article 29 that the Council may establish criminal courts",
+    "The argument succeeds because only a treaty among states can create a court with criminal jurisdiction over individuals, a power that no organ of the UN holds",
+    "The argument fails because the Council can create it as a Chapter VII measure to maintain or restore peace",
+    "The argument succeeds because the General Assembly alone has power to create judicial organs under the Charter"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l17.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l17",
+   "kind": "mcq",
+   "prompt": "A scholar says the Special Court for Sierra Leone is the same kind of body as the ICTR. What is the best correction?",
+   "choices": [
+    "The SCSL was created by a Security Council resolution acting under Chapter VII, with primacy over national courts and binding powers over every state",
+    "The SCSL was created by agreement between the UN and Sierra Leone, a hybrid court with mixed elements",
+    "The SCSL was created by the General Assembly and had jurisdiction only over crimes against peace committed in West Africa",
+    "The SCSL was created by a vote of the states parties to the Rome Statute to try crimes committed in West Africa after 2002"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l18.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l18",
+   "kind": "mcq",
+   "prompt": "Which crimes are listed in Article 5 of the Rome Statute?",
+   "choices": [
+    "War crimes, drug trafficking, crimes against humanity and slavery in all its forms",
+    "Genocide, apartheid, torture and the crime of corruption by officials",
+    "Genocide, crimes against humanity, war crimes and aggression",
+    "Genocide, terrorism, piracy and the crime of aggression, as a closed list of four"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l18.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l18",
+   "kind": "mcq",
+   "prompt": "Under Article 12 of the Rome Statute, when may the Court exercise jurisdiction following a state party referral or the Prosecutor's own initiative?",
+   "choices": [
+    "If the crime is serious enough, regardless of where it was committed or the nationality of the accused",
+    "Only if the crime was committed by a national of a permanent member of the Security Council",
+    "Only if both the territorial state and the national state are parties to the Statute at the time",
+    "If the crime was on a state party's territory or by its national, or a non-party accepted jurisdiction"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l18.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l18",
+   "kind": "mcq",
+   "prompt": "How can the ICC exercise jurisdiction over crimes committed in a non-party state by its own nationals?",
+   "choices": [
+    "By Security Council referral under Chapter VII, or if the state lodges an Article 12(3) declaration accepting jurisdiction",
+    "By a vote of the Assembly of States Parties, which may extend the Court's jurisdiction to any state it chooses by a simple majority of those present and voting",
+    "By an authorisation of the Prosecutor alone, who may investigate any crime anywhere without any other precondition of jurisdiction",
+    "By the consent of the victim, who may submit a complaint directly to a Pre-Trial Chamber for any crime against humanity"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l18.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l18",
+   "kind": "mcq",
+   "prompt": "State X, a non-party, invades State Y, a state party, and X's leader orders the invasion. Y refers the situation to the Court. Considering the Kampala amendments, which statement is the most accurate about aggression jurisdiction?",
+   "choices": [
+    "The Court has full jurisdiction over the crime of aggression in the same way as for other crimes in respect of any state party referral, whoever the accused is",
+    "No jurisdiction over a non-party national for aggression under a state referral, but a Council referral would not face this limit",
+    "The Court has no jurisdiction over aggression at all because the amendments have never been activated by the Assembly of States Parties and so are not in force",
+    "The Court may exercise jurisdiction only if the Security Council has first determined that an act of aggression took place"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l18.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l18",
+   "kind": "mcq",
+   "prompt": "The Prosecutor wishes to open an investigation on her own initiative into crimes in a state party. What procedural step does Article 15 require?",
+   "choices": [
+    "Consent by the state on whose territory the crimes occurred, given in a formal letter to the Registry",
+    "Confirmation by the Assembly of States Parties through a resolution adopted by two-thirds of its members",
+    "Authorisation by the Pre-Trial Chamber after the Prosecutor submits a request with supporting material",
+    "Approval by the Security Council, which must vote that the investigation will not threaten international peace"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l19.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l19",
+   "kind": "mcq",
+   "prompt": "What is the principle of complementarity?",
+   "choices": [
+    "The ICC may try only cases in which two or more national courts have each declined jurisdiction",
+    "The ICC and national courts must always try the same cases together before a joint bench of judges",
+    "The ICC has primacy over national courts and may request them to defer to it at any stage of an investigation or trial",
+    "The ICC complements national courts and acts only where states are unwilling or unable to prosecute"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l19.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l19",
+   "kind": "mcq",
+   "prompt": "Which of the following would make a case inadmissible under Article 17 of the Rome Statute?",
+   "choices": [
+    "The suspect is a national of a state that does not recognise the Court",
+    "The Prosecutor has not yet consulted the victims about the choice of charges",
+    "A state with jurisdiction is genuinely investigating or prosecuting the case",
+    "The crimes took place before the state concerned became a party to the Statute"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l19.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l19",
+   "kind": "mcq",
+   "prompt": "A state holds a trial of a former official for the same conduct under investigation by the ICC. The trial is genuine and ends in acquittal. What follows?",
+   "choices": [
+    "The case stays admissible because the ICC may retry any person who is acquitted by a national court where the result was not what the Court expected in advance",
+    "The case is inadmissible, as genuine proceedings ending in acquittal satisfy complementarity unless they were a sham",
+    "The case is admissible only if the ICC Prosecutor appeals against the acquittal before the national appeal court",
+    "The case is inadmissible only if the acquittal was based on the lack of evidence rather than on a legal defence"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l19.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l19",
+   "kind": "mcq",
+   "prompt": "State S has a sitting government that for years has repeatedly removed prosecutors from investigating a general accused of mass killings. A year-long investigation file shows no steps taken. What is the best argument that the case is admissible?",
+   "choices": [
+    "S is unwilling to prosecute, given unjustified delay and lack of independence",
+    "S has already tried the general, which satisfies ne bis in idem and so makes the case admissible before the ICC",
+    "S is not a party to the Statute and so cannot invoke complementarity, so the case is admissible without more",
+    "S is unable genuinely to prosecute because its national judicial system has collapsed in a total and substantial way across the whole country"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l19.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l19",
+   "kind": "mcq",
+   "prompt": "In the Jordan Referral re Al-Bashir decision (Appeals Chamber, 2019), what did the Court hold?",
+   "choices": [
+    "Heads of state of non-parties enjoy absolute immunity before the ICC and Jordan acted lawfully in refusing to arrest the Sudanese President on a visit",
+    "Only the Security Council may waive immunity of a head of state, and it had not done so for Sudan, which excused Jordan fully",
+    "Jordan was not bound by the Statute because it had signed but not ratified it, and so no duty to cooperate existed at all",
+    "No customary rule recognises head-of-state immunity before an international court, so Jordan failed to comply"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l20.q1",
+   "lessonId": "law-intl-humanitarian-criminal.l20",
+   "kind": "mcq",
+   "prompt": "What did the Special Court for Sierra Leone decide about the Lome Accord amnesty in Kallon and Kamara (2004)?",
+   "choices": [
+    "The amnesty barred all prosecutions of crimes committed before its date of signature",
+    "The amnesty was valid only for war crimes and invalid for crimes against humanity",
+    "The amnesty could be set aside only by a resolution of the Security Council",
+    "The amnesty did not bar prosecution for international crimes before the Court"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l20.q2",
+   "lessonId": "law-intl-humanitarian-criminal.l20",
+   "kind": "mcq",
+   "prompt": "Which is the strongest form of the \"selectivity\" criticism of the ICC?",
+   "choices": [
+    "That the Court applies a different definition of crimes to each state depending on its size",
+    "That the ICC has convicted too few persons relative to the number of states that are parties to the Statute",
+    "That the caseload and the Council veto produce uneven scrutiny of powerful states",
+    "That the Court tries leaders and not low-ranking soldiers, which is contrary to the Statute"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l20.q3",
+   "lessonId": "law-intl-humanitarian-criminal.l20",
+   "kind": "mcq",
+   "prompt": "A state argues that the ICC lacks legitimacy and therefore has no jurisdiction over events on a state party's territory involving its nationals. Which response is correct as a statement of law?",
+   "choices": [
+    "The argument succeeds because the Court's jurisdiction depends on a finding by the Assembly of States Parties that the Court is legitimate in each situation",
+    "The argument fails because jurisdiction turns on the Article 12 preconditions, whatever the critique",
+    "The argument fails because the Security Council has already approved all current ICC investigations by a general resolution",
+    "The argument succeeds because a state that disputes legitimacy cannot be bound by any treaty body in respect of its nationals"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l20.q4",
+   "lessonId": "law-intl-humanitarian-criminal.l20",
+   "kind": "mcq",
+   "prompt": "A peace agreement offers a rebel leader a blanket amnesty for all crimes, including the massacre of civilians. Which assessment best reflects the current position of international criminal law?",
+   "choices": [
+    "The amnesty may not bar prosecution before international courts, though it may inform the interests of justice assessment",
+    "The amnesty has no relevance at all, since the Prosecutor is forbidden from considering any peace process or any national settlement in any decision",
+    "The amnesty binds the ICC absolutely, because the Statute requires the Court to respect any amnesty that has been agreed in a peace process by the parties",
+    "The amnesty is valid under the Rome Statute only if the leader has first paid compensation to the victims of the massacre"
+   ]
+  },
+  {
+   "id": "law-intl-humanitarian-criminal.l20.q5",
+   "lessonId": "law-intl-humanitarian-criminal.l20",
+   "kind": "mcq",
+   "prompt": "A government argues that universal jurisdiction trials in foreign courts, such as the 2022 Koblenz verdict, show that the ICC is unnecessary. Which response is strongest?",
+   "choices": [
+    "The ICC and universal jurisdiction are the same thing, so the existence of one makes the other redundant in every case that arises",
+    "Universal jurisdiction trials may be held only by the ICC, so the Koblenz verdict was without any legal basis",
+    "Universal jurisdiction trials are unlawful under every treaty and so cannot be relied on as evidence of accountability in any forum",
+    "National trials complement but cannot replace the ICC, as they depend on presence, domestic law and will"
+   ]
+  }
+ ]
+}

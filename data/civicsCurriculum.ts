@@ -331,7 +331,13 @@ Fourth, deliver it in the form that body actually accepts — public comment, a 
           standardIds: ['D2.Civ.8.9-12', 'D2.Civ.3.9-12'],
           body: `Between 1865 and 1870 the United States amended its Constitution three times in a way that changed the country more fundamentally than anything since 1787. Historians increasingly call it the second founding, and the label is earned.
 
-The Thirteenth abolished slavery. The Fourteenth did four enormous things at once: it made everyone born here a citizen, overturning the Court's contrary holding; it forbade states from abridging the privileges or immunities of citizens; it applied due process against the states; and it guaranteed equal protection of the laws. The Fifteenth barred denying the vote on grounds of race.
+The Thirteenth abolished slavery. The Fourteenth did four enormous things at once:
+- it made everyone born here a citizen, overturning the Court's contrary holding
+- it forbade states from abridging the privileges or immunities of citizens
+- it applied due process against the states
+- and it guaranteed equal protection of the laws.
+
+The Fifteenth barred denying the vote on grounds of race.
 
 Two observations make this a civics lesson rather than a history one. First, the target changed. The original Bill of Rights restrained the federal government, because the perceived threat was a distant central power. The Reconstruction Amendments restrained the states, because the war had demonstrated that a state could be the more immediate threat to a citizen's liberty. That inversion is the single most consequential structural change in American constitutional history.
 

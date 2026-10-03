@@ -1,0 +1,1116 @@
+{
+ "courseId": "law-admin",
+ "verifier": "A",
+ "fetched": 39,
+ "note": "Search results (not opened pages) used for Trump v. Cook, EO 14215, Learning Resources, McLaughlin, CRA; no URLs listed for those. Key stale item: Trump v. Slaughter (June 29, 2026) overruled Humphrey's Executor.",
+ "questions": [
+  {
+   "id": "law-admin.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l01.q5",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/25-332"
+   ],
+   "note": "Choice A is best, but the FTC insulation is no longer merely contested: Slaughter (June 29, 2026) held it unconstitutional."
+  },
+  {
+   "id": "law-admin.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l02.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l02.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/19-7"
+   ],
+   "note": "Seila Law still correct on its facts; its Humphrey's exception was later overruled in Slaughter (2026)."
+  },
+  {
+   "id": "law-admin.l03.q4",
+   "answer": 1,
+   "confidence": "low",
+   "ambiguous": true,
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/25-332"
+   ],
+   "note": "Stale: Trump v. Slaughter (June 29, 2026) overruled Humphrey's Executor; for-cause protection for heads of executive-power agencies is now unconstitutional, so the member would lose. Choice B states the pre-2026 Seila Law test; it is the closest choice but none states current law."
+  },
+  {
+   "id": "law-admin.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l04.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l06.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l06.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l07.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l08.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l10.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l10.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l10.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l10.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l10.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l11.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l11.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l11.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l11.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l11.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l12.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l12.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l12.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l12.q5",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": true,
+   "sources": [],
+   "note": "Choice A is hedged; the other choices are plainly wrong, so A is the best answer."
+  },
+  {
+   "id": "law-admin.l13.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l13.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l13.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l13.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l14.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l14.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l14.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l14.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l14.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l15.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l15.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l15.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l15.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l15.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l16.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l16.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l16.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l17.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l17.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l17.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l17.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l18.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l18.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l18.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l18.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-admin.l18.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-admin.l01",
+   "claim": "Franklin v. Massachusetts (1992): the President is not an agency under the APA",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Cornell page returned 404; not checked."
+  },
+  {
+   "lessonId": "law-admin.l01",
+   "claim": "APA of 1946 defines agency broadly as any federal authority other than Congress, courts and listed bodies",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-admin.l01",
+   "claim": "Independent agencies' for-cause removal protection is presented as an unresolved constitutional dispute",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/25-332",
+    "https://www.sidley.com/en/insights/newsupdates/2026/06/the-end-of-the-independent-agency-supreme-court-overrules-humphreys-executor"
+   ],
+   "note": "Out of date: Trump v. Slaughter (June 29, 2026, 6-3, Roberts) overruled Humphrey's Executor; for-cause protection for heads of executive-power agencies violates separation of powers. Fed left open as possible exception."
+  },
+  {
+   "lessonId": "law-admin.l02",
+   "claim": "Gundy v. United States (2019): Kagan plurality upheld; Alito concurred in judgment willing to reconsider; Gorsuch dissent for three",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/17-6086"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l02",
+   "claim": "FCC v. Consumers' Research (2025) upheld USF scheme under intelligible principle test and rejected private nondelegation claim",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/24-354"
+   ],
+   "note": "Kagan majority, 6-3."
+  },
+  {
+   "lessonId": "law-admin.l02",
+   "claim": "Panama Refining and Schechter (1935) are the only two nondelegation invalidations; Carter Coal (1936) private delegation",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-admin.l03",
+   "claim": "Lesson says the Humphrey's Executor FTC case is pending and learners should check the outcome",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/25-332"
+   ],
+   "note": "Out of date: decided June 29, 2026 (Trump v. Slaughter); Humphrey's overruled, President may remove FTC commissioners at will, Slaughter's reinstatement reversed."
+  },
+  {
+   "lessonId": "law-admin.l03",
+   "claim": "Seila Law (2020): single director with substantial executive power cannot be insulated; Humphrey's limited to multimember expert bodies, Morrison exception for inferior officers",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/19-7",
+    "https://www.law.cornell.edu/supremecourt/text/25-332"
+   ],
+   "note": "Accurate for 2020, but the multimember-expert-body exception was eliminated by Slaughter (2026). Trump v. Cook (June 29, 2026, 5-4, per search results) held Fed governors' for-cause protection valid and requires notice and hearing."
+  },
+  {
+   "lessonId": "law-admin.l03",
+   "claim": "Lucia v. SEC (2018): SEC ALJs are officers; appointment by staff violated the Appointments Clause",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/17-130"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l04",
+   "claim": "In 2025 an executive order directed independent agencies to submit significant rules for presidential review",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Search snippets indicate EO 14215 (Feb 18, 2025) and OMB guidance of Apr 17, 2025, but I did not open the order. After Slaughter (2026) its legal reach is much less contested."
+  },
+  {
+   "lessonId": "law-admin.l04",
+   "claim": "CRA used only once before 2017; substantially-same bar after disapproval",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Search snippets (CRS) consistent: OSHA ergonomics 2001; page not opened."
+  },
+  {
+   "lessonId": "law-admin.l04",
+   "claim": "INS v. Chadha (1983): one-house veto unconstitutional; Bowsher v. Synar (1986)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-admin.l05",
+   "claim": "Final rules take effect no sooner than 30 days after publication, with exceptions (553(d))",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/553"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l05",
+   "claim": "Section 553(e) lets any interested person petition for issuance, amendment or repeal of a rule",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/553"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l05",
+   "claim": "Vermont Yankee: courts may not impose procedures beyond APA, Constitution or other statute",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/435/519"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l06",
+   "claim": "Section 553(a)(2) agency management/benefits exemption; 553(b) interpretive/policy/good-cause exceptions",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/553"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l06",
+   "claim": "Perez v. Mortgage Bankers (2015): no notice and comment needed to change an interpretive rule; Paralyzed Veterans rejected",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/13-1041"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l06",
+   "claim": "Chrysler Corp. v. Brown (1979): legislative rule can bind like a statute",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-admin.l07",
+   "claim": "Florida East Coast Railway (1973): after hearing in ICC statute did not require on-the-record procedure",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/410/224"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l07",
+   "claim": "Allegheny-Ludlum (1972) and peanut butter standards example",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-admin.l07",
+   "claim": "Section 557(d) bars ex parte contacts in formal proceedings; Negotiated Rulemaking Act of 1990",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-admin.l08",
+   "claim": "Mathews v. Eldridge three factors; no pre-termination evidentiary hearing for disability benefits",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/424/319"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l08",
+   "claim": "Withrow v. Larkin: combining investigative and adjudicative functions does not by itself violate due process",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/421/35"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l08",
+   "claim": "SEC v. Jarkesy (2024): Seventh Amendment requires jury when SEC seeks civil penalties for securities fraud",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-859"
+   ],
+   "note": "6-3, Roberts."
+  },
+  {
+   "lessonId": "law-admin.l09",
+   "claim": "Bowen v. Georgetown (1988): no retroactive rules without express congressional authority",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/488/204"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l09",
+   "claim": "Chenery I: court may uphold agency action only on grounds the agency invoked; Chenery II choice of rulemaking vs adjudication",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-admin.l09",
+   "claim": "Londoner (1908) vs Bi-Metallic (1915)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-admin.l10",
+   "claim": "Bennett v. Spear two-part finality test",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/520/154"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l10",
+   "claim": "Heckler v. Chaney: refusal to enforce presumptively unreviewable, rebuttable by statutory guidelines",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/470/821"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l10",
+   "claim": "Norton v. SUWA: 706(1) compels only discrete legally required action",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/542/55"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l11",
+   "claim": "Ohio v. EPA (2024): stay because EPA likely failed to respond adequately to comments",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/23A349"
+   ],
+   "note": "5-4 stay."
+  },
+  {
+   "lessonId": "law-admin.l11",
+   "claim": "State Farm (1983) arbitrary-and-capricious factors and airbag alternative",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-admin.l11",
+   "claim": "Department of Commerce v. New York (2019): contrived rationale",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-admin.l12",
+   "claim": "Lujan elements; some-day intentions insufficient",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/504/555"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l12",
+   "claim": "FDA v. Alliance for Hippocratic Medicine (2024): no standing; conscience protections",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/23-235"
+   ],
+   "note": "Unanimous, Kavanaugh."
+  },
+  {
+   "lessonId": "law-admin.l12",
+   "claim": "TransUnion v. Ramirez: bare statutory violation insufficient; disseminated vs undisseminated files",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/20-297"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l13",
+   "claim": "Laidlaw: voluntary cessation moots only if absolutely clear conduct cannot reasonably recur",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/528/167"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l13",
+   "claim": "Corner Post (2024): APA claim accrues on injury; six-year limit 28 U.S.C. 2401(a)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-1008",
+    "https://www.law.cornell.edu/uscode/text/28/2401"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l13",
+   "claim": "Axon v. FTC (2023): structural constitutional challenges may proceed in district court",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/21-86"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l14",
+   "claim": "Mead (2001): Chevron only where delegated force-of-law authority; Customs letters get Skidmore",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/533/218"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l14",
+   "claim": "Chevron bubble concept and two-step test",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-admin.l14",
+   "claim": "Brand X (2005): agency may override prior judicial construction unless unambiguous",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened."
+  },
+  {
+   "lessonId": "law-admin.l15",
+   "claim": "Loper Bright: 6-3, Roberts, Chevron overruled",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-451"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l15",
+   "claim": "Prior Chevron-based holdings remain subject to statutory stare decisis",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-451"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l15",
+   "claim": "Seven County (2025) substantial deference to NEPA scoping; McLaughlin (2025) district courts not bound by FCC interpretation",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/23-975"
+   ],
+   "note": "McLaughlin (June 20, 2025, 6-3, Kavanaugh) confirmed only via search results, not an opened page; Seven County opened. Lesson's account correct."
+  },
+  {
+   "lessonId": "law-admin.l16",
+   "claim": "Kisor v. Wilkie conditions on Auer deference",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/18-15"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l16",
+   "claim": "Biden v. Nebraska (2023): HEROES Act did not authorize roughly $430 billion cancellation",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-506"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l16",
+   "claim": "West Virginia v. EPA (2022): major questions, generation shifting",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/20-1530"
+   ],
+   "note": "Learning Resources v. Trump (Feb 20, 2026) later held IEEPA does not authorize tariffs, with three Justices relying on major questions (search results only). Lesson omits it; not an error."
+  },
+  {
+   "lessonId": "law-admin.l16",
+   "claim": "Four Justices wrote separately to say Auer should be overruled in full; Auer still stands",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Gorsuch, Thomas, Alito said so; I could not confirm Kavanaugh urged overruling. No search result showed Auer overruled."
+  },
+  {
+   "lessonId": "law-admin.l17",
+   "claim": "Agency must determine within 20 working days whether to comply",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/552"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l17",
+   "claim": "FOIA Improvement Act 2016: foreseeable harm, 25-year limit on deliberative exemption, nine exemptions, segregability",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/552"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l17",
+   "claim": "Argus Leader (2019): confidential if customarily private and given under assurance; no competitive harm test",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/18-481"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l18",
+   "claim": "Sunshine Act covers agencies headed by collegial body of two or more, majority Presidentially appointed with Senate consent",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/552b"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l18",
+   "claim": "Ten exemptions to open meetings",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/552b"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-admin.l18",
+   "claim": "Closing a meeting requires a recorded majority vote",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/5/552b"
+   ],
+   "note": ""
+  }
+ ]
+}

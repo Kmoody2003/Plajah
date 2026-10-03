@@ -1,0 +1,22 @@
+# med-g912 uncertain claims for expert review
+
+- l01: Labor contractions and clotting named as positive-feedback examples (textbook-standard, but clotting is cascade amplification rather than a classic loop).
+- l02: Resting cardiac output "roughly 5 L/min"; heart sounds "mostly from valves closing" (simplification).
+- l03: "Blood pH near 7.4"; kidneys "about a million nephrons" (approximate); brainstem drive "mainly CO2 and pH, not oxygen" (peripheral chemoreceptors also respond to low O2).
+- l04: Secondary (pituitary) hypothyroidism pattern of low TSH with low thyroid hormone (can occasionally show inappropriately normal TSH).
+- l05: Neutrophils-first and macrophages-later sequence; "loss of function" as fifth sign (usually credited to later authors than Celsus).
+- l06: Antiviral and antibiotic target generalizations; "finish the course" advice is now debated and the lesson defers to the prescriber.
+- l07: TP53 role; HPV, HBV and HCV cancer links; screening modalities listed without schedules. Statement that most cancer needs several mutations is a simplification.
+- l08: Graves disease, MS, RA as autoimmune examples (well established); sickle-cell malaria protection claim (carrier state).
+- l09: ADA anchor "Standards of Care in Diabetes, 2026" (year and exact title should be verified); diagnostic thresholds FPG 126 mg/dL and A1c 6.5 percent; red cell lifespan about 120 days; metformin mechanism summary (reduces hepatic glucose output, improves sensitivity).
+- l10: ACC/AHA 2017 hypertension cutoff 130/80 and the statement that other guidelines use 140/90 (ESC/ESH, and the 2025 AHA/ACC update may have changed US wording; verify current guideline name and year); statin mechanism and benefit.
+- l11: GINA anchor year (2025) and the statement that reliever-only treatment is discouraged for persistent asthma; spirometry description.
+- l12: Warfarin as narrow therapeutic index example; P450 inhibition/induction examples; "first-pass" description.
+- l13: Normal vital ranges (HR 60-100, RR 12-20, temperature 36.5-37.5 C, SpO2 95 percent or higher); worked screening example arithmetic (verify 4995 false positives and about 2 percent positive predictive value).
+- l14: Statement that imaging adds a small lifetime cancer risk; relative radiation dose of CT versus plain film; MRI safety claims for implants (device-specific).
+- l15: R0 of about 12 for measles (commonly cited range 12-18); herd immunity threshold formula 1 - 1/R0 and the 92 percent figure; prevention level definitions.
+- l16: p-value interpretation wording; NNT arithmetic; hierarchy placing meta-analysis at top.
+- l17: Beauchamp and Childress attribution; minors consent statement (varies by jurisdiction); HIPAA anchor given as a short title only; emergency exception.
+- l18: AHA 2020 anchor (the 2025 AHA guidelines may now be current; verify year); compression rate 100-120 per minute and depth about 5-6 cm; 30:2 ratio; claim that untrained rescuers do compressions-only; "each minute of delay lowers survival substantially" (stated qualitatively); choking guidance of back blows plus abdominal thrusts for adults (guidance differs by organization, for example back blows first in some).
+- l19: US training pathway details (MD/DO, residency length of about 3 years for primary care, "a decade or more"); nursing and PA/pharmacist degree levels; scope-of-practice variation by state.
+- l20: Statement that US supplements need no proof of effectiveness before sale (DSHEA framework; stated generally).

@@ -1,0 +1,1147 @@
+{
+ "courseId": "med-premed-chem",
+ "label": "Chemistry for Medicine",
+ "lessons": [
+  {
+   "id": "med-premed-chem.l01",
+   "title": "Atomic Structure and Periodic Trends",
+   "body": [
+    "An atom has a dense nucleus of protons and neutrons surrounded by electrons. The atomic number Z is the number of protons and defines the element; isotopes of one element differ in neutron number. Medicine uses isotopes constantly: fluorine-18 (half-life about 110 minutes) labels the glucose analogue used in PET scans, technetium-99m is a workhorse of gamma imaging, and iodine-131 delivers radiation to thyroid tissue because the thyroid concentrates iodide.",
+    "Electrons occupy orbitals described by quantum numbers. The principal number n sets the shell and energy, the azimuthal number l sets the shape (s, p, d, f for l = 0, 1, 2, 3), the magnetic number m_l sets orientation, and the spin number m_s is +1/2 or -1/2. The Pauli exclusion principle says no two electrons share all four numbers, so an orbital holds at most two electrons of opposite spin. Hund's rule says degenerate orbitals fill singly with parallel spins before pairing, and the Aufbau principle fills lower-energy subshells first.",
+    "Worked example: iron has Z = 26, so neutral Fe is [Ar] 4s2 3d6. Transition metals lose the 4s electrons first, so Fe2+ is [Ar] 3d6 and Fe3+ is [Ar] 3d5, a half-filled and especially stable arrangement. Chromium ([Ar] 4s1 3d5) and copper ([Ar] 4s1 3d10) are well-known exceptions that favour half-filled or filled d subshells. The Fe2+/Fe3+ pair matters biologically because haem iron cycles between these states.",
+    "Periodic trends follow effective nuclear charge Z_eff, the pull felt by a valence electron after inner electrons shield part of the nuclear charge. Across a period Z_eff rises, so atomic radius shrinks while ionisation energy and electronegativity increase. Down a group new shells are added, so radius grows and ionisation energy falls. Anions are larger than their parent atoms and cations are smaller.",
+    "Radioactive decay is first order. After each half-life the remaining fraction halves, so the fraction left is (1/2) raised to t divided by t-half. A tracer with a half-life of 110 minutes has about one eighth of its activity left after 330 minutes, which is why PET isotopes must be made close to the scanner."
+   ]
+  },
+  {
+   "id": "med-premed-chem.l02",
+   "title": "Bonding, Shape and Intermolecular Forces",
+   "body": [
+    "Ionic bonds form between atoms of very different electronegativity, where electrons transfer and ions attract. Covalent bonds share electrons; the bond is nonpolar if electronegativities match and polar if they differ, with a partial negative charge on the more electronegative atom. A molecule is polar overall only if the bond dipoles fail to cancel. Carbon dioxide has polar C=O bonds, but the molecule is linear so the dipoles cancel and it is nonpolar. Water is bent, so its dipoles add and it is strongly polar.",
+    "VSEPR theory predicts shape from the number of electron domains (bonds and lone pairs) around a central atom, because domains repel and spread out. Four domains are tetrahedral (about 109.5 degrees); methane has four bonds, ammonia has three bonds and one lone pair (trigonal pyramidal, about 107 degrees) and water has two bonds and two lone pairs (bent, about 104.5 degrees). Hybridisation matches this: four domains means sp3, three means sp2 (trigonal planar, 120 degrees) and two means sp (linear). A carbonyl carbon is sp2. A double bond is one sigma bond plus one pi bond, and pi bonds block rotation.",
+    "Resonance describes electrons delocalised over several atoms. The amide (peptide) bond is the key example: the nitrogen lone pair delocalises into the carbonyl, giving the C-N bond partial double-bond character. This is why the peptide group is planar and rigid, which restricts protein backbone conformations.",
+    "Intermolecular forces rank roughly from weakest to strongest as London dispersion (all molecules, grows with surface area), dipole-dipole, and hydrogen bonding, where H attached to N, O or F interacts with a lone pair on another N, O or F. Hydrogen bonding explains why water boils far above hydrogen sulfide despite a lower mass. Ion-dipole forces dissolve salts in water.",
+    "Drugs bind targets through these weak interactions summed over a good shape fit: hydrogen bonds, ionic salt bridges and hydrophobic contacts. The hydrophobic effect drives nonpolar surfaces together because ordered water around them is released. Polar groups improve water solubility; large hydrocarbon regions improve membrane crossing but reduce solubility, a balance that medicinal chemists tune constantly."
+   ]
+  },
+  {
+   "id": "med-premed-chem.l03",
+   "title": "Stoichiometry, Solutions and Dilutions",
+   "body": [
+    "The mole is the unit that links mass to numbers of particles: 6.022 x 10^23 particles per mole, with mass in grams per mole equal to the molar mass. Balanced equations give mole ratios, and every stoichiometry problem is the chain grams to moles, moles to moles by the equation ratio, then moles to grams. Molarity M is moles of solute per litre of solution. Dilution conserves moles of solute, so C1 x V1 = C2 x V2.",
+    "Worked dilution: to make 250 mL of 0.20 M solution from a 2.0 M stock, V1 = (0.20 x 250) / 2.0 = 25 mL of stock, then add solvent to a final volume of 250 mL.",
+    "Worked saline example: normal saline is 0.9% w/v NaCl, meaning 0.9 g per 100 mL or 9.0 g per litre. NaCl has molar mass 58.44 g/mol, so 9.0 / 58.44 = 0.154 mol, or about 154 mmol/L of Na+ and 154 mmol/L of Cl-. The osmolarity is about 308 mOsm/L because each formula unit gives two particles, close to plasma osmolality of roughly 285 to 295 mOsm/kg. That is why it is called isotonic. Five percent dextrose is 50 g/L of glucose (180.16 g/mol), about 278 mmol/L, also roughly isotonic in the bag, but the glucose is metabolised so the patient effectively receives free water.",
+    "Limiting reagent and yield: aspirin forms when salicylic acid (138.12 g/mol) reacts with acetic anhydride in a 1:1 ratio to give acetylsalicylic acid (180.16 g/mol). From 2.00 g of salicylic acid with anhydride in excess, moles = 2.00 / 138.12 = 0.01448 mol, so the theoretical yield is 0.01448 x 180.16 = 2.61 g. If 2.00 g is actually collected, percent yield = 2.00 / 2.61 x 100 = 76.7%. The limiting reagent is the one that runs out first and sets the theoretical yield.",
+    "Common traps are using volume of solvent instead of volume of solution, forgetting that a salt dissociates when counting osmoles, and mixing mass percent with weight per volume percent."
+   ]
+  },
+  {
+   "id": "med-premed-chem.l04",
+   "title": "Thermodynamics and Free Energy",
+   "body": [
+    "The first law says energy is conserved; enthalpy change delta H is heat at constant pressure, negative when a reaction releases heat. The second law says total entropy of the universe increases, and entropy delta S measures dispersal of energy and matter. Gibbs free energy combines them: delta G = delta H - T delta S, with T in kelvin. A reaction is spontaneous (exergonic) when delta G is negative, at equilibrium when it is zero, and nonspontaneous when positive. Spontaneous means thermodynamically favourable, and says nothing about speed.",
+    "Worked example: delta H = +20 kJ/mol and delta S = +80 J/mol K at 298 K. Convert units: delta S = 0.080 kJ/mol K. delta G = 20 - (298 x 0.080) = 20 - 23.8 = -3.8 kJ/mol, so the process is spontaneous, driven by entropy. It becomes spontaneous above T = delta H / delta S = 20 / 0.080 = 250 K. Hess's law lets enthalpies of steps be added, and calorimetry uses q = m c delta T.",
+    "Free energy links to equilibrium by delta G = delta G degrees + RT ln Q and delta G degrees = -RT ln K, with R = 8.314 J/mol K. Worked example: delta G degrees = -5.7 kJ/mol at 298 K gives ln K = 5700 / (8.314 x 298) = 2.30, so K is about 10. Every 5.7 kJ/mol of standard free energy changes K by about tenfold near room temperature. At equilibrium Q = K and delta G = 0, so actual conditions, not standard ones, decide direction.",
+    "In biology the standard free energy for ATP hydrolysis is about -30.5 kJ/mol under standard biochemical conditions (pH 7), and more negative in cells because ATP is kept far above equilibrium relative to ADP and phosphate. Unfavourable reactions run when coupled to ATP hydrolysis through a shared intermediate, so the net delta G is the sum. The hydrophobic effect is largely entropy-driven: burying nonpolar groups frees ordered water, raising solvent entropy.",
+    "A protein folds when delta G(folding) is negative; folding is favoured by enthalpy from contacts and hydrogen bonds and by solvent entropy, but opposed by loss of chain entropy. A trap is treating delta G degrees as the sign that governs a reaction in a cell, when only the actual delta G does."
+   ]
+  },
+  {
+   "id": "med-premed-chem.l05",
+   "title": "Chemical Kinetics and Drug Elimination",
+   "body": [
+    "Kinetics asks how fast a reaction proceeds, while thermodynamics asks whether it is favourable. A rate law relates rate to concentrations: rate = k[A]^m[B]^n, where the orders m and n must be found by experiment, not read from the balanced equation. The overall order is m + n. The units of k depend on the order: s^-1 for first order, M^-1 s^-1 for second order and M s^-1 for zero order.",
+    "Worked example from initial-rate data: doubling [A] while holding [B] fixed doubles the rate, so the order in A is 1. Doubling [B] while holding [A] fixed quadruples the rate, so the order in B is 2. The rate law is rate = k[A][B]^2 and the overall order is 3. Multistep reactions have a rate-determining (slowest) step, and the rate law reflects the species in that step and anything needed to form its reactants.",
+    "First-order processes obey ln[A] = ln[A]0 - kt and have a constant half-life t-half = 0.693 / k. Worked example: a drug eliminated by first-order kinetics with a half-life of 6 hours has k = 0.693 / 6 = 0.1155 per hour. After 24 hours four half-lives have passed, so (1/2)^4 = 1/16 or 6.25% of the starting amount remains. With repeated dosing, concentrations approach a steady state in roughly four to five half-lives, because by then about 94 to 97% of the final plateau has been reached. Zero-order processes remove a constant amount per unit time regardless of concentration, which happens when the elimination enzymes are saturated. Ethanol at usual blood levels is approximately zero-order, which is why a high level falls linearly rather than by halves, and phenytoin shows saturable behaviour near therapeutic levels.",
+    "Collision theory says a reaction needs collisions with enough energy and the right orientation. The Arrhenius equation k = A exp(-Ea / RT) shows that raising temperature or lowering the activation energy Ea raises k. A catalyst lowers Ea by offering a different pathway; it speeds up forward and reverse reactions equally and does not change K or delta G. Enzymes are biological catalysts that lower Ea by stabilising the transition state, which is why a reaction that is thermodynamically favourable can still be negligible in the absence of the enzyme.",
+    "A common trap is to read the order from coefficients, and another is to claim a catalyst makes a reaction more spontaneous. It only makes the equilibrium arrive sooner."
+   ]
+  },
+  {
+   "id": "med-premed-chem.l06",
+   "title": "Chemical Equilibrium and Le Chatelier",
+   "body": [
+    "At equilibrium forward and reverse rates are equal and concentrations stop changing, although the reactions continue. For aA + bB giving cC + dD, the equilibrium constant is K = [C]^c[D]^d / ([A]^a[B]^b), written with pure solids and liquids omitted. The reaction quotient Q has the same form but uses current concentrations: if Q is less than K the reaction proceeds forward, if Q is greater than K it proceeds in reverse, and if Q equals K it is at equilibrium. K changes only with temperature.",
+    "Worked ICE table: H2 + I2 giving 2 HI has K = 50 at a certain temperature. Start with 1.0 M of each reactant and no product. Let x be the amount of each reactant consumed, so at equilibrium [H2] = [I2] = 1.0 - x and [HI] = 2x. Then (2x)^2 / (1.0 - x)^2 = 50, so 2x / (1.0 - x) = 7.07 after taking the square root. Solving, 2x = 7.07 - 7.07x, so x = 7.07 / 9.07 = 0.78 M. At equilibrium [HI] = 1.56 M and [H2] = [I2] = 0.22 M. Check: 1.56^2 / 0.22^2 is about 50. When the unknown is small compared with the starting concentration, the approximation 1 - x equals 1 saves effort, but check that x is under about 5%.",
+    "Le Chatelier's principle says a system disturbed from equilibrium shifts to partly oppose the disturbance. Adding reactant shifts toward products; removing product does the same. Increasing pressure shifts toward fewer moles of gas. Raising temperature favours the endothermic direction. The catalyst has no effect on the position of equilibrium.",
+    "Medical example: the carbon dioxide buffer system is CO2 + H2O in equilibrium with H2CO3, which gives H+ and HCO3-. If a person hyperventilates, exhaled CO2 is removed and the equilibrium shifts toward CO2, consuming H+. The blood pH rises and the result is respiratory alkalosis. Likewise, hypoventilation retains CO2 and lowers the pH.",
+    "For sparingly soluble salts the solubility product Ksp applies. For AgCl, Ksp = [Ag+][Cl-] = 1.8 x 10^-10, so in pure water s = the square root of 1.8 x 10^-10, about 1.3 x 10^-5 M. The common ion effect lowers solubility if either ion is already present, as in kidney stones where high urinary calcium or oxalate pushes Q past Ksp and favours crystallisation. Remember that Ksp values compare directly only for salts with the same ion ratio."
+   ]
+  },
+  {
+   "id": "med-premed-chem.l07",
+   "title": "Acids, Bases and Drug Ionisation",
+   "body": [
+    "A Bronsted-Lowry acid donates a proton and a base accepts one; a Lewis acid accepts an electron pair. pH = -log[H+], and in water Kw = [H+][OH-] = 1.0 x 10^-14 at 25 degrees C, so pH + pOH = 14. Strong acids dissociate completely, so a 0.010 M HCl solution has pH 2. Weak acids dissociate partially with Ka = [H+][A-] / [HA], and pKa = -log Ka. A smaller pKa means a stronger acid.",
+    "Worked weak acid: acetic acid 0.10 M with Ka = 1.8 x 10^-5. Let x = [H+] = [A-]. Then x^2 / (0.10 - x) = 1.8 x 10^-5. Because x is small, x^2 = 1.8 x 10^-6 and x = 1.3 x 10^-3 M, so pH = 2.87 and only about 1.3% is ionised, which justifies the approximation. A conjugate acid and base are linked by Ka x Kb = Kw. Salts of weak acids give basic solutions; for example sodium acetate raises pH.",
+    "The Henderson-Hasselbalch relation for a weak acid gives log([A-] / [HA]) = pH - pKa. When pH equals pKa the acid is half ionised. Each pH unit away changes the ratio tenfold. This matters for drugs because the uncharged form crosses membranes and the charged form dissolves in water. Aspirin has a pKa of about 3.5. In the stomach at about pH 2, the ratio is 10^(2 - 3.5) = 0.03, so about 3% is ionised and most is uncharged and readily absorbed. In the small intestine at about pH 6.5 the ratio is 10^3, so it is almost entirely ionised, though the huge surface area still allows absorption. For a weak base the logic reverses: it is mostly protonated, hence charged, at pH below its pKa.",
+    "Ion trapping applies this in the clinic. A weak acid such as salicylate is filtered by the kidney and can diffuse back from tubular fluid in its uncharged form. Alkalinising the urine with sodium bicarbonate raises the ionised fraction in the tubule, which cannot be reabsorbed easily, and so it increases excretion. Weak bases are trapped in acidic compartments, which is how amines concentrate in acidic lysosomes or in acidic urine.",
+    "Amino acid side chains, phosphates and carboxylic acids all follow these rules, so whenever you meet an ionisable group, compare the surrounding pH to its pKa before deciding its charge."
+   ]
+  },
+  {
+   "id": "med-premed-chem.l08",
+   "title": "Buffers, Titrations and Blood pH",
+   "body": [
+    "A buffer is a weak acid with its conjugate base (or the reverse) in comparable amounts. Added strong acid reacts with the base component and added strong base reacts with the acid component, so pH changes little. The Henderson-Hasselbalch equation is pH = pKa + log([A-] / [HA]). A buffer works best within about one pH unit of its pKa, and its capacity depends on the total concentration of the pair, not just the ratio.",
+    "Worked buffer: an acetate buffer has 0.20 M acetate and 0.10 M acetic acid, with pKa 4.76. pH = 4.76 + log(2.0) = 4.76 + 0.30 = 5.06. Now add 0.010 mol HCl to 1.0 L. The acid converts acetate to acetic acid, so acetate becomes 0.19 M and acetic acid 0.11 M. pH = 4.76 + log(0.19 / 0.11) = 4.76 + 0.24 = 5.00. A drop of only about 0.06 pH units, whereas 0.010 M HCl in pure water would fall to pH 2.",
+    "In a titration of a weak acid with strong base, the pH at the half-equivalence point equals the pKa, because half of the acid has been converted to its conjugate base. At the equivalence point the solution holds only the conjugate base, so the pH is above 7. The titration curve is flattest around the buffer region.",
+    "The main extracellular buffer is bicarbonate. With CO2 dissolved in plasma, pH = 6.1 + log([HCO3-] / (0.03 x PCO2)), where PCO2 is in mmHg. For HCO3- of 24 mmol/L and PCO2 of 40 mmHg, 0.03 x 40 = 1.2 mmol/L of dissolved CO2, and 24 / 1.2 = 20, so pH = 6.1 + 1.30 = 7.40. The system is powerful even though the pKa of 6.1 is far from 7.4, because the lungs control CO2 and the kidneys control bicarbonate, making it an open system.",
+    "Use the equation to classify disorders. If HCO3- falls to 12 with PCO2 40, then 12 / 1.2 = 10 and pH = 6.1 + 1.0 = 7.10, a metabolic acidosis before any respiratory compensation. If PCO2 rises with a normal bicarbonate, pH falls: respiratory acidosis. Phosphate and haemoglobin are important intracellular and red-cell buffers."
+   ]
+  },
+  {
+   "id": "med-premed-chem.l09",
+   "title": "Electrochemistry, Nernst Potentials and Biological Redox",
+   "body": [
+    "Oxidation is loss of electrons and reduction is gain. In a galvanic (voltaic) cell, oxidation occurs at the anode and reduction at the cathode, and electrons flow through the external wire from anode to cathode. The standard cell potential is E degrees (cell) = E degrees (cathode) - E degrees (anode), using standard reduction potentials. A positive cell potential means a spontaneous cell. Free energy and potential are linked by delta G degrees = -nF E degrees, where n is moles of electrons and F = 96,485 C/mol.",
+    "Worked example: a zinc-copper cell has E degrees = +1.10 V with n = 2. Then delta G degrees = -2 x 96,485 x 1.10 = -212,000 J, or about -212 kJ/mol. In biology, the mitochondrial chain moves electrons from NADH (E degrees prime about -0.32 V) toward oxygen (about +0.82 V). The difference is 1.14 V, so delta G degrees prime = -2 x 96.485 x 1.14 = about -220 kJ per mole of electron pairs, a large drop that is released in steps to pump protons and make ATP.",
+    "The Nernst equation gives potential under non-standard conditions: E = E degrees - (RT / nF) ln Q. At 25 degrees C this becomes E = E degrees - (0.0592 / n) log Q. At body temperature (310 K) the factor 2.303 RT / F is about 61.5 mV for a monovalent ion.",
+    "For a single ion across a membrane at equilibrium, E_ion = (61.5 mV / z) x log([ion]outside / [ion]inside). Worked example: potassium with 4 mM outside and 140 mM inside gives E_K = 61.5 x log(4 / 140) = 61.5 x (-1.54) = about -95 mV. Because resting membranes are mostly permeable to potassium, the resting potential sits near this value.",
+    "Suppose extracellular potassium rises to 7 mM. Then E_K = 61.5 x log(7 / 140) = 61.5 x (-1.30) = about -80 mV. The membrane depolarises by about 15 mV, which explains why hyperkalaemia disturbs excitable tissue such as the heart. Concentration cells are the same idea, with potential generated purely by a concentration difference.",
+    "Traps include forgetting that the sign of z flips for anions, and using ln versus log with the wrong constant. Also remember that a positive E gives a negative delta G."
+   ]
+  },
+  {
+   "id": "med-premed-chem.l10",
+   "title": "Nomenclature, Functional Groups and Organic Acidity",
+   "body": [
+    "Organic compounds are built on carbon skeletons. IUPAC naming follows steps: find the longest chain containing the principal functional group, number it to give that group the lowest locant, then name and alphabetise the substituents. Prefixes show chain length (meth, eth, prop, but, pent, hex) and suffixes show the group: -ol for alcohols, -al for aldehydes, -one for ketones, -oic acid for carboxylic acids, -amine for amines. Priority when several groups are present runs roughly carboxylic acid, ester, amide, aldehyde, ketone, alcohol, amine. For example, CH3CH(CH3)CH2CH3 is 2-methylbutane, and CH3CH2CH(OH)CH3 is butan-2-ol.",
+    "The key functional groups are the alcohol (-OH), ether (C-O-C), aldehyde and ketone (C=O), carboxylic acid (COOH), ester (RCOOR), amide (RCONR2), amine (nitrogen with alkyl groups), thiol (-SH), alkene and alkyne. Aromatic rings such as benzene are flat and delocalised. Alcohols are primary, secondary or tertiary according to the number of carbons on the carbinol carbon, and amines are classified by the number of carbons on nitrogen. Many drugs combine several: aspirin has an aromatic ring, a carboxylic acid and an ester.",
+    "The degree of unsaturation (rings plus pi bonds) is (2C + 2 + N - H - X) / 2. Worked example: aspirin C9H8O4 gives (18 + 2 - 8) / 2 = 6, accounted for by the benzene ring (four) plus two C=O groups. Oxygen does not change the count.",
+    "Acidity follows the stability of the conjugate base. Typical pKa values are about 4 to 5 for carboxylic acids (carboxylate delocalises its charge by resonance), about 10 for phenols, about 16 for alcohols and about 25 for terminal alkynes, while the conjugate acid of an alkyl amine has a pKa near 10 to 11. Electron-withdrawing groups near the acidic site increase acidity: chloroacetic acid is stronger than acetic acid.",
+    "This predicts drug behaviour. Ibuprofen contains a carboxylic acid, so at intestinal and plasma pH it is largely ionised. A typical amine drug is protonated at physiological pH and carries a positive charge. Converting an amine or acid into a salt often improves aqueous solubility, and converting an acid to an ester may increase membrane permeability, the logic behind many prodrugs."
+   ]
+  },
+  {
+   "id": "med-premed-chem.l11",
+   "title": "Stereochemistry and Chiral Drugs",
+   "body": [
+    "Constitutional isomers differ in connectivity; stereoisomers share connectivity but differ in three-dimensional arrangement. A carbon with four different groups is a stereocentre. A molecule with one stereocentre exists as a pair of enantiomers, non-superimposable mirror images. Enantiomers have identical melting points, solubility and spectra in an achiral setting, but rotate plane-polarised light in opposite directions by equal amounts. Diastereomers are stereoisomers that are not mirror images, and they have different physical properties. A molecule with n stereocentres has up to 2^n stereoisomers. Meso compounds, such as meso-tartaric acid, have stereocentres but an internal mirror plane, so they are achiral and optically inactive. A racemic mixture is an equal mixture of enantiomers, which shows no net rotation.",
+    "The Cahn-Ingold-Prelog rules assign R or S. Rank the four groups by atomic number at the first point of difference, point the lowest priority group away from you, and trace 1 to 2 to 3: clockwise is R and counterclockwise is S. Lactic acid is a worked example: the priorities are OH, then COOH, then CH3, then H. Natural L-lactic acid produced in muscle is the (S)-enantiomer. Note that R and S are not the same as D and L or the sign of rotation (+ or -), which are separate systems. Alkene geometry is described as cis or trans, or E and Z by priority.",
+    "Biology is chiral. Protein amino acids are L, and sugars are D. A receptor or enzyme is a chiral environment, so each enantiomer of a drug forms a different diastereomeric complex with different energy. Often one enantiomer carries the therapeutic effect: (S)-ibuprofen is the more active cyclooxygenase inhibitor, and esomeprazole is the (S)-enantiomer of omeprazole. Thalidomide is a more cautionary case: its enantiomers interconvert in the body, so giving a single enantiomer does not prevent the teratogenic effect.",
+    "Open-chain glucose, an aldohexose, has four stereocentres, so 2^4 = 16 stereoisomers exist, half of them D and half L. Epimers differ at one centre, and anomers differ at the new stereocentre of a cyclic sugar. Conformations such as chair cyclohexane interconvert by bond rotation and are not isomers in this sense. A frequent trap is to assume that every compound with stereocentres is chiral, forgetting meso forms, and another is assuming R always means dextrorotatory."
+   ]
+  },
+  {
+   "id": "med-premed-chem.l12",
+   "title": "Substitution and Elimination Mechanisms",
+   "body": [
+    "Organic mechanisms are drawn with curved arrows showing electron-pair movement from nucleophile (electron-rich) to electrophile (electron-poor). A leaving group departs with its electron pair; good leaving groups are weak bases, such as iodide, bromide and tosylate, while hydroxide is poor unless protonated.",
+    "SN2 is a one-step, concerted reaction. The nucleophile attacks the carbon from the side opposite the leaving group, inverting the stereochemistry (Walden inversion). The rate is k[substrate][nucleophile], so it is second order. Steric hindrance slows it: methyl is faster than primary, secondary is slower, and tertiary does not react. It is favoured by strong nucleophiles and polar aprotic solvents such as DMSO or acetone.",
+    "SN1 is stepwise. The leaving group departs first to give a planar carbocation in the rate-determining step, and the nucleophile then attacks either face. The rate is k[substrate], first order, and the product is largely racemised. It is favoured by tertiary or resonance-stabilised substrates, weak nucleophiles and polar protic solvents. Carbocations can rearrange through hydride or alkyl shifts to more stable ions.",
+    "Elimination competes. E2 is a concerted reaction with a strong base that removes a beta hydrogen anti-periplanar to the leaving group, and it gives the more substituted alkene (Zaitsev product) unless a bulky base is used. E1 shares the carbocation of SN1, so it accompanies SN1 and is promoted by heat. A rough guide: strong hindered base with a secondary or tertiary substrate gives E2; strong non-bulky nucleophile with a primary substrate gives SN2; tertiary substrate in a weakly basic polar protic solvent gives SN1 and E1.",
+    "Worked stereochemistry: (R)-2-bromobutane reacting with hydroxide by SN2 gives (S)-butan-2-ol. Hydroxide takes the place of bromide in the priority order, so inversion of geometry also changes the descriptor from R to S.",
+    "Medical relevance: nitrogen mustards are alkylating chemotherapy agents. The amine nitrogen displaces a chloride intramolecularly to form a strained aziridinium ion, which is attacked by the N7 of guanine, and a bifunctional mustard can crosslink DNA strands. The methyl donor S-adenosylmethionine transfers its methyl group to nucleophiles by an SN2 mechanism, which is the basis of many methyltransferase reactions."
+   ]
+  },
+  {
+   "id": "med-premed-chem.l13",
+   "title": "Carbonyl Chemistry: Addition, Acyl Substitution and Enolates",
+   "body": [
+    "The carbonyl carbon carries a partial positive charge because oxygen is more electronegative, so nucleophiles attack it and the pi electrons shift onto oxygen to form a tetrahedral intermediate. What happens next depends on the substituents. In aldehydes and ketones there is no good leaving group, so the intermediate is protonated to give an addition product. In acid derivatives (acyl chlorides, anhydrides, esters, amides) the intermediate collapses by expelling a leaving group, giving nucleophilic acyl substitution. Aldehydes are more reactive than ketones because they are less hindered and less electron-rich.",
+    "Addition examples: hydride reagents such as sodium borohydride reduce aldehydes and ketones to alcohols, and Grignard reagents add carbon to give new carbon-carbon bonds. An alcohol adds to an aldehyde to give a hemiacetal; a second alcohol gives an acetal. This is the chemistry of sugars: in glucose the C1 aldehyde reacts with the C5 hydroxyl to form a six-membered ring, a cyclic hemiacetal, which yields alpha and beta anomers that interconvert (mutarotation) and settle at roughly two thirds beta. A glycosidic bond, as in lactose or sucrose, is an acetal. An amine adds to an aldehyde to form an imine (Schiff base), as in pyridoxal phosphate enzymes and the retinal link to opsin.",
+    "Acyl substitution reactivity runs: acyl chloride, then anhydride, then thioester and ester, then amide, the least reactive. A more reactive derivative can be converted to a less reactive one, not the other way. This explains why amides, the peptide bond, are stable in water at neutral pH, with half-lives of years, while enzymes such as proteases speed hydrolysis enormously. Aspirin acts by acetylating a serine of cyclooxygenase, an acyl transfer. Penicillins have a strained four-membered beta-lactam ring that acylates the active-site serine of bacterial transpeptidases, blocking cell wall cross-linking; beta-lactamases hydrolyse the ring.",
+    "Hydrogens on the carbon next to a carbonyl (alpha hydrogens) are acidic, with a pKa near 19 to 20 for ketones, because the conjugate base, an enolate, is resonance-stabilised. Enolates attack other carbonyls in the aldol reaction, giving beta-hydroxy carbonyl compounds, and in the Claisen condensation. Aldolase in glycolysis catalyses the reverse of an aldol reaction.",
+    "Traps: hydrolysis of an ester in base is called saponification and is effectively irreversible because the carboxylate forms, while acid-catalysed ester hydrolysis is reversible. Do not expect an amide to behave like an amine, because the nitrogen lone pair is tied up in resonance and the nitrogen is not basic."
+   ]
+  },
+  {
+   "id": "med-premed-chem.l14",
+   "title": "Spectroscopy: IR, NMR, Mass Spectrometry and UV-Vis",
+   "body": [
+    "Infrared (IR) spectroscopy detects bond vibrations and is best for functional groups. Useful approximate absorptions in wavenumbers (cm^-1): a broad O-H of alcohols at 3200 to 3600, a very broad carboxylic acid O-H from 2500 to 3300, N-H near 3300 to 3500, C-H near 2850 to 3000, C triple bond N or alkyne near 2200, and the strong C=O stretch between 1650 and 1750. Within that window an amide absorbs lower (about 1650), a ketone near 1715 and an ester higher (about 1735). The C=O peak is a good first thing to look for.",
+    "Proton NMR gives four kinds of information. The number of signals shows the number of distinct hydrogen environments. The chemical shift (in ppm) shows the electronic environment: about 0.9 to 1.5 for alkyl, 2 to 2.5 next to a carbonyl, 3 to 4.5 next to oxygen or nitrogen, 4.5 to 6.5 for alkenes, 6.5 to 8.5 for aromatic hydrogens, 9 to 10 for aldehydes and 10 to 12 for carboxylic acids. The integration gives relative numbers of hydrogens. The splitting follows the n + 1 rule: n equivalent neighbouring hydrogens split a signal into n + 1 lines.",
+    "Worked example: a compound of formula C4H8O2 has an IR band at 1740 cm^-1 and no broad O-H. Its NMR shows a 3H triplet at 1.2 ppm, a 3H singlet at 2.0 ppm and a 2H quartet at 4.1 ppm. The degree of unsaturation is 1 (the C=O). The 1.2 triplet and 4.1 quartet are the ethyl group of an ethoxy, and the CH2 shift near 4.1 shows it is bonded to oxygen; the singlet at 2.0 is a methyl on a carbonyl. The compound is ethyl acetate, an ester. 13C NMR separately places carbonyl carbons at about 160 to 220 ppm.",
+    "Mass spectrometry gives the molecular ion mass M+ and fragments. For a compound with an odd number of nitrogens the molecular mass is odd (the nitrogen rule). One chlorine produces M and M+2 peaks in about a 3:1 ratio, and one bromine gives about 1:1.",
+    "UV-visible spectroscopy relies on conjugation, and quantification uses the Beer-Lambert law, A = epsilon x l x c. If A = 0.60, epsilon = 6000 M^-1 cm^-1 and the path length is 1 cm, then c = 0.60 / 6000 = 1.0 x 10^-4 M. This law is the basis of many clinical assays, such as NADH production followed at 340 nm. Absorbance above about 1 to 2 leaves the linear range, so samples are diluted."
+   ]
+  },
+  {
+   "id": "med-premed-chem.l15",
+   "title": "Organic Reactions Inside Metabolism",
+   "body": [
+    "Biochemistry is organic chemistry in water at 37 degrees C with enzymes. A few reaction types account for most of metabolism, and recognising them makes pathways predictable.",
+    "Phosphoryl transfer: ATP carries phosphoric anhydride bonds. A nucleophile, usually a hydroxyl in a substrate, attacks the terminal phosphorus, and ADP leaves. Kinases do this to sugars and proteins. The high energy of the anhydride comes partly from charge repulsion and from resonance stabilisation of the products, and Mg2+ shields the negative charges.",
+    "Thioester chemistry: acetyl-CoA is a thioester. Thioesters are more reactive acylating agents than ordinary esters because the sulfur gives poorer resonance with the carbonyl, and the alpha hydrogens are more acidic, so the same molecule acts both as an electrophile (acyl transfer) and as an enolate precursor. This dual behaviour is used in citrate synthase and fatty acid synthesis, which are aldol-type or Claisen-type carbon-carbon bond formations.",
+    "Hydride transfer: NAD+ accepts a hydride ion (H-) from a carbon bearing oxygen, becoming NADH, and the substrate is oxidised. Alcohol dehydrogenase oxidises ethanol to acetaldehyde, which aldehyde dehydrogenase takes to acetate. Lactate dehydrogenase reversibly interconverts lactate and pyruvate in the same way, a secondary alcohol and a ketone. Methanol and ethylene glycol are oxidised by alcohol dehydrogenase to toxic products (formaldehyde then formic acid, or glycolic and oxalic acids). Fomepizole blocks that enzyme, which is the mechanistic basis of its use in poisoning.",
+    "Decarboxylation: a beta-keto acid loses CO2 readily through a cyclic transition state that gives an enol, because the ketone can accept the electrons. Oxaloacetate and acetoacetate decarboxylate in this way. Enzymes also use pyridoxal phosphate (PLP), which forms a Schiff base with an amino acid, and the ring then acts as an electron sink for transamination, decarboxylation or racemisation. Thiamine pyrophosphate stabilises an acyl carbanion in pyruvate dehydrogenase.",
+    "Amide and ester hydrolysis: serine proteases use a serine hydroxyl, activated by a histidine, to attack the peptide carbonyl, forming a tetrahedral intermediate stabilised by the oxyanion hole. The acyl-enzyme is hydrolysed in a second step. The same two-step acyl substitution rule applies as in the laboratory.",
+    "A good habit is to ask of any step: which atom is the nucleophile, which is the electrophile, what is the leaving group, and which cofactor supplies or accepts electrons."
+   ]
+  },
+  {
+   "id": "med-premed-chem.l16",
+   "title": "Aromatic Rings, Heterocycles and Drug-Like Molecules",
+   "body": [
+    "A compound is aromatic when it is cyclic, planar, fully conjugated and has 4n + 2 pi electrons (Huckel's rule). Benzene has six, which gives large stabilisation, so it prefers substitution that preserves the ring over addition that would destroy aromaticity. In electrophilic aromatic substitution (EAS) an electrophile such as NO2+ or Br+ is attacked by the pi system, forming a resonance-stabilised cation (the arenium ion), and a proton is then lost to restore the ring.",
+    "Substituents control the rate and position. Activating groups donate electrons and direct to ortho and para positions: -OH, -NH2, -OR and alkyl groups. Deactivating groups withdraw electrons and direct meta: -NO2, -COOH, -CHO, -CF3. The halogens are the exception, deactivating the ring but still directing ortho and para. Worked example: nitrating toluene gives mostly ortho and para nitrotoluene because the methyl group stabilises the arenium ion at those positions, while nitrating nitrobenzene gives the meta product and proceeds far more slowly.",
+    "Heterocycles dominate biology and medicine. In pyridine the nitrogen lone pair lies in the plane, outside the pi system, so it is available to accept a proton (the conjugate acid pKa is about 5). In pyrrole the nitrogen lone pair is part of the six pi electrons, so pyrrole is weakly basic and does not protonate at nitrogen. Imidazole has both kinds of nitrogen, and the histidine side chain, with a pKa near 6, acts as a general acid and base at physiological pH. Purines and pyrimidines are aromatic heterocycles that stack and hydrogen-bond in nucleic acids, and tryptophan contains indole.",
+    "Medicinal chemistry uses a handful of rules. Lipinski's rule of five is a rough guide to oral drug-likeness: molecular mass under about 500, calculated log P under about 5, no more than 5 hydrogen-bond donors and no more than 10 acceptors. It is a guide, not a law, and many successful drugs are exceptions. Log P measures partitioning between octanol and water, and the balance between lipophilicity and solubility shapes absorption.",
+    "Drug metabolism is applied organic chemistry. Phase I reactions, mostly by cytochrome P450 enzymes, add or expose polar groups by oxidation, such as hydroxylating an aromatic ring or removing an alkyl group from nitrogen. Phase II reactions attach polar groups such as glucuronic acid or sulfate to make water-soluble conjugates for excretion. With acetaminophen, an overdose saturates glucuronidation and sulfation, so more is oxidised to the reactive electrophile NAPQI, which is detoxified by glutathione and, once glutathione is depleted, damages hepatocytes. Acetylcysteine replenishes glutathione."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-premed-chem.l01.q1",
+   "lessonId": "med-premed-chem.l01",
+   "kind": "mcq",
+   "prompt": "Which quantum number determines the shape of an orbital (s, p, d or f)?",
+   "choices": [
+    "The azimuthal quantum number l",
+    "The principal quantum number n",
+    "The magnetic quantum number m_l",
+    "The spin quantum number m_s"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l01.q2",
+   "lessonId": "med-premed-chem.l01",
+   "kind": "mcq",
+   "prompt": "Moving from left to right across a period, which change is expected for main-group elements?",
+   "choices": [
+    "Electronegativity decreases as shielding grows with each element",
+    "Atomic radius decreases as effective nuclear charge increases",
+    "Atomic radius increases as more shells are added to the atom",
+    "Ionisation energy decreases as the valence electrons move away"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l01.q3",
+   "lessonId": "med-premed-chem.l01",
+   "kind": "mcq",
+   "prompt": "What is the ground-state electron configuration of the Fe2+ ion (Z = 26)?",
+   "choices": [
+    "[Ar] 4s1 3d5, because a half-filled shell is favoured",
+    "[Ar] 4s2 3d6, because the ion keeps its neutral form",
+    "[Ar] 3d6, because the 4s electrons are lost first",
+    "[Ar] 4s2 3d4, because the 3d electrons are lost first"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l01.q4",
+   "lessonId": "med-premed-chem.l01",
+   "kind": "mcq",
+   "prompt": "A PET isotope has a half-life of 110 minutes. What fraction of its activity remains after 330 minutes?",
+   "choices": [
+    "One third, since the time is three times longer",
+    "One quarter, since two half-lives have elapsed",
+    "One sixth, since the decay rate halves each hour",
+    "One eighth, since three half-lives have elapsed"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l01.q5",
+   "lessonId": "med-premed-chem.l01",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man is to have a PET-CT. The 18F-labelled tracer (half-life about 110 min) is delivered with 400 MBq of activity at the calibration time and injected 220 minutes later. Which statement is correct?",
+   "choices": [
+    "About 100 MBq remains because two half-lives elapsed, so a nearby cyclotron site reduces wasted activity",
+    "About 200 MBq remains because one half-life elapsed, so delivery delay hardly matters for dose planning",
+    "About 133 MBq remains because decay is linear in time, so transport can use a distant site",
+    "About 50 MBq remains because three half-lives elapsed, so the scan should be cancelled at once"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l02.q1",
+   "lessonId": "med-premed-chem.l02",
+   "kind": "mcq",
+   "prompt": "Which molecular geometry does ammonia (NH3) have, according to VSEPR theory?",
+   "choices": [
+    "Trigonal planar, with no lone pair on nitrogen",
+    "Bent, with two lone pairs on the central nitrogen",
+    "Tetrahedral, with four bonded atoms on nitrogen",
+    "Trigonal pyramidal, with one lone pair on nitrogen"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l02.q2",
+   "lessonId": "med-premed-chem.l02",
+   "kind": "mcq",
+   "prompt": "Why is carbon dioxide a nonpolar molecule even though each C=O bond is polar?",
+   "choices": [
+    "Its bent shape spreads the charge evenly across the oxygens",
+    "Double bonds are always nonpolar regardless of the atoms",
+    "Its linear shape makes the two bond dipoles cancel each other",
+    "Carbon and oxygen have identical electronegativities in CO2"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l02.q3",
+   "lessonId": "med-premed-chem.l02",
+   "kind": "mcq",
+   "prompt": "What explains the planar, rigid character of the peptide bond between two amino acids?",
+   "choices": [
+    "A full C=N double bond forms during peptide synthesis",
+    "Resonance gives the C-N bond partial double-bond character",
+    "Hydrogen bonding between the side chains locks the plane",
+    "The nitrogen is sp3 hybridised with a free-rotating lone pair"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l02.q4",
+   "lessonId": "med-premed-chem.l02",
+   "kind": "mcq",
+   "prompt": "What is the hybridisation of a carbonyl carbon in a ketone?",
+   "choices": [
+    "sp2, with trigonal planar geometry around the carbon",
+    "sp3, with tetrahedral geometry around the carbon",
+    "sp, with linear geometry around the carbon atom",
+    "sp3d, with a trigonal bipyramidal arrangement"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l02.q5",
+   "lessonId": "med-premed-chem.l02",
+   "kind": "mcq",
+   "prompt": "Two drug candidates have similar molar mass. Candidate X carries three hydroxyl groups and a primary amine, while candidate Y is a mostly hydrocarbon with one ether oxygen. Which prediction is most reasonable?",
+   "choices": [
+    "Y dissolves better in water because dispersion forces outweigh hydrogen bonds in a polar solvent",
+    "X crosses membranes better because hydroxyl groups are nonpolar and avoid water entirely",
+    "X and Y have the same solubility because molar mass alone sets how much dissolves",
+    "X dissolves better in water through hydrogen bonding, while Y crosses lipid membranes more easily"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l03.q1",
+   "lessonId": "med-premed-chem.l03",
+   "kind": "mcq",
+   "prompt": "Which principle is used in the dilution equation C1 x V1 = C2 x V2?",
+   "choices": [
+    "The molar mass of the solute decreases as it is diluted",
+    "The mass of the solvent stays the same after dilution",
+    "The number of moles of solute is unchanged by dilution",
+    "The volume of the solution is always conserved on mixing"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l03.q2",
+   "lessonId": "med-premed-chem.l03",
+   "kind": "mcq",
+   "prompt": "What volume of 2.0 M stock is needed to prepare 250 mL of 0.20 M solution?",
+   "choices": [
+    "50 mL of the stock, diluted up to 250 mL",
+    "2.5 mL of the stock, diluted up to 250 mL",
+    "125 mL of the stock, diluted up to 250 mL",
+    "25 mL of the stock, diluted up to 250 mL"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l03.q3",
+   "lessonId": "med-premed-chem.l03",
+   "kind": "mcq",
+   "prompt": "Normal saline contains 9.0 g of NaCl (58.44 g/mol) per litre. About how many mmol of Na+ are present per litre?",
+   "choices": [
+    "About 154 mmol, since 9.0 / 58.44 is 0.154 mol",
+    "About 308 mmol, since each unit gives two particles",
+    "About 65 mmol, since sodium has a lower mass share",
+    "About 520 mmol, since molar mass is divided by grams"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l03.q4",
+   "lessonId": "med-premed-chem.l03",
+   "kind": "mcq",
+   "prompt": "Using 2.00 g of salicylic acid (138.12 g/mol) with excess acetic anhydride, the theoretical yield of aspirin (180.16 g/mol) is closest to which value?",
+   "choices": [
+    "3.40 g, from 0.0189 mol at a 1:1 ratio",
+    "2.61 g, from 0.0145 mol at a 1:1 ratio",
+    "1.53 g, from 0.0145 mol at a 1:1 ratio",
+    "2.00 g, since mass is conserved in the product"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l03.q5",
+   "lessonId": "med-premed-chem.l03",
+   "kind": "mcq",
+   "prompt": "A 70-year-old woman recovering from surgery receives several litres of 5% dextrose in water and develops a serum sodium of 124 mmol/L. Which chemical explanation fits best?",
+   "choices": [
+    "The bag is strongly hypertonic, so water leaves cells and concentrates the plasma sodium",
+    "Glucose binds sodium ions in solution, which removes sodium from the filtered plasma",
+    "The glucose is metabolised, leaving free water that dilutes plasma sodium despite an isotonic bag",
+    "Dextrose is a salt that dissociates and pulls sodium out of the vessels into the cells"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l04.q1",
+   "lessonId": "med-premed-chem.l04",
+   "kind": "mcq",
+   "prompt": "Under which condition is a reaction spontaneous at constant temperature and pressure?",
+   "choices": [
+    "When delta G is positive",
+    "When delta G is negative",
+    "When delta H is negative only",
+    "When delta S is positive only"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l04.q2",
+   "lessonId": "med-premed-chem.l04",
+   "kind": "mcq",
+   "prompt": "A process has delta H = +20 kJ/mol and delta S = +80 J/mol K. At what temperature does it become spontaneous?",
+   "choices": [
+    "Above 250 K, where T delta S exceeds delta H",
+    "Below 250 K, where delta H exceeds T delta S",
+    "Above 25 K, where the entropy term dominates",
+    "At every temperature, since delta S is positive"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l04.q3",
+   "lessonId": "med-premed-chem.l04",
+   "kind": "mcq",
+   "prompt": "A reaction has delta G degrees = -5.7 kJ/mol at 298 K. What is its equilibrium constant, approximately?",
+   "choices": [
+    "About 1, since delta G is small",
+    "About 0.1, since delta G is negative",
+    "About 100, since 5.7 is tenfold",
+    "About 10, since ln K = 2.3"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l04.q4",
+   "lessonId": "med-premed-chem.l04",
+   "kind": "mcq",
+   "prompt": "Why can an endergonic reaction proceed in a cell when coupled to ATP hydrolysis?",
+   "choices": [
+    "Coupling changes the equilibrium constant of that step",
+    "ATP hydrolysis increases the temperature of the reaction",
+    "The net delta G of the coupled pair is negative",
+    "ATP lowers the delta G of the unfavourable step itself"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l04.q5",
+   "lessonId": "med-premed-chem.l04",
+   "kind": "mcq",
+   "prompt": "A small protein unfolds with delta H = +400 kJ/mol and delta S = +1.2 kJ/mol K. At body temperature (310 K), which outcome is predicted, and what is the melting temperature?",
+   "choices": [
+    "It is unfolded, with delta G (unfolding) near +372 kJ/mol and melting near 310 K",
+    "It stays folded, with delta G (unfolding) near +28 kJ/mol and melting near 333 K",
+    "It is unfolded, with delta G (unfolding) near -28 kJ/mol and melting near 333 K",
+    "It stays folded, with delta G (unfolding) near +28 kJ/mol and melting near 480 K"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l05.q1",
+   "lessonId": "med-premed-chem.l05",
+   "kind": "mcq",
+   "prompt": "How is the order of a reaction with respect to a reactant determined?",
+   "choices": [
+    "By experiment, for example from initial-rate data",
+    "From the coefficient of that reactant in the balanced equation",
+    "From the number of atoms in the reactant molecule",
+    "From the sign of the enthalpy change of the reaction"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l05.q2",
+   "lessonId": "med-premed-chem.l05",
+   "kind": "mcq",
+   "prompt": "A drug follows first-order elimination with a half-life of 6 hours. What percentage of the dose remains after 24 hours?",
+   "choices": [
+    "0%, since drugs clear within a day",
+    "6.25%, after four half-lives",
+    "25%, after two half-lives",
+    "12.5%, after three half-lives"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l05.q3",
+   "lessonId": "med-premed-chem.l05",
+   "kind": "mcq",
+   "prompt": "Doubling [A] doubles the rate and doubling [B] quadruples the rate. Which rate law fits?",
+   "choices": [
+    "rate = k[A][B]",
+    "rate = k[A]^2[B]^2",
+    "rate = k[A][B]^2",
+    "rate = k[A]^2[B]"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l05.q4",
+   "lessonId": "med-premed-chem.l05",
+   "kind": "mcq",
+   "prompt": "What is the effect of adding a catalyst to a reaction?",
+   "choices": [
+    "It lowers delta G and so makes the reaction more spontaneous",
+    "It raises the equilibrium yield by speeding only the forward step",
+    "It supplies energy and so increases the number of collisions",
+    "It lowers the activation energy and leaves K and delta G unchanged"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l05.q5",
+   "lessonId": "med-premed-chem.l05",
+   "kind": "mcq",
+   "prompt": "A 45-year-old man is admitted after an overdose of a drug cleared by first-order kinetics with a half-life of 6 hours. The plasma level is 80 mg/L and will be treated when it falls to 10 mg/L. About how long will this take without intervention?",
+   "choices": [
+    "About 18 hours, as three half-lives are required",
+    "About 12 hours, as two half-lives are required",
+    "About 36 hours, as six half-lives are required",
+    "About 60 hours, as ten half-lives are required"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l06.q1",
+   "lessonId": "med-premed-chem.l06",
+   "kind": "mcq",
+   "prompt": "If the reaction quotient Q is smaller than K, what happens?",
+   "choices": [
+    "The reaction proceeds toward reactants until Q equals K",
+    "The reaction is already at equilibrium and does not change",
+    "The equilibrium constant K decreases until it equals Q",
+    "The reaction proceeds toward products until Q equals K"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l06.q2",
+   "lessonId": "med-premed-chem.l06",
+   "kind": "mcq",
+   "prompt": "H2 + I2 giving 2 HI has K = 50. Starting with 1.0 M H2 and 1.0 M I2 only, what is the equilibrium [HI]?",
+   "choices": [
+    "About 2.0 M",
+    "About 0.22 M",
+    "About 1.56 M",
+    "About 0.78 M"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l06.q3",
+   "lessonId": "med-premed-chem.l06",
+   "kind": "mcq",
+   "prompt": "Which change alters the numerical value of an equilibrium constant?",
+   "choices": [
+    "Addition of a catalyst",
+    "A change in temperature",
+    "A change in reactant concentration",
+    "A change in total pressure"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l06.q4",
+   "lessonId": "med-premed-chem.l06",
+   "kind": "mcq",
+   "prompt": "Why does adding NaCl to a saturated silver chloride solution lower the dissolved silver?",
+   "choices": [
+    "The common ion Cl- shifts the dissolution equilibrium toward solid AgCl",
+    "Sodium ions bind silver ions and remove them as a soluble salt",
+    "Ksp decreases because the ionic strength rises in the mixture",
+    "Chloride oxidises silver ions, which then precipitate out as the metal"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l06.q5",
+   "lessonId": "med-premed-chem.l06",
+   "kind": "mcq",
+   "prompt": "A 22-year-old woman has a panic attack, breathing rapidly, with tingling in her lips and hands and an arterial pH of 7.52. Which equilibrium reasoning best explains the pH change?",
+   "choices": [
+    "Exhaled CO2 raises bicarbonate, so the equilibrium shifts toward carbonic acid and pH rises",
+    "Rapid breathing adds oxygen, so haemoglobin releases H+ and the plasma becomes acidic",
+    "Rapid breathing consumes bicarbonate, so the pH rises because the carbonate pool is raised",
+    "Exhaled CO2 lowers dissolved CO2, so H+ is consumed as the equilibrium shifts toward CO2 and water"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l07.q1",
+   "lessonId": "med-premed-chem.l07",
+   "kind": "mcq",
+   "prompt": "What is the pH of a 0.010 M solution of the strong acid HCl?",
+   "choices": [
+    "1.0",
+    "4.0",
+    "2.0",
+    "12.0"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l07.q2",
+   "lessonId": "med-premed-chem.l07",
+   "kind": "mcq",
+   "prompt": "What is the approximate pH of 0.10 M acetic acid (Ka = 1.8 x 10^-5)?",
+   "choices": [
+    "1.00, from [H+] equal to 0.10 M",
+    "5.74, from [H+] equal to 1.8 x 10^-6 M",
+    "4.74, from [H+] equal to Ka itself",
+    "2.87, from [H+] near 1.3 x 10^-3 M"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l07.q3",
+   "lessonId": "med-premed-chem.l07",
+   "kind": "mcq",
+   "prompt": "At a pH 1.5 units below its pKa, a weak acid is mostly in which form?",
+   "choices": [
+    "Protonated and uncharged, with about 3% ionised",
+    "Deprotonated and charged, with about 97% ionised",
+    "Equally split between the charged and uncharged forms",
+    "Fully ionised, because acids always dissociate in water"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l07.q4",
+   "lessonId": "med-premed-chem.l07",
+   "kind": "mcq",
+   "prompt": "Why does the Ka times Kb product for a conjugate pair equal a fixed number?",
+   "choices": [
+    "It equals 7, because neutral water has that pH",
+    "It equals Kw, which is 1.0 x 10^-14 at 25 degrees C",
+    "It equals 1, because acids and bases cancel each other",
+    "It equals the pKa, because both are acid constants"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l07.q5",
+   "lessonId": "med-premed-chem.l07",
+   "kind": "mcq",
+   "prompt": "A 19-year-old presents with tinnitus, rapid breathing and vomiting after taking an unknown number of aspirin tablets. Why is intravenous sodium bicarbonate given to raise urine pH?",
+   "choices": [
+    "It neutralises salicylate in the intestine, which prevents any of the remaining drug being absorbed",
+    "It raises the pKa of salicylic acid, which makes the drug a stronger acid at the same pH",
+    "It increases the ionised fraction of salicylate in the tubule, which reduces reabsorption and speeds excretion",
+    "It increases the uncharged fraction of salicylate in the tubule, which promotes reabsorption of the drug"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l08.q1",
+   "lessonId": "med-premed-chem.l08",
+   "kind": "mcq",
+   "prompt": "Over what pH range is a buffer most effective?",
+   "choices": [
+    "Only when the pH equals 14 minus pKa",
+    "Within about one unit of its pKa",
+    "Only at exactly pH 7.0",
+    "Within about four units above its pKa"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l08.q2",
+   "lessonId": "med-premed-chem.l08",
+   "kind": "mcq",
+   "prompt": "An acetate buffer has 0.20 M acetate and 0.10 M acetic acid (pKa 4.76). What is its pH?",
+   "choices": [
+    "5.06",
+    "4.46",
+    "4.76",
+    "5.36"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l08.q3",
+   "lessonId": "med-premed-chem.l08",
+   "kind": "mcq",
+   "prompt": "At the half-equivalence point of a weak acid titration with strong base, which statement is true?",
+   "choices": [
+    "The pH equals 7.0 exactly",
+    "The pH is above 7 because only base remains",
+    "The pH equals twice the pKa of the acid",
+    "The pH equals the pKa of the acid"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l08.q4",
+   "lessonId": "med-premed-chem.l08",
+   "kind": "mcq",
+   "prompt": "Plasma has HCO3- of 24 mmol/L and PCO2 of 40 mmHg. Using pKa 6.1 and a solubility factor of 0.03, what is the pH?",
+   "choices": [
+    "7.70",
+    "6.10",
+    "7.40",
+    "7.10"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l08.q5",
+   "lessonId": "med-premed-chem.l08",
+   "kind": "mcq",
+   "prompt": "A 30-year-old woman with poorly controlled type 1 diabetes has deep rapid breathing, glucose 480 mg/dL, arterial pH 7.10 and HCO3- 12 mmol/L with PCO2 initially at 40 mmHg. Which interpretation fits the buffer equation?",
+   "choices": [
+    "Respiratory alkalosis, since rapid breathing lowers CO2 and so the ratio rises above twenty",
+    "Metabolic acidosis, since the low bicarbonate gives a ratio of 10 and a pH of about 7.10",
+    "Respiratory acidosis, since the pH is low and the carbon dioxide has been retained by the lungs",
+    "Metabolic alkalosis, since the low bicarbonate lets the carbonic acid component rise unopposed"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l09.q1",
+   "lessonId": "med-premed-chem.l09",
+   "kind": "mcq",
+   "prompt": "In a galvanic cell, where does oxidation occur and which way do electrons flow in the external wire?",
+   "choices": [
+    "At the anode, with electrons flowing toward the cathode",
+    "At the cathode, with electrons flowing toward the anode",
+    "At the anode, with electrons flowing toward the salt bridge",
+    "At the cathode, with electrons flowing toward the electrolyte"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l09.q2",
+   "lessonId": "med-premed-chem.l09",
+   "kind": "mcq",
+   "prompt": "A Zn-Cu cell has E degrees = +1.10 V and n = 2. What is delta G degrees (F = 96,485 C/mol)?",
+   "choices": [
+    "About -2.2 kJ/mol",
+    "About -212 kJ/mol",
+    "About +212 kJ/mol",
+    "About -106 kJ/mol"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l09.q3",
+   "lessonId": "med-premed-chem.l09",
+   "kind": "mcq",
+   "prompt": "Which expression gives the equilibrium potential of potassium with 4 mM outside and 140 mM inside at 37 degrees C?",
+   "choices": [
+    "61.5 mV x ln(4 / 140), about -219 mV",
+    "26.7 mV x log(4 / 140), about -41 mV",
+    "61.5 mV x log(4 / 140), about -95 mV",
+    "61.5 mV x log(140 / 4), about +95 mV"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l09.q4",
+   "lessonId": "med-premed-chem.l09",
+   "kind": "mcq",
+   "prompt": "In the mitochondrial chain electrons flow from NADH (about -0.32 V) to oxygen (about +0.82 V). What does this large positive difference indicate?",
+   "choices": [
+    "A strongly endergonic transfer that consumes ATP at each of the carriers",
+    "A transfer at equilibrium so that no free energy is available for the cell",
+    "A transfer in which oxygen is oxidised while NADH is reduced in turn",
+    "A strongly exergonic transfer that releases energy used for proton pumping"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l09.q5",
+   "lessonId": "med-premed-chem.l09",
+   "kind": "mcq",
+   "prompt": "A 68-year-old man with kidney failure has serum potassium of 7.0 mmol/L and peaked T waves on ECG. Assuming 140 mM intracellular potassium, what does the Nernst equation predict about E_K (37 degrees C)?",
+   "choices": [
+    "E_K rises from about -95 mV to about -80 mV, depolarising the membrane",
+    "E_K falls from about -95 mV to about -110 mV, hyperpolarising the membrane",
+    "E_K is unchanged at about -95 mV because the pump keeps ion levels fixed",
+    "E_K rises from about +95 mV to about +110 mV, driving potassium inward"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l10.q1",
+   "lessonId": "med-premed-chem.l10",
+   "kind": "mcq",
+   "prompt": "How many degrees of unsaturation does aspirin (C9H8O4) have?",
+   "choices": [
+    "Eight, counting each oxygen atom as one unit of unsaturation",
+    "Two, counting only the two carbonyl groups of the molecule",
+    "Six, from the ring and its pi bonds plus two carbonyls",
+    "Four, from the benzene ring and its three double bonds"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l10.q2",
+   "lessonId": "med-premed-chem.l10",
+   "kind": "mcq",
+   "prompt": "Which compound is the strongest acid?",
+   "choices": [
+    "Phenol, pKa about 10",
+    "Ethanol, pKa about 16",
+    "Ethylammonium ion, pKa about 10.6",
+    "Acetic acid, pKa about 4.8"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l10.q3",
+   "lessonId": "med-premed-chem.l10",
+   "kind": "mcq",
+   "prompt": "What is the IUPAC name of CH3CH2CH(OH)CH3?",
+   "choices": [
+    "Butan-2-ol",
+    "Butan-1-ol",
+    "Butan-3-ol",
+    "2-Methylpropanol"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l10.q4",
+   "lessonId": "med-premed-chem.l10",
+   "kind": "mcq",
+   "prompt": "At physiological pH 7.4 an alkylamine drug with a conjugate-acid pKa of 10 will be predominantly which form?",
+   "choices": [
+    "Oxidised to the corresponding carboxylic acid",
+    "Protonated and positively charged",
+    "Deprotonated and uncharged",
+    "Present as an equal mixture of both forms"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l10.q5",
+   "lessonId": "med-premed-chem.l10",
+   "kind": "mcq",
+   "prompt": "A formulation team wants better oral absorption for a carboxylic acid drug that is poorly absorbed because it is ionised in the gut. Which strategy follows from the organic chemistry?",
+   "choices": [
+    "Replace the acid with a quaternary ammonium group to increase membrane passage",
+    "Add several hydroxyl groups so the drug becomes more strongly hydrogen bonded",
+    "Convert the acid to an ester prodrug that is hydrolysed in the body to the active acid",
+    "Convert the acid to its sodium salt so that the charged form crosses the membrane"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l11.q1",
+   "lessonId": "med-premed-chem.l11",
+   "kind": "mcq",
+   "prompt": "What is the relationship between two non-superimposable mirror-image molecules?",
+   "choices": [
+    "They are diastereomers",
+    "They are constitutional isomers",
+    "They are meso compounds",
+    "They are enantiomers"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l11.q2",
+   "lessonId": "med-premed-chem.l11",
+   "kind": "mcq",
+   "prompt": "Open-chain glucose has four stereocentres. How many stereoisomers does this give?",
+   "choices": [
+    "4",
+    "32",
+    "16",
+    "8"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l11.q3",
+   "lessonId": "med-premed-chem.l11",
+   "kind": "mcq",
+   "prompt": "Which statement about meso-tartaric acid is correct?",
+   "choices": [
+    "It has no stereocentres and so exists as a single isomer",
+    "It has stereocentres but is achiral because of an internal mirror plane",
+    "It is chiral and rotates plane-polarised light clockwise",
+    "It is a racemic mixture of two enantiomers in equal amounts"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l11.q4",
+   "lessonId": "med-premed-chem.l11",
+   "kind": "mcq",
+   "prompt": "In the CIP ranking of lactic acid, which order of priorities is correct from highest to lowest?",
+   "choices": [
+    "OH, COOH, CH3, H",
+    "COOH, OH, CH3, H",
+    "OH, CH3, COOH, H",
+    "CH3, COOH, OH, H"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l11.q5",
+   "lessonId": "med-premed-chem.l11",
+   "kind": "mcq",
+   "prompt": "A racemic drug is found to have one enantiomer that binds a receptor with high affinity and a mirror-image enantiomer that binds only weakly. Which explanation is most accurate?",
+   "choices": [
+    "The enantiomers have different molecular masses, which leads to different rates of diffusion to the site",
+    "Only one enantiomer has the correct functional groups, so the other cannot form any hydrogen bonds",
+    "The weak enantiomer is a constitutional isomer, so its atoms are connected in a different order",
+    "The chiral binding site forms diastereomeric complexes with the two enantiomers, with different energies"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l12.q1",
+   "lessonId": "med-premed-chem.l12",
+   "kind": "mcq",
+   "prompt": "Which feature describes an SN2 reaction?",
+   "choices": [
+    "A single concerted step with inversion of configuration",
+    "A carbocation intermediate with loss of stereochemistry",
+    "A rate that depends only on the substrate concentration",
+    "A preference for tertiary substrates in polar protic solvents"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l12.q2",
+   "lessonId": "med-premed-chem.l12",
+   "kind": "mcq",
+   "prompt": "What is the major product stereochemistry when (R)-2-bromobutane reacts with hydroxide by SN2?",
+   "choices": [
+    "Butan-1-ol, because the nucleophile attacks a primary carbon",
+    "(S)-butan-2-ol, because the configuration is inverted",
+    "(R)-butan-2-ol, because the configuration is retained",
+    "A racemic mixture, because a carbocation is formed"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l12.q3",
+   "lessonId": "med-premed-chem.l12",
+   "kind": "mcq",
+   "prompt": "Which conditions favour E2 elimination?",
+   "choices": [
+    "A strong small nucleophile with a methyl halide in acetone",
+    "A neutral solvent with a primary alkyl halide at low temperature",
+    "A strong bulky base with a secondary or tertiary alkyl halide",
+    "A weak nucleophile with a tertiary halide in a polar protic solvent"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l12.q4",
+   "lessonId": "med-premed-chem.l12",
+   "kind": "mcq",
+   "prompt": "Why does a tertiary alkyl halide not undergo SN2 readily?",
+   "choices": [
+    "The carbon has no leaving group to be displaced from it",
+    "Tertiary carbons form carbanions that repel the nucleophile",
+    "The reaction needs a carbocation that is unstable in this case",
+    "Steric hindrance blocks backside attack at the carbon"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l12.q5",
+   "lessonId": "med-premed-chem.l12",
+   "kind": "mcq",
+   "prompt": "A bis(2-chloroethyl)amine chemotherapy agent is found to react with DNA far faster than 1-chlorobutane does under the same conditions. Which mechanism best explains this?",
+   "choices": [
+    "Intramolecular displacement of chloride by nitrogen gives a strained aziridinium ion that guanine N7 attacks",
+    "The chloroalkyl group ionises to a primary carbocation that is then captured by the DNA phosphate",
+    "Hydroxide in water removes a proton from the carbon next to chlorine to give a reactive alkene",
+    "Guanine donates its amino group in an E2 step that links the two DNA strands covalently"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l13.q1",
+   "lessonId": "med-premed-chem.l13",
+   "kind": "mcq",
+   "prompt": "Which carbonyl derivative is the least reactive toward nucleophilic acyl substitution?",
+   "choices": [
+    "An acyl chloride",
+    "An amide",
+    "An ester",
+    "An acid anhydride"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l13.q2",
+   "lessonId": "med-premed-chem.l13",
+   "kind": "mcq",
+   "prompt": "What type of functional group forms when the C1 aldehyde of glucose reacts with its own C5 hydroxyl group?",
+   "choices": [
+    "A cyclic hemiacetal",
+    "A cyclic acetal",
+    "A cyclic imine",
+    "A cyclic ester"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l13.q3",
+   "lessonId": "med-premed-chem.l13",
+   "kind": "mcq",
+   "prompt": "Why is the proton alpha to a ketone carbonyl relatively acidic (pKa about 19)?",
+   "choices": [
+    "The carbonyl oxygen donates electrons into the carbon-hydrogen bond",
+    "The alpha carbon is sp hybridised, which holds electrons close",
+    "The ketone forms a hydrogen bond that releases the proton",
+    "The conjugate enolate is stabilised by resonance onto oxygen"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l13.q4",
+   "lessonId": "med-premed-chem.l13",
+   "kind": "mcq",
+   "prompt": "What is the mechanism of the beta-lactam ring in penicillin against bacterial transpeptidases?",
+   "choices": [
+    "The ring binds the ribosome and stops translation of the cell wall proteins",
+    "The ring chelates magnesium and inhibits the cell wall polymer from growing",
+    "The strained amide acylates an active-site serine and blocks the enzyme",
+    "The ring is oxidised by the enzyme to a reactive radical that cleaves DNA"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l13.q5",
+   "lessonId": "med-premed-chem.l13",
+   "kind": "mcq",
+   "prompt": "A 6-year-old with a bacterial infection fails to respond to amoxicillin, and the isolate carries a plasmid for a beta-lactamase. Which chemical change does the enzyme perform on the drug?",
+   "choices": [
+    "It methylates the carboxylate, which prevents entry across the outer bacterial membrane",
+    "It hydrolyses the beta-lactam amide bond, opening the ring and removing the acylating ability",
+    "It oxidises the ring nitrogen, which creates an N-oxide that binds more strongly to the target",
+    "It reduces the carbonyl to an alcohol, so the drug can no longer fit the transpeptidase"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l14.q1",
+   "lessonId": "med-premed-chem.l14",
+   "kind": "mcq",
+   "prompt": "Which IR absorption is the most characteristic sign of a carbonyl group?",
+   "choices": [
+    "A medium sharp band near 2200 cm^-1",
+    "A weak band between 2850 and 3000 cm^-1",
+    "A strong band between 1650 and 1750 cm^-1",
+    "A very broad band between 3200 and 3600 cm^-1"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l14.q2",
+   "lessonId": "med-premed-chem.l14",
+   "kind": "mcq",
+   "prompt": "In proton NMR, a signal for a CH2 group next to a CH3 group is split into how many lines?",
+   "choices": [
+    "Three lines (a triplet)",
+    "Two lines (a doublet)",
+    "Six lines (a sextet)",
+    "Four lines (a quartet)"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l14.q3",
+   "lessonId": "med-premed-chem.l14",
+   "kind": "mcq",
+   "prompt": "A solution has absorbance 0.60 at the chosen wavelength, with epsilon = 6000 M^-1 cm^-1 and a 1 cm cuvette. What is the concentration?",
+   "choices": [
+    "1.0 x 10^-4 M",
+    "1.0 x 10^-3 M",
+    "3.6 x 10^3 M",
+    "1.0 x 10^-5 M"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l14.q4",
+   "lessonId": "med-premed-chem.l14",
+   "kind": "mcq",
+   "prompt": "A mass spectrum shows molecular ion peaks of nearly equal height at M and M+2. Which element is most likely present?",
+   "choices": [
+    "One nitrogen atom",
+    "One bromine atom",
+    "One chlorine atom",
+    "One sulfur atom"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l14.q5",
+   "lessonId": "med-premed-chem.l14",
+   "kind": "mcq",
+   "prompt": "An unknown compound C4H8O2 has a strong IR band at 1740 cm^-1 and no broad O-H band. Its proton NMR shows a 3H triplet at 1.2 ppm, a 3H singlet at 2.0 ppm and a 2H quartet at 4.1 ppm. Which is the structure?",
+   "choices": [
+    "Methyl propanoate",
+    "4-Hydroxybutanal",
+    "Ethyl acetate",
+    "Butanoic acid"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l15.q1",
+   "lessonId": "med-premed-chem.l15",
+   "kind": "mcq",
+   "prompt": "Which reaction type does NAD+ perform when it oxidises an alcohol dehydrogenase substrate?",
+   "choices": [
+    "It donates a hydroxide ion to the carbon bearing oxygen",
+    "It transfers a phosphate group to the oxygen of the alcohol",
+    "It forms a Schiff base with the oxygen of the alcohol",
+    "It accepts a hydride ion from the carbon bearing oxygen"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l15.q2",
+   "lessonId": "med-premed-chem.l15",
+   "kind": "mcq",
+   "prompt": "Why is acetyl-CoA a better acyl donor than an ordinary alkyl acetate?",
+   "choices": [
+    "The sulfur atom is far more electronegative than oxygen in the group",
+    "The CoA portion is positively charged and attracts the nucleophile",
+    "Poor sulfur-carbonyl resonance makes the thioester more electrophilic",
+    "The thioester has a stronger carbon-oxygen double bond than an ester"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l15.q3",
+   "lessonId": "med-premed-chem.l15",
+   "kind": "mcq",
+   "prompt": "Which compound undergoes facile decarboxylation by forming an enol intermediate?",
+   "choices": [
+    "A dicarboxylic acid with four intervening carbons",
+    "A beta-keto acid such as acetoacetate",
+    "A simple carboxylic acid such as acetic acid",
+    "An alpha-amino acid such as glycine in water"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l15.q4",
+   "lessonId": "med-premed-chem.l15",
+   "kind": "mcq",
+   "prompt": "What is the role of the oxyanion hole in a serine protease?",
+   "choices": [
+    "It stabilises the negatively charged tetrahedral intermediate by hydrogen bonding",
+    "It supplies the proton that activates the serine hydroxyl group for attack",
+    "It binds the leaving amine and stops it from re-attacking the acyl-enzyme",
+    "It holds the metal ion that polarises the carbonyl oxygen of the substrate"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l15.q5",
+   "lessonId": "med-premed-chem.l15",
+   "kind": "mcq",
+   "prompt": "A 35-year-old man presents with visual blurring, anion gap metabolic acidosis and a history of drinking windshield washer fluid containing methanol. Why is fomepizole given?",
+   "choices": [
+    "It activates aldehyde dehydrogenase, which speeds conversion of formic acid into harmless carbon dioxide",
+    "It acts as a base that neutralises the formic acid in the blood to raise the plasma pH",
+    "It chelates methanol in the plasma so the kidney can excrete the complex as a salt",
+    "It inhibits alcohol dehydrogenase, blocking conversion of methanol to formaldehyde and formic acid"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l16.q1",
+   "lessonId": "med-premed-chem.l16",
+   "kind": "mcq",
+   "prompt": "How many pi electrons does benzene have, and which rule makes it aromatic?",
+   "choices": [
+    "Six, satisfying Huckel 4n + 2 with n = 1",
+    "Four, satisfying Huckel 4n with n = 1",
+    "Eight, satisfying Huckel 4n + 2 with n = 2",
+    "Six, satisfying Huckel 4n with n = 1.5"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l16.q2",
+   "lessonId": "med-premed-chem.l16",
+   "kind": "mcq",
+   "prompt": "Nitration of nitrobenzene gives mainly which product?",
+   "choices": [
+    "A mixture of ortho and para isomers",
+    "meta-Dinitrobenzene, formed slowly",
+    "ortho-Dinitrobenzene, formed rapidly",
+    "para-Dinitrobenzene, formed rapidly"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l16.q3",
+   "lessonId": "med-premed-chem.l16",
+   "kind": "mcq",
+   "prompt": "Why is pyridine basic while pyrrole is essentially not basic at nitrogen?",
+   "choices": [
+    "The pyridine ring has eight pi electrons, which leaves its nitrogen lone pair free",
+    "Pyrrole is nonplanar, which blocks protons from approaching the nitrogen atom",
+    "The pyridine lone pair is outside the pi system, while pyrrole uses its lone pair in aromaticity",
+    "Pyrrole contains no nitrogen atom, whereas the ring of pyridine contains one nitrogen"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l16.q4",
+   "lessonId": "med-premed-chem.l16",
+   "kind": "mcq",
+   "prompt": "Which feature does Lipinski rule of five set as an approximate limit for oral drug-likeness?",
+   "choices": [
+    "At least 15 hydrogen-bond donors",
+    "A log P of 8 or more",
+    "A minimum of 20 rotatable bonds",
+    "A molecular mass of 500 or less"
+   ]
+  },
+  {
+   "id": "med-premed-chem.l16.q5",
+   "lessonId": "med-premed-chem.l16",
+   "kind": "mcq",
+   "prompt": "A 26-year-old woman presents 12 hours after ingesting a large quantity of acetaminophen, with nausea but a normal examination. Which mechanism explains how delayed liver injury occurs and why acetylcysteine helps?",
+   "choices": [
+    "Saturated conjugation pathways shunt drug to cytochrome P450 oxidation, forming NAPQI that depletes glutathione, which acetylcysteine replenishes",
+    "Excess drug inhibits cytochrome P450 so that the parent compound accumulates in hepatocytes, which acetylcysteine removes by chelation",
+    "Glucuronide conjugates are hydrolysed back to the parent drug in bile, which acetylcysteine prevents by acidifying the intestinal lumen",
+    "The drug acylates hepatic serine proteases, which acetylcysteine reverses by transferring an acetyl group to the active site"
+   ]
+  }
+ ]
+}

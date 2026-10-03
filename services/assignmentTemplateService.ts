@@ -12,7 +12,7 @@
 
 import { doc, getDoc, setDoc, updateDoc, deleteDoc, addDoc, collection, getDocs, query, where, limit } from 'firebase/firestore';
 import { db, auth } from './firebase';
-import { createNotification } from './backendService';
+import { createNotification, fetchUserProfiles } from './backendService';
 import { appendRecord, loadProficiency } from './learningLedgerService';
 import { gateForCommercialUse, mostRestrictive, type GateResult, type License } from './oerLicenseGate';
 import { libraryItemById, ledgerFrameworkFor } from '../data/oerLibrary';
@@ -175,6 +175,16 @@ export async function assignTemplate(input: AssignInput): Promise<AssignResult> 
     .map(ref => ref.code);
   result.standardsTracked = ledgerStandards.length;
 
+  // Guardians ride on the record so a parent's hub can query "work assigned to my kids" with a
+  // provable rule. Skipped for the simulated demo class (placeholder uids).
+  let guardianUids: string[] = [];
+  if (!simulate) {
+    try {
+      const profs = await fetchUserProfiles(students.map(s => s.id));
+      guardianUids = [...new Set(profs.flatMap((p: any) => [p?.guardianUid, ...(p?.coGuardianUids || [])]).filter(Boolean))] as string[];
+    } catch { /* non-fatal — the assignment still goes out */ }
+  }
+
   try {
     const ref = await addDoc(collection(db, 'templateAssignments'), {
       templateId: template.id,
@@ -193,6 +203,7 @@ export async function assignTemplate(input: AssignInput): Promise<AssignResult> 
       materials: template.structure.materials,
       standardCodes: ledgerStandards,
       studentIds: students.map(s => s.id),
+      guardianUids,
       dueDate: dueDate ?? null,
       createdAt: Date.now(),
     });
@@ -289,6 +300,8 @@ export interface TemplateAssignment {
   materials: string[];
   standardCodes: string[];
   studentIds: string[];
+  /** Guardians of the assigned students — lets a parent read their child's work under the rules. */
+  guardianUids?: string[];
   dueDate: number | null;
   createdAt: number;
 }
@@ -316,6 +329,7 @@ export interface TemplateSubmission {
   studentName: string;
   classId: string;
   teacherUid: string;
+  guardianUids?: string[];
   stepsDone: number[];
   reflection: string;
   /** The student's own read of their work — visible to the teacher, never graded from. */
@@ -360,6 +374,7 @@ export async function submitLesson(input: {
       studentName: input.studentName,
       classId: input.assignment.classId,
       teacherUid: input.assignment.teacherUid,
+      guardianUids: input.assignment.guardianUids || [],
       stepsDone: input.stepsDone,
       reflection: input.reflection,
       selfScores: input.selfScores,
@@ -627,4 +642,38 @@ export async function requestCommercialValidation(templateId: string): Promise<V
   } catch (e) {
     return { valid: false, error: (e as Error)?.message ?? 'Validation failed.' };
   }
+}
+
+// ── Parent lens ─────────────────────────────────────────────────────────────────────────────
+// A guardian's read of their child's work. Both queries key on `guardianUids` (stamped at assign /
+// turn-in time) so the Firestore rule is provable for a list query; the child filter is client-side.
+// Work assigned before guardianUids existed simply isn't visible here — it was never copied to a guardian.
+
+export interface ChildWork {
+  assigned: DueItem[];
+  submissions: Array<TemplateSubmission & { title: string }>;
+}
+
+export async function fetchChildWork(guardianUid: string, childUid: string): Promise<ChildWork> {
+  const out: ChildWork = { assigned: [], submissions: [] };
+  if (!guardianUid || !childUid) return out;
+  try {
+    const [aSnap, sSnap] = await Promise.all([
+      getDocs(query(collection(db, 'templateAssignments'), where('guardianUids', 'array-contains', guardianUid), limit(200))),
+      getDocs(query(collection(db, 'templateSubmissions'), where('guardianUids', 'array-contains', guardianUid), limit(200))),
+    ]);
+    const assignments = aSnap.docs.map(d => ({ ...(d.data() as TemplateAssignment), id: d.id })).filter(a => (a.studentIds || []).includes(childUid));
+    const subs = sSnap.docs.map(d => ({ ...(d.data() as TemplateSubmission), id: d.id })).filter(s => s.studentId === childUid);
+    const titleOf = new Map(assignments.map(a => [a.id, a.title]));
+    const done = new Set(subs.map(s => s.assignmentId));
+    const now = Date.now();
+    out.assigned = assignments.filter(a => !done.has(a.id)).map(a => ({
+      assignmentId: a.id, title: a.title, className: a.className, subject: a.subject,
+      dueDate: a.dueDate ?? null, progress: null, overdue: !!a.dueDate && a.dueDate < now,
+    })).sort((x, y) => (x.dueDate ?? Number.MAX_SAFE_INTEGER) - (y.dueDate ?? Number.MAX_SAFE_INTEGER));
+    out.submissions = subs.map(s => ({ ...s, title: titleOf.get(s.assignmentId) || 'Assignment' })).sort((a, b) => b.submittedAt - a.submittedAt);
+  } catch (e) {
+    console.warn('[templates] child work read failed:', (e as Error)?.message);
+  }
+  return out;
 }

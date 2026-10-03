@@ -1,0 +1,1287 @@
+{
+ "courseId": "med-clin-psych",
+ "label": "Psychiatry",
+ "lessons": [
+  {
+   "id": "med-clin-psych.l01",
+   "title": "Major Depressive Disorder",
+   "body": [
+    "Major depressive disorder (MDD) is defined in DSM-5 by at least two weeks of five or more of nine symptoms, including at least one of depressed mood or loss of interest or pleasure (anhedonia). The other symptoms are changes in appetite or weight, insomnia or hypersomnia, psychomotor agitation or retardation, fatigue, worthlessness or excessive guilt, impaired concentration or indecisiveness, and recurrent thoughts of death or suicide. The symptoms must cause clinically significant distress or impairment, and they must not be better explained by a substance, a medical condition or a primary psychotic disorder. A mnemonic many students use is SIG E CAPS, but the logic matters more than the mnemonic: count symptoms, check duration, then exclude mimics.",
+    "Before labeling depression, look for a medical or substance cause. Hypothyroidism, anemia, vitamin B12 deficiency, obstructive sleep apnea, Cushing syndrome, early dementia, Parkinson disease, stroke, cancer (especially pancreatic), and drugs such as corticosteroids, interferon, and beta-blockers in some patients can all produce a depressive picture. Alcohol and sedatives worsen mood chronically. A reasonable workup in a new presentation includes a thyroid-stimulating hormone level, a complete blood count, a metabolic panel and attention to substance use. Always screen for past manic or hypomanic episodes, because giving an antidepressant alone to an undiagnosed bipolar patient can precipitate mania or rapid cycling.",
+    "Specifiers refine the diagnosis. Melancholic features include pervasive anhedonia, early-morning awakening, diurnal variation worse in the morning, marked psychomotor change and excessive guilt. Atypical features include mood reactivity, hypersomnia, hyperphagia, leaden paralysis and rejection sensitivity. Psychotic features (mood-congruent delusions or hallucinations) call for an antidepressant plus an antipsychotic or for electroconvulsive therapy. A seasonal pattern, peripartum onset and anxious distress are other specifiers. Persistent depressive disorder (dysthymia) is a depressed mood most days for at least two years, with fewer symptoms than MDD. Normal bereavement is not excluded as a trigger in DSM-5, but the clinician distinguishes grief that comes in waves tied to reminders of the loss from pervasive worthlessness. Prolonged grief disorder was added in DSM-5-TR.",
+    "Treatment follows severity and patient preference. Mild to moderate depression responds to psychotherapy such as cognitive behavioral therapy (CBT) or interpersonal therapy, to an antidepressant, or to both. Selective serotonin reuptake inhibitors are usual first-line drugs because of tolerability and safety in overdose. The large STAR*D effectiveness study showed that many patients need more than one trial: switching drugs, augmenting with bupropion or buspirone or an atypical antipsychotic, or adding psychotherapy increase cumulative remission. Response takes several weeks, so an adequate trial is judged by weeks at an adequate dose, and treatment continues for months after remission to prevent relapse. Treatment-resistant depression, severe depression with suicidality, catatonia, psychosis or refusal of food responds well to electroconvulsive therapy, and esketamine and transcranial magnetic stimulation are additional options. In 2023 the US Preventive Services Task Force recommended screening adults for depression, including pregnant and postpartum people, when systems exist to ensure accurate diagnosis and follow-up.",
+    "Worked example: a 58-year-old man has six weeks of low mood, weight gain, constipation, cold intolerance and slowed thinking. Before an antidepressant, a TSH should be checked, because hypothyroidism can mimic depression and treating it may resolve the symptoms."
+   ]
+  },
+  {
+   "id": "med-clin-psych.l02",
+   "title": "Bipolar and Related Disorders",
+   "body": [
+    "Bipolar I disorder requires at least one manic episode: a distinct period of abnormally elevated, expansive or irritable mood and increased energy lasting at least one week (or any duration if hospitalization is needed), with at least three of the following symptoms (four if the mood is only irritable): grandiosity, decreased need for sleep, pressured speech, flight of ideas or racing thoughts, distractibility, increased goal-directed activity or psychomotor agitation, and risky behavior such as spending sprees or sexual indiscretion. The disturbance causes marked impairment, psychosis or hospitalization. Bipolar II requires at least one hypomanic episode (four days or more, observable change but no marked impairment, no psychosis, no hospitalization) and at least one major depressive episode, and never a full manic episode. Cyclothymic disorder involves two years of fluctuating hypomanic and depressive symptoms that never meet full criteria.",
+    "Always exclude secondary causes of mania: stimulants, cocaine, amphetamines, corticosteroids, antidepressants, thyrotoxicosis, and frontal or right-hemisphere lesions. New-onset mania in an older adult with no psychiatric history should prompt a neurologic and medical workup. A mixed features specifier applies when a manic episode includes depressive symptoms, or the reverse, and carries higher suicide risk.",
+    "Treatment is stage-based. Acute mania is treated with lithium, valproate, or an atypical antipsychotic such as quetiapine, olanzapine, risperidone or aripiprazole, often with a short-term benzodiazepine for agitation and sleep. Antidepressant monotherapy is avoided in bipolar disorder because it may induce mania or cycling. Maintenance uses lithium, which has the strongest evidence for reducing suicide, or lamotrigine, which prevents depressive recurrences more than manic ones, or quetiapine, or valproate. The CANMAT/ISBD guideline from 2018 lists lithium and quetiapine among first-line options for maintenance.",
+    "Lithium needs monitoring because it has a narrow therapeutic index. It is excreted by the kidney and handled like sodium, so thiazide diuretics, ACE inhibitors, angiotensin receptor blockers, NSAIDs and dehydration all raise lithium levels. Toxicity causes coarse tremor, vomiting, diarrhea, ataxia, confusion and, in severe cases, seizures; hemodialysis is used in severe cases. Chronic adverse effects include hypothyroidism, nephrogenic diabetes insipidus, fine tremor, weight gain and benign leukocytosis. Lithium is associated with an increased risk of Ebstein anomaly with first-trimester exposure, though the absolute risk is small. Baseline and periodic renal function, thyroid function and calcium are checked.",
+    "Valproate causes hepatotoxicity, pancreatitis, thrombocytopenia, weight gain and neural tube defects, so it is avoided in people who may become pregnant. Carbamazepine causes hyponatremia, agranulocytosis, Stevens-Johnson syndrome (higher risk with the HLA-B*1502 allele in people of Asian ancestry) and induces cytochrome P450 enzymes. Lamotrigine has a boxed warning for serious rash including Stevens-Johnson syndrome, which is why it is titrated slowly and why valproate, which raises its levels, requires dose reduction.",
+    "Worked example: a woman on stable lithium starts hydrochlorothiazide for hypertension and a month later develops tremor, vomiting and unsteady gait. The thiazide increased proximal sodium and lithium reabsorption, producing lithium toxicity."
+   ]
+  },
+  {
+   "id": "med-clin-psych.l03",
+   "title": "Anxiety and Obsessive-Compulsive Disorders",
+   "body": [
+    "Anxiety disorders share excessive fear (an emotional response to a perceived threat) and anxiety (anticipation of future threat), with behavioral avoidance. Panic disorder involves recurrent unexpected panic attacks, abrupt surges of intense fear peaking within minutes with palpitations, sweating, trembling, dyspnea, chest pain, dizziness, derealization and fear of dying, followed by at least a month of persistent worry about more attacks or a change in behavior because of them. Agoraphobia is fear of situations from which escape might be difficult, such as crowds or public transit, and is diagnosed separately. Generalized anxiety disorder (GAD) is excessive worry about multiple domains on most days for at least six months, accompanied by restlessness, fatigue, poor concentration, irritability, muscle tension and sleep disturbance. Social anxiety disorder is marked fear of scrutiny in social or performance settings; a performance-only subtype responds to beta-blockers taken before the event. Specific phobia is a circumscribed fear, such as of heights, needles or animals, and is treated by graded exposure.",
+    "The medical differential matters. Hyperthyroidism, pheochromocytoma, hypoglycemia, arrhythmia, pulmonary embolism, asthma, mitral valve prolapse symptoms, caffeine, stimulants, and withdrawal from alcohol or benzodiazepines can all present with anxiety. A new onset of anxiety in midlife with weight loss, tremor and heat intolerance should trigger a thyroid evaluation before a psychiatric label is applied.",
+    "First-line treatment for panic disorder, GAD and social anxiety disorder combines cognitive behavioral therapy with an SSRI or SNRI. Because SSRIs can transiently increase jitteriness and anxiety, treatment starts low and increases slowly, and a benzodiazepine may be used briefly while the antidepressant takes effect. Benzodiazepines act at the GABA-A receptor to increase the frequency of chloride channel opening; they work quickly but carry risks of dependence, withdrawal seizures, falls, cognitive impairment and misuse, and they are not recommended as long-term first-line therapy. Buspirone is a 5-HT1A partial agonist useful in GAD with no sedation, dependence or withdrawal, but it takes weeks to work and does not help panic. Hydroxyzine is an antihistamine sometimes used for short-term relief. Beta-blockers blunt the physical signs of performance anxiety. In 2023 the US Preventive Services Task Force recommended screening for anxiety disorders in adults 64 years or younger, including pregnant and postpartum people.",
+    "Obsessive-compulsive disorder (OCD) is defined by obsessions (intrusive, unwanted thoughts, urges or images that cause anxiety) and compulsions (repetitive behaviors or mental acts performed to reduce that distress or to prevent a feared event), which are time-consuming (more than one hour a day) or impairing. Insight is usually fair to good, which separates OCD from delusional disorder. Treatment is exposure and response prevention, the specific form of CBT, and SSRIs at higher doses and longer trials than for depression, with clomipramine as a second-line agent. Related disorders include body dysmorphic disorder, hoarding disorder, trichotillomania and excoriation disorder. Pediatric acute-onset OCD after streptococcal infection is described as PANDAS, though this entity remains debated.",
+    "Worked example: a 24-year-old washes her hands for hours because of fears of contamination and recognizes the fears as excessive. The best-supported treatment is exposure and response prevention, with an SSRI if she prefers or if severe."
+   ]
+  },
+  {
+   "id": "med-clin-psych.l04",
+   "title": "Trauma- and Stressor-Related Disorders",
+   "body": [
+    "Post-traumatic stress disorder (PTSD) follows exposure to actual or threatened death, serious injury or sexual violence, whether directly experienced, witnessed, learned about in a close person, or repeatedly encountered through work. DSM-5 groups symptoms into four clusters lasting more than one month: intrusion (nightmares, flashbacks, intrusive memories, distress at reminders), avoidance of reminders, negative changes in cognition and mood (distorted blame, detachment, inability to feel positive emotions, amnesia for part of the event), and alterations in arousal and reactivity (hypervigilance, exaggerated startle, irritability, poor sleep and concentration). Acute stress disorder has similar symptoms but lasts three days to one month after the trauma. Adjustment disorder is a maladaptive reaction to an identifiable stressor within three months that does not meet criteria for another disorder, and it resolves within six months after the stressor ends. The stressor does not need to be life-threatening, such as a divorce or job loss.",
+    "The reasoning that separates these diagnoses is the clock and the trigger. A person with symptoms for two weeks after a car crash has acute stress disorder if the full cluster picture is present, and PTSD only once the one-month mark passes. A person in distress after a layoff with mild depressive symptoms, who does not meet criteria for major depression, has adjustment disorder. Traumatic brain injury, substance withdrawal, panic disorder and depression can overlap and should be considered, and PTSD commonly occurs together with depression and substance use.",
+    "Treatment of PTSD centers on trauma-focused psychotherapy. Prolonged exposure, cognitive processing therapy and eye movement desensitization and reprocessing have the strongest evidence, and guidelines such as the VA/DoD guideline of 2023 prefer them over medication for most patients. Among drugs, SSRIs (sertraline and paroxetine are FDA approved) and venlafaxine are recommended when psychotherapy is unavailable or declined. Prazosin, an alpha-1 antagonist, is used for trauma-related nightmares, although evidence is mixed and recommendations differ across guidelines. Benzodiazepines are not recommended: they do not treat core symptoms, can worsen outcomes and carry misuse risk. Early debriefing immediately after a trauma has not been shown to prevent PTSD and may be unhelpful, whereas supportive care and monitoring are reasonable.",
+    "Related conditions include reactive attachment disorder and disinhibited social engagement disorder in children after severe neglect. Complex trauma is a clinical concept describing prolonged interpersonal trauma, and ICD-11 recognizes complex PTSD, whereas DSM-5-TR does not list it as a separate diagnosis. Dissociative symptoms such as depersonalization and derealization may be a specifier in PTSD.",
+    "Worked example: a 33-year-old combat veteran has nightmares, hypervigilance and avoidance of crowds eight months after a deployment. The strongest first-line recommendation is a trauma-focused psychotherapy; an SSRI is a reasonable alternative or addition, and a benzodiazepine is discouraged."
+   ]
+  },
+  {
+   "id": "med-clin-psych.l05",
+   "title": "Personality Disorders",
+   "body": [
+    "A personality disorder is an enduring pattern of inner experience and behavior that deviates markedly from cultural expectations, is pervasive and inflexible, begins by adolescence or early adulthood, is stable over time, and causes distress or impairment. It differs from an episodic illness such as depression or psychosis, which has onset and remission, and it is not due to substances or a medical condition. DSM-5 groups ten personality disorders into three clusters.",
+    "Cluster A, the odd or eccentric group, includes paranoid (pervasive distrust and suspicion that others are malevolent), schizoid (detachment from relationships and restricted emotional range, with no desire for closeness), and schizotypal (social deficits with eccentric behavior, magical thinking, odd beliefs and perceptual distortions). Schizotypal disorder sits on the schizophrenia spectrum and shows increased familial risk, but there is no sustained psychosis. Cluster B, the dramatic or erratic group, includes antisocial (disregard for and violation of the rights of others, requiring age 18 or more and evidence of conduct disorder before age 15), borderline (instability of relationships, self-image and affect, with impulsivity, chronic emptiness, fear of abandonment, recurrent self-harm and transient stress-related paranoia or dissociation), histrionic (attention-seeking and excessive emotionality) and narcissistic (grandiosity, need for admiration and lack of empathy). Cluster C, the anxious or fearful group, includes avoidant (social inhibition from fear of rejection, in contrast to the schizoid person who does not want connection), dependent (excessive need to be taken care of and submissive behavior), and obsessive-compulsive personality disorder (preoccupation with orderliness, perfectionism and control). Unlike OCD, the traits are ego-syntonic: the person sees them as correct rather than distressing intrusions, and there are no true obsessions or compulsions.",
+    "Defense mechanisms are unconscious strategies for managing conflict, and they help in recognizing patterns. Splitting, projection and projective identification are characteristic of borderline personality disorder, where people are seen as all good or all bad. Mature defenses include humor, sublimation, altruism and suppression. Clinical teaching often tests recognition of a defense in a vignette.",
+    "Treatment relies on psychotherapy. Dialectical behavior therapy (DBT), developed by Marsha Linehan, combines individual therapy, skills training in mindfulness, distress tolerance, emotion regulation and interpersonal effectiveness, and phone coaching, and it is the best-studied therapy for borderline personality disorder and chronic self-harm. Mentalization-based treatment, transference-focused psychotherapy and schema therapy are other evidence-based options. No medication is approved for personality disorders; drugs are used for comorbid symptoms and with caution, because overdose risk is relevant, especially with borderline patients who self-harm. Antisocial personality disorder has little evidence for effective treatment.",
+    "Worked example: a 26-year-old woman repeatedly idealizes then devalues her therapists, makes frantic efforts to avoid being left, and has superficial cuts after relationship conflicts. This fits borderline personality disorder, and DBT is the best-supported treatment."
+   ]
+  },
+  {
+   "id": "med-clin-psych.l06",
+   "title": "Anorexia, Bulimia and Binge-Eating Disorder",
+   "body": [
+    "Anorexia nervosa is defined by restriction of energy intake leading to significantly low body weight for age, sex and development, intense fear of gaining weight or persistent behavior that interferes with weight gain, and disturbed experience of body weight or shape. Subtypes are restricting and binge-eating or purging. Bulimia nervosa involves recurrent binge eating (eating a large amount in a discrete period with a sense of loss of control) followed by compensatory behaviors such as self-induced vomiting, laxative or diuretic misuse, fasting or excessive exercise, occurring at least once weekly for three months, with self-evaluation unduly influenced by body shape. Patients with bulimia are often of normal weight or overweight. Binge-eating disorder has binges without regular compensatory behaviors and is the most common eating disorder; it is associated with obesity. Avoidant/restrictive food intake disorder is restriction due to disinterest, sensory aversion or fear of aversive consequences without body-image disturbance.",
+    "Medical complications reflect starvation or purging. In anorexia, expect bradycardia, hypotension, hypothermia, lanugo hair, amenorrhea from hypothalamic suppression, osteopenia, leukopenia, elevated transaminases, hypercholesterolemia, and QT prolongation. Purging causes hypokalemic, hypochloremic metabolic alkalosis, hypomagnesemia, dental enamel erosion, parotid gland enlargement with elevated amylase, and Russell sign (calluses on the knuckles). Laxative abuse produces a non-anion-gap metabolic acidosis from bicarbonate loss, in contrast to vomiting. Severe indications for hospitalization include marked bradycardia, orthostasis, syncope, electrolyte disturbance, arrhythmia, acute food refusal, or a very low body weight.",
+    "The refeeding syndrome is a main danger of nutritional rehabilitation. When carbohydrate is reintroduced after prolonged starvation, insulin release drives phosphate, potassium and magnesium into cells, causing hypophosphatemia, which can precipitate heart failure, arrhythmia, hemolysis, respiratory failure and seizures. Thiamine deficiency may produce Wernicke encephalopathy. Therefore feeding is started cautiously with monitoring of electrolytes, particularly phosphate, and thiamine supplementation.",
+    "Treatment is multidisciplinary. Family-based treatment (the Maudsley approach) has the best evidence for adolescents with anorexia, where parents take charge of refeeding. In adults, cognitive behavioral therapy-enhanced and specialist supportive care are used. For bulimia nervosa, CBT is first-line and fluoxetine is the FDA-approved medication. Bupropion is contraindicated in bulimia and in anorexia because it lowers seizure threshold in patients with purging and electrolyte disturbance. Lisdexamfetamine is FDA approved for moderate to severe binge-eating disorder, and CBT is also effective. No medication has strong evidence for weight restoration in anorexia, although olanzapine is sometimes used in adjunct.",
+    "Worked example: a 19-year-old woman with a normal weight has dental erosion, parotid enlargement, knuckle calluses and hypokalemic alkalosis. This is bulimia nervosa with purging, and treatment is CBT and, often, fluoxetine."
+   ]
+  },
+  {
+   "id": "med-clin-psych.l07",
+   "title": "Schizophrenia Spectrum Disorders",
+   "body": [
+    "Schizophrenia is diagnosed when two or more of the following are present for a significant part of a one-month period, with at least one being delusions, hallucinations or disorganized speech: delusions, hallucinations, disorganized speech, grossly disorganized or catatonic behavior, and negative symptoms. Signs of disturbance must persist for at least six months, including at least one month of active symptoms, and function must decline in work, relationships or self-care. Mood episodes must be absent or brief relative to the psychotic illness, and the picture must not be due to a substance or a medical condition. Typical onset is in late adolescence to the early twenties in men and a few years later in women.",
+    "Duration separates the spectrum disorders. Brief psychotic disorder lasts at least one day but less than one month, often after stress. Schizophreniform disorder lasts one to six months, and many patients later meet criteria for schizophrenia. Schizoaffective disorder requires a major mood episode concurrent with active psychotic symptoms, plus at least two weeks of delusions or hallucinations without a major mood episode. Delusional disorder is one or more non-bizarre delusions lasting at least a month with otherwise relatively preserved function. Psychotic features in mood disorders occur only during mood episodes.",
+    "Positive symptoms (hallucinations, delusions, disorganization) are attributed to excess dopamine signaling in the mesolimbic pathway, and negative symptoms (flat affect, alogia, avolition, anhedonia) and cognitive deficits are associated with reduced dopamine in the mesocortical pathway and with glutamatergic NMDA receptor hypofunction. Risk factors include family history (concordance in identical twins is around 40 to 50 percent), advanced paternal age, prenatal infection, urban upbringing, cannabis use in adolescence and winter birth. Action at the D2 receptor by most antipsychotics explains both efficacy for positive symptoms and extrapyramidal and prolactin side effects, since the nigrostriatal and tuberoinfundibular pathways are also blocked. Xanomeline-trospium (Cobenfy, FDA approved September 26, 2024) is a first-in-class muscarinic M1/M4 agonist that works without D2 blockade.",
+    "Treatment includes a second-generation antipsychotic in most cases, with psychosocial care such as coordinated specialty care for first episode, cognitive remediation, family psychoeducation and supported employment. The CATIE trial found that most second-generation drugs were not clearly better than the first-generation agent perphenazine in effectiveness, although olanzapine had a slight advantage with more metabolic harm, and discontinuation rates were high. Long-acting injectable formulations improve adherence. Clozapine is reserved for treatment-resistant schizophrenia (failure of two adequate antipsychotic trials), for persistent suicidality in schizophrenia, and it needs absolute neutrophil count (ANC) monitoring because of agranulocytosis risk. The clozapine REMS program was removed by the FDA effective June 13, 2025, so there is no longer a REMS registry or REMS-mandated reporting, but the FDA still recommends monitoring ANC at the frequencies in the prescribing information. Monitoring also covers monitoring for myocarditis, seizures, sialorrhea, constipation and metabolic effects. Prognosis is better with acute onset, female sex, strong social support, good premorbid function, prominent mood symptoms and few negative symptoms.",
+    "Worked example: a 20-year-old college student has heard voices commenting on him and believes he is monitored for nine months, with social withdrawal and a falling grade average. The one-month and six-month criteria are met, and urine toxicology and a medical check are done before schizophrenia is diagnosed."
+   ]
+  },
+  {
+   "id": "med-clin-psych.l08",
+   "title": "Psychosis Differential and Catatonia",
+   "body": [
+    "Primary psychosis is a diagnosis of exclusion. Acute psychosis should prompt a search for medical, neurologic and substance causes, particularly when onset is sudden, in middle or older age, with visual or tactile hallucinations, with disorientation, with abnormal vital signs, or with focal neurologic signs. Delirium is the key mimic: an acute fluctuating disturbance of attention and awareness, with disorientation and often visual hallucinations. Substances include amphetamines and cocaine (paranoia, tactile hallucinations such as formication), phencyclidine (agitation, nystagmus and violence), cannabis, hallucinogens such as LSD, synthetic cannabinoids and cathinones, alcohol withdrawal (delirium tremens) and anticholinergics. Medications such as corticosteroids, levodopa and dopamine agonists, and stimulants can induce psychosis.",
+    "Medical causes include temporal lobe epilepsy, brain tumors, stroke, HIV, neurosyphilis, Wilson disease, systemic lupus erythematosus, thyroid disease, vitamin B12 deficiency, porphyria, Huntington disease and autoimmune encephalitis. Anti-NMDA receptor encephalitis, often in young women and sometimes linked to an ovarian teratoma, begins with psychiatric symptoms such as paranoia, then progresses to seizures, dyskinesias, autonomic instability, decreased consciousness and hypoventilation; diagnosis relies on antibodies in cerebrospinal fluid, and treatment is immunotherapy and tumor resection. An initial workup includes vital signs, glucose, urine toxicology, basic labs, thyroid function, and neuroimaging if there are focal findings, headache, head injury or atypical features.",
+    "Mood disorders can present with psychosis, and the pattern of delusions matters: mood-congruent delusions of guilt or grandeur occur in depression and mania. Postpartum psychosis, in the first weeks after delivery, is a psychiatric emergency with risk to the infant and the mother and usually represents bipolar spectrum illness; it differs from postpartum blues, which resolve within two weeks, and from postpartum depression.",
+    "Catatonia is a syndrome of psychomotor disturbance. DSM-5 requires three or more of stupor, catalepsy, waxy flexibility, mutism, negativism, posturing, mannerisms, stereotypy, agitation, grimacing, echolalia and echopraxia. It occurs with schizophrenia, mood disorders and medical conditions, and is also related to autoimmune and metabolic disorders. Treatment is a lorazepam challenge, which often produces rapid improvement; if it fails or the presentation is severe (malignant catatonia with fever and autonomic instability), electroconvulsive therapy is highly effective. Antipsychotics can worsen catatonia and can trigger neuroleptic malignant syndrome, so they are avoided or used cautiously. Complications of immobility include venous thrombosis, pressure ulcers, dehydration and malnutrition.",
+    "Worked example: a 23-year-old woman with two weeks of paranoia, insomnia and odd mannerisms develops a seizure, orofacial dyskinesias and autonomic instability. This pattern suggests anti-NMDA receptor encephalitis; she requires lumbar puncture, antibody testing and a search for ovarian teratoma rather than antipsychotic therapy alone."
+   ]
+  },
+  {
+   "id": "med-clin-psych.l09",
+   "title": "Somatic, Factitious and Dissociative Disorders",
+   "body": [
+    "DSM-5 reasoning is a stepwise process. First establish whether symptoms are caused by a substance or medical condition, then identify the symptom clusters and their course (episodic or enduring), check duration and impairment, and finally weigh differential diagnoses and comorbidity. Multiple diagnoses are allowed, and the clinician records both the diagnosis and relevant specifiers such as severity. This approach explains why a vignette stem always includes duration, onset age, substance history and function.",
+    "Somatic symptom disorder involves one or more distressing somatic symptoms accompanied by excessive thoughts, feelings or behaviors about them (disproportionate concern, persistent anxiety, excessive time and energy) for more than six months, whether or not a medical explanation exists. Illness anxiety disorder is preoccupation with having or acquiring a serious illness with minimal or no somatic symptoms and high health anxiety. Conversion disorder (functional neurological symptom disorder) involves altered voluntary motor or sensory function, such as paralysis, blindness, seizures-like episodes or aphonia, with clinical findings showing incompatibility with recognized neurologic disease, such as a Hoover sign or a normal pupillary reflex in cortical blindness. Many patients show apparent indifference (la belle indifference), but it is not reliable. Treatment focuses on a trusting continuing relationship with one primary clinician, scheduled rather than symptom-driven visits, avoiding unnecessary testing, CBT and physical therapy for functional symptoms.",
+    "Distinguishing feigned illness depends on the motive and the conscious production of symptoms. In factitious disorder (imposed on self), the person falsifies or induces symptoms with deception, with no obvious external reward, and the motive is to assume the sick role; factitious disorder imposed on another (formerly Munchausen by proxy) involves a caregiver who falsifies illness in a child or dependent and is a form of abuse requiring protective reporting. In malingering, symptoms are intentionally produced for an external incentive such as money, avoiding work, evading legal charges or obtaining drugs; it is not a mental disorder. Both produce symptoms consciously, in contrast with somatic symptom and conversion disorders, where the symptoms are not consciously feigned.",
+    "Dissociative disorders involve disruption of memory, identity, perception or consciousness. Dissociative amnesia is an inability to recall important autobiographical information, usually of a traumatic nature, beyond ordinary forgetting, and with a dissociative fugue specifier of purposeful travel. Depersonalization/derealization disorder involves persistent feelings of detachment from oneself or the environment, with intact reality testing. Dissociative identity disorder involves two or more distinct personality states with recurrent gaps in recall, and is strongly associated with severe childhood trauma. Treatment is psychotherapy, with a phased approach starting with safety and stabilization; no drug treats dissociation directly.",
+    "Worked example: a 30-year-old nurse repeatedly presents with fever and abscesses and is found to inject herself with contaminated material, denying it and without financial gain. This is factitious disorder imposed on self, and confrontation should be non-punitive, with psychiatric support offered."
+   ]
+  },
+  {
+   "id": "med-clin-psych.l10",
+   "title": "ADHD, Autism, Intellectual Disability and Tic Disorders",
+   "body": [
+    "Neurodevelopmental disorders begin in the developmental period, produce deficits in personal, social, academic or occupational function, and often overlap. Attention-deficit/hyperactivity disorder (ADHD) requires six or more symptoms of inattention and/or hyperactivity-impulsivity (five at age 17 or older) persisting at least six months, several present before age 12, and present in at least two settings such as home and school, with clear interference with function. Presentations are predominantly inattentive, predominantly hyperactive-impulsive or combined. The differential includes hearing or vision problems, sleep disorders, anxiety, depression, learning disorders, lead exposure, trauma, hyperthyroidism, absence seizures and substance effects, so collateral information from teachers and parents is central. The 2019 American Academy of Pediatrics guideline recommends, for children from six to eleven years, medication together with parent training in behavior management and classroom interventions; for preschool children aged four to five, parent training in behavior management comes first, with methylphenidate considered if behavioral treatment is inadequate.",
+    "Stimulants (methylphenidate and amphetamine formulations) are first-line drugs. They increase synaptic dopamine and norepinephrine, and common adverse effects are decreased appetite, insomnia, abdominal pain, headache, growth deceleration, mild increases in heart rate and blood pressure, and rarely tics, psychosis or mania. Cardiac history and family history of sudden death are screened. Non-stimulants include atomoxetine (a norepinephrine reuptake inhibitor with a boxed warning for suicidal ideation in young patients, and no abuse potential) and the alpha-2 agonists guanfacine and clonidine, which are helpful with tics and sleep problems.",
+    "Autism spectrum disorder involves persistent deficits in social communication and social interaction across contexts, plus restricted, repetitive patterns of behavior, interests or activities, present in early development. Symptoms are typically noticed by age two to three, such as limited eye contact, delayed or atypical language, lack of pointing or joint attention and unusual sensory responses. Screening with the M-CHAT-R/F is recommended at 18 and 24 months by the American Academy of Pediatrics. Severity is graded by the support needed. Early intensive behavioral and developmental interventions, speech therapy and educational support are central. Risperidone and aripiprazole are approved for irritability associated with autism, but there is no drug for the core features. Vaccines do not cause autism, and the original claim was based on a retracted fraudulent study; this is established consensus supported by large population studies. Regression, hearing loss and Rett syndrome and fragile X syndrome should be considered.",
+    "Intellectual disability requires deficits in intellectual functioning (IQ roughly two standard deviations below the mean, approximately 70 or below) and in adaptive functioning, with onset in the developmental period; severity is judged by adaptive function rather than IQ alone. Tourette disorder involves multiple motor tics and at least one vocal tic present for more than one year, with onset before age 18. First-line management is behavioral therapy (comprehensive behavioral intervention for tics), with alpha-2 agonists or antipsychotics such as aripiprazole or risperidone for impairing tics.",
+    "Worked example: a 9-year-old boy has fidgeting, difficulty finishing homework and impulsive interruptions at school and at home for more than a year, with normal hearing and vision. The best-supported approach combines a stimulant with parent training and classroom support."
+   ]
+  },
+  {
+   "id": "med-clin-psych.l11",
+   "title": "Delirium, Dementia and Neurocognitive Disorders",
+   "body": [
+    "Delirium is an acute, fluctuating disturbance of attention and awareness developing over hours to days, with additional cognitive change such as disorientation, memory impairment or perceptual disturbance, caused by a medical condition, medication, intoxication or withdrawal. It is a medical emergency with high mortality, particularly in hospitalized and older patients. Risk factors include advanced age, preexisting dementia, sensory impairment, polypharmacy, surgery, infection, metabolic disturbance, and sleep deprivation. Causes are often listed by the mnemonic of infection, withdrawal, acute metabolic problems, trauma, central nervous system disease, hypoxia, deficiencies, endocrine disorders, acute vascular events, toxins and drugs, and heavy metals. Anticholinergic drugs, benzodiazepines, opioids and corticosteroids are common culprits. Management is to treat the cause, correct hypoxia, dehydration and electrolytes, review and withdraw offending drugs, and use non-drug measures: reorientation, a day-night routine, hearing and vision aids, mobilization, family presence and avoidance of restraints. Low-dose antipsychotic is reserved for severe distress or danger. Alcohol withdrawal delirium is treated with benzodiazepines, in contrast to the other causes.",
+    "Major neurocognitive disorder (dementia) is a gradual decline in one or more cognitive domains that interferes with independence, with preserved consciousness. Alzheimer disease is the most common cause, with insidious loss of short-term memory, then language, visuospatial and executive function; pathology shows extracellular beta-amyloid plaques and intracellular tau neurofibrillary tangles, with early loss of cholinergic neurons in the basal nucleus of Meynert and atrophy beginning in the medial temporal lobes. Genetic risk includes apolipoprotein E4 and, in rare early-onset cases, mutations in presenilin and amyloid precursor protein, and Down syndrome carries a high risk. Cholinesterase inhibitors (donepezil, rivastigmine, galantamine) and memantine (an NMDA antagonist) give modest symptomatic benefit without altering the course. Anti-amyloid monoclonal antibodies target beta-amyloid plaques: lecanemab (Leqembi) received FDA traditional approval in July 2023 and donanemab (Kisunla) was approved in July 2024, both for early Alzheimer disease (mild cognitive impairment or mild dementia) with confirmed amyloid. They slow decline modestly rather than restoring function. The main safety issue is amyloid-related imaging abnormalities (ARIA: edema or microhemorrhage), which are more frequent in ApoE e4 carriers, so genotyping and baseline and serial MRI are part of care. Vascular",
+    "dementia presents with stepwise decline and focal findings. Lewy body dementia has fluctuating cognition, well-formed visual hallucinations, parkinsonism and REM sleep behavior disorder, with severe sensitivity to antipsychotics. Frontotemporal dementia presents with early personality change, disinhibition and apathy, or language problems, with relatively preserved memory and Pick bodies in some. Normal pressure hydrocephalus produces the triad of gait disturbance, urinary incontinence and cognitive decline, and is potentially reversible with shunting.",
+    "Reversible contributors should be sought in every case: hypothyroidism, vitamin B12 deficiency, depression, medications, neurosyphilis, HIV, hydrocephalus, subdural hematoma and sleep apnea. Late-life depression with cognitive impairment (formerly pseudodementia) differs from dementia: onset is more rapid, patients complain of memory loss and answer \"I don't know\", while dementia patients tend to minimize deficits and confabulate. Mild cognitive impairment shows measurable decline without loss of independence.",
+    "Worked example: an 80-year-old woman recovering from hip surgery becomes drowsy by day and agitated at night, picking at her sheets, with new urinary retention and recently started diphenhydramine. This is delirium; the best response is to find and treat precipitants, stop the anticholinergic and use environmental measures."
+   ]
+  },
+  {
+   "id": "med-clin-psych.l12",
+   "title": "Substance Use Disorders",
+   "body": [
+    "DSM-5 merges abuse and dependence into a single substance use disorder graded by number of criteria within twelve months (two to three mild, four to five moderate, six or more severe), including impaired control, social impairment, risky use and pharmacologic criteria of tolerance and withdrawal. Reasoning about a patient with substance problems starts with distinguishing intoxication, withdrawal and use disorder, then screening with brief tools (AUDIT-C, CAGE, single-question screening) and offering brief intervention and referral to treatment, an approach called SBIRT. Motivational interviewing and the stages of change guide counseling.",
+    "Alcohol withdrawal begins six to twelve hours after the last drink with tremor, anxiety and autonomic hyperactivity, may cause seizures at twelve to forty-eight hours, alcoholic hallucinosis at twelve to forty-eight hours with intact orientation, and delirium tremens at forty-eight to ninety-six hours, with confusion, hallucinations, fever and marked autonomic instability, carrying a real mortality risk. Benzodiazepines are the standard treatment, given on symptom-triggered or scheduled protocols (the CIWA-Ar scale guides symptom-triggered use), and thiamine is given before glucose to prevent Wernicke encephalopathy (confusion, ophthalmoplegia, ataxia) that may progress to Korsakoff syndrome (anterograde amnesia and confabulation). Relapse prevention drugs include naltrexone (an opioid antagonist, contraindicated with opioid use and in severe liver failure), acamprosate (modulates glutamatergic signaling, renally cleared), and disulfiram (blocks acetaldehyde dehydrogenase, causing an aversive reaction). Gabapentin and topiramate are alternatives.",
+    "Opioid intoxication produces miosis, respiratory depression and decreased consciousness, reversed by naloxone, whose short duration means re-sedation can occur with long-acting opioids. Opioid withdrawal is unpleasant but rarely life-threatening: mydriasis, lacrimation, rhinorrhea, yawning, piloerection, myalgias, diarrhea and craving. Medications for opioid use disorder reduce mortality: methadone (a full mu agonist dispensed through certified programs, QT prolongation risk), buprenorphine (a partial agonist with a ceiling on respiratory depression, started once withdrawal has begun to avoid precipitated withdrawal), and extended-release naltrexone (needing prior detoxification). Medication treatment is recommended over detoxification alone, which has high relapse and overdose risk.",
+    "Stimulant intoxication causes mydriasis, tachycardia, hypertension, agitation, paranoia, and in severe cases hyperthermia, arrhythmia, chest pain and seizures, and crash on withdrawal brings hypersomnia, hyperphagia and depression. Benzodiazepines are the first-line treatment of agitation. Contingency management and CBT have the best evidence for stimulant use disorder. Cannabis withdrawal causes irritability, insomnia and decreased appetite. Sedative-hypnotic withdrawal resembles alcohol withdrawal and can cause seizures; tapering is gradual. Nicotine use disorder is treated with varenicline, bupropion and nicotine replacement with counseling; combinations of replacement forms are effective. Phencyclidine causes nystagmus, violence and hypertension, and hallucinogens such as LSD cause perceptual changes with intact orientation.",
+    "Worked example: a man hospitalized for pneumonia, with daily heavy drinking, develops tremor, tachycardia, fever, vivid visual hallucinations and disorientation on hospital day three. This is delirium tremens, treated with benzodiazepines and thiamine, with fluids and monitoring."
+   ]
+  },
+  {
+   "id": "med-clin-psych.l13",
+   "title": "Antidepressants and Their Complications",
+   "body": [
+    "Antidepressants raise monoaminergic signaling, but clinical benefit takes weeks, which suggests downstream adaptation rather than the immediate rise in synaptic serotonin or norepinephrine. Selective serotonin reuptake inhibitors (fluoxetine, sertraline, paroxetine, citalopram, escitalopram, fluvoxamine) block the serotonin transporter. They are first-line for depression, anxiety, OCD and PTSD. Common adverse effects are nausea, headache, insomnia or somnolence, and sexual dysfunction (delayed orgasm, reduced libido), which is a leading reason for discontinuation. They can cause hyponatremia from syndrome of inappropriate antidiuretic hormone secretion, especially in older adults, increased bleeding risk particularly with NSAIDs and anticoagulants, and QT prolongation with citalopram at higher doses. Paroxetine has anticholinergic effects and more discontinuation symptoms and is avoided in pregnancy because of a possible cardiac malformation signal. Fluoxetine has a long half-life, and so produces little discontinuation syndrome and strongly inhibits CYP2D6. Fluvoxamine inhibits CYP1A2 and others. A boxed warning describes increased suicidal thinking in patients under 25 starting antidepressants, so close monitoring early in treatment is expected, even though overall risk benefit favors treating depression.",
+    "Serotonin-norepinephrine reuptake inhibitors (venlafaxine, desvenlafaxine, duloxetine) add noradrenergic effects; venlafaxine can raise blood pressure at higher doses, and duloxetine helps neuropathic pain, fibromyalgia and stress incontinence. Bupropion (norepinephrine-dopamine reuptake inhibitor) causes no sexual dysfunction and little weight gain, aids smoking cessation, but lowers seizure threshold and is contraindicated in seizure disorders and eating disorders and in abrupt alcohol or benzodiazepine withdrawal. Mirtazapine (alpha-2 antagonist and 5-HT2/5-HT3/H1 blocker) increases appetite and sleep. Trazodone is mostly used at low doses for insomnia, with rare priapism. Vortioxetine and vilazodone are other multimodal agents. Tricyclic antidepressants (amitriptyline, nortriptyline, imipramine, clomipramine) block reuptake of serotonin and norepinephrine but also muscarinic, histamine and alpha-1 receptors, producing anticholinergic effects, sedation, orthostasis and weight gain; the main danger is overdose with sodium channel blockade producing QRS widening, arrhythmia and seizures, treated with sodium bicarbonate. Monoamine oxidase inhibitors (phenelzine, tranylcypromine) are used for atypical and refractory depression, and require avoidance of tyramine-rich foods (aged cheese, cured meats, tap beer) and sympathomimetics to prevent hypertensive crisis; they must not be",
+    "combined with serotonergic drugs, and a washout of about two weeks (five weeks after fluoxetine) is needed between agents.",
+    "Serotonin syndrome results from excess serotonergic activity, typically from combinations (an SSRI with an MAOI, linezolid, tramadol, meperidine, triptans, MDMA, or lithium at times). Features come on within hours: autonomic instability, hyperthermia, diaphoresis, diarrhea, agitation, tremor, hyperreflexia, myoclonus and clonus, especially in the lower limbs. Treatment is stopping the serotonergic drugs, supportive care and benzodiazepines, with cyproheptadine (a 5-HT2A antagonist) for moderate cases. Neuroleptic malignant syndrome, by contrast, develops over days with lead-pipe rigidity, bradyreflexia and elevated creatine kinase after dopamine antagonists. Abrupt discontinuation of short-acting agents causes dizziness, paresthesias (\"brain zaps\"), irritability and flu-like symptoms, resolved by slower tapering.",
+    "Worked example: a patient on sertraline is given tramadol after surgery and within hours develops agitation, diarrhea, fever, tremor and inducible clonus. This is serotonin syndrome, managed by stopping both drugs and giving supportive care, benzodiazepines and, if needed, cyproheptadine."
+   ]
+  },
+  {
+   "id": "med-clin-psych.l14",
+   "title": "Antipsychotics, Anxiolytics and Their Emergencies",
+   "body": [
+    "Most antipsychotics act by blocking dopamine D2 receptors; the first exception, xanomeline-trospium (Cobenfy, FDA approved September 2024 for adults with schizophrenia), is a muscarinic M1/M4 agonist combined with a peripheral muscarinic antagonist (trospium) and does not block D2. It has no boxed warning, and its labeled precautions include urinary retention, reduced gastrointestinal motility, angioedema, raised heart rate and liver enzyme changes. The D2-based effects below apply to the classical agents. First-generation agents (haloperidol, fluphenazine, chlorpromazine, perphenazine) have high D2 affinity and cause more extrapyramidal symptoms; potent ones such as haloperidol cause more movement effects, and low-potency ones such as chlorpromazine cause more anticholinergic, antihistaminic and alpha-1 effects (sedation, orthostasis, dry mouth) and also QT prolongation and retinal pigmentation with thioridazine. Second-generation agents (risperidone, olanzapine, quetiapine, ziprasidone, aripiprazole, lurasidone, clozapine) add serotonin 5-HT2A antagonism, which reduces extrapyramidal symptoms. Aripiprazole is a D2 partial agonist. Metabolic effects (weight gain, dyslipidemia, diabetes) are highest with olanzapine and clozapine, and lowest with aripiprazole and ziprasidone, so baseline and periodic weight, waist, glucose or hemoglobin A1c, and lipids are monitored. Risperidone",
+    "commonly raises prolactin, producing galactorrhea, amenorrhea and sexual dysfunction because dopamine blockade in the tuberoinfundibular pathway removes inhibition of prolactin. Ziprasidone prolongs the QT interval. A boxed warning describes increased mortality in older adults with dementia-related psychosis.",
+    "Extrapyramidal side effects follow a timeline. Acute dystonia (hours to days; sustained muscle spasm of neck, jaw or eyes, including oculogyric crisis and laryngospasm) responds to intramuscular benztropine or diphenhydramine. Akathisia (days to weeks; inner restlessness) is treated by lowering the dose, adding a beta-blocker such as propranolol, or a benzodiazepine. Parkinsonism (weeks) responds to anticholinergics or a dose reduction. Tardive dyskinesia (months to years; choreoathetoid orofacial movements) comes from dopamine receptor supersensitivity; management is switching to a lower-risk agent such as clozapine or quetiapine and using VMAT2 inhibitors (valbenazine, deutetrabenazine). Neuroleptic malignant syndrome (NMS) is a rare emergency with fever, severe lead-pipe rigidity, altered mental status, autonomic instability and markedly elevated creatine kinase, with possible rhabdomyolysis and renal failure. Treatment is stopping the antipsychotic, aggressive cooling and fluids, and benzodiazepines, with dantrolene or bromocriptine in severe cases. Malignant hyperthermia, triggered by anesthetic agents, and serotonin syndrome (hyperreflexia and clonus, rapid onset) are the main comparison diagnoses.",
+    "Benzodiazepines potentiate GABA-A, increasing the frequency of chloride channel opening, in contrast to barbiturates, which increase the duration of opening. They are used for anxiety, insomnia, seizures, alcohol withdrawal, agitation and catatonia. Short-acting agents such as alprazolam produce more rebound and withdrawal. Lorazepam, oxazepam and temazepam are cleared by glucuronidation, avoiding oxidative metabolism and active metabolites, so they are preferred in the elderly and in hepatic impairment. Overdose causes sedation and respiratory depression, and flumazenil can reverse it but may precipitate seizures in dependent patients. Z-drugs (zolpidem) act at the same receptor and can cause complex sleep behaviors. Combining benzodiazepines with opioids carries a boxed warning for profound respiratory depression.",
+    "Lithium, as above, is a key mood stabilizer. Reasoning in psychopharmacology uses the drug's receptor profile to predict both effect and adverse effect.",
+    "Worked example: a young man receives haloperidol and two hours later develops sustained upward deviation of the eyes and neck twisting. This is acute dystonia, and intramuscular benztropine or diphenhydramine reverses it quickly."
+   ]
+  },
+  {
+   "id": "med-clin-psych.l15",
+   "title": "Psychotherapy Modalities and Neuromodulation",
+   "body": [
+    "Psychotherapies are chosen to match the disorder, the patient's goals and available evidence. Cognitive behavioral therapy (CBT) is structured, time-limited and collaborative; it targets the links among thoughts, emotions and behaviors, using cognitive restructuring of distorted automatic thoughts (catastrophizing, all-or-nothing thinking), behavioral activation and graded exposure. It is effective for depression, anxiety disorders, OCD (as exposure and response prevention), PTSD, insomnia (CBT-I is first-line over hypnotics for chronic insomnia), bulimia and others. Interpersonal therapy focuses on grief, role transitions, role disputes and interpersonal deficits, and is evidence-based for depression. Behavioral therapies apply learning theory: systematic desensitization pairs relaxation with graded fear exposure, flooding delivers intense exposure, and operant approaches use reinforcement, as in contingency management for substance use and parent management training for oppositional behavior. Aversive conditioning pairs a stimulus with an unpleasant outcome.",
+    "Psychodynamic therapy explores unconscious conflicts and early relationships, using free association, interpretation of transference (feelings about the therapist that echo past relationships) and countertransference (the therapist's emotional reaction). Supportive therapy strengthens coping and defenses. Dialectical behavior therapy treats emotional dysregulation and self-harm, and acceptance and commitment therapy fosters values-based action with mindfulness. Mentalization-based treatment and schema therapy help in personality disorders. Family therapy addresses system patterns, and group therapy uses peer interaction, as in Alcoholics Anonymous and twelve-step facilitation. Motivational interviewing is a directive but non-confrontational style that elicits the patient's own reasons for change, with expressions of empathy, developing discrepancy and rolling with resistance. It aligns with the stages of change: precontemplation, contemplation, preparation, action, maintenance and relapse. Matching the intervention to the stage prevents pushing a patient who is not yet ready to act.",
+    "Neuromodulation includes electroconvulsive therapy (ECT), which induces a generalized seizure under general anesthesia and muscle relaxation. It is among the most effective treatments for severe or treatment-resistant depression, psychotic depression, catatonia, and acute mania, and when rapid response is needed such as with suicidality, food refusal or pregnancy. Common adverse effects are transient confusion, retrograde amnesia and headache, and risks include those of anesthesia; there are few absolute contraindications, though raised intracranial pressure and recent myocardial infarction increase risk. Maintenance treatment is needed because relapse is common. Transcranial magnetic stimulation (TMS) uses repetitive magnetic pulses over the dorsolateral prefrontal cortex in an awake patient for depression that has not responded to medication, and its main risk is rare seizure. Esketamine nasal spray, an NMDA antagonist, is approved for treatment-resistant depression in adults who have not responded to at least two oral antidepressants, as monotherapy (FDA, January 21, 2025) or together with an oral antidepressant (approved 2019); it must be given under observation through a REMS program because of sedation, dissociation and respiratory depression. Vagus nerve stimulation and deep brain stimulation are used rarely.",
+    "Worked example: a woman with a three-year history of recurring depressive episodes notices she thinks \"I always fail\" after every setback and has withdrawn from friends. CBT with cognitive restructuring and behavioral activation directly targets that pattern."
+   ]
+  },
+  {
+   "id": "med-clin-psych.l16",
+   "title": "Suicide Risk Assessment",
+   "body": [
+    "Suicide risk assessment is a clinical judgment that combines static risk factors, modifiable risk factors, acute warning signs, protective factors and the patient's own account, and it should be revisited, since risk fluctuates. No scale predicts who will die by suicide, but structured tools such as the Columbia Suicide Severity Rating Scale and the ASQ screening questions help organize inquiry and document it. The 2023 US Preventive Services Task Force found insufficient evidence to assess screening for suicide risk in the general adult population, while recommending screening for depression, so clinicians rely on targeted inquiry when risk is suggested.",
+    "Static risk factors include prior suicide attempt (the strongest single predictor), male sex (men die more often, while women attempt more often), older age (especially older white men), white or Native American identity, a family history of suicide, history of childhood abuse, and chronic medical illness. Modifiable and acute factors include current psychiatric illness (depression, bipolar disorder, schizophrenia, substance use, borderline and antisocial personality disorder, eating disorders), recent discharge from a psychiatric unit (a particularly high-risk period), hopelessness, agitation or severe anxiety, insomnia, command hallucinations, impulsivity, access to lethal means (firearms are the most lethal common method), recent loss, social isolation, financial or legal crisis, and intoxication. Protective factors include strong social connections, children at home, religious or cultural objection to suicide, treatment engagement and future orientation, but they do not override evident intent. Sexual and gender minority youth, veterans, and people in custody face higher rates.",
+    "Direct questions do not plant the idea of suicide; asking about it does not increase risk and builds rapport. Elicit passive ideation (wish to be dead), active ideation, method, plan, intent, preparatory behavior (giving away belongings, writing a note, rehearsing), prior attempts and their lethality, and reasons for living. The best predictors of imminent danger are a specific plan, intent, access to means, and recent rehearsal. A plan with intent and means, and inability to commit to safety, supports psychiatric hospitalization; lower risk may be managed as an outpatient with a safety plan. A safety plan (the Stanley-Brown model) is a written, collaborative list of warning signs, internal coping strategies, social contacts and settings for distraction, people to ask for help, professionals and crisis numbers such as 988 in the United States, and steps to make the environment safe. Contracts promising not to harm oneself (\"no-suicide contracts\") lack evidence and should not replace assessment.",
+    "Lethal means counseling, such as storing firearms away from the home or locked, restricting access to stockpiled medications, and prescribing limited quantities, reduces deaths because suicidal crises are often brief. Evidence-based treatments include dialectical behavior therapy for repeated self-harm, CBT for suicide prevention, and lithium in mood disorders and clozapine in schizophrenia. Ketamine and esketamine may reduce suicidal ideation acutely, but long-term data are limited. After a patient's death by suicide, clinicians commonly seek support from colleagues and consultation.",
+    "Worked example: a 55-year-old man recently divorced, intoxicated, says he has bought a firearm and plans to use it tonight. He has a plan, intent and means with an acute precipitant, so he needs emergency evaluation, and safety measures must be arranged rather than a promise."
+   ]
+  },
+  {
+   "id": "med-clin-psych.l17",
+   "title": "Decision-Making Capacity and Consent",
+   "body": [
+    "Capacity is the clinical determination that a patient can make a particular decision at a particular time, while competence is a legal status determined by a court. Any physician can assess capacity, and a psychiatric consultation is requested when the question is complex or when psychiatric illness may be impairing judgment. Adults are presumed to have capacity, and refusing a recommended treatment, even a life-saving one, is not itself evidence of incapacity. The principle of respect for autonomy has long legal roots: in Schloendorff v. Society of New York Hospital (1914), Judge Cardozo wrote that every adult of sound mind has the right to determine what is done with their own body, and a surgeon who operates without consent commits an assault. In Cruzan v. Director, Missouri Department of Health (1990), the US Supreme Court recognized a constitutionally protected interest in refusing unwanted treatment and held that a state may require clear and convincing evidence of an incompetent patient's wishes before withdrawing life support.",
+    "The standard assessment, drawn from the work of Appelbaum and Grisso, tests four abilities for the decision at hand. Understanding is the ability to comprehend the information about the condition and the options. Appreciation is the ability to apply that information to oneself, recognizing that the illness and consequences are real for one's own situation; denial or delusions can impair it. Reasoning is the ability to weigh options by consistent logic and compare risks and benefits. Expressing a choice is the ability to communicate a stable decision. The clinician discusses the diagnosis, the proposed treatment, its benefits and risks, and alternatives including no treatment, and then asks the patient to explain this in their own words (\"teach-back\"). Decisions are specific: a patient may have capacity to choose a physician but not to refuse dialysis. Capacity may fluctuate, as in delirium, and reassessment is needed.",
+    "Conditions that commonly affect capacity include delirium, dementia, psychosis, severe depression, intoxication and intellectual disability, but the diagnosis does not alone determine capacity: a patient with schizophrenia or mild dementia can still decide. A stable and risk-proportional rule is sometimes described: the more serious the consequences of a decision, the more rigorous the demonstration of capacity should be. Capacity is not determined by whether the physician agrees with the choice. Cultural, religious and personal values legitimately differ from medical advice.",
+    "When a patient lacks capacity, a surrogate decision-maker is used, usually following a hierarchy: a patient-designated health care agent in a durable power of attorney for health care, then a court-appointed guardian, then a spouse, adult children, parents and siblings, depending on state law. The surrogate applies substituted judgment (what the patient would have chosen), and if unknown applies the best interest standard. Advance directives and living wills record preferences. In an emergency where delay would threaten life or health and no surrogate is available, treatment proceeds under implied consent. Minors generally need parent or guardian consent, with exceptions for emancipated minors, emergencies and confidential services such as contraception, sexually transmitted infection care and substance treatment in many states.",
+    "Worked example: a 72-year-old man with pneumonia and mild dementia refuses antibiotics, says he understands he could die and states he would rather die at home, consistent with his earlier statements. If he can understand, appreciate, reason and express a stable choice, his refusal is respected."
+   ]
+  },
+  {
+   "id": "med-clin-psych.l18",
+   "title": "Involuntary Treatment, Duty to Protect and Violence Risk",
+   "body": [
+    "Involuntary psychiatric admission is governed by state law, but the shared elements are a mental illness together with danger to self, danger to others or grave disability (inability to meet basic needs for food, clothing and shelter), and no less restrictive alternative. Many states permit a short emergency hold (commonly 72 hours, although the length differs by state) based on a physician's or authorized clinician's certification, followed by court review for longer commitment. Civil commitment is a deprivation of liberty, so due process applies. In O'Connor v. Donaldson (1975), the US Supreme Court held that a state cannot constitutionally confine a non-dangerous person who is capable of surviving safely in freedom, and mental illness alone does not justify involuntary confinement. In Addington v. Texas (1979), the Court held that the standard of proof for civil commitment must be at least clear and convincing evidence, a standard intermediate between the civil and criminal standards.",
+    "Involuntary admission does not automatically mean the patient lacks capacity or may be forcibly medicated. In most jurisdictions, treatment over objection requires a separate determination, either a finding of incapacity or a judicial or administrative hearing, except in an emergency, where short-term medication or restraint is allowed to prevent imminent harm. Emergency agitation is managed first with de-escalation, offering oral medication, and then with intramuscular medication, selecting agents by suspected cause (a benzodiazepine for intoxication or withdrawal, an antipsychotic with or without a benzodiazepine for psychosis). Seclusion and restraint are last resorts, require a face-to-face assessment within a short time (the Centers for Medicare and Medicaid Services rules set one hour), frequent monitoring, time-limited orders and documentation, because they cause injury and deaths. Outpatient commitment (assisted outpatient treatment) is permitted in many states for patients with a history of non-adherence and relapse.",
+    "Confidentiality has limits. In Tarasoff v. Regents of the University of California (1976), the California Supreme Court held that when a therapist determines, or under the standards of the profession should determine, that a patient presents a serious danger of violence to another, the therapist bears a duty to use reasonable care to protect the intended victim, often summarized as the duty to protect. States differ: some have mandatory duties, some permit but do not require disclosure, and a few impose no duty. Protective steps can include warning the victim and police, hospitalization, or other measures. Other legitimate exceptions to confidentiality include mandated reporting of child, elder and dependent adult abuse, court orders, and disclosures needed in medical emergencies. Under HIPAA, disclosure is permitted to prevent a serious and imminent threat.",
+    "Violence risk assessment reviews past violence (the best predictor), substance use, command hallucinations or paranoid delusions about a specific person, access to weapons, young age, male sex, recent threats with a plan, impulsivity, and antisocial traits, balanced against protective factors. The great majority of people with mental illness are not violent, and they are far more often victims. Management includes treating the illness, reducing access to weapons, and notifying potential victims when criteria are met.",
+    "Worked example: a patient tells his therapist that he will shoot his former employer next week and describes buying ammunition. The therapist must take reasonable steps to protect the identified person, which may include notifying the person and police and arranging hospital evaluation, following state law."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-clin-psych.l01.q1",
+   "lessonId": "med-clin-psych.l01",
+   "kind": "mcq",
+   "prompt": "Which finding is required for a DSM-5 diagnosis of a major depressive episode?",
+   "choices": [
+    "Suicidal ideation with a plan lasting at least two consecutive weeks",
+    "Depressed mood or loss of interest or pleasure, plus other symptoms",
+    "Insomnia with early awakening along with persistent weight loss",
+    "Psychomotor retardation noted by the examiner on at least two visits"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l01.q2",
+   "lessonId": "med-clin-psych.l01",
+   "kind": "mcq",
+   "prompt": "A patient has had two weeks of low mood and anhedonia. Which history item most changes the choice of initial pharmacotherapy?",
+   "choices": [
+    "A prior week-long episode of decreased sleep need with high energy",
+    "A family history of hypertension in both of his living parents",
+    "A prior course of cognitive therapy that was well tolerated overall",
+    "A recent change in his employer and in his daily commute routine"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l01.q3",
+   "lessonId": "med-clin-psych.l01",
+   "kind": "mcq",
+   "prompt": "A 62-year-old woman reports two months of fatigue, weight gain, constipation, dry skin and slowed thinking and says she feels hopeless. What is the best next step?",
+   "choices": [
+    "Begin an SSRI immediately because her hopelessness meets major depression criteria",
+    "Order a head CT because new depression always warrants cranial imaging",
+    "Start lithium because mood symptoms with weight gain suggest bipolar II",
+    "Measure thyroid-stimulating hormone before beginning any antidepressant therapy"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l01.q4",
+   "lessonId": "med-clin-psych.l01",
+   "kind": "mcq",
+   "prompt": "A 45-year-old man has depression with fixed false beliefs that he has rotted organs and deserves to die, and he has stopped eating. Which treatment is most appropriate?",
+   "choices": [
+    "A benzodiazepine alone to reduce agitation and to restore his oral intake",
+    "Weekly supportive psychotherapy with reassurance about his physical health",
+    "Electroconvulsive therapy, or an antidepressant combined with an antipsychotic",
+    "An SSRI alone, with reassessment in six to eight weeks as an outpatient"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l01.q5",
+   "lessonId": "med-clin-psych.l01",
+   "kind": "mcq",
+   "prompt": "After an adequate first SSRI trial, a patient has only partial response. According to the lessons of large effectiveness trials, which strategy is reasonable?",
+   "choices": [
+    "Add a long-acting benzodiazepine as the main antidepressant strategy",
+    "Switch to another antidepressant or augment with a second agent or therapy",
+    "Stop all medication and rely solely on lifestyle advice for several months",
+    "Conclude that depression is not the diagnosis and discontinue follow-up visits"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l02.q1",
+   "lessonId": "med-clin-psych.l02",
+   "kind": "mcq",
+   "prompt": "What distinguishes bipolar I disorder from bipolar II disorder?",
+   "choices": [
+    "A required period of psychosis lasting a month in bipolar I",
+    "A requirement of rapid cycling in bipolar I but not in bipolar II",
+    "At least one full manic episode in bipolar I",
+    "The presence of at least one depressive episode in bipolar I"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l02.q2",
+   "lessonId": "med-clin-psych.l02",
+   "kind": "mcq",
+   "prompt": "A woman stable on lithium begins a thiazide diuretic. Which complication should the clinician anticipate?",
+   "choices": [
+    "Reduced lithium levels leading to relapse of her mania",
+    "Acute hypoglycemia caused by synergistic insulin release",
+    "Sudden loss of mood stabilization due to enzyme induction",
+    "Elevated lithium levels with tremor, vomiting and ataxia"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l02.q3",
+   "lessonId": "med-clin-psych.l02",
+   "kind": "mcq",
+   "prompt": "A 28-year-old man has had nine days of elated mood, almost no sleep, pressured speech and reckless spending that emptied his savings, and he lost his job. He is not psychotic and has never been hospitalized, and he has no history of major depressive episodes. Which diagnosis fits?",
+   "choices": [
+    "Bipolar I disorder, current episode manic",
+    "Bipolar II disorder, current episode hypomanic",
+    "Cyclothymic disorder with a brief hypomanic spell",
+    "Major depressive disorder with mixed features"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l02.q4",
+   "lessonId": "med-clin-psych.l02",
+   "kind": "mcq",
+   "prompt": "A woman of childbearing potential with bipolar disorder is being chosen a maintenance agent. Which drug is most concerning because of neural tube defect risk?",
+   "choices": [
+    "Lithium, because of its association with neural tube defects",
+    "Valproate, because of its association with neural tube defects",
+    "Lamotrigine, because of its association with neural tube defects",
+    "Quetiapine, because of its association with neural tube defects"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l02.q5",
+   "lessonId": "med-clin-psych.l02",
+   "kind": "mcq",
+   "prompt": "A patient on a mood stabilizer develops a diffuse rash with mucosal involvement after a rapid dose escalation. Which drug is most likely responsible?",
+   "choices": [
+    "Quetiapine, which causes dermatologic necrosis early in therapy",
+    "Olanzapine, which carries a boxed warning for serious rash",
+    "Lamotrigine, which carries a boxed warning for serious rash",
+    "Lithium, which commonly causes Stevens-Johnson syndrome"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l03.q1",
+   "lessonId": "med-clin-psych.l03",
+   "kind": "mcq",
+   "prompt": "Which feature best defines OCD?",
+   "choices": [
+    "Fixed false beliefs with no recognition that the thoughts are excessive",
+    "Excessive worry about several everyday matters on most days for six months",
+    "Abrupt episodes of intense fear peaking within several minutes without a trigger",
+    "Intrusive distressing thoughts with repetitive acts that reduce the distress"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l03.q2",
+   "lessonId": "med-clin-psych.l03",
+   "kind": "mcq",
+   "prompt": "Which medication is a 5-HT1A partial agonist useful for GAD that does not cause sedation or dependence?",
+   "choices": [
+    "Hydroxyzine",
+    "Propranolol",
+    "Buspirone",
+    "Lorazepam"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l03.q3",
+   "lessonId": "med-clin-psych.l03",
+   "kind": "mcq",
+   "prompt": "A 41-year-old woman has episodes of palpitations, tremor and a sense of dread over three months, with a 5-kg weight loss, heat intolerance and a resting heart rate of 112. What is the most appropriate next step?",
+   "choices": [
+    "Begin cognitive therapy alone since weight loss is common in anxiety disorders",
+    "Check thyroid function tests before attributing symptoms to panic disorder",
+    "Start an SSRI and refer for exposure therapy for panic disorder",
+    "Prescribe a daily benzodiazepine for presumed generalized anxiety disorder"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l03.q4",
+   "lessonId": "med-clin-psych.l03",
+   "kind": "mcq",
+   "prompt": "A 30-year-old man with social anxiety restricted to giving public talks wants help for a single upcoming presentation. Which approach best targets the autonomic symptoms of performance anxiety?",
+   "choices": [
+    "A beta-blocker taken shortly before the event",
+    "A long-acting benzodiazepine taken daily for months",
+    "Clomipramine started well ahead of the talk",
+    "Buspirone started the evening before the talk"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l03.q5",
+   "lessonId": "med-clin-psych.l03",
+   "kind": "mcq",
+   "prompt": "Which treatment has the strongest evidence for compulsions in OCD?",
+   "choices": [
+    "Supportive psychotherapy focused on past childhood conflicts",
+    "Intermittent benzodiazepines to reduce moment-to-moment anxiety",
+    "Reassurance from family that the feared event will not occur",
+    "Exposure and response prevention, with or without an SSRI"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l04.q1",
+   "lessonId": "med-clin-psych.l04",
+   "kind": "mcq",
+   "prompt": "How is acute stress disorder distinguished from PTSD?",
+   "choices": [
+    "Symptom duration of three days to one month after the trauma",
+    "The presence of intrusion symptoms rather than avoidance symptoms",
+    "Exposure to a trauma that is less severe than death or injury",
+    "Symptoms beginning at least six months after the traumatic event"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l04.q2",
+   "lessonId": "med-clin-psych.l04",
+   "kind": "mcq",
+   "prompt": "Which treatment is preferred first-line for PTSD by the 2023 VA/DoD guideline?",
+   "choices": [
+    "Antipsychotic monotherapy aimed at intrusion symptoms and flashbacks",
+    "A trauma-focused psychotherapy such as prolonged exposure or cognitive processing therapy",
+    "A long-term benzodiazepine to control hyperarousal and improve sleep",
+    "Immediate psychological debriefing for all survivors in the first day"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l04.q3",
+   "lessonId": "med-clin-psych.l04",
+   "kind": "mcq",
+   "prompt": "A 41-year-old man develops low mood, tearfulness and trouble concentrating six weeks after being laid off. He enjoys time with his children, sleeps adequately, and has no suicidal thoughts. He does not meet criteria for major depression. What is the most likely diagnosis?",
+   "choices": [
+    "Persistent depressive disorder with early onset",
+    "Acute stress disorder after a non-life-threatening event",
+    "Adjustment disorder with depressed mood",
+    "Major depressive disorder, single episode, moderate"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l04.q4",
+   "lessonId": "med-clin-psych.l04",
+   "kind": "mcq",
+   "prompt": "A 29-year-old woman was sexually assaulted eight months ago. She has nightmares, avoids the neighborhood, startles easily and feels detached. Which regimen is most appropriate to offer?",
+   "choices": [
+    "Alprazolam on a scheduled basis, with psychotherapy deferred for a year",
+    "Haloperidol, since nightmares and avoidance suggest underlying psychosis",
+    "Lithium, because the hyperarousal indicates an underlying bipolar disorder",
+    "Cognitive processing therapy, with an SSRI as a reasonable alternative or add-on"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l04.q5",
+   "lessonId": "med-clin-psych.l04",
+   "kind": "mcq",
+   "prompt": "Which drug is often used for trauma-related nightmares, though guideline support varies?",
+   "choices": [
+    "Prazosin",
+    "Clonazepam",
+    "Bupropion",
+    "Methylphenidate"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l05.q1",
+   "lessonId": "med-clin-psych.l05",
+   "kind": "mcq",
+   "prompt": "Which Cluster B personality disorder is characterized by instability of relationships, self-image and affect with recurrent self-harm?",
+   "choices": [
+    "Antisocial personality disorder",
+    "Borderline personality disorder",
+    "Narcissistic personality disorder",
+    "Histrionic personality disorder"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l05.q2",
+   "lessonId": "med-clin-psych.l05",
+   "kind": "mcq",
+   "prompt": "A man avoids parties because he fears criticism but wants close friends. Which disorder best fits, as opposed to schizoid personality disorder?",
+   "choices": [
+    "Avoidant personality disorder",
+    "Dependent personality disorder",
+    "Paranoid personality disorder",
+    "Schizotypal personality disorder"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l05.q3",
+   "lessonId": "med-clin-psych.l05",
+   "kind": "mcq",
+   "prompt": "A 30-year-old woman alternately describes one clinician as perfect and then as incompetent and cruel after a missed appointment. Which defense mechanism is most evident?",
+   "choices": [
+    "Sublimation",
+    "Reaction formation",
+    "Rationalization",
+    "Splitting"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l05.q4",
+   "lessonId": "med-clin-psych.l05",
+   "kind": "mcq",
+   "prompt": "A 24-year-old woman has chronic emptiness, unstable relationships, impulsive spending and repeated superficial self-cutting after interpersonal stress. Which intervention has the strongest evidence?",
+   "choices": [
+    "Lithium monotherapy to stabilize the mood fluctuations",
+    "Brief supportive counseling focusing on reassurance only",
+    "Dialectical behavior therapy with skills training",
+    "Long-term benzodiazepine therapy for emotional dysregulation"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l05.q5",
+   "lessonId": "med-clin-psych.l05",
+   "kind": "mcq",
+   "prompt": "A 40-year-old accountant is preoccupied with rules and lists, insists others do tasks his way, and views his behavior as simply correct. He has no intrusive thoughts or rituals. What is the diagnosis?",
+   "choices": [
+    "Narcissistic personality disorder",
+    "Obsessive-compulsive personality disorder",
+    "Obsessive-compulsive disorder",
+    "Generalized anxiety disorder"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l06.q1",
+   "lessonId": "med-clin-psych.l06",
+   "kind": "mcq",
+   "prompt": "Which laboratory pattern is classic for repeated self-induced vomiting?",
+   "choices": [
+    "Hyponatremic respiratory alkalosis with high bicarbonate",
+    "Hypercalcemic non-gap acidosis with low chloride",
+    "Hypokalemic, hypochloremic metabolic alkalosis",
+    "Hyperkalemic metabolic acidosis with a raised anion gap"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l06.q2",
+   "lessonId": "med-clin-psych.l06",
+   "kind": "mcq",
+   "prompt": "Which medication is FDA approved for bulimia nervosa and is paired with cognitive behavioral therapy?",
+   "choices": [
+    "Bupropion",
+    "Olanzapine",
+    "Lorazepam",
+    "Fluoxetine"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l06.q3",
+   "lessonId": "med-clin-psych.l06",
+   "kind": "mcq",
+   "prompt": "A severely underweight 17-year-old with anorexia nervosa begins aggressive nutritional rehabilitation as an inpatient. On day four she has weakness, edema and dysrhythmia. Which abnormality is most likely?",
+   "choices": [
+    "Hypophosphatemia from refeeding with intracellular shift of phosphate",
+    "Hypernatremia from reduced renal concentrating ability after starvation",
+    "Hypercalcemia from rapid bone resorption during weight restoration",
+    "Hyperkalemia from release of potassium after rapid muscle repair"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l06.q4",
+   "lessonId": "med-clin-psych.l06",
+   "kind": "mcq",
+   "prompt": "A 15-year-old with anorexia nervosa is medically stable and lives with supportive parents. Which treatment has the best evidence for her?",
+   "choices": [
+    "Bupropion to increase appetite and reduce depressive symptoms",
+    "Family-based treatment in which parents take charge of refeeding",
+    "Individual psychodynamic therapy delivered without parental involvement",
+    "Fluoxetine as primary therapy to restore weight over several months"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l06.q5",
+   "lessonId": "med-clin-psych.l06",
+   "kind": "mcq",
+   "prompt": "A woman of normal weight reports weekly episodes of eating a large amount with loss of control, followed by self-induced vomiting, and says her self-worth depends on her shape. What is the diagnosis?",
+   "choices": [
+    "Binge-eating disorder",
+    "Avoidant/restrictive food intake disorder",
+    "Bulimia nervosa",
+    "Anorexia nervosa, binge-eating or purging type"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l07.q1",
+   "lessonId": "med-clin-psych.l07",
+   "kind": "mcq",
+   "prompt": "What is the minimum total duration of illness signs for a diagnosis of schizophrenia?",
+   "choices": [
+    "One month, including at least one week of active symptoms",
+    "Three months, including at least two weeks of active symptoms",
+    "Twelve months, including at least three months of active symptoms",
+    "Six months, including at least one month of active symptoms"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l07.q2",
+   "lessonId": "med-clin-psych.l07",
+   "kind": "mcq",
+   "prompt": "A man has hallucinations and delusions for three months with no mood episodes and a clear decline in functioning. What is the diagnosis?",
+   "choices": [
+    "Schizoaffective disorder",
+    "Delusional disorder",
+    "Schizophreniform disorder",
+    "Brief psychotic disorder"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l07.q3",
+   "lessonId": "med-clin-psych.l07",
+   "kind": "mcq",
+   "prompt": "A 27-year-old woman with schizophrenia has had inadequate responses to trials of two different antipsychotics at adequate doses and durations. Which agent is most appropriate next, and what monitoring is essential?",
+   "choices": [
+    "Valproate, with hepatic enzyme monitoring each week",
+    "Clozapine, with absolute neutrophil count monitoring",
+    "Haloperidol, with serum prolactin monitoring at each visit",
+    "Lithium, with serum creatinine monitoring each month"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l07.q4",
+   "lessonId": "med-clin-psych.l07",
+   "kind": "mcq",
+   "prompt": "A 19-year-old man has had six weeks of auditory hallucinations and paranoia after beginning heavy daily cannabis use, with no similar illness before. Which step best improves diagnostic accuracy?",
+   "choices": [
+    "Urine toxicology and a medical workup before diagnosing a primary psychosis",
+    "Immediate diagnosis of schizophrenia and indefinite antipsychotic treatment",
+    "Starting lithium for presumed bipolar disorder with psychotic features",
+    "Deferring evaluation until symptoms persist for a full year"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l07.q5",
+   "lessonId": "med-clin-psych.l07",
+   "kind": "mcq",
+   "prompt": "Which dopamine pathway abnormality is linked to positive symptoms of schizophrenia?",
+   "choices": [
+    "Reduced dopamine activity in the tuberoinfundibular pathway",
+    "Excess dopamine activity in the nigrostriatal pathway",
+    "Reduced dopamine activity in the mesolimbic pathway",
+    "Excess dopamine activity in the mesolimbic pathway"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l08.q1",
+   "lessonId": "med-clin-psych.l08",
+   "kind": "mcq",
+   "prompt": "Which feature most strongly suggests delirium rather than primary psychosis?",
+   "choices": [
+    "Fluctuating attention and disorientation of acute onset",
+    "Auditory hallucinations commenting on the patient's behavior",
+    "Long-standing social withdrawal and flat affect over years",
+    "Fixed non-bizarre delusions with intact orientation and attention"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l08.q2",
+   "lessonId": "med-clin-psych.l08",
+   "kind": "mcq",
+   "prompt": "Which first-line test response is characteristic and therapeutic in catatonia?",
+   "choices": [
+    "Resolution after intravenous fluids alone",
+    "Improvement after a benzodiazepine such as lorazepam",
+    "Worsening immediately after a dose of haloperidol",
+    "Improvement after a high dose of an SSRI"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l08.q3",
+   "lessonId": "med-clin-psych.l08",
+   "kind": "mcq",
+   "prompt": "A 22-year-old woman has two weeks of paranoia and insomnia and then a generalized seizure, orofacial dyskinesias and fluctuating blood pressure. Which workup is most appropriate?",
+   "choices": [
+    "Psychological testing with outpatient follow-up to confirm schizophrenia",
+    "Repeated urine toxicology screens until the psychosis fully resolves",
+    "Lumbar puncture with antibody testing and a search for ovarian teratoma",
+    "Serum lithium level and thyroid ultrasound without further neurologic testing"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l08.q4",
+   "lessonId": "med-clin-psych.l08",
+   "kind": "mcq",
+   "prompt": "A 70-year-old man with recent hospitalization is agitated, sees insects on the walls, and is disoriented, with symptoms worse at night. What is the most likely diagnosis?",
+   "choices": [
+    "Late-onset schizophrenia",
+    "Bipolar I disorder, manic episode",
+    "Brief psychotic disorder",
+    "Delirium"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l08.q5",
+   "lessonId": "med-clin-psych.l08",
+   "kind": "mcq",
+   "prompt": "A 28-year-old woman 10 days after delivery is confused, paranoid and talks of the baby being a threat. Which action is appropriate?",
+   "choices": [
+    "Emergency psychiatric evaluation, likely admission, with infant safety considered",
+    "Reassurance that postpartum blues commonly produce these symptoms",
+    "Outpatient counseling visit in three weeks after the baby sleeps better",
+    "Starting sertraline alone and leaving the infant in her sole care"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l09.q1",
+   "lessonId": "med-clin-psych.l09",
+   "kind": "mcq",
+   "prompt": "What motivates a person with malingering?",
+   "choices": [
+    "A subconscious conflict converted into motor symptoms",
+    "An external incentive such as money or avoiding work",
+    "An unconscious wish to assume the sick role",
+    "A desire to receive attention from a clinician"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l09.q2",
+   "lessonId": "med-clin-psych.l09",
+   "kind": "mcq",
+   "prompt": "A man reports sudden blindness after a bitter argument, yet his pupils react normally and he avoids obstacles. He is distressed, has no pending lawsuit or disability claim, and no organic cause is found. Which diagnosis fits?",
+   "choices": [
+    "Conversion disorder (functional neurological symptom disorder)",
+    "Malingering of vision loss",
+    "Factitious disorder imposed on self",
+    "Illness anxiety disorder"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l09.q3",
+   "lessonId": "med-clin-psych.l09",
+   "kind": "mcq",
+   "prompt": "A 34-year-old woman has had six months of fatigue, abdominal pain and headaches with repeated normal workups. She spends hours daily worrying about the symptoms and sees many clinicians. What is the best management approach?",
+   "choices": [
+    "Frequent as-needed testing each time symptoms change to reassure her",
+    "Referral for a series of specialist consultations until a cause is identified",
+    "Confrontation that the symptoms are fabricated, with discharge from care",
+    "Regularly scheduled visits with one primary clinician and avoidance of unnecessary testing"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l09.q4",
+   "lessonId": "med-clin-psych.l09",
+   "kind": "mcq",
+   "prompt": "A mother repeatedly brings her toddler for unexplained vomiting, which resolves when the child is hospitalized away from her. Which action takes priority?",
+   "choices": [
+    "Reassure the mother that the child has a benign functional illness",
+    "Order an extensive gastrointestinal workup before any other action",
+    "Ensure the child's safety and file a protective services report",
+    "Prescribe antiemetics and arrange outpatient follow-up with the mother"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l09.q5",
+   "lessonId": "med-clin-psych.l09",
+   "kind": "mcq",
+   "prompt": "Which symptom is characteristic of depersonalization/derealization disorder?",
+   "choices": [
+    "A fixed belief that the surroundings are not real and are controlled by others",
+    "Feeling detached from oneself or the surroundings with intact reality testing",
+    "Inability to recall important personal information after a traumatic event",
+    "Two distinct identities that alternately control behavior"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l10.q1",
+   "lessonId": "med-clin-psych.l10",
+   "kind": "mcq",
+   "prompt": "Which finding is required for an ADHD diagnosis in a school-aged child?",
+   "choices": [
+    "Symptoms observed only in the classroom by the child's teachers",
+    "An intelligence quotient below the average range on testing",
+    "Hyperactivity as the dominant feature rather than inattention",
+    "Symptoms in at least two settings with clear functional interference"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l10.q2",
+   "lessonId": "med-clin-psych.l10",
+   "kind": "mcq",
+   "prompt": "Which medication for ADHD is a non-stimulant norepinephrine reuptake inhibitor with a boxed warning for suicidal ideation?",
+   "choices": [
+    "Guanfacine",
+    "Lisdexamfetamine",
+    "Atomoxetine",
+    "Methylphenidate"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l10.q3",
+   "lessonId": "med-clin-psych.l10",
+   "kind": "mcq",
+   "prompt": "A 2-year-old has no pointing or joint attention, few words, and repetitively lines up toys, with distress at changes in routine. Hearing is normal. What is the best next step?",
+   "choices": [
+    "Delaying vaccinations until the diagnosis can be reviewed further",
+    "Early intensive developmental and behavioral intervention with speech therapy",
+    "Reassurance and rescreening at school entry at five years of age",
+    "Starting risperidone to treat the core social communication deficits"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l10.q4",
+   "lessonId": "med-clin-psych.l10",
+   "kind": "mcq",
+   "prompt": "A 7-year-old has multiple motor tics and a vocal tic for 14 months, which impair him socially. Which is the best first-line approach?",
+   "choices": [
+    "Comprehensive behavioral intervention for tics",
+    "Daily methylphenidate to reduce tic frequency",
+    "Intravenous immunoglobulin for presumed PANDAS",
+    "Lithium to stabilize the neurologic firing pattern"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l10.q5",
+   "lessonId": "med-clin-psych.l10",
+   "kind": "mcq",
+   "prompt": "What is the best-supported initial treatment for a preschooler aged four with ADHD, per the 2019 AAP guideline?",
+   "choices": [
+    "Methylphenidate as the first and only treatment",
+    "Atomoxetine started with no behavioral component",
+    "Antipsychotic therapy for impulsivity and aggression",
+    "Parent training in behavior management"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l11.q1",
+   "lessonId": "med-clin-psych.l11",
+   "kind": "mcq",
+   "prompt": "Which feature distinguishes delirium from dementia?",
+   "choices": [
+    "Preserved attention with impaired short-term memory only",
+    "Normal alertness and orientation throughout the day",
+    "Acute onset with fluctuating attention and awareness",
+    "Slowly progressive decline over several years of life"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l11.q2",
+   "lessonId": "med-clin-psych.l11",
+   "kind": "mcq",
+   "prompt": "Which pathologic finding is characteristic of Alzheimer disease?",
+   "choices": [
+    "Intracellular alpha-synuclein inclusions within cortical neurons",
+    "Spongiform change with abnormal prion protein accumulation",
+    "Frontal and temporal atrophy with intraneuronal Pick bodies",
+    "Extracellular beta-amyloid plaques and intracellular tau tangles"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l11.q3",
+   "lessonId": "med-clin-psych.l11",
+   "kind": "mcq",
+   "prompt": "A 74-year-old man has fluctuating confusion, well-formed visual hallucinations of children, mild parkinsonism, and acts out dreams. Given a haloperidol dose for agitation, he becomes rigid and unresponsive. What is the diagnosis and the concern?",
+   "choices": [
+    "Lewy body dementia, with severe sensitivity to antipsychotic drugs",
+    "Vascular dementia, with risk of recurrent strokes from antipsychotics",
+    "Frontotemporal dementia, with lowered seizure threshold from antipsychotics",
+    "Alzheimer disease, with hepatic injury from antipsychotics at low doses"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l11.q4",
+   "lessonId": "med-clin-psych.l11",
+   "kind": "mcq",
+   "prompt": "A 78-year-old woman has gait disturbance with a magnetic quality, urinary urgency and incontinence, and progressive forgetfulness. CT shows ventriculomegaly out of proportion to atrophy. What is the most appropriate intervention?",
+   "choices": [
+    "Anticholinergic therapy for the urinary incontinence",
+    "Large-volume lumbar puncture or ventriculoperitoneal shunting",
+    "Cholinesterase inhibitor with outpatient follow-up in a year",
+    "Immediate initiation of levodopa for presumed Parkinson disease"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l11.q5",
+   "lessonId": "med-clin-psych.l11",
+   "kind": "mcq",
+   "prompt": "A 69-year-old man hospitalized with pneumonia is disoriented, inattentive and pulling at his IV, with symptoms that wax and wane. Which is the best initial management?",
+   "choices": [
+    "Start donepezil to reverse cognitive decline at the bedside",
+    "Order a head MRI and psychiatric transfer before treating the infection",
+    "Treat the infection, review medications and apply non-drug orientation measures",
+    "Physical restraints and scheduled benzodiazepines to prevent falls"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l12.q1",
+   "lessonId": "med-clin-psych.l12",
+   "kind": "mcq",
+   "prompt": "Which drug is given first to a malnourished patient with alcohol use disorder who is about to receive glucose?",
+   "choices": [
+    "Disulfiram",
+    "Thiamine",
+    "Naltrexone",
+    "Lorazepam"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l12.q2",
+   "lessonId": "med-clin-psych.l12",
+   "kind": "mcq",
+   "prompt": "Which medication for opioid use disorder is a partial mu agonist with a ceiling effect on respiratory depression?",
+   "choices": [
+    "Buprenorphine",
+    "Methadone",
+    "Naloxone",
+    "Naltrexone"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l12.q3",
+   "lessonId": "med-clin-psych.l12",
+   "kind": "mcq",
+   "prompt": "A man arrives 60 hours after his last drink with confusion, visual hallucinations, fever of 38.8 C, heart rate 128 and diaphoresis. What is the most appropriate treatment?",
+   "choices": [
+    "Haloperidol alone for agitation and hallucinations",
+    "Naltrexone to reduce cravings and withdrawal severity",
+    "Disulfiram to deter further alcohol use during recovery",
+    "Benzodiazepines with thiamine and supportive monitoring"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l12.q4",
+   "lessonId": "med-clin-psych.l12",
+   "kind": "mcq",
+   "prompt": "A 32-year-old with opioid use disorder asks to start buprenorphine. He last used heroin four hours ago and shows no withdrawal signs. What is the main risk of starting now?",
+   "choices": [
+    "Hepatotoxicity from the first dose in an opioid-tolerant patient",
+    "Prolonged QT interval requiring cardiac monitoring in all patients",
+    "Precipitated withdrawal from displacement of the full agonist",
+    "Fatal respiratory depression due to the partial agonist effect"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l12.q5",
+   "lessonId": "med-clin-psych.l12",
+   "kind": "mcq",
+   "prompt": "A 27-year-old is brought in agitated and paranoid, with dilated pupils, heart rate 130, temperature 38.5 C and diaphoresis. His friends say he used a stimulant. What is the best initial pharmacologic treatment of agitation?",
+   "choices": [
+    "Flumazenil",
+    "A benzodiazepine",
+    "A beta-blocker",
+    "Naloxone"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l13.q1",
+   "lessonId": "med-clin-psych.l13",
+   "kind": "mcq",
+   "prompt": "Which antidepressant lowers the seizure threshold and is contraindicated in bulimia nervosa?",
+   "choices": [
+    "Bupropion",
+    "Sertraline",
+    "Mirtazapine",
+    "Venlafaxine"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l13.q2",
+   "lessonId": "med-clin-psych.l13",
+   "kind": "mcq",
+   "prompt": "Which dietary restriction is essential for a patient who takes phenelzine?",
+   "choices": [
+    "Avoiding calcium-rich dairy products because of chelation",
+    "Avoiding tyramine-rich foods such as aged cheese and cured meats",
+    "Avoiding vitamin K-containing leafy vegetables in all meals",
+    "Avoiding grapefruit juice because of CYP3A4 inhibition"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l13.q3",
+   "lessonId": "med-clin-psych.l13",
+   "kind": "mcq",
+   "prompt": "A patient taking sertraline is given tramadol for postoperative pain. Hours later she has agitation, diarrhea, temperature 39.2 C, tremor, hyperreflexia and inducible clonus. Which is the best management?",
+   "choices": [
+    "Give haloperidol for agitation and continue both medications at lower doses",
+    "Give physostigmine for anticholinergic toxicity and continue both medications",
+    "Stop serotonergic drugs and give supportive care, benzodiazepines and cyproheptadine if needed",
+    "Give dantrolene and a dopamine agonist for presumed neuroleptic malignant syndrome"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l13.q4",
+   "lessonId": "med-clin-psych.l13",
+   "kind": "mcq",
+   "prompt": "A 68-year-old woman begins an SSRI and two weeks later has lethargy, confusion and a seizure, with serum sodium of 120 mEq/L and low serum osmolality. Which mechanism is most likely?",
+   "choices": [
+    "Central diabetes insipidus from the SSRI with water loss",
+    "Hypercalcemia from the SSRI with polyuria and dehydration",
+    "Primary adrenal insufficiency from the SSRI with salt wasting",
+    "Syndrome of inappropriate antidiuretic hormone secretion from the SSRI"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l13.q5",
+   "lessonId": "med-clin-psych.l13",
+   "kind": "mcq",
+   "prompt": "A teenager overdoses on amitriptyline and has a wide QRS complex and hypotension. Which treatment is most appropriate?",
+   "choices": [
+    "Intravenous sodium bicarbonate",
+    "Intravenous physostigmine",
+    "Intravenous flumazenil",
+    "Intravenous phenytoin"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l14.q1",
+   "lessonId": "med-clin-psych.l14",
+   "kind": "mcq",
+   "prompt": "Which adverse effect of D2-blocking antipsychotics appears within hours to days and is treated with benztropine?",
+   "choices": [
+    "Tardive dyskinesia",
+    "Akathisia",
+    "Parkinsonism",
+    "Acute dystonia"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l14.q2",
+   "lessonId": "med-clin-psych.l14",
+   "kind": "mcq",
+   "prompt": "Which of these antipsychotics carries the highest risk of metabolic syndrome?",
+   "choices": [
+    "Ziprasidone",
+    "Haloperidol",
+    "Olanzapine",
+    "Aripiprazole"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l14.q3",
+   "lessonId": "med-clin-psych.l14",
+   "kind": "mcq",
+   "prompt": "A man started on haloperidol one week ago has fever of 40 C, lead-pipe rigidity, confusion, labile blood pressure and creatine kinase markedly elevated. What is the best next step?",
+   "choices": [
+    "Give anticholinergic therapy alone and observe for improvement over days",
+    "Stop the antipsychotic and give cooling, fluids and a benzodiazepine, with dantrolene or bromocriptine if severe",
+    "Increase the haloperidol dose to treat the agitation and confusion",
+    "Give cyproheptadine for presumed serotonin syndrome and continue haloperidol"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l14.q4",
+   "lessonId": "med-clin-psych.l14",
+   "kind": "mcq",
+   "prompt": "A 35-year-old woman on risperidone has amenorrhea and galactorrhea. Which mechanism explains this?",
+   "choices": [
+    "Blockade of tuberoinfundibular dopamine, which removes inhibition of prolactin",
+    "Blockade of mesolimbic serotonin, which increases estrogen secretion",
+    "Blockade of nigrostriatal dopamine, which increases growth hormone",
+    "Stimulation of histamine receptors, which raises gonadotropin release"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l14.q5",
+   "lessonId": "med-clin-psych.l14",
+   "kind": "mcq",
+   "prompt": "A frail 82-year-old with cirrhosis needs short-term treatment for severe anxiety. Which benzodiazepine is most appropriate because it avoids hepatic oxidation and active metabolites?",
+   "choices": [
+    "Diazepam",
+    "Chlordiazepoxide",
+    "Flurazepam",
+    "Lorazepam"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l15.q1",
+   "lessonId": "med-clin-psych.l15",
+   "kind": "mcq",
+   "prompt": "Which therapy is the first-line treatment for chronic insomnia?",
+   "choices": [
+    "Scheduled alprazolam at bedtime",
+    "Diphenhydramine used nightly",
+    "Cognitive behavioral therapy for insomnia",
+    "Long-term zolpidem each night"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l15.q2",
+   "lessonId": "med-clin-psych.l15",
+   "kind": "mcq",
+   "prompt": "A patient says, \"I know smoking harms my health and I keep going back and forth about whether to quit, but I have no plan yet.\" Which stage of change is this?",
+   "choices": [
+    "Preparation",
+    "Action",
+    "Maintenance",
+    "Contemplation"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l15.q3",
+   "lessonId": "med-clin-psych.l15",
+   "kind": "mcq",
+   "prompt": "A patient with severe depression, refusal of food and active suicidal intent has not responded to several antidepressants. Which treatment offers the most rapid and robust response?",
+   "choices": [
+    "Electroconvulsive therapy",
+    "Transcranial magnetic stimulation",
+    "Weekly interpersonal therapy",
+    "Switching to a second SSRI"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l15.q4",
+   "lessonId": "med-clin-psych.l15",
+   "kind": "mcq",
+   "prompt": "A therapist feels intense irritation toward a patient who reminds her of a critical parent. Which concept describes this?",
+   "choices": [
+    "Reaction formation",
+    "Countertransference",
+    "Transference",
+    "Projection by the patient"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l15.q5",
+   "lessonId": "med-clin-psych.l15",
+   "kind": "mcq",
+   "prompt": "A woman with depression recounts that every setback proves that she is worthless and has stopped seeing friends. Which approach most directly targets this pattern?",
+   "choices": [
+    "Aversion therapy to link isolation to a negative stimulus",
+    "Systematic desensitization with graded exposure to friends",
+    "CBT with cognitive restructuring and behavioral activation",
+    "Psychoanalysis with four sessions weekly for years"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l16.q1",
+   "lessonId": "med-clin-psych.l16",
+   "kind": "mcq",
+   "prompt": "Which single factor is the strongest predictor of eventual suicide?",
+   "choices": [
+    "A family history of anxiety",
+    "A prior suicide attempt",
+    "Female sex",
+    "Being married"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l16.q2",
+   "lessonId": "med-clin-psych.l16",
+   "kind": "mcq",
+   "prompt": "Which evidence-based tool is a written collaborative list of warning signs, coping steps, contacts and means safety?",
+   "choices": [
+    "A Stanley-Brown safety plan",
+    "A no-suicide contract signed by the patient",
+    "A Mini-Mental State Examination",
+    "A CIWA-Ar protocol"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l16.q3",
+   "lessonId": "med-clin-psych.l16",
+   "kind": "mcq",
+   "prompt": "A 60-year-old man recently discharged from a psychiatric unit is intoxicated and says he intends to use the handgun he keeps at home tonight. Which action is most appropriate?",
+   "choices": [
+    "A signed no-harm contract and outpatient follow-up next week",
+    "Reassurance and discharge to a friend with no further assessment",
+    "Prescribing a one-month antidepressant supply and discharge home",
+    "Emergency evaluation with hospitalization and removal of firearm access"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l16.q4",
+   "lessonId": "med-clin-psych.l16",
+   "kind": "mcq",
+   "prompt": "Which lethal-means strategy has the best evidence for reducing suicides?",
+   "choices": [
+    "Avoiding direct questions about methods to prevent suggestion",
+    "Having the patient promise to dispose of their own weapons",
+    "Limiting access to firearms and stockpiled medications",
+    "Prescribing large supplies of antidepressants to ensure adherence"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l16.q5",
+   "lessonId": "med-clin-psych.l16",
+   "kind": "mcq",
+   "prompt": "A clinician asks directly about suicidal thoughts in a depressed patient. What is the effect of this inquiry?",
+   "choices": [
+    "It has no relationship to detection and is of uncertain value",
+    "It does not increase risk and improves detection and rapport",
+    "It increases the risk of attempt by suggesting the idea",
+    "It reduces risk only when asked by a mental health specialist"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l17.q1",
+   "lessonId": "med-clin-psych.l17",
+   "kind": "mcq",
+   "prompt": "Which is not one of the four abilities tested in a standard capacity assessment?",
+   "choices": [
+    "Agreeing with the physician's recommendation",
+    "Understanding relevant information",
+    "Appreciating the situation as it applies to oneself",
+    "Expressing a stable choice"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l17.q2",
+   "lessonId": "med-clin-psych.l17",
+   "kind": "mcq",
+   "prompt": "Who determines legal competence?",
+   "choices": [
+    "The patient's closest relative",
+    "A court",
+    "The attending physician",
+    "A hospital ethics committee"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l17.q3",
+   "lessonId": "med-clin-psych.l17",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman with schizophrenia declines a recommended appendectomy. She explains that she understands the risks of rupture, believes she could die, and would prefer not to have surgery because of fear of anesthesia. Her thinking is organized. What is the most appropriate response?",
+   "choices": [
+    "Proceed with surgery under implied consent as an emergency",
+    "Seek a court order for guardianship before any further discussion",
+    "Respect her refusal, as she has capacity for this decision",
+    "Declare her incapacitated because of her schizophrenia diagnosis"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l17.q4",
+   "lessonId": "med-clin-psych.l17",
+   "kind": "mcq",
+   "prompt": "A patient with severe delirium needs urgent surgery, has no advance directive, and no relatives can be reached. Delay would risk permanent harm. Which is the best approach?",
+   "choices": [
+    "Wait for the patient to regain capacity regardless of the delay",
+    "Obtain consent from the treating surgeon in the patient's place",
+    "Cancel surgery until a guardian is appointed by a court",
+    "Proceed under the emergency exception of implied consent"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l17.q5",
+   "lessonId": "med-clin-psych.l17",
+   "kind": "mcq",
+   "prompt": "A patient lacking capacity once told friends she would never want prolonged ventilation. Her husband is the surrogate. Which standard should he apply?",
+   "choices": [
+    "Substituted judgment based on what she would have chosen",
+    "His own personal preferences about prolonged ventilation",
+    "The best interest standard regardless of her known wishes",
+    "The hospital's policy regardless of her known wishes"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l18.q1",
+   "lessonId": "med-clin-psych.l18",
+   "kind": "mcq",
+   "prompt": "Which are the common requirements for civil commitment?",
+   "choices": [
+    "A diagnosis of psychosis with refusal of any treatment recommended",
+    "A prior criminal conviction combined with a substance use disorder",
+    "Diagnosis of a personality disorder with repeated emergency visits",
+    "A mental illness with danger to self or others or grave disability"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l18.q2",
+   "lessonId": "med-clin-psych.l18",
+   "kind": "mcq",
+   "prompt": "What did Tarasoff v. Regents of the University of California (1976) hold?",
+   "choices": [
+    "A therapist may never break confidentiality under any circumstances",
+    "A therapist has a duty to report all past crimes disclosed by any patient",
+    "A therapist has a duty to take reasonable steps to protect an identifiable victim of a patient's serious violent threat",
+    "A therapist must hospitalize every patient who has expressed anger at another person"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l18.q3",
+   "lessonId": "med-clin-psych.l18",
+   "kind": "mcq",
+   "prompt": "A patient on an involuntary hold refuses antipsychotic medication and is calm and not dangerous. What is typically required to medicate him over objection outside an emergency?",
+   "choices": [
+    "A signed statement by the nurse that medication is needed",
+    "A finding of incapacity or a court or administrative hearing",
+    "Nothing further, since the hold authorizes all treatment",
+    "The consent of his employer or the nearest acquaintance"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l18.q4",
+   "lessonId": "med-clin-psych.l18",
+   "kind": "mcq",
+   "prompt": "A man tells his psychiatrist he will shoot his coworker tomorrow and has bought a gun. Which action best fits the duty to protect?",
+   "choices": [
+    "Take reasonable protective steps such as notifying the person and police and arranging evaluation",
+    "Document the statement and take no action since confidentiality applies",
+    "Wait for another session to see whether the statement is repeated",
+    "Tell the patient's employer only, without involving the coworker"
+   ]
+  },
+  {
+   "id": "med-clin-psych.l18.q5",
+   "lessonId": "med-clin-psych.l18",
+   "kind": "mcq",
+   "prompt": "Which standard of proof did the Supreme Court require for civil commitment in Addington v. Texas (1979)?",
+   "choices": [
+    "Preponderance of the evidence",
+    "Proof beyond a reasonable doubt",
+    "Probable cause of dangerousness only",
+    "Clear and convincing evidence"
+   ]
+  }
+ ]
+}

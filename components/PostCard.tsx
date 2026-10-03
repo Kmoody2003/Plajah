@@ -923,9 +923,16 @@ const PostCard: React.FC<PostCardProps> = ({ post, onVisitUser, presentation = '
             {/* Share */}
             <div className="ml-auto">
               <ShareButton
-                title={`Post by ${post.authorName}`}
-                text={post.text || 'Check out this post on Plajah'}
-                url={`${window.location.origin}/post/${post.id}`}
+                title={(post as any).poll?.question ? `Poll: ${(post as any).poll.question}` : `Post by ${post.authorName}`}
+                text={(post as any).poll?.question || post.text || 'Check out this on Plajah'}
+                url={typeof window !== 'undefined' ? `${window.location.origin}/share?type=feed&id=${post.id}` : ''}
+                contentType={(post as any).poll?.question ? 'poll' : 'post'}
+                pollData={(post as any).poll}
+                postText={post.text}
+                authorName={post.authorName}
+                authorPhoto={post.authorPhoto}
+                imageUrl={post.media?.find(m => m.url)?.url}
+                ctaText={(post as any).poll?.question ? '⚡ CAST YOUR VOTE ON PLAJAH' : '💬 JOIN THE CONVERSATION ON PLAJAH'}
               />
             </div>
           </div>

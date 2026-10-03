@@ -1,0 +1,1441 @@
+{
+ "courseId": "law-business-orgs",
+ "label": "Business Organizations and Corporate Law",
+ "lessons": [
+  {
+   "id": "law-business-orgs.l01",
+   "title": "Agency: Creation, Authority and Duties",
+   "body": [
+    "Agency is the foundation of nearly all business law, because every entity other than a sole proprietor can act only through people. Under the Restatement (Third) of Agency, an agency relationship arises when a principal manifests assent that an agent will act on the principal's behalf and subject to the principal's control, and the agent manifests assent or otherwise consents. No contract and no consideration is required, and the parties' own label does not control. Courts look at substance, and the key marker is the principal's right to control the agent's conduct in the matter. An unpaid friend who agrees to sell your car on your instructions can be an agent.",
+    "The central question is usually authority, meaning the agent's power to change the principal's legal relations with third parties. Actual authority exists when the agent reasonably believes, based on the principal's manifestations to the agent, that the principal wants the act done. It can be express (the agent was told to buy supplies) or implied (the act is reasonably necessary to carry out what was expressly authorised, or is customary in the business). Apparent authority is different: it rests on the principal's manifestations to the third party, which lead the third party reasonably to believe the agent is authorised. A principal who puts an employee in a position that customarily carries authority, such as a title of purchasing manager, may be bound even if the employee was secretly told not to sign contracts above a limit. Apparent authority can exist without actual authority, and the third party's reasonable belief must trace to something the principal did, not just to the agent's own say-so. It can linger after termination if the principal has not told those who dealt with the agent. The older Restatement (Second) also recognised inherent agency power for cases where neither actual nor apparent authority fits; the Third Restatement dropped that label, and courts differ on its use.",
+    "A principal can also be bound through ratification: affirming a prior act that was done, or purported to be done, on the principal's behalf. Ratification relates back to the time of the act, must cover the whole transaction (the principal cannot keep the benefits and reject the burdens), and requires knowledge of the material facts. Silence after learning of the act can amount to ratification if the circumstances suggest assent.",
+    "An agent owes the principal fiduciary duties. The core duties are loyalty (no self-dealing, no secret profits, no competing, no use of confidential information for personal ends), obedience to lawful instructions, care and competence, and a duty to disclose material information. An agent who secretly takes a commission from the seller on a purchase made for the principal must give up the commission to the principal, and may forfeit compensation, even if the principal suffered no loss.",
+    "Worked example. Dana, a regional manager for Harbor Foods, is told never to commit the company to contracts over $5,000. A supplier has dealt with Dana for years, and Harbor Foods has always paid her invoices and listed her as the supplier contact. Dana signs a $40,000 order. Dana lacked actual authority, but the supplier can argue apparent authority from Harbor Foods's pattern of conduct and the title it gave her. If the supplier did not know of the limit, Harbor Foods will likely be bound."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l02",
+   "title": "Agency: Liability to Third Parties",
+   "body": [
+    "Agency liability has two branches, contract and tort, and exam questions often turn on keeping them separate.",
+    "In contract, liability depends on how much the third party knew. When the principal is disclosed (the third party knows an agent is acting and who the principal is), the principal is bound if the agent acted with actual or apparent authority, and the agent is not a party to the contract unless the agent agreed to be. When the principal is partially disclosed (the third party knows there is a principal but not who), the principal is bound, and the agent is also a party, because the third party could not look to an unknown principal alone. When the principal is undisclosed (the third party does not know any agent is involved), the agent is a party and the principal can be bound too, and the third party may generally elect to enforce against either, with the principal's liability subject to defences such as an express term excluding agents. An agent who acts without authority is liable to the third party for breach of an implied warranty of authority, even when the agent honestly believed the authority existed, unless the agent disclosed the facts or the third party knew them.",
+    "In tort, the main vehicle is respondeat superior: an employer is vicariously liable for torts committed by an employee within the scope of employment. The employer need not be at fault. Courts distinguish an employee from an independent contractor using the right to control the manner and means of the work, and Restatement factors such as the extent of control, who supplies tools, the duration of the relationship, and whether the work is part of the regular business. Scope of employment asks whether the conduct was of the kind the employee was hired to do, occurred substantially within the time and space limits of the job, and was at least partly motivated by a purpose to serve the employer. A minor deviation from the assigned route is a detour and remains within scope; a substantial personal errand is a frolic and usually falls outside. Intentional torts are within scope if they arise out of the employment, for example a bouncer who uses excessive force on a patron, but not when the motive is purely personal, as with an employee who attacks a coworker over a private grudge.",
+    "Employers are generally not liable for the torts of independent contractors. Exceptions include nondelegable duties (for example, certain duties imposed by statute or incident to a public franchise), inherently dangerous activities, and the employer's own negligence in selecting or supervising the contractor. Separately, an employer may face direct liability for negligent hiring, retention or supervision, which does not depend on respondeat superior. A third party may also recover on ostensible (apparent) agency when the principal's conduct led the plaintiff to believe the actor was an employee, as with a franchise or a hospital that holds out its contractors.",
+    "Worked example. Priya, a delivery driver for QuickBox, uses a company van and makes a twenty-minute personal stop for coffee a few blocks off her route. She then strikes a pedestrian while returning to the route. Most courts treat this small deviation as within scope, so QuickBox is vicariously liable; had Priya driven fifty miles to visit family, the answer would likely differ."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l03",
+   "title": "General Partnerships",
+   "body": [
+    "A general partnership is the default form for two or more people who carry on a business together for profit. The Revised Uniform Partnership Act (RUPA, 1997, adopted with variations in most states) defines a partnership as an association of two or more persons to carry on as co-owners a business for profit, whether or not they intend to form a partnership. This means formation can be accidental. No filing and no written agreement is required, and a court will find a partnership from conduct. Sharing profits is prima facie evidence of partnership, but no inference arises when profits are received as wages, rent, interest on a loan, or payment for goodwill, which protects employees, landlords and lenders. Sharing losses, joint control and joint ownership of property are other indicia.",
+    "Under RUPA a partnership is an entity distinct from its partners, able to hold property and be sued in its own name. The older Uniform Partnership Act (1914) viewed it more as an aggregate. Each partner is an agent of the partnership for the purpose of its business, and an act by a partner for apparently carrying on the business in the ordinary course binds the partnership unless the partner lacked authority and the third party knew it. Acts outside the ordinary course need the consent of all partners. Default rules, which the partners can change by agreement, give each partner an equal share of profits and equal management rights, and make ordinary matters decided by majority vote while unanimity is required to amend the agreement or act outside the ordinary course.",
+    "The feature that most distinguishes the general partnership is personal liability. All partners are jointly and severally liable for the partnership's obligations. Under RUPA a judgment against the partnership is not itself a judgment against a partner, and a creditor generally must first seek satisfaction from partnership assets (the exhaustion requirement) before reaching a partner's individual assets, with exceptions such as insolvency. A newly admitted partner is liable only from partnership assets for obligations incurred before admission. A person who holds himself out as a partner, and induces reasonable reliance, can be bound as a partner by estoppel.",
+    "Partners owe each other and the partnership fiduciary duties of loyalty and care. Under RUPA the duty of loyalty is limited to accounting for profits and benefits, refraining from adverse dealing, and refraining from competing during the partnership; the duty of care is limited to avoiding grossly negligent or reckless conduct, intentional misconduct and knowing violations of law. Partners must discharge duties consistent with an obligation of good faith and fair dealing, and the agreement cannot eliminate these duties entirely.",
+    "A partner's departure is dissociation. A partner can always withdraw, though wrongfully if in breach of a term partnership. Dissociation does not necessarily end the business; RUPA permits buyout of the dissociated partner. Dissolution and winding up follow in specified events, such as notice of any one partner's express will to withdraw in a partnership at will, or, in a term partnership, the express will of at least half the remaining partners to wind up within 90 days after a partner's death or wrongful dissociation. A personal creditor of a partner can obtain a charging order, which reaches only that partner's share of distributions and gives no management rights.",
+    "Worked example. Leo and Sam run a food truck, split profits equally, and never sign any paper. Sam buys a $20,000 grill from a vendor in Leo's name without asking. The partnership is bound if buying equipment is ordinary for a food truck, and Leo's personal assets are exposed if partnership assets fall short."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l04",
+   "title": "Limited Partnerships, LLPs and LLCs",
+   "body": [
+    "Statutes allow business owners to keep partnership-style flexibility while capping personal liability. All of these entities are creatures of statute and exist only after a filing with the state.",
+    "A limited partnership (LP) has at least one general partner, who manages the business and has unlimited personal liability, and one or more limited partners, who contribute capital and are liable only to the extent of their investment. The LP is formed by filing a certificate with the state. Under older acts such as the 1976 and 1985 Revised Uniform Limited Partnership Act, a limited partner who participated in the control of the business could lose the liability shield as to creditors who reasonably believed the limited partner was a general partner, though safe harbours listed activities such as voting on major decisions. The 2001 Uniform Limited Partnership Act abandoned the control rule altogether, so states differ. LPs are common in private equity, real estate and venture funds, where the general partner is often itself an LLC to avoid unlimited exposure.",
+    "A limited liability partnership (LLP) is a general partnership that registers with the state and shields its partners from personal liability for the partnership's obligations. Early statutes covered only tort liability; most states now cover contract and other obligations too. The shield does not protect a partner from liability for her own wrongful acts or those of persons under her direct supervision. LLPs are popular with law and accounting firms.",
+    "The limited liability company (LLC) has become the most common closely held form. It is formed by filing articles (called a certificate of formation in Delaware), and its internal affairs are governed by an operating agreement, which a court will generally enforce as a contract. Members enjoy limited liability regardless of whether they participate in management, so there is no need to separate the managers from the investors. An LLC may be member-managed, where members have agency authority by default, or manager-managed, where designated managers have it and passive members do not. Default tax treatment is pass-through: a multi-member LLC is taxed as a partnership and a single-member LLC is disregarded, though an LLC may elect corporate tax treatment.",
+    "The LLC statutes give contract freedom. Delaware's act permits the operating agreement to expand, restrict or even eliminate fiduciary duties, but not the implied contractual covenant of good faith and fair dealing, and Delaware courts have enforced clear waivers. Other states, and the uniform act, restrict how far the duties can be waived, so the governing law matters. Default rules fill gaps. A member's creditor generally has only a charging order against distributions, and many states make that the exclusive remedy, although the treatment of single-member LLCs is contested.",
+    "LLC members can still lose the shield through veil piercing in most states, applying corporate-law standards, and are always personally liable for their own torts and personal guarantees. Failing to observe formalities is usually not a basis for piercing an LLC, since statutes often relieve LLCs of formalities.",
+    "Worked example. Nia and three investors form Brightside Homes LLC, manager-managed with Nia as manager. The operating agreement lets Nia compete in other real estate ventures. A passive investor cannot bind the LLC to a contract, but Nia can, and creditors cannot reach the investors' personal assets."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l05",
+   "title": "Choosing an Entity; Delaware and the Internal Affairs Doctrine",
+   "body": [
+    "Choosing a business form is a trade-off among liability, taxation, governance and cost. A sole proprietorship and a general partnership are simple and cheap but leave owners personally liable. LPs, LLPs, LLCs and corporations offer a liability shield, but each requires a state filing. The corporation is the entity with the most developed law: it has centralised management (the board), free transferability of shares by default, and perpetual existence, which makes it suited to raising capital from many investors.",
+    "Tax drives many choices. A regular C corporation pays tax on its profits, and shareholders pay tax again on dividends, the so-called double tax. An S corporation, a federal tax election rather than a separate state entity, passes income through to shareholders, but it is limited to a modest number of shareholders (currently 100), generally individuals, estates and certain trusts, may not have nonresident alien shareholders, and may have only one class of stock. LLCs and partnerships are pass-through by default and can allocate profits flexibly. Venture-backed startups often choose a Delaware C corporation because investors want preferred stock with different rights and a familiar body of law.",
+    "Which state's law governs a corporation? Under the internal affairs doctrine, the law of the state of incorporation governs matters internal to the corporation, such as the relations among shareholders, directors and officers, fiduciary duties, and shareholder voting rights. A company can be headquartered in California and still be governed on these issues by Delaware law. The Supreme Court described the idea in CTS Corp. v. Dynamics Corp. of America (1987), upholding an Indiana control-share statute and noting that it is a principle of conflict of laws that only one state should regulate a corporation's internal affairs. The doctrine is not absolute: some states, such as California, apply certain statutes to foreign corporations with substantial ties, and external affairs (a tort or contract dealing with outsiders) are governed by ordinary choice-of-law rules.",
+    "Delaware is the leading state of incorporation for large public companies and venture-backed firms. The reasons are mostly institutional: the Delaware General Corporation Law (DGCL) is flexible and amended annually, the Court of Chancery is a specialised court of equity with judges, not juries, deciding corporate disputes, the Delaware Supreme Court issues timely guidance, and a large body of precedent gives predictability. Franchise tax revenue gives the state an incentive to keep its law competitive. Critics argue that competition among states can favour managers over shareholders, and that Delaware's dominance concentrates influence in few courts. Many other states, and the Model Business Corporation Act (MBCA), offer alternatives, and Nevada and Texas have actively courted incorporations, including through specialised business courts (the Texas Business Court opened on September 1, 2024) and, in Texas's case, a 2025 statute (Senate Bill 29) that codified a business judgment rule and allowed ownership thresholds for derivative suits. As of October 2026, Delaware's 2025 amendments (Senate Bill 21) created safe harbours for conflicted-director, officer and controller transactions and defined the books and records a stockholder may inspect. On February 27, 2026, in Rutledge v. Clearway Energy Group LLC, the Delaware Supreme Court upheld the constitutionality of the section 144 safe harbours.",
+    "Worked example. Fernwood Labs is headquartered in Oregon, has investors in several states and plans a venture round. It incorporates in Delaware. A shareholder in Oregon sues the directors for a breach of fiduciary duty; the court will apply Delaware law to the duty, even though the lawsuit is brought in Oregon, because it concerns the corporation's internal affairs."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l06",
+   "title": "Formation, Promoters and Defective Incorporation",
+   "body": [
+    "A corporation comes into existence when the incorporators file articles of incorporation (called a certificate of incorporation in Delaware) with the secretary of state and the filing is accepted. The articles must contain the minimum items the statute requires, typically the corporate name, the number and classes of authorised shares, the registered agent and address, and the incorporator. They may add provisions such as a director-liability exculpation clause. After filing, the board is organised, bylaws are adopted to govern internal procedures, officers are elected and shares are issued. The charter is the controlling document: bylaws that conflict with the charter or the statute are invalid.",
+    "A promoter is someone who arranges a corporation's formation and often enters contracts before it exists, such as leases or financing. A corporation is not bound on a pre-incorporation contract merely because it later forms, because it was not a principal when the contract was made. The promoter is personally liable on the contract unless the third party agrees to look only to the corporation. The corporation becomes liable when it adopts the contract, expressly (a board resolution) or impliedly by accepting its benefits with knowledge of its terms. Adoption does not by itself release the promoter; only a novation, an agreement among the promoter, the third party and the corporation substituting the corporation, does. Promoters also owe fiduciary duties to each other and to the corporation and its early investors, and a promoter who secretly profits from selling property to the new corporation must disclose and may need to disgorge.",
+    "What if the incorporators fail to complete the filing, or the filing is defective? Traditionally, three doctrines lessened the harshness. A de jure corporation is one formed in substantial compliance with mandatory requirements, and its existence cannot be challenged. A de facto corporation exists where there is a statute under which incorporation was possible, a good-faith attempt to comply, and actual use of corporate privileges; it is recognised against everyone except the state. Corporation by estoppel binds a third party who dealt with the enterprise as a corporation and so cannot later deny corporate status to escape the contract. The MBCA and many states have narrowed these doctrines. Under MBCA section 2.04, persons who act as or on behalf of a corporation knowing that no corporation has been formed are jointly and severally liable for resulting obligations. Courts apply the doctrines inconsistently, so the exact position depends on the state, and a party who simply never filed is in the weakest position.",
+    "Stock issuance is part of formation. Authorised shares are those allowed by the charter, issued shares are those sold, and outstanding shares are issued and not repurchased. Directors set the consideration for shares, and modern statutes allow consideration in many forms, including cash, property, past services and promissory notes, with the board's good-faith judgment about value generally conclusive. Historically, shares issued for less than par value (\"watered stock\") exposed the buyer to liability to creditors; par value matters little today, and many corporations issue no-par or low-par stock. Preemptive rights, which let existing shareholders buy new shares to protect their percentage, exist only if the charter grants them in Delaware and many states.",
+    "Worked example. Marisol signs a three-year lease for \"Marisol's Bakeshop, Inc.\" a month before filing the articles. The landlord later sues after the corporation is formed and defaults. Marisol is liable unless there was a novation, even if the corporation adopted the lease by occupying the premises, because adoption adds the corporation as a party without automatically releasing her."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l07",
+   "title": "Piercing the Corporate Veil",
+   "body": [
+    "Limited liability is the default rule: a shareholder who has paid for her shares is not personally liable for the corporation's debts. Piercing the corporate veil is the equitable exception, in which a court disregards the corporation and holds a shareholder (an individual or a parent corporation) liable. Courts describe it as exceptional and fact-intensive, and it is raised far more often than it succeeds. It is a remedy for a plaintiff to reach a shareholder, not an independent cause of action, and the plaintiff must also show that the shareholder is the one who controlled the abuse.",
+    "Most states use a two-part framework, though the vocabulary varies. First, there must be such unity of interest and ownership that the corporation is the alter ego of the shareholder, or that the shareholder dominated and controlled it so completely that it had no separate mind or existence. Second, treating the corporation as separate must produce fraud, injustice or inequity, such as using the corporate form to evade an obligation or perpetrate a wrong. Courts commonly weigh factors including commingling of personal and corporate funds, undercapitalisation (inadequate capital for the foreseeable risks of the business at the time of formation), failure to observe formalities such as board meetings and records, siphoning of funds by dominant shareholders, nonpayment of dividends or fictional salaries, and the use of the corporation as a facade. No single factor is decisive. Failure to follow formalities, for instance, matters less in a closely held corporation than the real misuse of the form, and many LLC statutes remove formalities as a basis for piercing.",
+    "Context matters. In theory, tort victims who did not choose the debtor have the stronger case for piercing, because unlike contract creditors they could not bargain for protection. Empirical work, however, suggests piercing succeeds more often in contract cases (Thompson's 1991 Cornell study found roughly 40 percent of contract cases against about 30 percent of tort cases), partly because contract plaintiffs can show they were misled about the corporation's financial position and partly because tort plaintiffs face the argument that the risk was foreseeable and could be insured. In the New York case Walkovszky v. Carlton (1966), a taxi-accident plaintiff attempted to reach a shareholder who had spread cabs among many thinly capitalised corporations; the court held that the complaint did not adequately allege that the shareholder personally conducted the business, and that a large enterprise's use of the multiple-entity structure was not by itself enough absent fraud or personal use of the corporate form, leaving open an enterprise-liability theory. Jurisdictions differ about whether undercapitalisation alone is sufficient and about the role of the plaintiff's voluntary dealing.",
+    "Parent-subsidiary cases follow the same logic. In United States v. Bestfoods (1998), a CERCLA case, the Supreme Court held that a parent is not liable for a subsidiary's environmental harms merely because it is a parent, nor because directors overlap, but may be liable if the veil is pierced under the usual standards or if the parent itself directly operated the polluting facility. Reverse piercing, which holds a corporation liable for its shareholder's debts, is accepted in a minority of states under stricter conditions, and outsider reverse piercing is more controversial.",
+    "Worked example. Gideon forms Quickhaul, Inc. with $500 in capital to run a delivery fleet, deposits company revenue in his personal account, pays his mortgage from the corporate account and holds no meetings. Quickhaul defaults on a $90,000 supplier contract after Gideon reassures the supplier that it is well financed. These facts, commingling, undercapitalisation and misrepresentation, make piercing likely."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l08",
+   "title": "Corporate Governance: Who Holds the Power",
+   "body": [
+    "The statutory model of the corporation has three tiers. Shareholders own the residual claim and elect and remove directors, and they vote on a limited list of fundamental matters. The board of directors manages or directs the business and affairs of the corporation (DGCL section 141(a)), meaning it sets strategy, selects and oversees officers, declares dividends and approves major transactions. Officers, such as the CEO, president, secretary and treasurer, run daily operations as agents of the corporation. The board generally acts as a body at a meeting with a quorum, by majority of those present, or by unanimous written consent; an individual director has no authority to bind the corporation simply by being a director. Boards often act through committees, such as audit and compensation committees, though some matters cannot be delegated.",
+    "The charter and the bylaws allocate power further. Shareholders can usually amend the bylaws, and the charter may also permit the board to do so; shareholders cannot, however, force the board to take business decisions through a bylaw that intrudes on the board's statutory management authority, an issue Delaware courts have addressed repeatedly. Fundamental changes, such as charter amendments, mergers, a sale of substantially all assets and dissolution, require board approval first and then shareholder approval, usually by a majority of outstanding shares in Delaware (higher in some states). Officers have actual and apparent authority as agents; the president is typically understood to have authority over ordinary business, but not extraordinary transactions, without board approval. Directors serve staggered or annual terms, may be removed by shareholders with or without cause under default rules (staggered boards or cumulative voting change the default), and may be elected by plurality unless the charter or bylaws provide otherwise.",
+    "Dividends illustrate the board's role. Declaring a dividend is a business decision for the board, and courts will rarely compel one. In Dodge v. Ford Motor Co. (Michigan, 1919), the court ordered Ford to pay a special dividend because it viewed Henry Ford's stated aim of charity toward consumers as inconsistent with the corporation's purpose to benefit shareholders, but declined to interfere with Ford's expansion plans, which were within business judgment. The case is often cited for shareholder primacy, though its force as a statement of current law is debated, and modern statutes in many states allow directors to consider other constituencies.",
+    "There are statutory limits on distributions to protect creditors. The MBCA bars a distribution if, afterward, the corporation could not pay its debts as they become due (an equity insolvency test) or its total assets would be less than its total liabilities plus any liquidation preferences (a balance-sheet test). Delaware instead allows dividends out of surplus, the excess of net assets over stated capital, or out of net profits in some circumstances. Directors who approve an unlawful dividend can be personally liable to the corporation for the amount, though they may seek contribution from shareholders who knowingly received it, and good-faith reliance on financial statements and experts is a defence.",
+    "Worked example. The board of Redpine, Inc. declares a large dividend funded by a loan, leaving the company unable to pay debts as they fall due. Directors who voted for it in knowing violation of the solvency test face liability, but a director who relied in good faith on a financial officer's report prepared with reasonable care can invoke the statutory reliance protection."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l09",
+   "title": "The Duty of Care and the Business Judgment Rule",
+   "body": [
+    "Directors and officers owe fiduciary duties to the corporation and its shareholders, and the two classic duties are care and loyalty. The duty of care requires a director to act on an informed basis, with the care that a reasonably prudent person in a similar position would use. Under the MBCA, the standard of conduct is stated in terms of good faith and a reasonable belief that one is acting in the corporation's best interests, with the care of an ordinarily prudent person. Delaware frames the duty as one to be fully informed of the material information reasonably available before making a decision.",
+    "The business judgment rule (BJR) is the central standard of review. It is a presumption that in making a business decision, the directors acted on an informed basis, in good faith and in the honest belief that the action was in the best interests of the company. Courts do not second-guess a decision that meets those conditions, because judges are not business experts, shareholders accepted the risk that managers take, and hindsight bias distorts review. The plaintiff carries the burden to rebut the presumption by showing a breach of one of its component duties: that directors were grossly negligent in informing themselves, acted in bad faith, were interested or lacked independence, or that there was fraud, illegality or waste. If the presumption is rebutted, the burden shifts to the directors to prove the transaction was entirely fair. The rule protects decisions, not inaction, so a total failure to decide is judged under different oversight rules.",
+    "In Delaware, the care standard for liability is gross negligence, which asks about process rather than substance. Smith v. Van Gorkom (Del. 1985) is the landmark. The board of Trans Union approved a cash-out merger after a brief meeting, relying on the chairman's oral presentation, without seeing the merger agreement, without asking how the price was set and without outside valuation. The Delaware Supreme Court held the directors grossly negligent, because they failed to inform themselves of all material information reasonably available, and the BJR did not protect them. The decision triggered the legislature's adoption of DGCL section 102(b)(7), discussed in a later lesson. By contrast, in In re Walt Disney Co. Derivative Litigation (Del. 2006), the court found that directors who approved an executive's employment contract and later a no-fault termination, with a large payout, were not liable, because the decisions were made with reasonable information, even if the process fell short of best practice. The court distinguished gross negligence from the more serious category of bad faith, which includes intentionally failing to act in the face of a known duty.",
+    "Several safeguards help directors. Under DGCL section 141(e), directors are fully protected in relying in good faith on reports by officers, committees and experts selected with reasonable care. MBCA section 8.30 has a similar reliance provision. Reliance is not blind: a director who has reason to doubt a report cannot rely on it.",
+    "Worked example. The board of Larkspur Foods approves buying a rival at a large premium after receiving a fairness opinion from an independent bank, reviewing management's analysis over three meetings and asking probing questions. The deal later fails and shareholders sue. Because the directors were informed, disinterested and acted in good faith, the BJR applies and the claim fails, even though the acquisition was a poor decision."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l10",
+   "title": "The Duty of Loyalty and Interested Transactions",
+   "body": [
+    "The duty of loyalty requires a fiduciary to put the corporation's interests ahead of personal interests and not to use the position for personal gain. It is the more demanding duty, because courts treat self-interest as the central risk in corporate governance. Loyalty problems include self-dealing contracts between the corporation and a director or officer, usurping corporate opportunities, competing with the corporation, using confidential information for personal ends, and conflicted transactions in which a director has a material interest or lacks independence.",
+    "Historically, a contract between a corporation and its own director was voidable at the corporation's election. Modern statutes use safe harbours. Before 2025, DGCL section 144 said a conflicted transaction was not void or voidable solely because of the interest if it passed a cleansing mechanism. Current section 144(a), as amended by Senate Bill 21 in 2025, instead says a covered transaction may not be the subject of equitable relief, or give rise to an award of damages, against a director or officer because of the interest if (1) the material facts were disclosed or known to the board or committee and a majority of the disinterested directors then serving approved it in good faith and without gross negligence, but if a majority of the directors are not disinterested, approval must come from a committee of two or more directors the board has determined to be disinterested, (2) it was approved or ratified by an informed, uncoerced vote of a majority of the votes cast by the disinterested stockholders, or (3) it was fair to the corporation and its stockholders. The MBCA subchapter on director conflicting-interest transactions takes a similar approach. Delaware case law has treated these mechanisms as affecting the standard of review and not merely the voidability question: well-functioning approval by disinterested directors or shareholders often shifts the review from entire",
+    "fairness to the business judgment rule, though the details depend on the transaction type and the context. Approval does not help if the disinterested directors are not truly independent, or were not informed. Benihana of Tokyo, Inc. v. Benihana, Inc. (Del. 2006) is an example: the board's approval of a transaction in which a director was interested was upheld where the interest was disclosed to the board and the approving directors were informed and disinterested.",
+    "Directors who are interested or lack independence cannot be counted for cleansing. Interest means receiving a personal financial benefit not shared with shareholders generally, or having a material personal stake in the outcome. Lack of independence means being beholden to an interested party through close relationships or financial dependence, so that the director's decision is driven by considerations other than the merits.",
+    "As of October 2026, Delaware's 2025 amendments (Senate Bill 21) have revised section 144 to add safe harbours for transactions involving directors, officers and controlling stockholders and to define terms such as disinterested director and controlling stockholder, in response to a perceived rise in litigation uncertainty. On February 27, 2026, in Rutledge v. Clearway Energy Group LLC, the Delaware Supreme Court upheld the constitutionality of those amendments, including their application to claims pending when they were enacted. Pre-2025 case law still matters for transactions outside the statute, and which version of section 144 applies depends on the transaction.",
+    "Officers owe the same duty of loyalty and, under the Delaware Supreme Court's decision in Gantler v. Stephens (2009), the same fiduciary duties as directors. Directors who are also shareholders may buy and sell stock like any other holder, but may not use inside information about corporate affairs to deceive a counterparty in some contexts, which overlaps with securities law.",
+    "Worked example. Jun, a director of Ambergate Corp., owns a building and proposes that Ambergate lease it for headquarters. Jun discloses his ownership and the market comparisons. Four disinterested directors, after reviewing independent appraisals, approve the lease at a market rate, and Jun abstains. The transaction is protected: the interest was disclosed, approved by disinterested directors, and the price is fair. If Jun had not disclosed the building's defects or had pushed the directors to approve, the protections would fail."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l11",
+   "title": "Corporate Opportunity, Controlling Shareholders and Entire Fairness",
+   "body": [
+    "The corporate opportunity doctrine prohibits a director or officer from personally taking a business opportunity that belongs to the corporation. In Guth v. Loft, Inc. (Del. 1939), the president of a soft-drink company caused his own company to take over a cola-syrup business that Loft's own business could have pursued, and the court held that he usurped an opportunity. Delaware's test, as stated in Guth and refined in Broz v. Cellular Information Systems, Inc. (Del. 1996), asks whether the corporation was financially able to exploit the opportunity, whether it was within the corporation's line of business, whether the corporation had an interest or expectancy in it, and whether taking it would put the fiduciary in a position inimicable to his duties. In Broz, the court held that the director could take an opportunity that the corporation was in no position to exploit because of financial constraints and that it had not been presented to him in his capacity as a director, and that a fiduciary is not required to present the opportunity to the board before taking it, although doing so and receiving a rejection provides a safe harbour.",
+    "Other jurisdictions use a line-of-business test, a fairness test, or a hybrid, and the American Law Institute's Principles of Corporate Governance propose a version that treats opportunities encountered in the course of corporate duties as corporate. Under the MBCA, the 2005 amendments provide that a director's use of an opportunity can be shielded if it was first disclosed and the board approved it, but that approach is not universal. Delaware also lets a corporation renounce, in its charter, any expectancy in specified categories of opportunities (DGCL section 122(17)), which is routinely used by venture funds whose partners serve as directors. In close corporations and partnerships, similar principles apply.",
+    "Controlling shareholders owe fiduciary duties because they can influence the board and extract benefits that are not shared pro rata. A transaction between a corporation and its controller (or in which the controller receives a non-ratable benefit) is subject to entire fairness review in Delaware, in which the defendants must prove both fair dealing (timing, structure, negotiation, disclosure and approval) and fair price. Weinberger v. UOP, Inc. (Del. 1983) involved a cash-out merger by a majority parent, Signal, which relied on an internal feasibility study prepared by directors who served both companies and was not shared with UOP's minority. The court held that the transaction was not entirely fair and emphasised that fair dealing and fair price are examined together, and that appraisal is the usual remedy though broader equitable relief is available in cases of fraud or other unfairness.",
+    "In Kahn v. M&F Worldwide Corp. (Del. 2014), the court held that in a controller buyout, business judgment review applies if, from the outset, the transaction is conditioned on both the approval of a well-functioning independent special committee and an uncoerced, informed vote of a majority of the minority shareholders. This is often called the MFW framework. Failing either condition, or imposing it late, leaves entire fairness in place. Delaware's 2025 amendments to section 144, upheld in Rutledge v. Clearway Energy Group LLC (Del. Feb. 27, 2026), added statutory safe harbours for controller transactions: for a controlling stockholder transaction that is not a going-private deal, approval by a qualifying special committee, a disinterested-stockholder vote or proof of fairness is each enough, while a going-private deal needs both the committee and the vote, or fairness. The older cases should be read with that change in mind.",
+    "Worked example. Quillon Holdings owns 60 percent of Tarn Corp. and proposes to buy the remaining shares. Quillon announces the deal is conditioned from the start on approval by an independent committee with power to say no and a majority-of-the-minority vote. If both are properly implemented, the MFW framework supports business judgment review; if the committee is hand-picked by Quillon, entire fairness remains."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l12",
+   "title": "Oversight Duties, Exculpation and Indemnification",
+   "body": [
+    "Directors are not required to know everything, but they must make a good-faith effort to oversee the corporation. In In re Caremark International Inc. Derivative Litigation (Del. Ch. 1996), Chancellor Allen held that directors may breach their duty by failing to attempt in good faith to put in place a reasonable board-level system of monitoring and reporting. The Delaware Supreme Court, in Stone v. Ritter (2006), confirmed the claim and tied it to the duty of loyalty and good faith: liability arises where directors utterly fail to implement any reporting or control system, or, having implemented one, consciously fail to monitor or oversee its operations and so disable themselves from being informed of risks. It is among the hardest corporate claims to win, because the plaintiff must show bad faith in the form of a conscious disregard of duties, not mere negligence. In Marchand v. Barnhill (Del. 2019), a case about a food company and a listeria outbreak, the court allowed a claim to proceed where the board had no committee or process for overseeing food safety, which was mission-critical to the company, showing that the first Caremark prong can be satisfied for the central compliance risks of a business. Later Delaware decisions extended oversight duties to officers within their areas of responsibility, though the contours are still developing as of this writing.",
+    "Exculpation reduces personal exposure for care violations. After Smith v. Van Gorkom, Delaware enacted DGCL section 102(b)(7), which allows a corporation to include in its charter a provision eliminating or limiting a director's personal monetary liability for breach of the duty of care. The provision cannot protect against breaches of the duty of loyalty, acts or omissions not in good faith or involving intentional misconduct or a knowing violation of law, improper personal benefit, or unlawful dividends. A 2022 amendment let corporations extend exculpation to officers, but, for officers, not in claims brought by or in the right of the corporation, such as derivative suits. Most public companies have such a charter clause, which is why plaintiffs frame claims as loyalty or bad faith to avoid the bar. The MBCA has a comparable provision, section 2.02(b)(4).",
+    "Indemnification and insurance address the cost of litigation. Under DGCL section 145, a corporation must indemnify a director or officer who is successful on the merits or otherwise in defending a claim, may indemnify for expenses, judgments and settlements in third-party suits if the person acted in good faith and in a manner reasonably believed to be in or not opposed to the corporation's best interests, and, in derivative suits, may indemnify only for expenses and not for judgments or settlements paid to the corporation, subject to court approval where liability was adjudged. Advancement of expenses can be mandated by bylaws, subject to an undertaking to repay if it is later determined that the person is not entitled to indemnity. Directors and officers liability insurance (D&O) covers many claims and can cover some matters the company cannot indemnify, though it excludes intentional fraud and similar misconduct.",
+    "Worked example. Shareholders sue the directors of Halden Pharma derivatively after a regulatory scandal. The charter has a section 102(b)(7) clause. If the complaint alleges only negligent supervision, the clause bars damages. If it alleges the board knew of red flags about a dangerous product and consciously did nothing, the claim sounds in bad faith and is not exculpated, though plaintiffs must plead particularised facts showing conscious disregard."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l13",
+   "title": "Shareholder Voting, Proxies and Inspection Rights",
+   "body": [
+    "Shareholders hold the ultimate voting power in a corporation, but their role is narrow: they elect and remove directors, approve fundamental changes and ratify certain matters. Voting occurs at annual meetings, special meetings, or by written consent if the charter permits. A record date fixes who is entitled to vote, and shares are generally entitled to one vote each unless the charter says otherwise. A quorum, usually a majority of shares entitled to vote, must be present. Under the Delaware default, directors are elected by a plurality of the votes cast, while other matters need a majority of shares present; fundamental transactions need a majority of outstanding shares. Many public companies have adopted majority-voting bylaws or policies for directors.",
+    "Several devices change the power balance. Straight voting gives each share one vote for each seat, so a majority holder can elect the entire board. Cumulative voting lets shareholders pool their votes for fewer candidates, helping a minority win seats; the formula for the number of shares needed to elect one director is roughly (shares voting times the number of directors sought) divided by (the number of directors to be elected plus one), plus one share. In Delaware, cumulative voting exists only if the charter provides for it, while some states make it the default. A classified or staggered board makes takeovers harder, because only part of the board is elected each year. Removal of directors is typically allowed with or without cause by a majority vote unless the board is classified or cumulative voting is used, in which case the statute protects against removal without cause where it would defeat minority representation.",
+    "A proxy is the grant of authority to another person to vote one's shares. A proxy is generally revocable, by a later proxy, by attending the meeting and voting, or by notice, unless it is coupled with an interest, such as a security interest in the shares, in which case it can be made irrevocable. Public companies must follow federal proxy rules under the Exchange Act, which require adequate disclosure. Voting trusts transfer legal title of shares to a trustee under a written agreement for a limited term, while shareholder pooling agreements bind participants to vote in a certain way and are generally enforceable by specific performance.",
+    "Courts police voting for fairness. In Schnell v. Chris-Craft Industries, Inc. (Del. 1971), the incumbent board advanced the date of an annual meeting to frustrate a proxy contest. The Delaware Supreme Court held that inequitable action does not become permissible simply because it is legally possible, setting aside the maneuver. Courts apply stricter review to board actions primarily aimed at impeding the shareholders' vote.",
+    "Inspection rights give shareholders information. Under DGCL section 220, a stockholder who states a proper purpose may inspect the stock ledger, a list of stockholders, and other books and records. A proper purpose is one reasonably related to the person's interest as a stockholder, such as investigating mismanagement, valuing shares or soliciting proxies. To investigate wrongdoing, the stockholder must show a credible basis to infer possible mismanagement. Courts typically limit production to the documents that are necessary and essential to the purpose, and as of October 2026, section 220 (as amended in 2025) defines \"books and records\" by a list, such as the charter, bylaws, stockholder minutes and communications, board minutes and materials, and recent annual financial statements, rather than leaving the scope open. MBCA sections 16.01 to 16.03 provide similar rights.",
+    "Worked example. Yara holds 12 percent of Thornfield Inc., which has a nine-member board elected under cumulative voting. She wants to elect one director. With, for example, 1,000 shares voting, Yara needs more than 1,000 times 1 divided by 10, so 101 shares are enough in the formula's terms to guarantee one seat, and she should cast all of her votes for a single candidate."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l14",
+   "title": "Direct and Derivative Suits; Demand and Special Committees",
+   "body": [
+    "A shareholder who suffers harm may sue in one of two ways. In a direct suit, the shareholder asserts her own right, such as a denial of voting rights or a claim to a dividend, and any recovery goes to her. In a derivative suit, the shareholder sues on behalf of the corporation to enforce a claim that the corporation itself holds, typically against directors, officers or controllers, and any recovery goes to the corporation. The classification matters because derivative suits face procedural hurdles and because defendants can often defeat them early.",
+    "Delaware's test, in Tooley v. Donaldson, Lufkin & Jenrette, Inc. (Del. 2004), asks two questions: who suffered the alleged harm, the corporation or the suing stockholders individually, and who would receive the benefit of any recovery. Overpayment by the corporation in a self-dealing deal that dilutes everyone proportionately is usually derivative, because the injury is to the corporation and shareholders suffer only through the lowered value of their shares. A claim that directors blocked a shareholder's vote, or that a controller extracted value in a merger directly from minority holders, can be direct. Some states recognise a special injury or separate duty approach, and close corporation cases may allow direct claims more liberally.",
+    "A derivative plaintiff must meet several prerequisites. Under Federal Rule of Civil Procedure 23.1 and state analogues, the plaintiff must be a shareholder at the time of the wrong (the contemporaneous ownership rule) and throughout the litigation, must adequately represent the corporation, and must either make a demand on the board or plead with particularity why demand would be futile. The corporation is a necessary party, and the court must approve any settlement or dismissal. Successful plaintiffs' lawyers may obtain fees from the common fund or under the substantial-benefit doctrine.",
+    "Demand regimes differ. Under the universal demand approach of MBCA section 7.42, adopted in many states, demand is always required, and the plaintiff must wait a set period (90 days) unless the corporation rejects the demand sooner or irreparable injury would result; the plaintiff then challenges the board's response on a deferential standard. Delaware allows futility. Under older tests (Aronson v. Lewis and Rales v. Blasband), and as consolidated in United Food & Commercial Workers Union v. Zuckerberg (Del. 2021), a court asks, director by director, whether the director received a material personal benefit from the alleged misconduct, faces a substantial likelihood of liability on a claim, or lacks independence from someone who did; if at least half of the board fails that screen, demand is futile. Making a demand concedes that the board was independent for the purpose of its response, so plaintiffs who demand cannot later argue futility.",
+    "When demand is excused or the board rejects the demand, a corporation may form a special litigation committee (SLC) of independent directors to investigate and move to dismiss. In Zapata Corp. v. Maldonado (Del. 1981), the Delaware Supreme Court held that a court reviews such a motion by assessing the committee's independence, good faith and the reasonableness of its investigation, and may apply its own business judgment as a second step. New York's Auerbach v. Bennett (1979) adopted a more deferential approach, limiting inquiry to independence and process.",
+    "Worked example. Mina owns shares in Brightline Corp. and learns the CEO secretly sold the company a yacht for twice its worth. The loss falls first on the corporation, so the claim is derivative. Mina may have to make a demand on the board, then plead facts showing how the independent board majority was beholden to the CEO."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l15",
+   "title": "Close Corporations and Minority Oppression",
+   "body": [
+    "A close corporation has a few shareholders, no public market for its shares, and owners who commonly work in the business. These features create a distinctive problem. A minority shareholder cannot sell easily, because there is no market. The majority controls the board and can end the minority's employment, withhold dividends, and keep the minority from sharing in the company's profit, which in a close corporation often comes as salary instead of dividends. This is called freeze-out or oppression. The traditional corporate rule that the majority rules, and that the board alone decides dividends and employment, leaves minority holders exposed unless they protect themselves in advance.",
+    "Private ordering is the first answer. Shareholders can sign agreements that restrict share transfers (rights of first refusal, buy-sell provisions, valuation formulas), require supermajority votes, elect directors in a certain way, or guarantee employment. Courts once refused to enforce shareholder agreements that restricted the board's discretion, as in McQuade v. Stoneham (N.Y. 1934), but later decisions, such as Clark v. Dodge (N.Y. 1936), upheld agreements among all shareholders in close companies where no creditor or public interest was harmed. Statutes such as Delaware's close corporation provisions (DGCL sections 341 to 356) and the MBCA's shareholder-agreement provisions allow shareholders to run the company by agreement. Transfer restrictions must be reasonable and noted on the share certificate or otherwise made known to the buyer to be enforceable against a transferee.",
+    "Courts have also fashioned fiduciary remedies. In Donahue v. Rodd Electrotype Co. (Mass. 1975), the court said that shareholders in a close corporation owe each other a duty of utmost good faith and loyalty, like partners, and held that when the company bought back shares from a controlling shareholder it had to offer the minority an equal opportunity to sell. Wilkes v. Springside Nursing Home, Inc. (Mass. 1976) modified this: when a minority shareholder alleges a freeze-out, the majority may show a legitimate business purpose for its action, and the minority may then show a less harmful alternative that would achieve the same purpose. Delaware has rejected special fiduciary rules for non-statutory close corporations. In Nixon v. Blackwell (Del. 1993), the court said that minority holders who wanted protection should bargain for it by contract, and that the legislature, not the courts, should create judicial rules for close corporations. The result is that the shield available to a minority holder depends on the state.",
+    "Statutory dissolution is another remedy. Many states allow judicial dissolution when directors or controllers have acted in a manner that is illegal, fraudulent or oppressive, and some define oppression by the shareholder's reasonable expectations, such as continued employment or participation. MBCA section 14.30 permits a court, on a shareholder's petition, to dissolve a corporation where the directors or those in control have acted, are acting or will act in a manner that is illegal, oppressive or fraudulent. Many statutes permit the corporation or other shareholders to avoid dissolution by buying out the petitioner at fair value, and courts may order a buyout directly. Fair value generally does not apply a minority or marketability discount, though states differ.",
+    "Worked example. Three siblings own equal shares of Pruitt Hardware, and two vote to fire the third from his job and stop all distributions while paying themselves salaries. In Massachusetts, the fired sibling can invoke Wilkes: the majority must show a legitimate business purpose and may lose if a less harmful alternative existed. In Delaware, absent a contract, the claim is much weaker."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l16",
+   "title": "Mergers and Acquisitions: Structures, Approvals and Appraisal",
+   "body": [
+    "There are three basic ways to acquire a business. In a statutory merger, one corporation is absorbed into another by operation of law; the survivor succeeds to all the assets and liabilities, and target shareholders receive cash, stock or other consideration. In a stock purchase, the buyer acquires shares directly from the shareholders, either by negotiating with them or by a tender offer, and the target continues as a subsidiary with its liabilities intact. In an asset purchase, the buyer acquires specified assets and assumes specified liabilities, leaving other liabilities with the seller. Buyers often use triangular mergers: in a reverse triangular merger, the buyer forms a subsidiary that merges into the target, and the target survives as a subsidiary, which helps preserve contracts and permits that might not be assignable.",
+    "Approval rules follow the structure. In a statutory merger, the target's board must approve a merger agreement, and the target's shareholders must approve it, typically by a majority of outstanding shares in Delaware (DGCL section 251). The acquirer's shareholders ordinarily do not vote in a Delaware merger where the buyer survives and does not issue more than a specified portion of its shares, though stock exchange rules may require a vote for large share issuances. A short-form merger, when a parent owns at least 90 percent of a subsidiary, needs no vote of the subsidiary's minority. In an asset sale of substantially all assets, the selling corporation's shareholders vote, and the buyer's do not. In a stock purchase, shareholders decide individually whether to sell, and no corporate vote is needed, though the buyer needs to obtain enough shares to control.",
+    "Shareholders who dissent from a merger may have appraisal rights, the right to a judicial determination of the fair value of their shares, excluding any value arising from the merger itself. Under DGCL section 262, appraisal is available in mergers but generally not for shares listed on a national exchange or widely held when the consideration is stock of a listed company, with exceptions where cash is paid, and recent amendments added thresholds for small holdings in some cases. The holder must follow procedures exactly: usually give written demand before the vote and not vote in favour. Appraisal has become a source of litigation by investment funds, though courts have often looked to the deal price as strong evidence of fair value in arm's-length transactions.",
+    "A classic dispute is the de facto merger doctrine. In Farris v. Glen Alden Corp. (Pa. 1958), the court treated a purchase of assets for stock, which functionally combined the companies, as a merger requiring shareholder approval and appraisal rights, despite its form. In Hariton v. Arco Electronics, Inc. (Del. 1963), Delaware rejected this and held that each statutory route has independent legal significance, so a sale of assets for stock need not be treated as a merger. The Delaware view is dominant in many jurisdictions.",
+    "Successor liability in asset sales also appears on exams. A buyer of assets generally does not take the seller's liabilities, with exceptions where the buyer expressly or impliedly assumes them, the transaction is a de facto merger or mere continuation of the seller (often shown by common ownership and continuity of management), or the transaction is a fraud on creditors. Some states add product-line exceptions for tort claimants.",
+    "Merger agreements contain representations and warranties, closing conditions, covenants and deal protections such as no-shop clauses, termination fees and a fiduciary out that lets the board consider a superior proposal. Large deals may require premerger notification to federal antitrust agencies under the Hart-Scott-Rodino Act.",
+    "Worked example. Delta Corp. wants to buy Eastgate Co., a company with possible environmental liabilities. If it buys Eastgate's assets and expressly assumes nothing, it avoids those liabilities unless an exception applies; if it merges Eastgate into itself, it takes them all."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l17",
+   "title": "Takeover Defenses and Enhanced Scrutiny",
+   "body": [
+    "A hostile takeover is an attempt to acquire control of a target over the objection of its board, usually through a tender offer to shareholders or a proxy contest to replace the board. Because the board that would resist the bid is also the board whose jobs are at stake, Delaware courts reject plain business judgment review of defensive measures and apply an intermediate standard known as enhanced scrutiny.",
+    "In Unocal Corp. v. Mesa Petroleum Co. (Del. 1985), the target responded to a two-tier coercive tender offer by making a selective self-tender that excluded the bidder. The Delaware Supreme Court upheld the response and set out a two-step test. First, the board must show reasonable grounds for believing that a danger to corporate policy and effectiveness existed, a showing satisfied by good faith and reasonable investigation, which is aided by approval from a majority of independent directors. Second, the response must be reasonable in relation to the threat posed. Unitrin, Inc. v. American General Corp. (Del. 1995) added that a defensive measure that is preclusive or coercive, meaning it makes a proxy contest realistically unattainable or forces the shareholders' decision, will not be reasonable, and otherwise a measure within a range of reasonableness survives.",
+    "The poison pill (shareholder rights plan) is the leading defense. A pill gives existing shareholders, other than a bidder who crosses a threshold such as 15 or 20 percent, rights to buy shares or the bidder's shares at a steep discount, diluting the bidder severely. In Moran v. Household International, Inc. (Del. 1985), the court held that a board may adopt a pill under its statutory power, with its use in a particular situation subject to Unocal review. A target with a pill and a staggered board is hard to take over without the board's agreement. Other defenses include white knights, share repurchases, and state anti-takeover statutes such as DGCL section 203, which in general bars a business combination with a holder of 15 percent or more for three years unless the board approved the acquisition beforehand or other conditions are met.",
+    "When the board decides to sell the company, or breaks it up, a different duty applies. Revlon, Inc. v. MacAndrews & Forbes Holdings, Inc. (Del. 1986) held that when the sale of the company becomes inevitable, the directors' role changes from defenders of the corporate bastion to auctioneers charged with getting the best price reasonably available for shareholders. Favouring one bidder with a lockup that ended the auction was improper. Revlon duties arise when the corporation initiates an active bidding process to sell itself or to effect a business reorganisation involving a clear breakup, or when the transaction results in a change of control, as in Paramount Communications Inc. v. QVC Network Inc. (Del. 1994), where a sale of control to a buyer would deprive shareholders of a control premium. By contrast, a stock-for-stock merger into a widely held acquirer generally does not trigger Revlon. Directors need not run an auction, but must be informed and reasonable. Deal-protection devices must leave the board a fiduciary out, as the court emphasised in Omnicare, Inc. v. NCS Healthcare, Inc. (Del. 2003).",
+    "In Corwin v. KKR Financial Holdings LLC (Del. 2015), the court held that if a transaction not subject to entire fairness is approved by a fully informed, uncoerced vote of disinterested stockholders, the business judgment rule applies. This provides a route to dismissal of post-closing damages claims.",
+    "Worked example. Gale Corp.'s board receives an unsolicited hostile bid at a premium but views it as undervaluing the company. After consulting outside advisers and independent directors, it adopts a pill, a standard defence. A court would examine whether the board reasonably perceived a threat, such as inadequate price and coercion, and whether the pill is proportionate and not preclusive, since shareholders can still elect a new board."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l18",
+   "title": "The Securities Act of 1933",
+   "body": [
+    "The Securities Act of 1933 regulates the primary market, in which issuers sell securities to investors. Its theory is disclosure: investors get the facts, and the government does not judge the merits. Section 5 makes it unlawful to offer or sell a security through interstate commerce unless a registration statement is on file (for offers) and effective (for sales), or an exemption applies. The registration statement includes a prospectus describing the business, risks, finances and management.",
+    "A threshold question is whether the instrument is a security. The statute lists stock, notes, bonds and investment contracts, among others. In SEC v. W.J. Howey Co. (U.S. 1946), the Court defined an investment contract as an investment of money in a common enterprise with an expectation of profits solely from the efforts of others, a test now read to cover profits derived predominantly from the efforts of others. Citrus grove interests sold with a management service met it. For notes, Reves v. Ernst & Young (U.S. 1990) uses a family-resemblance test. Whether a given digital asset is a security continues to be litigated and regulated, and exam answers should apply Howey to the facts rather than assume a label.",
+    "Registered offerings follow three periods. In the pre-filing period, issuers may not offer the security, so publicity that conditions the market is restricted. In the waiting period, after filing and before effectiveness, oral offers and written offers by means of a statutory preliminary prospectus are allowed, but sales are not. After effectiveness, sales may be made with a final prospectus delivered, and free writing prospectuses are permitted under conditions. Well-known seasoned issuers get more flexibility.",
+    "Many offerings are exempt. Section 4(a)(2) exempts transactions by an issuer not involving a public offering. In SEC v. Ralston Purina Co. (U.S. 1953), the Court held that the question turns on whether the offerees need the protection of registration, which depends on whether they can fend for themselves, with access to the kind of information registration would disclose. Regulation D provides safe harbours. Rule 506(b) permits unlimited sales to accredited investors and up to 35 non-accredited but sophisticated purchasers, without general solicitation, while Rule 506(c) permits general solicitation if all purchasers are accredited and the issuer takes reasonable steps to verify. Accredited investors include certain institutions and natural persons meeting an income or net worth test, of roughly 200,000 dollars in income (300,000 jointly) or over one million dollars in net worth excluding the primary residence, with other categories added by rule. Other exemptions include Regulation A (smaller public offerings), crowdfunding under Regulation CF and the intrastate offering exemption. Securities sold in private placements are restricted and may be resold only through registration or an exemption such as Rule 144, which imposes holding periods.",
+    "The Act imposes civil liability. Section 11 gives purchasers a damages claim for material misstatements or omissions in a registration statement: the issuer is strictly liable, while directors, signing officers, underwriters and experts can raise a due diligence defense (experts for their own portions), and a plaintiff need not prove reliance or scienter, with limits where the purchaser knew of the untruth. Section 12(a)(1) gives rescission to purchasers in a section 5 violation, without proof of fault. Section 12(a)(2) provides a claim for material misstatements in a prospectus or oral communication, and Gustafson v. Alloyd Co. (U.S. 1995) limited it to public offerings by prospectus. Section 17(a) is an antifraud provision enforced by the SEC, with no private right of action.",
+    "Worked example. Bluebird Labs, a start-up, sells shares to 20 friends and angel investors after a pitch posted publicly online. Under Rule 506(b), the public pitch is general solicitation and spoils the exemption; under 506(c), it would be allowed if all purchasers were verified accredited investors."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l19",
+   "title": "The Exchange Act of 1934 and Rule 10b-5",
+   "body": [
+    "The Securities Exchange Act of 1934 regulates the secondary market, in which investors trade among themselves, and it created the Securities and Exchange Commission. It requires companies with registered securities to file periodic reports (annual Form 10-K, quarterly Form 10-Q, and current reports on Form 8-K), and it regulates exchanges, broker-dealers, proxy solicitation, tender offers and beneficial ownership reporting by holders of more than 5 percent under section 13(d). The Sarbanes-Oxley Act of 2002 added certification, internal-control and audit-committee requirements.",
+    "Section 10(b) and SEC Rule 10b-5 are the main antifraud provisions. The rule prohibits, in connection with the purchase or sale of any security, employing a device to defraud, making an untrue statement or omitting a material fact that makes statements misleading, or engaging in a fraudulent practice. Courts recognise an implied private right of action, and a plaintiff must prove (1) a material misrepresentation or omission, (2) scienter, (3) a connection with the purchase or sale of a security, (4) reliance, (5) economic loss, and (6) loss causation. Each element has defining authority. Materiality asks whether there is a substantial likelihood that a reasonable investor would view the information as significantly altering the total mix of information (TSC Industries, Inc. v. Northway, Inc., 1976); for contingent events such as merger talks, Basic Inc. v. Levinson (1988) weighs probability against magnitude. Scienter means intent to deceive, manipulate or defraud, and negligence is not enough (Ernst & Ernst v. Hochfelder, 1976); lower courts accept recklessness. Only actual purchasers and sellers may sue privately (Blue Chip Stamps v. Manor Drug Stores, 1975). Reliance may be presumed in open-market cases because efficient markets incorporate public information into price, the fraud-on-the-market presumption of Basic, which defendants can rebut by showing the statement did not",
+    "affect the price. Loss causation requires showing the misstatement, not just an inflated purchase price, caused the loss (Dura Pharmaceuticals, Inc. v. Broudo, 2005). Morrison v. National Australia Bank Ltd. (2010) limits the statute to securities listed on domestic exchanges and domestic transactions in others.",
+    "The Private Securities Litigation Reform Act of 1995 added a heightened pleading standard that requires facts giving rise to a strong inference of scienter, a stay of discovery during a motion to dismiss, a lead-plaintiff procedure and a safe harbour for forward-looking statements with meaningful cautionary language or lacking actual knowledge of falsity.",
+    "Section 16 addresses insiders' short-term trading. Directors, officers and holders of more than 10 percent of a registered class must report their holdings and trades, and under section 16(b) any profit realised from a purchase and sale (or sale and purchase) within a period of less than six months must be returned to the issuer. Liability is strict: no intent or use of inside information is required, and profit is calculated by matching the lowest purchase price against the highest sale price within six months, which can produce profit on paper even when the insider lost money overall.",
+    "Section 14(a) and Rule 14a-9 prohibit false or misleading proxy solicitations, and the Court has held that a plaintiff can show causation where the proxy solicitation was an essential link in the transaction (Mills v. Electric Auto-Lite Co., 1970).",
+    "Worked example. Corvane Inc. announces record results while its CFO knows the numbers include fictitious sales. The stock rises, and investors buy. When the fraud is revealed, the price falls and they sue. They can invoke the fraud-on-the-market presumption of reliance, but must plead facts giving a strong inference of scienter and prove that the drop followed the revelation and was not caused by other news."
+   ]
+  },
+  {
+   "id": "law-business-orgs.l20",
+   "title": "Insider Trading",
+   "body": [
+    "Insider trading is not defined by a single statute. It is a form of securities fraud developed under section 10(b) and Rule 10b-5, with the key idea that trading on material non-public information in breach of a duty is deceptive. The law does not require equal information among all traders. The rule is that a person who has a duty to disclose or abstain must do one or the other.",
+    "In the classical theory, a corporate insider, such as an officer, director or employee, who trades in the company's securities while in possession of material non-public information breaches a duty of trust and confidence owed to the shareholders. SEC v. Texas Gulf Sulphur Co. (2d Cir. 1968) held that insiders who knew of a major ore discovery had to disclose or abstain. Chiarella v. United States (U.S. 1980) set the limit: a financial printer who deduced takeover targets from documents and traded had no duty to the sellers, because he was not an insider and had no relationship of trust with them. Silence is fraud only when there is a duty to speak. Temporary or constructive insiders, such as lawyers, accountants and investment bankers who receive confidential information for a corporate purpose, are treated as insiders.",
+    "Tipping is covered by Dirks v. SEC (U.S. 1983). A tippee inherits a duty to disclose or abstain only where the insider breached a fiduciary duty by disclosing, and the tipper breaches only if the tipper discloses for a personal benefit, direct or indirect. The Court gave examples including pecuniary gain, reputational benefit, and a gift of confidential information to a trading relative or friend. The tippee must also know or have reason to know of the breach. In Salman v. United States (U.S. 2016), the Court held that giving inside information as a gift to a trading relative or friend satisfies the personal-benefit test, even without a tangible gain to the tipper. Dirks himself, an analyst who revealed a fraud, was not liable because the insider's motive was to expose it rather than for personal benefit.",
+    "The misappropriation theory, accepted in United States v. O'Hagan (U.S. 1997), covers an outsider who trades on confidential information in breach of a duty owed to the source of the information, as when a lawyer at a firm working for a bidder trades in the target's stock. The deception is directed at the source, and the fraud is complete when the trader uses the information without disclosure to the source, provided the trading is in connection with a securities transaction. Rule 10b5-2 identifies family and other relationships in which a duty of trust is presumed in misappropriation cases. Rule 14e-3 separately prohibits trading on material non-public information about a tender offer once substantial steps have been taken, without requiring a breach of duty.",
+    "Under SEC rules, trading is 'on the basis of' material non-public information if the trader was aware of it when trading, and Rule 10b5-1 provides an affirmative defense for trades under a written plan adopted before becoming aware of the information. The SEC amended the rule in 2022 to add cooling-off periods, good-faith conditions and disclosure requirements. Remedies include disgorgement of profits, a civil penalty of up to three times the profit gained or loss avoided, officer-and-director bars and criminal prosecution under the securities laws and wire fraud statutes, with potential imprisonment. Private plaintiffs who trade contemporaneously can sue under section 20A.",
+    "Worked example. Hollis, a partner at a law firm advising Acme in a confidential acquisition of Bryn Co., buys Bryn shares before the announcement. Hollis owes no duty to Bryn's shareholders, but did breach a duty to his firm and its client, which gave him the information in confidence. Under O'Hagan he is liable under the misappropriation theory."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "law-business-orgs.l01.q1",
+   "lessonId": "law-business-orgs.l01",
+   "kind": "mcq",
+   "prompt": "Which feature most clearly distinguishes an agency relationship under the Restatement (Third) of Agency?",
+   "choices": [
+    "The agent is paid a regular wage by the principal under a signed written employment contract",
+    "The agent holds the title that the principal has publicly announced",
+    "The agent has been given authority to sign contracts for the principal",
+    "The principal has the right to control the agent in the matter undertaken"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l01.q2",
+   "lessonId": "law-business-orgs.l01",
+   "kind": "mcq",
+   "prompt": "A store owner tells a new employee she may order stock but never to buy anything over $1,000. A supplier, unaware of the cap, accepts her $9,000 order after seeing her wear a \"Purchasing Manager\" badge issued by the owner. Which statement is most accurate?",
+   "choices": [
+    "The owner is bound only if the employee reasonably believed the cap was waived",
+    "The owner is not bound unless the owner later ratifies the order in writing",
+    "The owner is likely bound because the supplier relied on the owner's own manifestation of authority",
+    "The owner is not bound because the employee had no actual authority for an order of that size under the instruction she received"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l01.q3",
+   "lessonId": "law-business-orgs.l01",
+   "kind": "mcq",
+   "prompt": "Which fact would most clearly make a principal's ratification of an unauthorised contract effective?",
+   "choices": [
+    "The third party asks the principal to confirm the contract",
+    "The principal accepts the contract's benefits knowing the material facts",
+    "The principal stays silent for a week after the contract is signed",
+    "The agent assures the principal that the contract is favourable and that the third party will perform on time"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l01.q4",
+   "lessonId": "law-business-orgs.l01",
+   "kind": "mcq",
+   "prompt": "Marcus hires Elena to buy a vintage guitar for him at an auction. Unknown to Marcus, Elena arranges with the seller to receive a $2,000 payment for steering Marcus to that guitar, which sells at a fair price. Marcus later learns of the payment. What is the strongest ground for Marcus to recover?",
+   "choices": [
+    "Elena breached her duty of loyalty and must turn over the secret payment even though Marcus paid a fair price",
+    "Elena breached her duty of care because the guitar was not the best available instrument",
+    "Marcus can rescind only if he proves the guitar was worth less than he paid",
+    "Elena committed no breach of loyalty because the seller, rather than Marcus, paid the amount and Marcus suffered no loss"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l01.q5",
+   "lessonId": "law-business-orgs.l01",
+   "kind": "mcq",
+   "prompt": "Orion Corp. fired its sales agent Tess and told no customers. Three weeks later, a longtime customer, who had never been told of the termination, ordered goods from Tess for delivery on credit. Orion refuses to honour the order. Which result is most likely?",
+   "choices": [
+    "Orion is not bound because Tess's actual authority ended on termination and with it any power to bind the company",
+    "Orion is bound only if Tess honestly believed her authority had continued",
+    "Orion is not bound unless the customer proves Tess had inherent agency power",
+    "Orion is bound because Tess retained lingering apparent authority as to customers who had no notice"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l02.q1",
+   "lessonId": "law-business-orgs.l02",
+   "kind": "mcq",
+   "prompt": "A third party deals with an agent knowing that the agent works for a principal but not knowing who the principal is. The principal is best described as",
+   "choices": [
+    "partially disclosed, so both principal and agent may be liable on the contract",
+    "fully disclosed, so only the principal is liable on the contract and the agent drops out entirely",
+    "undisclosed, so only the agent is liable on the contract",
+    "unauthorised, so neither the agent nor the principal is liable"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l02.q2",
+   "lessonId": "law-business-orgs.l02",
+   "kind": "mcq",
+   "prompt": "A gym instructor, employed by FitCo, drives a coworker home in his own car after work as a favour and negligently injures a pedestrian. FitCo had no interest in the drive. Is FitCo vicariously liable?",
+   "choices": [
+    "No, because respondeat superior applies only to intentional torts",
+    "No, because the trip was a personal errand outside the scope of employment",
+    "Yes, because the instructor was employed by FitCo at the time of the accident",
+    "Yes, because FitCo knew the instructor sometimes gave rides to coworkers"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l02.q3",
+   "lessonId": "law-business-orgs.l02",
+   "kind": "mcq",
+   "prompt": "Which circumstance most plausibly makes a hiring party liable for the negligence of an independent contractor?",
+   "choices": [
+    "The contractor uses the hiring party's name on its invoices",
+    "The contractor has performed similar work for the hiring party before",
+    "The work is inherently dangerous, such as blasting in a populated area",
+    "The contractor is paid a flat fee for the whole project rather than an hourly wage by the hiring party"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l02.q4",
+   "lessonId": "law-business-orgs.l02",
+   "kind": "mcq",
+   "prompt": "Ruth, an agent, signs a lease for her principal, Bellwether Co., after being told by Bellwether she may do so. Before she signs, Bellwether had revoked that authority by email that Ruth did not open. The landlord reasonably relied on Bellwether's earlier statements that Ruth could sign. Bellwether then repudiates. Which analysis is strongest for the landlord?",
+   "choices": [
+    "Bellwether is not bound because Ruth's actual authority had already ended before she signed the lease",
+    "Ruth alone is liable because the landlord dealt with her personally",
+    "Neither is liable because a revocation takes effect on dispatch to the agent",
+    "Bellwether is bound by apparent authority because it did not tell the landlord of the revocation"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l02.q5",
+   "lessonId": "law-business-orgs.l02",
+   "kind": "mcq",
+   "prompt": "Bartholomew, a patient, is treated in a hospital's emergency room by a physician who is an independent contractor but wears a hospital badge and who was assigned by the hospital without the patient's choice. Bartholomew is injured by the physician's negligence and sues the hospital. Which theory is the hospital's greatest exposure?",
+   "choices": [
+    "Ostensible agency because the hospital held the physician out as its own to the patient",
+    "Respondeat superior because the physician used hospital equipment and facilities during the treatment of the patient",
+    "Inherent danger because medical procedures carry risk of harm to patients",
+    "Ratification because the hospital billed the patient for the visit afterward"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l03.q1",
+   "lessonId": "law-business-orgs.l03",
+   "kind": "mcq",
+   "prompt": "Under RUPA, which receipt of profit does NOT give rise to an inference that the recipient is a partner?",
+   "choices": [
+    "A person who bears a share of the business's losses",
+    "A landlord receiving a share of profits as rent",
+    "A person who invests capital in return for half of profits",
+    "A person who jointly manages the business with the other owner"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l03.q2",
+   "lessonId": "law-business-orgs.l03",
+   "kind": "mcq",
+   "prompt": "Two friends run a bakery, split profits equally and have no written agreement. One orders a new oven from a supplier, and the bakery cannot pay. Under RUPA, which statement is correct?",
+   "choices": [
+    "The supplier can recover from partnership assets and, if they are insufficient, from the partners personally",
+    "The supplier can recover only from the partner who personally placed the order with the vendor",
+    "The supplier has no claim because no partnership was formed without a filing",
+    "The supplier can recover only from partnership assets, because partners have limited liability"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l03.q3",
+   "lessonId": "law-business-orgs.l03",
+   "kind": "mcq",
+   "prompt": "A partnership at will has three partners. Without consulting the others, one partner proposes to change the business to a new, unrelated line of work. Under the RUPA default rules, what is needed?",
+   "choices": [
+    "A simple majority of the partners, since the change concerns the management of the firm's business",
+    "A two-thirds vote of the partners, based on the default rule for amendments",
+    "No vote, because each partner is an agent who can bind the firm",
+    "The consent of all the partners, since the change is outside the ordinary course"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l03.q4",
+   "lessonId": "law-business-orgs.l03",
+   "kind": "mcq",
+   "prompt": "Alma and Brooks are partners in an architecture firm. Without telling Alma, Brooks accepts a design commission in his own name from a firm client and keeps the fee. The partnership agreement is silent. Which conclusion is best supported?",
+   "choices": [
+    "Brooks must share the fee only if Alma proves the partnership lost the work",
+    "Brooks keeps the fee because partners may compete in the absence of a written non-compete",
+    "Brooks must account to the partnership for the profit because he breached the duty of loyalty",
+    "Brooks keeps the fee because the duty of care permits partners to take ordinary business risks for themselves"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l03.q5",
+   "lessonId": "law-business-orgs.l03",
+   "kind": "mcq",
+   "prompt": "Okafor owes a personal debt unrelated to the Okafor & Pruitt partnership. His creditor obtains a judgment and wants to seize the partnership's equipment. Which remedy is available under RUPA?",
+   "choices": [
+    "An order requiring Pruitt to pay the debt as a jointly liable partner",
+    "A charging order against Okafor's partnership distributions, with no management rights",
+    "A levy on the partnership's equipment itself, since partners co-own firm property as tenants in common",
+    "Dissolution of the partnership, since a creditor can force a sale of the business"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l04.q1",
+   "lessonId": "law-business-orgs.l04",
+   "kind": "mcq",
+   "prompt": "In a limited partnership, who bears unlimited personal liability for the partnership's obligations?",
+   "choices": [
+    "The state official who files the certificate",
+    "Only the partners who vote on major decisions",
+    "The general partner",
+    "Each limited partner who contributes capital"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l04.q2",
+   "lessonId": "law-business-orgs.l04",
+   "kind": "mcq",
+   "prompt": "A limited partner in a state following the 1985 RULPA control rule starts negotiating and signing supply contracts for the LP, and a supplier reasonably believes she is a general partner. What is the likely result?",
+   "choices": [
+    "She remains fully shielded because limited partners never lose limited liability",
+    "She loses limited liability to all creditors, whether or not they relied",
+    "She is shielded because signing contracts is a listed safe-harbour activity",
+    "She may be liable to that supplier as though she were a general partner"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l04.q3",
+   "lessonId": "law-business-orgs.l04",
+   "kind": "mcq",
+   "prompt": "A manager-managed Delaware LLC has a passive investor who, in good faith, signs a contract on the LLC's behalf without authority from the manager. Which statement best describes the default position?",
+   "choices": [
+    "The investor lacks agency authority merely by being a member and the LLC is bound only on apparent authority",
+    "The investor binds the LLC automatically because every member of every LLC is an agent of the company",
+    "The investor is a partner and liable personally for all LLC debts",
+    "The contract is void because only managers may sign anything for the LLC"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l04.q4",
+   "lessonId": "law-business-orgs.l04",
+   "kind": "mcq",
+   "prompt": "The operating agreement of a Delaware LLC states clearly that the managing member owes no fiduciary duties to the other members and may favour her own interests. She later sells LLC property to herself at a price that is low but not a sham. The other members sue for breach of fiduciary duty. What result is most likely?",
+   "choices": [
+    "The claims succeed because the sale amounts to piercing the veil of the LLC",
+    "Fiduciary duty claims fail because the agreement validly eliminated the duties, but a good-faith-and-fair-dealing claim may remain",
+    "Fiduciary duty claims succeed because fiduciary duties can never be waived in an LLC",
+    "The claims fail entirely because the implied covenant of good faith and fair dealing may also be waived by contract"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l04.q5",
+   "lessonId": "law-business-orgs.l04",
+   "kind": "mcq",
+   "prompt": "Calloway is a member of Dunmore LLC and personally guarantees the LLC's lease. The LLC defaults. Separately, a customer wrongly claims Calloway's own negligent driving, on an LLC errand, caused injury. Which analysis is correct?",
+   "choices": [
+    "Calloway is liable on neither, because limited liability covers any act done as a member",
+    "Calloway is liable on the tort but not on the guarantee, because guarantees are void for LLC members",
+    "Calloway is liable on the guarantee and for his own tort, though not for the LLC's other debts",
+    "Calloway is liable for all LLC debts because he participated in the business"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l05.q1",
+   "lessonId": "law-business-orgs.l05",
+   "kind": "mcq",
+   "prompt": "Which feature of an S corporation distinguishes it from a regular C corporation for federal tax purposes?",
+   "choices": [
+    "Shareholders are protected from all personal liability, including liability for their own wrongful acts or guarantees",
+    "The corporation may issue several classes of stock with different dividend rights",
+    "The entity may have an unlimited number of shareholders, including nonresident aliens",
+    "Income is generally passed through to shareholders instead of being taxed at the corporate level"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l05.q2",
+   "lessonId": "law-business-orgs.l05",
+   "kind": "mcq",
+   "prompt": "A company is headquartered in Ohio but incorporated in Delaware. A shareholder sues the directors in an Ohio court for breaching their duty of loyalty. Which law will most likely govern the duty?",
+   "choices": [
+    "Federal common law, because the company has shareholders in several states",
+    "The law of the state where the challenged transaction took place",
+    "Delaware law, under the internal affairs doctrine",
+    "Ohio law, because the company's principal place of business is there"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l05.q3",
+   "lessonId": "law-business-orgs.l05",
+   "kind": "mcq",
+   "prompt": "Which of the following is a commonly cited institutional reason for Delaware's popularity as a state of incorporation?",
+   "choices": [
+    "Delaware courts apply the internal affairs doctrine only to Delaware residents",
+    "The Court of Chancery decides corporate disputes without juries and has deep expertise",
+    "Delaware law guarantees that directors can never be held personally liable to the shareholders for any breach",
+    "The Delaware statute is fixed and has not changed substantially in decades"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l05.q4",
+   "lessonId": "law-business-orgs.l05",
+   "kind": "mcq",
+   "prompt": "A California-headquartered corporation incorporated in Delaware is sued by a supplier for breach of an ordinary supply contract, and by a minority shareholder alleging that the controller extracted excessive compensation. A court in California is asked which state's law governs each claim. Which pairing is most defensible?",
+   "choices": [
+    "Contract claim under ordinary choice-of-law rules; compensation claim under Delaware law as an internal affair",
+    "Both claims under Delaware law because the corporation is a Delaware entity and Delaware law follows it everywhere",
+    "Both claims under California law because the forum and headquarters are there",
+    "Contract claim under Delaware law; compensation claim under ordinary choice-of-law rules"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l05.q5",
+   "lessonId": "law-business-orgs.l05",
+   "kind": "mcq",
+   "prompt": "Priya's startup will raise money from venture investors who require preferred stock with special liquidation rights, and the founders want a liability shield and familiar law. Which choice best fits these goals?",
+   "choices": [
+    "A general partnership with a written agreement",
+    "An S corporation with two classes of stock",
+    "A sole proprietorship with employee agreements",
+    "A Delaware C corporation"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l06.q1",
+   "lessonId": "law-business-orgs.l06",
+   "kind": "mcq",
+   "prompt": "Who is generally personally liable on a contract a promoter signs for a corporation not yet formed?",
+   "choices": [
+    "The promoter, unless the third party agrees to look only to the corporation",
+    "The corporation automatically, once it is later formed and begins to do business under the contract",
+    "No one, because a non-existent corporation cannot be a party",
+    "The incorporators who later sign the articles of incorporation"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l06.q2",
+   "lessonId": "law-business-orgs.l06",
+   "kind": "mcq",
+   "prompt": "After incorporation, a corporation occupies premises under a lease its promoter signed and pays rent for a year while knowing the lease's terms. What is the effect?",
+   "choices": [
+    "The lease is void because it was made before incorporation",
+    "The corporation has impliedly adopted the lease, and the promoter remains liable absent a novation",
+    "The promoter is released automatically because the corporation accepted the benefits of the lease with knowledge",
+    "The corporation is not liable because it never formally voted on the lease"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l06.q3",
+   "lessonId": "law-business-orgs.l06",
+   "kind": "mcq",
+   "prompt": "Which set of facts best supports de facto corporation status?",
+   "choices": [
+    "The founders operated as a corporation for years without ever trying to file",
+    "A creditor dealt with the business as a corporation and then sued the owners",
+    "A statute allowed incorporation, the founders made a good-faith attempt to file, and they used corporate powers",
+    "The founders intended to incorporate, held themselves out as a company, and printed letterhead using \"Inc.\" but never filed"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l06.q4",
+   "lessonId": "law-business-orgs.l06",
+   "kind": "mcq",
+   "prompt": "Teodoro and Ines sign a supply contract as \"Brightwater Farms, Inc.\" intending to incorporate, but Teodoro forgot to file the articles and no one noticed. Brightwater defaults, and the supplier sues Teodoro and Ines personally. The state follows the MBCA section 2.04 approach. What is the most likely outcome?",
+   "choices": [
+    "They are not liable because the supplier dealt with the business as though it were a corporation and so is estopped",
+    "Only Ines is liable because she signed the contract",
+    "They are not liable because de facto status applies to any good-faith effort to incorporate",
+    "They are jointly liable because they acted on behalf of a corporation knowing none had been formed"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l06.q5",
+   "lessonId": "law-business-orgs.l06",
+   "kind": "mcq",
+   "prompt": "A promoter secretly buys land for $100,000 and sells it to the soon-to-be-formed corporation for $160,000 without telling the other investors. After learning the facts, the corporation sues. Which is the strongest claim?",
+   "choices": [
+    "The promoter breached fiduciary duties to the corporation and investors and must account for the secret profit",
+    "The corporation can rescind only if it proves that the land was actually worth less than the $160,000 it paid",
+    "The promoter is protected because the corporation was not yet in existence",
+    "The promoter is liable only for the cost of the land, not for any profit"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l07.q1",
+   "lessonId": "law-business-orgs.l07",
+   "kind": "mcq",
+   "prompt": "Which is a commonly cited factor in piercing the corporate veil?",
+   "choices": [
+    "The corporation being incorporated in another state",
+    "Commingling of personal and corporate funds",
+    "Payment of a regular dividend to shareholders",
+    "The corporation having more than one shareholder"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l07.q2",
+   "lessonId": "law-business-orgs.l07",
+   "kind": "mcq",
+   "prompt": "A creditor of a thinly capitalised corporation wants to reach the sole shareholder. Which showing is most important in most states?",
+   "choices": [
+    "Unity of interest plus fraud, injustice or inequity if the form is respected",
+    "Proof that the shareholder never attended any board meeting and kept no minutes of the company's decisions",
+    "Evidence that the corporation made a profit in at least one year",
+    "Evidence that the shareholder is the corporation's registered agent"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l07.q3",
+   "lessonId": "law-business-orgs.l07",
+   "kind": "mcq",
+   "prompt": "Under United States v. Bestfoods, when may a parent corporation be liable under CERCLA for a subsidiary's facility?",
+   "choices": [
+    "Whenever the parent owns all of the shares of the subsidiary and appoints its directors and officers",
+    "Whenever directors of the parent also serve as directors of the subsidiary",
+    "Whenever the parent profited from the subsidiary's operations",
+    "If the veil is pierced or the parent itself directly operated the facility"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l07.q4",
+   "lessonId": "law-business-orgs.l07",
+   "kind": "mcq",
+   "prompt": "Tamsin forms Ledger Courier, Inc. with $1,000 in capital though the business foreseeably faces large accident risks, carries only minimal insurance, and observes all formalities. A negligently injured pedestrian sues Ledger and then Tamsin personally. In a jurisdiction applying the usual test, which is the strongest argument for Tamsin?",
+   "choices": [
+    "Undercapitalisation is irrelevant because it only matters in contract cases",
+    "The pedestrian, as a tort victim, cannot rely on piercing at all",
+    "Observing formalities and having insurance, without fraud or misuse, may defeat the claim that respecting the form is unjust",
+    "Limited liability is an absolute rule that courts can never set aside, particularly in cases involving torts"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l07.q5",
+   "lessonId": "law-business-orgs.l07",
+   "kind": "mcq",
+   "prompt": "Gideon controls Quickhaul, Inc., commingles funds with the company, and tells a supplier the company is well financed when he knows it is nearly insolvent. The supplier later sues to hold Gideon liable on the debt. What is the best characterisation of the case?",
+   "choices": [
+    "A case for reverse piercing because the corporation is the true debtor",
+    "A strong contract-based piercing case because of reliance on a misrepresentation plus commingling",
+    "A weak case because contract creditors voluntarily assume the risk of the corporation's insolvency",
+    "A strong case only if Gideon also failed to hold annual meetings"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l08.q1",
+   "lessonId": "law-business-orgs.l08",
+   "kind": "mcq",
+   "prompt": "Under the statutory model in DGCL section 141(a), who manages or directs the business and affairs of a corporation?",
+   "choices": [
+    "The secretary, as keeper of corporate records",
+    "The state secretary of state, as the chartering authority",
+    "The board of directors",
+    "The shareholders, acting through annual votes"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l08.q2",
+   "lessonId": "law-business-orgs.l08",
+   "kind": "mcq",
+   "prompt": "A corporation proposes to sell substantially all of its assets. What approval is required under the typical statute?",
+   "choices": [
+    "Shareholder approval alone, without board action",
+    "Approval by the president acting as agent of the corporation",
+    "No approval, because asset sales are ordinary business decisions",
+    "Board approval followed by shareholder approval"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l08.q3",
+   "lessonId": "law-business-orgs.l08",
+   "kind": "mcq",
+   "prompt": "Which test do many MBCA states apply to restrict distributions to shareholders?",
+   "choices": [
+    "Whether afterward the corporation could pay its debts as they come due and has assets exceeding liabilities",
+    "Whether the corporation reported a net profit in the immediately preceding fiscal year or the one before it",
+    "Whether a majority of shareholders voted in favour of the dividend",
+    "Whether the dividend is smaller than the stated capital of the corporation"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l08.q4",
+   "lessonId": "law-business-orgs.l08",
+   "kind": "mcq",
+   "prompt": "Tallis, president of Redpine, Inc., signs an agreement to sell the company's main plant, its principal asset, for a fair price. The board never approved it. The buyer knew the board had not voted but assumed the president could sign. Which outcome is most likely?",
+   "choices": [
+    "The agreement is void only if shareholders also did not approve",
+    "The agreement is not binding, because a sale of substantially all assets needs board and shareholder approval and the buyer knew there was none",
+    "The agreement is binding because presidents have apparent authority to complete any sale of corporate property at a fair price",
+    "The agreement is binding because the buyer relied on the president's title"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l08.q5",
+   "lessonId": "law-business-orgs.l08",
+   "kind": "mcq",
+   "prompt": "A shareholder of Forge Corp. sues the board for refusing to declare a dividend although Forge has large cash reserves, arguing the company is hoarding cash. The board says it wants to keep cash for planned expansion. Which outcome is most likely under the usual approach?",
+   "choices": [
+    "The court orders a dividend because the cash exceeds a statutory maximum reserve",
+    "The court holds the board liable because expansion plans are speculative",
+    "The court defers to the board unless the refusal is in bad faith or lacks any rational business purpose",
+    "The court orders a dividend because the shareholders, as owners, hold direct title to the corporation's cash reserves"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l09.q1",
+   "lessonId": "law-business-orgs.l09",
+   "kind": "mcq",
+   "prompt": "Which description best captures the business judgment rule in Delaware?",
+   "choices": [
+    "A rule requiring that every board decision must be proven fair on its merits by the directors who approved it",
+    "A requirement that directors guarantee the profitability of decisions they approve",
+    "A bar on all shareholder challenges to decisions made at a duly held board meeting",
+    "A presumption that directors acted on an informed basis, in good faith and in the honest belief the action served the company"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l09.q2",
+   "lessonId": "law-business-orgs.l09",
+   "kind": "mcq",
+   "prompt": "What was the principal reason the Delaware Supreme Court found the directors liable in Smith v. Van Gorkom?",
+   "choices": [
+    "They acted to entrench themselves in office by resisting an unsolicited bid",
+    "They failed to hold the annual shareholder meeting within the statutory time limit",
+    "They approved a merger without adequately informing themselves of all material information reasonably available",
+    "They received undisclosed personal side payments from the buyer in exchange for approving the merger on its terms"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l09.q3",
+   "lessonId": "law-business-orgs.l09",
+   "kind": "mcq",
+   "prompt": "A director relies on a financial report prepared by the chief financial officer, a competent officer chosen with reasonable care, and has no reason to suspect errors. Under DGCL section 141(e), the director is",
+   "choices": [
+    "protected only if the director personally recomputed the key figures",
+    "fully protected for good-faith reliance on the report",
+    "liable for any inaccuracy in the report if the decision caused a loss",
+    "protected only if the report was verified by an outside auditor"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l09.q4",
+   "lessonId": "law-business-orgs.l09",
+   "kind": "mcq",
+   "prompt": "The board of Corvid Tech approves a risky product launch after two meetings, reviewing a thorough internal study and consulting an outside engineering firm. The launch fails and the stock falls by half. Shareholders sue the directors derivatively, alleging the decision was foolish. No director had a personal interest. Which is the most likely result?",
+   "choices": [
+    "The claim fails because the business judgment rule protects informed, disinterested, good-faith decisions regardless of the outcome",
+    "The claim proceeds because a decision that destroys substantial value is presumed to be wasteful",
+    "The claim proceeds because the decision was made at only two meetings, which is inherently gross negligence",
+    "The claim fails only if the directors can prove the launch was objectively reasonable"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l09.q5",
+   "lessonId": "law-business-orgs.l09",
+   "kind": "mcq",
+   "prompt": "The board of Alder Retail approves, during a ten-minute meeting, a major acquisition solely on the CEO's oral summary and without reviewing financial analyses, though the directors had time and access to them. The deal turns out badly. The charter contains no exculpation clause. Which claim is the strongest?",
+   "choices": [
+    "Waste, because any decision made quickly is a gift of corporate assets",
+    "Self-dealing, because directors who rely on the CEO's summary are treated as interested in the transaction itself",
+    "No claim, because directors may always rely on a CEO's summary without question",
+    "Gross negligence in the decision process, which rebuts the business judgment rule and exposes the directors to a care claim"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l10.q1",
+   "lessonId": "law-business-orgs.l10",
+   "kind": "mcq",
+   "prompt": "Under current DGCL section 144(a), a transaction in which a director has a financial interest",
+   "choices": [
+    "is valid only if the interested director is paid less than the market rate",
+    "cannot be the subject of equitable relief or damages if it passes a statutory safe-harbour mechanism",
+    "is always void from the start and cannot be ratified by any disinterested approval process or later vote",
+    "is valid only if every shareholder votes in favour of it"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l10.q2",
+   "lessonId": "law-business-orgs.l10",
+   "kind": "mcq",
+   "prompt": "Which fact most undermines a conflicted transaction's approval by a board committee?",
+   "choices": [
+    "The approving directors were beholden to the interested party and lacked independence",
+    "The committee used an outside lawyer and independent financial adviser to advise it on the process",
+    "The committee met several times before deciding",
+    "The interested director left the room during the vote"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l10.q3",
+   "lessonId": "law-business-orgs.l10",
+   "kind": "mcq",
+   "prompt": "A director of a corporation owns a property that the corporation wants to rent. Which step best supports the director's position under the usual approach?",
+   "choices": [
+    "Disclose only that she has an interest and leave details to be discovered later",
+    "Vote with the rest of the board to approve the lease so that the board's decision is unanimous",
+    "Set the rent slightly above market because the corporation will benefit from stability",
+    "Disclose all material facts and have disinterested directors approve after reviewing market data"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l10.q4",
+   "lessonId": "law-business-orgs.l10",
+   "kind": "mcq",
+   "prompt": "Orla is a director and the CFO of Mereau Corp. She arranges for Mereau to buy equipment from a company she secretly owns, at a price modestly above market. Mereau's board approves after the equipment is described as coming from an unaffiliated vendor. When the ownership is discovered, shareholders sue. What is the strongest argument for the plaintiffs?",
+   "choices": [
+    "The business judgment rule applies because the board voted and the vote controls the standard of review",
+    "The claim fails because the price was only modestly above market",
+    "The approval is not cleansing because the material fact of Orla's interest was not disclosed, so entire fairness applies and she must prove fairness",
+    "The transaction is void automatically because any dealing between a corporation and its director is prohibited"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l10.q5",
+   "lessonId": "law-business-orgs.l10",
+   "kind": "mcq",
+   "prompt": "Under section 144(a) as amended in 2025, a Delaware corporation's three-member board has two members who own stock in a vendor that is bidding for a large contract, and a third director with no ties. All three vote to award the contract to the vendor after the two disclose their interests. A shareholder challenges the award. Which analysis is best?",
+   "choices": [
+    "The transaction is void as a matter of law because two interested directors voted for it at the meeting",
+    "No qualifying committee of two disinterested directors exists, so the transaction must be shown fair or approved by disinterested stockholders",
+    "Disclosure alone is enough, so the safe harbour applies regardless of who voted",
+    "The transaction is protected because a majority of the whole board voted to approve it"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l11.q1",
+   "lessonId": "law-business-orgs.l11",
+   "kind": "mcq",
+   "prompt": "Under Delaware's Guth and Broz line of cases, which factor is relevant to whether an opportunity belongs to the corporation?",
+   "choices": [
+    "Whether the opportunity is within the corporation's line of business",
+    "Whether the fiduciary happened to find the opportunity outside of ordinary working hours or office premises",
+    "Whether the opportunity was publicly advertised",
+    "Whether the corporation has paid a dividend in the last year"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l11.q2",
+   "lessonId": "law-business-orgs.l11",
+   "kind": "mcq",
+   "prompt": "In a controller buyout, what two conditions must be in place from the outset to obtain business judgment review under Kahn v. M&F Worldwide?",
+   "choices": [
+    "A price premium of at least 30 percent over market and a unanimous vote of the entire board of directors",
+    "Approval by an independent special committee and an uncoerced, informed majority-of-the-minority vote",
+    "Approval by the controller's own board and a fairness opinion from the controller's bank",
+    "Approval by two-thirds of all shares and a statutory appraisal right for dissenters"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l11.q3",
+   "lessonId": "law-business-orgs.l11",
+   "kind": "mcq",
+   "prompt": "A venture fund partner serves as a director of a portfolio company whose charter renounces any expectancy in opportunities offered to fund-affiliated directors. The partner takes an opportunity in the same sector through the fund. Under Delaware law, what is the likely effect of the charter clause?",
+   "choices": [
+    "It applies only to opportunities that the corporation has already rejected",
+    "It eliminates the duty of loyalty for all of the director's other actions",
+    "It can validly renounce the corporation's interest in such opportunities, so the usual usurpation claim is limited",
+    "It is void because fiduciary duties of directors and officers cannot be limited or renounced by the charter at all"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l11.q4",
+   "lessonId": "law-business-orgs.l11",
+   "kind": "mcq",
+   "prompt": "Halcyon Corp. owns 70 percent of Brightwave, Inc. Halcyon's executives, who also serve on Brightwave's board, use a confidential internal study showing a much higher value for Brightwave and offer minority holders a price below that value, without disclosing the study, and the merger is approved by the board and a majority of shares. Which holding is most likely?",
+   "choices": [
+    "The deal is protected because a majority of shares approved it",
+    "The deal is protected by the business judgment rule because a board with conflicted members approved it",
+    "The deal fails only if the price was lower than the study's valuation",
+    "The deal is subject to entire fairness and likely fails on fair dealing because of nondisclosure of the study"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l11.q5",
+   "lessonId": "law-business-orgs.l11",
+   "kind": "mcq",
+   "prompt": "Isolde, a director of Pellam Corp., a regional bakery chain, learns through a personal friend, not through her board service, of a chance to buy a bakery in a neighbouring state. Pellam has cash and has been planning expansion, but Isolde does not tell the board and buys it herself. Under the Guth test, what is the most likely conclusion?",
+   "choices": [
+    "She likely usurped a corporate opportunity because it fit Pellam's business and financial capacity, though disclosure and board rejection would have been a safe harbour",
+    "She did not breach duties because she learned of it in her personal capacity",
+    "She breached duties only if Pellam had formally voted to expand",
+    "She did not breach any duty because directors can never be held to a non-compete absent a written agreement"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l12.q1",
+   "lessonId": "law-business-orgs.l12",
+   "kind": "mcq",
+   "prompt": "What does a plaintiff generally have to show to win a Caremark oversight claim?",
+   "choices": [
+    "Simple negligence by the directors in supervising employees and in reviewing compliance reports",
+    "That the corporation suffered a loss from any compliance failure",
+    "That a majority of directors profited from the failure",
+    "Bad faith through a failure to implement any reporting system or a conscious failure to monitor it"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l12.q2",
+   "lessonId": "law-business-orgs.l12",
+   "kind": "mcq",
+   "prompt": "A Delaware charter contains a section 102(b)(7) clause covering directors. Which claim against a director is NOT barred by it?",
+   "choices": [
+    "A claim that the director failed to read a financial report before voting",
+    "A claim that the director acted without sufficient information at a rushed meeting",
+    "A claim that the director acted in bad faith by consciously ignoring known violations",
+    "A claim that the director was grossly negligent in the process used when approving a merger"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l12.q3",
+   "lessonId": "law-business-orgs.l12",
+   "kind": "mcq",
+   "prompt": "Under DGCL section 145, a director who successfully defends a derivative suit on the merits",
+   "choices": [
+    "may be indemnified only for judgments but never for expenses",
+    "must be indemnified for her reasonable expenses",
+    "may be indemnified only if shareholders vote to approve it",
+    "cannot be indemnified because the claim was brought on behalf of the corporation"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l12.q4",
+   "lessonId": "law-business-orgs.l12",
+   "kind": "mcq",
+   "prompt": "Directors of a food company with a charter exculpation clause face a derivative suit. The plaintiff pleads that food safety was the company's core regulatory risk, the board had no committee or reporting process for it, and a deadly outbreak followed. Which statement is most accurate?",
+   "choices": [
+    "The claim may proceed as a Caremark claim of bad faith, which the clause does not exculpate, if the pleading shows the board failed to try to monitor a mission-critical risk",
+    "The claim must be dismissed because the clause bars all claims for breach of the duty of care",
+    "The claim must be dismissed because oversight duties are owed only by officers and never by directors of a company",
+    "The claim proceeds automatically because any outbreak proves negligence"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l12.q5",
+   "lessonId": "law-business-orgs.l12",
+   "kind": "mcq",
+   "prompt": "Under a settlement in a derivative suit, Director Vance pays $2 million to the corporation to resolve a claim that she breached the duty of loyalty. She asks the corporation to indemnify her. What is the most accurate answer under DGCL section 145?",
+   "choices": [
+    "The corporation must indemnify her in full because the settlement avoided the expense and risk of a trial",
+    "The corporation may indemnify her fully if the board votes to do so",
+    "The corporation must indemnify her because she acted as a director",
+    "The corporation generally cannot indemnify amounts paid to the corporation itself in a derivative settlement, though it may cover her expenses subject to court review"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l13.q1",
+   "lessonId": "law-business-orgs.l13",
+   "kind": "mcq",
+   "prompt": "What is the effect of cumulative voting?",
+   "choices": [
+    "It lets a board remove any director without cause regardless of a shareholder vote",
+    "It requires every director to be elected by a majority of all outstanding shares",
+    "It helps minority shareholders win board seats by letting them concentrate their votes on fewer candidates",
+    "It gives large shareholders extra votes in proportion to the length of time they have held their shares in the company"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l13.q2",
+   "lessonId": "law-business-orgs.l13",
+   "kind": "mcq",
+   "prompt": "A shareholder grants a proxy to a friend, then attends the meeting and votes in person. What is the usual effect on the proxy?",
+   "choices": [
+    "The proxy remains effective and controls the vote because it was granted before the shareholder arrived",
+    "The proxy is void because proxies are not enforceable",
+    "The shareholder's vote is invalid because it duplicates the proxy",
+    "The proxy is revoked, because proxies are generally revocable unless coupled with an interest"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l13.q3",
+   "lessonId": "law-business-orgs.l13",
+   "kind": "mcq",
+   "prompt": "Which purpose most clearly qualifies as a proper purpose for a DGCL section 220 inspection demand?",
+   "choices": [
+    "Investigating possible mismanagement, supported by a credible basis to infer wrongdoing",
+    "Obtaining the corporation's confidential trade secrets for use by a competing business owned by the shareholder",
+    "Gathering embarrassing details to pressure the CEO in a personal dispute",
+    "Learning the salaries of all employees out of general curiosity"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l13.q4",
+   "lessonId": "law-business-orgs.l13",
+   "kind": "mcq",
+   "prompt": "Facing a proxy contest by an insurgent group, the board of Rivera Corp. moves the annual meeting up by a month, in order to keep the insurgents from soliciting enough proxies, without any legitimate business reason. The bylaws permit the board to set the date. How is a court most likely to rule?",
+   "choices": [
+    "It will set aside the change only if the insurgents prove actual fraud on the shareholders",
+    "It will likely set aside the change, because action that is legally permitted may still be inequitable when used to defeat the shareholder vote",
+    "It will uphold the change because the bylaws gave the board the power to set the date and the vote cannot be disturbed",
+    "It will uphold the change because the business judgment rule always applies to meeting dates"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l13.q5",
+   "lessonId": "law-business-orgs.l13",
+   "kind": "mcq",
+   "prompt": "Alder, Inc. has a five-member board elected by cumulative voting, and 1,000 shares vote. Hana holds 170 shares and wants to be sure of electing one director. Using the standard formula, how many shares does she need to be certain, and what should she do?",
+   "choices": [
+    "At least 101 shares, and she should split her votes among several candidates",
+    "At least 250 shares, and she should cast all of her votes for one candidate",
+    "At least 167 shares, and she should cast all of her votes for one candidate",
+    "At least 200 shares, and she should split her votes among two candidates"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l14.q1",
+   "lessonId": "law-business-orgs.l14",
+   "kind": "mcq",
+   "prompt": "In a derivative suit, who receives the recovery?",
+   "choices": [
+    "The plaintiff's lawyers, as a statutory fee",
+    "The corporation",
+    "The plaintiff shareholder personally",
+    "All shareholders equally and directly"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l14.q2",
+   "lessonId": "law-business-orgs.l14",
+   "kind": "mcq",
+   "prompt": "Under the Tooley test, a claim that directors approved an excessive payment from the corporation to a CEO, reducing the value of all shares proportionally, is most likely",
+   "choices": [
+    "derivative, because the corporation suffered the harm and would receive the recovery",
+    "direct, because the shareholder's own shares lost value when the corporation made the payment",
+    "direct, because the CEO owed duties to each shareholder separately",
+    "neither, because compensation decisions are protected by the business judgment rule"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l14.q3",
+   "lessonId": "law-business-orgs.l14",
+   "kind": "mcq",
+   "prompt": "A shareholder buys shares of a corporation after a scandal and then sues derivatively over the scandal. Which doctrine most directly bars her suit?",
+   "choices": [
+    "The business judgment rule",
+    "The doctrine of ratification by later acts",
+    "The internal affairs doctrine",
+    "The contemporaneous ownership requirement"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l14.q4",
+   "lessonId": "law-business-orgs.l14",
+   "kind": "mcq",
+   "prompt": "A Delaware board has ten members. In a derivative suit over a self-dealing transaction by the CEO, the complaint pleads particular facts showing that three directors had no independence from the CEO and two others faced a substantial likelihood of liability for the same misconduct. The other five are independent and unconflicted. The plaintiff did not make a demand. Under the Zuckerberg test, which result follows?",
+   "choices": [
+    "Demand is required, because the independent directors can investigate the claim",
+    "Demand is futile only if the CEO is also the board chair",
+    "Demand is futile, because at least half of the board fails the director-by-director screen",
+    "Demand is required, because futility exists only if a majority of the whole board fails the director-by-director screen"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l14.q5",
+   "lessonId": "law-business-orgs.l14",
+   "kind": "mcq",
+   "prompt": "After a shareholder demand alleging that executives falsified results, the board appoints a special litigation committee of two newly appointed independent directors, which retains outside counsel, investigates for six months and moves to dismiss. A Delaware court applying Zapata reviews the motion. Which statement best describes the court's first inquiry?",
+   "choices": [
+    "Whether the corporation's charter contains an exculpation clause covering the executives",
+    "Whether the committee was independent and acted in good faith with a reasonable basis for its conclusions, with the committee bearing the burden",
+    "Whether the claim is meritorious, which the court decides without regard to the committee's report",
+    "Whether a majority of shareholders support dismissal, shown by a vote"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l15.q1",
+   "lessonId": "law-business-orgs.l15",
+   "kind": "mcq",
+   "prompt": "Which problem most characterises the position of a minority shareholder in a close corporation?",
+   "choices": [
+    "There is no ready market for her shares, so she cannot easily exit if the majority freezes her out",
+    "She is always entitled to a seat on the board of directors under the corporate statute in her state",
+    "She is personally liable for the corporation's debts if she holds under half the shares",
+    "She cannot vote because only the majority may vote in a private firm"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l15.q2",
+   "lessonId": "law-business-orgs.l15",
+   "kind": "mcq",
+   "prompt": "Under Wilkes v. Springside Nursing Home, a minority shareholder alleges a freeze-out. What must the majority initially show?",
+   "choices": [
+    "That the minority holder received a price premium for her shares",
+    "A legitimate business purpose for its action",
+    "That it acted with the unanimous consent of the board",
+    "That the minority holder agreed in writing to the action"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l15.q3",
+   "lessonId": "law-business-orgs.l15",
+   "kind": "mcq",
+   "prompt": "How does Delaware treat a non-statutory close corporation under Nixon v. Blackwell?",
+   "choices": [
+    "It automatically permits any minority holder to compel a buyout at fair value",
+    "It prohibits any restriction on the transfer of shares in a private firm",
+    "It declines to create special judicial protections, expecting minority holders to bargain for contractual rights",
+    "It treats close corporation shareholders as partners owing one another a duty of utmost good faith and loyalty"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l15.q4",
+   "lessonId": "law-business-orgs.l15",
+   "kind": "mcq",
+   "prompt": "Anselm, Brigid and Cato each own one third of a Massachusetts close corporation. Anselm and Brigid, who control the board, terminate Cato's employment, stop paying dividends, and pay themselves large salaries, leaving Cato with no return. They say Cato performed poorly. Cato proves that a demotion and a salary reduction would have addressed performance concerns. Under Wilkes, who most likely prevails?",
+   "choices": [
+    "Anselm and Brigid, because poor performance is a legitimate purpose and ends the inquiry",
+    "Anselm and Brigid, because the board has discretion over employment and dividends",
+    "Cato, because any termination of a minority holder is per se oppressive",
+    "Cato, because a less harmful alternative existed for the majority's stated purpose"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l15.q5",
+   "lessonId": "law-business-orgs.l15",
+   "kind": "mcq",
+   "prompt": "In a state with an oppression-based dissolution statute, a shareholder petitions for dissolution of a close corporation, and the corporation elects to buy the petitioner's shares. Which is the best statement of the usual valuation approach?",
+   "choices": [
+    "Fair value, which in many states does not apply a minority or marketability discount",
+    "Book value only, because the corporation is closely held and has no market for its shares to measure value",
+    "Whatever price the majority offers if the board certifies it as fair",
+    "The price the shareholder paid originally, adjusted for inflation"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l16.q1",
+   "lessonId": "law-business-orgs.l16",
+   "kind": "mcq",
+   "prompt": "In a reverse triangular merger, which entity survives?",
+   "choices": [
+    "The buyer's newly created merger subsidiary, which absorbs the target and continues in its place",
+    "The buyer, which absorbs the target outright",
+    "Neither, because both entities are dissolved",
+    "The target corporation, as a subsidiary of the buyer"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l16.q2",
+   "lessonId": "law-business-orgs.l16",
+   "kind": "mcq",
+   "prompt": "In an asset purchase in which the buyer assumes no liabilities, which seller liability could still pass to the buyer?",
+   "choices": [
+    "A liability for taxes the seller owes on the sale",
+    "A liability to creditors that the seller paid at closing",
+    "A liability arising where the sale is a mere continuation of the seller, with common ownership and management",
+    "A liability the buyer never heard of that arises from the seller's ordinary business before the sale closed"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l16.q3",
+   "lessonId": "law-business-orgs.l16",
+   "kind": "mcq",
+   "prompt": "Which approach did Hariton v. Arco Electronics take to a sale of assets for stock that functionally resembled a merger?",
+   "choices": [
+    "It required a unanimous shareholder vote because the sale changed the company's business",
+    "It respected the form of the transaction, holding that each statutory route has independent legal significance",
+    "It treated the sale as a de facto merger requiring a shareholder vote and appraisal rights for dissenters",
+    "It invalidated the sale because shareholders did not receive cash"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l16.q4",
+   "lessonId": "law-business-orgs.l16",
+   "kind": "mcq",
+   "prompt": "Brookline Corp., a Delaware company, is acquired in a cash-out merger approved by a majority of its outstanding shares. Shares of Brookline are not listed on an exchange. Mara voted against the merger, delivered a written demand for appraisal before the vote, and did not otherwise vote in favour. Her claim for appraisal is likely",
+   "choices": [
+    "valid, because she followed the statutory steps and the shares are not exchange-listed, so the market-out exception does not apply",
+    "invalid, because a vote of the majority binds all shareholders in every circumstance, including a cash-out merger",
+    "invalid, because appraisal rights exist only in asset sales",
+    "valid only if the merger consideration was paid partly in stock"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l16.q5",
+   "lessonId": "law-business-orgs.l16",
+   "kind": "mcq",
+   "prompt": "Calder Industries agrees to be acquired by Vantage Inc. The agreement includes a no-shop clause, a termination fee if Calder accepts another bid, and a fiduciary out. A higher bidder emerges, and Calder's board, after advice, concludes it must consider it. Which feature allows the board to engage with the bidder without breaching the agreement?",
+   "choices": [
+    "The no-shop clause, which forbids Calder from negotiating with others",
+    "The termination fee, which prevents a board from discussing any competing offers it receives",
+    "The merger agreement's representations and warranties",
+    "The fiduciary out, which lets the board respond to a superior proposal in order to meet its duties"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l17.q1",
+   "lessonId": "law-business-orgs.l17",
+   "kind": "mcq",
+   "prompt": "What does the second step of the Unocal test ask?",
+   "choices": [
+    "Whether a majority of shareholders approved the defensive measure before it was adopted",
+    "Whether the board used a competitive auction to obtain the best price",
+    "Whether the board's defensive response was reasonable in relation to the threat posed",
+    "Whether the bidder's offer price exceeded the target's book value"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l17.q2",
+   "lessonId": "law-business-orgs.l17",
+   "kind": "mcq",
+   "prompt": "When do Revlon duties most clearly apply?",
+   "choices": [
+    "Whenever any bid for the company is received, whether the bid is hostile or friendly and whatever the form of payment",
+    "When the company merges with a widely held acquirer for stock",
+    "When the board adopts a poison pill in response to a hostile bid",
+    "When the board initiates an active bidding process to sell the company or the transaction will result in a sale of control for cash"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l17.q3",
+   "lessonId": "law-business-orgs.l17",
+   "kind": "mcq",
+   "prompt": "Under Unitrin, which defensive measure would most likely be unreasonable?",
+   "choices": [
+    "One that is preclusive, making a successful proxy contest realistically unattainable",
+    "One that makes a bid more expensive but leaves shareholders free to replace the board",
+    "One adopted after consultation with independent directors and outside advisers",
+    "One that allows the board time to explore alternatives to the bid"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l17.q4",
+   "lessonId": "law-business-orgs.l17",
+   "kind": "mcq",
+   "prompt": "Ravenwood Corp. receives a hostile cash bid at a 30 percent premium and also a competing, lower bid from a friendly buyer. The board, to favour the friendly buyer without a competitive process, gives it a lockup on key assets and a no-shop that bars further talks even for a higher bid. The agreement has no fiduciary out. A shareholder sues. What is the most likely outcome?",
+   "choices": [
+    "The court will enjoin it only if the hostile bid exceeds the friendly bid by 50 percent",
+    "The court will likely enjoin the arrangement as a breach of Revlon and Omnicare, because the board ended the auction and left no fiduciary out",
+    "The court will uphold it under the business judgment rule because the board acted in good faith and obtained advice",
+    "The court will uphold it because directors may prefer a friendly buyer over a hostile bidder"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l17.q5",
+   "lessonId": "law-business-orgs.l17",
+   "kind": "mcq",
+   "prompt": "A Delaware company's board approves a merger with a third party that is not subject to entire fairness review. A fully informed, uncoerced majority of disinterested shareholders votes for it. After closing, a stockholder sues for damages, alleging the directors breached their duty of care in approving the price. Under Corwin, what is the likely result?",
+   "choices": [
+    "Revlon enhanced scrutiny applies regardless of the shareholder vote",
+    "The claim succeeds automatically because the plaintiff alleges a care violation",
+    "Business judgment review applies because of the cleansing vote, so the claim is likely dismissed absent waste",
+    "Entire fairness review applies because the board itself approved the price, which is a conflict by itself"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l18.q1",
+   "lessonId": "law-business-orgs.l18",
+   "kind": "mcq",
+   "prompt": "Which test asks whether there is an investment of money in a common enterprise with an expectation of profits from the efforts of others?",
+   "choices": [
+    "The fraud-on-the-market test",
+    "The Howey test for investment contracts",
+    "The Ralston Purina test for private offerings",
+    "The Reves test for notes"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l18.q2",
+   "lessonId": "law-business-orgs.l18",
+   "kind": "mcq",
+   "prompt": "During the waiting period of a registered offering, which activity is permitted?",
+   "choices": [
+    "Oral offers and delivery of a statutory preliminary prospectus, but no sales",
+    "Binding sales to institutional investors accompanied by a written confirmation sent after the sale is made",
+    "Advertising the securities in any medium without restriction",
+    "No offers of any kind, written or oral"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l18.q3",
+   "lessonId": "law-business-orgs.l18",
+   "kind": "mcq",
+   "prompt": "Under Rule 506(b) of Regulation D, which feature is true?",
+   "choices": [
+    "General solicitation is allowed if all purchasers are verified accredited investors",
+    "Sales are limited to accredited investors and may be advertised on public websites",
+    "The offering must be registered with the SEC within thirty days of the first sale",
+    "No general solicitation is allowed, and up to 35 non-accredited but sophisticated purchasers may participate"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l18.q4",
+   "lessonId": "law-business-orgs.l18",
+   "kind": "mcq",
+   "prompt": "Sunfield Inc. makes a registered public offering. The registration statement overstates the company's backlog, a material fact. A purchaser who bought in the offering sues the issuer, a signing director who relied on management's numbers without inquiry, and the audit firm that certified the financial statements, which were accurate. Which statement is most accurate?",
+   "choices": [
+    "All three are liable regardless of defences because section 11 is strict liability for everyone",
+    "Only the issuer is liable because the others did not sell shares",
+    "The issuer is strictly liable, the director may fail a due diligence defence, and the auditor is liable only for its expertised portions",
+    "The issuer may avoid liability by showing it acted without scienter, but the director may not avoid it"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l18.q5",
+   "lessonId": "law-business-orgs.l18",
+   "kind": "mcq",
+   "prompt": "Bluebird Labs posts a public pitch online and then sells shares to 20 people, all of whom are accredited investors, but takes no steps to verify their status. Which analysis is strongest?",
+   "choices": [
+    "Section 4(a)(2) is automatically available because there were fewer than 35 purchasers",
+    "Rule 506(b) is unavailable because of general solicitation and 506(c) is unavailable for lack of verification, so section 5 is likely violated absent another exemption",
+    "Rule 506(b) is available because all purchasers were in fact accredited",
+    "Rule 506(c) is available because general solicitation is allowed and verification of accredited status is optional"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l19.q1",
+   "lessonId": "law-business-orgs.l19",
+   "kind": "mcq",
+   "prompt": "Which mental state is required for a private plaintiff to prevail under Rule 10b-5, according to Ernst & Ernst v. Hochfelder?",
+   "choices": [
+    "Scienter, meaning intent to deceive, manipulate or defraud",
+    "Simple negligence in the preparation of the disclosure documents that were filed with the market",
+    "Strict liability for any material misstatement",
+    "Knowledge that the statement would be read by purchasers"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l19.q2",
+   "lessonId": "law-business-orgs.l19",
+   "kind": "mcq",
+   "prompt": "An officer buys shares in March and sells shares of the same class at a higher price in August of the same year. She traded without any inside information. Under section 16(b), what is the result?",
+   "choices": [
+    "She owes nothing because the trades were five months apart",
+    "She must disgorge the profit to the issuer because the purchase and sale occurred within six months",
+    "She owes nothing to the issuer because she lacked any inside information when she traded",
+    "She owes the profit only if the issuer proves she intended to exploit inside information"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l19.q3",
+   "lessonId": "law-business-orgs.l19",
+   "kind": "mcq",
+   "prompt": "Which feature of Basic Inc. v. Levinson is correct?",
+   "choices": [
+    "It holds that merger talks are never material until a definitive agreement",
+    "It eliminates the requirement of scienter in open-market cases",
+    "It allows a rebuttable presumption of reliance based on the efficiency of the market for a public stock",
+    "It requires each individual plaintiff to prove personal, direct reliance on the particular statement"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l19.q4",
+   "lessonId": "law-business-orgs.l19",
+   "kind": "mcq",
+   "prompt": "Pellam Corp. announces that sales will meet projections, though its CEO privately believes they will not. The statement is accompanied by a meaningful list of cautionary risks. Investors who bought after the statement sue under Rule 10b-5, and the stock falls on the later disclosure of a shortfall. The statement is a forward-looking projection. What is the strongest defence argument under the PSLRA?",
+   "choices": [
+    "The statement is protected because projections and forecasts are never material to reasonable investors",
+    "The statement is protected because only the SEC can sue over projections",
+    "The statement is protected because the CEO's private belief is irrelevant to scienter",
+    "The safe harbour for forward-looking statements, which protects statements with meaningful cautionary language unless made with actual knowledge of falsity"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l19.q5",
+   "lessonId": "law-business-orgs.l19",
+   "kind": "mcq",
+   "prompt": "A plaintiff did not buy or sell any securities but alleges that she held her shares longer because of a company's false optimistic report, and so lost value when the price fell. Under the Supreme Court's approach in Blue Chip Stamps, what is the likely result?",
+   "choices": [
+    "Her private claim fails because only actual purchasers and sellers have standing under Rule 10b-5",
+    "Her claim succeeds because reliance on a false report in holding her shares is enough to give her standing",
+    "Her claim succeeds if she can prove scienter by the company",
+    "Her claim fails only if she cannot show loss causation"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l20.q1",
+   "lessonId": "law-business-orgs.l20",
+   "kind": "mcq",
+   "prompt": "Under the classical theory of insider trading, who owes a duty to disclose or abstain from trading?",
+   "choices": [
+    "A corporate insider who holds material non-public information about the company",
+    "Any person who trades in a security while knowing something that other market participants do not",
+    "Only a person who profits more than a set amount from the trade",
+    "Only the issuer itself, and not its officers or directors"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l20.q2",
+   "lessonId": "law-business-orgs.l20",
+   "kind": "mcq",
+   "prompt": "A printer working on confidential merger documents deduces the target's name and buys its shares. Under Chiarella, the printer is not liable under the classical theory because",
+   "choices": [
+    "the transaction occurred on a public exchange, so no fraud is possible",
+    "he owed no duty to the sellers of the target's shares, and silence is fraud only where a duty exists",
+    "the information about the pending takeovers was not material to investors who traded in the market",
+    "printers are exempt from the securities laws when acting in a business capacity"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l20.q3",
+   "lessonId": "law-business-orgs.l20",
+   "kind": "mcq",
+   "prompt": "Under Dirks and Salman, when does a tippee inherit liability for trading on a tip?",
+   "choices": [
+    "Only when the tipper receives money from the tippee in exchange for the tip",
+    "Only when the tippee is also an employee of the issuer",
+    "When the tipper breached a duty by disclosing for a personal benefit, such as a gift to a trading relative or friend, and the tippee knew or should have known",
+    "Whenever the tippee receives any material non-public information from an insider, whatever the insider's reason"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l20.q4",
+   "lessonId": "law-business-orgs.l20",
+   "kind": "mcq",
+   "prompt": "Rhea, a paralegal at a firm advising Acme on a confidential acquisition of Bryn Co., tells her brother about the deal in order to help him financially. He buys Bryn shares and profits when the deal is announced. Neither works for Acme or Bryn. Which statement is most accurate?",
+   "choices": [
+    "Neither is liable because neither of them owes any duty to the shareholders of Bryn Co. directly",
+    "Only Rhea is liable because her brother never owed any duty",
+    "Neither is liable because the information concerned a different company's shares",
+    "Rhea breached a duty to her firm and client by a gift tip, so her brother is liable as a tippee who knew of the breach, under misappropriation"
+   ]
+  },
+  {
+   "id": "law-business-orgs.l20.q5",
+   "lessonId": "law-business-orgs.l20",
+   "kind": "mcq",
+   "prompt": "Gareth, an executive, adopts a written Rule 10b5-1 plan to sell shares on set dates while he knows nothing unusual. Later he learns of an undisclosed adverse event, and the plan automatically sells shares that month. Which statement best describes his position?",
+   "choices": [
+    "The plan may supply an affirmative defence if it was adopted in good faith before he was aware of the information and complies with the rule's conditions",
+    "The sale is automatically insider trading because he learned the adverse information before the plan's sale date arrived",
+    "The plan is a defence only if he could cancel it after learning the information",
+    "The plan has no effect because the rule only applies to issuers repurchasing shares"
+   ]
+  }
+ ]
+}

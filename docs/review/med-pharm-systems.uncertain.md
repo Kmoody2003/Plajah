@@ -1,0 +1,31 @@
+# med-pharm-systems: claims for expert review
+
+- l01: "ALLHAT supported thiazide-type diuretics as an excellent first-line choice" simplifies a nuanced trial result; confirm wording. 2017 ACC/AHA first-line classes (thiazide, ACEi, ARB, CCB) stated as current; check for any newer ACC/AHA update. ACEi plus ARB combination harm stated generally.
+- l02: A-HeFT hydralazine/isosorbide dinitrate indication phrased as "self-identified Black patients"; confirm current guideline wording. Hydralazine mechanism deliberately vague. Minoxidil potassium-channel opening simplified.
+- l03: 2022 ACC/AHA/HFSA four foundational HFrEF classes; check for later update. Ivabradine indication wording and "hospitalization only" (SHIFT). SGLT2 mechanism stated as debated. Digoxin outcome statement (DIG) and hyperkalemia in acute overdose.
+- l04: Vaughan Williams assignments (ibutilide, dofetilide as class III; IB shortens action potential). Adenosine mechanism simplified. Dipyridamole potentiation of adenosine.
+- l05: 2018 ACC/AHA cholesterol statin indications condensed (LDL 190+, diabetes ages 40 to 75). Bempedoic acid adverse effects. Niacin lack of added benefit stated without trial names. Inclisiran (siRNA) grouped with PCSK9 antibodies for simplicity. Cyclosporine OATP1B1 inhibition raising statin levels. REDUCE-IT benefit specific to icosapent ethyl.
+- l06: Prasugrel avoidance after prior stroke/TIA; HIT timing (days 5 to 10); warfarin skin necrosis via protein C; DOACs "not typically appropriate" in severe antiphospholipid syndrome; andexanet alfa/PCC reversal (andexanet availability and role have changed; verify). ARISTOTLE lower major bleeding; RE-ALIGN harm in mechanical valves.
+- l07: Citation "ADA, Standards of Care in Diabetes, 2025" may be superseded by the 2026 edition. DPP-4 heart failure signal "for some" (saxagliptin/alogliptin). Pioglitazone fracture/bladder concern. Tirzepatide description. Metformin mechanism (AMPK, complex I) simplified. Glyburide active metabolites. LEADER benefit for liraglutide.
+- l08: PTU first-trimester preference then transition; ATA 2016 guideline may be updated; Wolff-Chaikoff and iodide-after-thionamide sequence in storm.
+- l09: Hydrocortisone mineralocorticoid effect; prednisolone preferred in hepatic impairment; secondary adrenal insufficiency needing no mineralocorticoid replacement.
+- l10: GINA 2024 anti-inflammatory reliever statement and GOLD 2025 year. Montelukast boxed warning. Roflumilast adverse effects. Benzonatate pediatric ingestion danger.
+- l11: ACG 2024 H. pylori guideline citation and bismuth quadruple preference; ranitidine withdrawal (2020). Metoclopramide boxed warning. Ondansetron QT.
+- l12: PRECISION conclusion; celecoxib thrombotic mechanism; ACR Gout 2020 citation; CARES and febuxostat boxed warning; rofecoxib withdrawal year 2004; NSAID ductus effect in late pregnancy; salicylate acid-base sequence.
+- l13: ORAL Surveillance summary; tocilizumab GI perforation and lipid effects; rituximab PML; tacrolimus vs cyclosporine diabetes and cosmetic effects.
+- l14: Cephalosporin generation assignments (ceftaroline, cefotetan), side-chain cross-reactivity, aztreonam/ceftazidime shared side chain, daptomycin and surfactant, "vancomycin infusion reaction" terminology.
+- l15: Tetracycline age cutoff (under eight); linezolid MAO inhibition; fluoroquinolone aortic aneurysm; TB drug adverse effects.
+- l16: DHHS 2024 guideline citation year; integrase inhibitors favored first-line; tenofovir formulations renal/bone effects; zidovudine and older NRTI toxicities; remdesivir/nirmatrelvir descriptions; HBV reactivation with HCV DAAs.
+- l17: Itraconazole absorption and negative inotropy; isavuconazole/posaconazole Mucorales coverage; C. auris resistance; FKS mutations; ketoconazole steroidogenesis.
+- l18: Ceftazidime-avibactam covering some carbapenemases (KPC, some OXA-48, not NDM); cefepime vs carbapenem for AmpC organisms; C. difficile first-line oral vancomycin or fidaxomicin per recent IDSA update.
+- l19: STAR*D characterization; citalopram QT; fluoxetine washout "about five weeks"; esketamine description; CYP2D6/tamoxifen phrase condensed.
+- l20: CATIE wording; clozapine monitoring: FDA REMS status changed in 2025, text only says ANC monitoring is required, verify current regulatory language; thioridazine retinal and chlorpromazine corneal changes; lithium Ebstein anomaly risk magnitude debated.
+- l21: Boxed warning dates/wording (opioid combination 2016; abuse and dependence 2020); alcohol withdrawal seizure timing; Z-drug subunit selectivity.
+- l22: ESETT conclusion; topiramate oral clefts; lamotrigine dose halving with valproate; valproate cognitive outcomes.
+- l23: Sevoflurane compound A; etomidate adrenal effect; local anesthetic fiber-block ordering; cisatracurium Hofmann elimination; lipid emulsion use.
+- l24: CDC 2022 guideline summary; methadone interactions (CYP3A4, CYP2B6); naltrexone hepatic monitoring; morphine histamine release.
+- l25: Bleomycin skin changes; irinotecan and UGT1A1; cytarabine cerebellar toxicity; rasburicase in G6PD deficiency; dexrazoxane as iron chelator.
+- l26: Trastuzumab cardiotoxicity nature; BRAF/MEK paradoxical activation; abiraterone with prednisone; GnRH flare handling; CAR-T toxicities.
+- l27: Atropine/pralidoxime and enzyme aging; hyperbaric oxygen role; nitrite for cyanide; octreotide for sulfonylurea hypoglycemia; charcoal one-hour window; physostigmine avoidance with tricyclics.
+- l28: CYP inducer and inhibitor lists; NUDT15 with thiopurines; teratogen list items (fluconazole high dose, androgens, carbamazepine).
+- General: vignette lab values are approximate; the only dose in a stem used as context is prednisone 20 mg daily (l09.q4). Vignette-based items were written originally but should be checked against exam-item overlap by a reviewer.

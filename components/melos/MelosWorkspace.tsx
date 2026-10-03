@@ -15,7 +15,7 @@ import React, {
 import { motion, AnimatePresence } from 'motion/react';
 import {
   PenLine, ListMusic, Layers, LayoutGrid, Disc3, Plus, ChevronLeft,
-  Sparkles, Loader2, Drum,
+  Sparkles, Loader2, Drum, Sliders,
 } from 'lucide-react';
 import { UserProfile } from '../../types';
 import {
@@ -42,10 +42,11 @@ import ArrangeRoom from './ArrangeRoom';
 import BoardRoom from './BoardRoom';
 // Beats is heavy (audio engine + worklet + four views) — load it only when its room opens.
 const BeatsRoom = React.lazy(() => import('./beats/BeatsRoom'));
+const ChoraStudioMixer = React.lazy(() => import('../chora/ChoraStudioMixer'));
 
 // ─── Rooms ──────────────────────────────────────────────────────────────────
 
-export type MelosRoom = 'pad' | 'tracklist' | 'arrange' | 'board' | 'beats';
+export type MelosRoom = 'pad' | 'tracklist' | 'arrange' | 'board' | 'beats' | 'mixer';
 
 interface RoomMeta {
   id: MelosRoom;
@@ -63,6 +64,7 @@ const ROOMS: RoomMeta[] = [
   // The instrument tier: matte #0A0A0D in every skin, inheriting only the accent (blueprint §6).
   // Crossing this door should read as a lamp swinging over, not a different app opening.
   { id: 'beats',     label: 'Melos Studio', icon: <Drum size={13} />,    tier: 'instrument' },
+  { id: 'mixer',     label: 'Chora Mixer', icon: <Sliders size={13} />,  tier: 'instrument' },
 ];
 
 // ─── Context ────────────────────────────────────────────────────────────────
@@ -354,7 +356,10 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
       <div className="melos melos-paper min-h-screen flex items-center justify-center p-8">
         <div className="text-center max-w-sm">
           <Disc3 size={36} style={{ color: 'var(--mel-accent)' }} className="mx-auto mb-4 opacity-70" />
-          <h1 className="text-2xl font-semibold m-0" style={{ color: 'var(--mel-ink)' }}>Melos</h1>
+          <h1 className="text-2xl font-semibold m-0" style={{ color: 'var(--mel-ink)' }}>Chora Studio</h1>
+          <p className="text-[10px] uppercase font-bold tracking-widest text-amber-400 mt-1">
+            Powered by Melos
+          </p>
           <p className="mt-2 text-sm" style={{ color: 'var(--mel-dim)' }}>
             Sign in to start a production.
           </p>
@@ -376,9 +381,12 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
       <div className="melos melos-paper min-h-screen flex items-center justify-center p-8">
         <div className="text-center max-w-md">
           <p className="melos-label mb-3">Chora · Production</p>
-          <h1 className="text-4xl font-light tracking-tight m-0" style={{ color: 'var(--mel-ink)' }}>
-            M<span className="font-bold" style={{ color: 'var(--mel-accent)' }}>e</span>los
+          <h1 className="text-3xl font-black uppercase tracking-tight text-white">
+            Chora Studio
           </h1>
+          <p className="text-[10px] uppercase font-bold tracking-widest text-amber-400 mt-1">
+            Powered by the Melos Intelligence Engine
+          </p>
           <p className="mt-3 text-sm leading-relaxed" style={{ color: 'var(--mel-dim)' }}>
             The room where an album gets made, before it's an album. Write, sequence,
             collect what caught your ear, and keep the whole record in one place.
@@ -442,7 +450,8 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
           )}
 
           <div className="flex items-baseline gap-2.5 min-w-0">
-            <span className="text-[13px] font-bold tracking-[0.18em] uppercase shrink-0" style={{ color: 'var(--mel-accent)' }}>Melos</span>
+            <span className="text-[13px] font-bold tracking-[0.18em] uppercase shrink-0" style={{ color: 'var(--mel-accent)' }}>Chora Studio</span>
+            <span className="text-[9px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded border border-amber-500/30 text-amber-400/90 bg-amber-500/10 hidden sm:inline-block shrink-0">Powered by Melos</span>
             <span className="text-sm font-semibold truncate" style={{ color: 'var(--mel-ink)' }}>{production.title}</span>
             {production.workingTitle && (
               <span className="melos-hand text-[13px] hidden md:inline shrink-0">— {production.workingTitle}</span>
@@ -548,6 +557,11 @@ const MelosWorkspace: React.FC<Props> = ({ currentUser, initialProductionId, ini
               {room === 'arrange'   && <ArrangeRoom />}
               {room === 'board'     && <BoardRoom />}
               {room === 'beats'     && <BeatsHost musicLabAdmin={currentUser?.role === 'admin' || currentUser?.email?.toLowerCase() === 'kmoody2003@gmail.com'} />}
+              {room === 'mixer'     && (
+                <Suspense fallback={<div className="h-full grid place-items-center bg-[#090A0F]"><div className="w-8 h-8 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin" /></div>}>
+                  <ChoraStudioMixer onClose={() => setRoom('beats')} embedded={true} />
+                </Suspense>
+              )}
             </motion.div>
           </AnimatePresence>
         </div>

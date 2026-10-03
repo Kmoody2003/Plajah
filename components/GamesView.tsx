@@ -23,9 +23,10 @@ interface FreeToGame {
 interface GamesViewProps {
   onBack?: () => void;
   onSelectGame: (game: Game) => void;
+  onLaunchFse?: () => void;
 }
 
-const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame }) => {
+const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame, onLaunchFse }) => {
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState(true);
   const [gameOwners, setGameOwners] = useState<Record<string, UserProfile>>({});
@@ -135,6 +136,33 @@ const GamesView: React.FC<GamesViewProps> = ({ onBack, onSelectGame }) => {
             <p className="text-[10px] font-bold text-white/40 uppercase tracking-widest mt-4">Web-Based Games Hosted by Artists</p>
           </div>
         </div>
+
+        {onLaunchFse && (
+          <button
+            onClick={onLaunchFse}
+            className="group relative flex items-center gap-4 px-6 py-4 rounded-2xl bg-gradient-to-r from-orange-600/30 via-purple-600/30 to-pink-600/20 border-2 border-orange-500/50 hover:border-orange-400 hover:shadow-[0_0_35px_rgba(255,107,0,0.45)] transition-all duration-300 text-left cursor-pointer active:scale-95"
+            title="Launch The Plajah FSE (10-Foot Console Experience)"
+          >
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-orange-500 to-amber-600 flex items-center justify-center text-black font-black text-xl shadow-lg group-hover:scale-110 transition-transform">
+              🎮
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-orange-400">Living Room 10-Foot Console</span>
+                <span className="px-1.5 py-0.5 rounded text-[9px] font-black bg-orange-500/20 text-orange-300 border border-orange-500/30 uppercase tracking-widest animate-pulse">Controller Native</span>
+              </div>
+              <h3 className="text-base font-black text-white group-hover:text-orange-200 transition-colors">
+                Enter The Plajah FSE
+              </h3>
+              <p className="text-[11px] text-white/60 font-medium">
+                10-ft couch view • Local PC game launcher • Plajah Dock multitask
+              </p>
+            </div>
+            <div className="ml-2 hidden sm:flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 text-white group-hover:bg-orange-500 group-hover:text-black transition-colors font-black text-sm">
+              →
+            </div>
+          </button>
+        )}
       </div>
 
       {/* Platform Chip Rail treatment (components/ui/ChipRail) */}

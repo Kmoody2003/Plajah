@@ -487,4 +487,4 @@ export const AmboInspector: React.FC<AmboInspectorProps> = ({
   );
 };
 
-export default AmboInspector;
+export default React.memo(AmboInspector);

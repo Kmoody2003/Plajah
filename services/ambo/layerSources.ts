@@ -9,8 +9,18 @@
 // while slides change is only possible because the source outlives the slide
 // that introduced it — see layerRenderer's reconcile().
 
+import { otherAudioFactor, subscribeAudioPriority } from './audioPriority';
+import { amboAudio } from './amboAudioEngine';
 import type { LayerContent } from './showModel';
+import { lyricClockPos } from './showModel';
+import { lyricStyleById, renderLyricFrame } from './lyricStyles';
 import { drawScriptureGraphic } from '../scriptureGraphic';
+import {
+  createSlideBox, createScriptureBox, createScriptureWithReferenceBoxes,
+  renderAutoFitText, autoFitFontSize, autoFlowText,
+  SCRIPTURE_AUTO_FIT, DEFAULT_AUTO_FIT,
+  type TextBoundingBox, type AutoFitConfig,
+} from '../tela/textAutoFit';
 
 export interface LayerSource {
   readonly kind: string;
@@ -70,53 +80,26 @@ export class TextSource implements LayerSource {
 
     const s = this.content.style ?? {};
     const family = s.font ?? '"Palatino Linotype", Palatino, Georgia, serif';
-    const align = s.align ?? 'center';
-    const valign = s.valign ?? 'middle';
-    const safe = 0.05;
-    const boxW = this.w * (1 - safe * 2);
-    const maxLines = s.maxLines ?? 8;
-
-    let size = s.size ?? Math.round(this.h * 0.09);
-    const minSize = Math.round(this.h * 0.028);
     const text = this.content.blocks.map(b => b.text).join('\n');
 
-    // Auto-fit: shrink until it fits the safe box, rather than overflow.
-    let lines: string[] = [];
-    for (;;) {
-      ctx.font = `${size}px ${family}`;
-      lines = text.split('\n').flatMap(p => wrapToWidth(ctx, p, boxW));
-      const fits = lines.length <= maxLines && lines.length * size * (s.lineHeight ?? 1.32) <= this.h * (1 - safe * 2);
-      if (fits || size <= minSize || s.autoFit === false) break;
-      size -= 2;
-    }
+    // Use bounding box auto-fit for precise text containment
+    const box: TextBoundingBox = s.boundingBox ?? createSlideBox(this.w, this.h, 0.05);
+    const config: AutoFitConfig = {
+      ...DEFAULT_AUTO_FIT,
+      preferredFontSize: s.size ?? Math.round(this.h * 0.09),
+      minFontSize: Math.round(this.h * 0.028),
+      maxFontSize: s.size ?? Math.round(this.h * 0.12),
+      lineHeight: s.lineHeight ?? 1.32,
+      maxLines: s.maxLines ?? 0,
+      enabled: s.autoFit !== false,
+    };
 
-    const lineH = size * (s.lineHeight ?? 1.32);
-    const blockH = lines.length * lineH;
-    const y0 = valign === 'top' ? this.h * safe
-      : valign === 'bottom' ? this.h * (1 - safe) - blockH
-      : (this.h - blockH) / 2;
-    const x = align === 'left' ? this.w * safe
-      : align === 'right' ? this.w * (1 - safe)
-      : this.w / 2;
-
-    ctx.textAlign = align as CanvasTextAlign;
-    ctx.textBaseline = 'top';
-
-    lines.forEach((ln, i) => {
-      const y = y0 + i * lineH;
-      if (s.shadow !== false) {
-        ctx.shadowColor = 'rgba(0,0,0,0.55)';
-        ctx.shadowBlur = size * 0.16;
-        ctx.shadowOffsetY = size * 0.045;
-      }
-      if (s.outline) {
-        ctx.lineWidth = s.outline;
-        ctx.strokeStyle = 'rgba(0,0,0,0.85)';
-        ctx.strokeText(ln, x, y);
-      }
-      ctx.fillStyle = s.color ?? '#ffffff';
-      ctx.fillText(ln, x, y);
-      ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+    renderAutoFitText(ctx, text, box, config, {
+      fontFamily: family,
+      color: s.color ?? '#ffffff',
+      align: (s.align ?? 'center') as CanvasTextAlign,
+      shadow: s.shadow !== false,
+      outline: s.outline,
     });
 
     this.last = text;
@@ -193,6 +176,7 @@ export class ImageSource implements LayerSource {
 export class VideoSource implements LayerSource {
   readonly kind = 'VIDEO';
   readonly el: HTMLVideoElement;
+  private routed = false;
 
   constructor(content: Extract<LayerContent, { kind: 'VIDEO' }>, audioEnabled = false) {
     const v: HTMLVideoElement = typeof document !== 'undefined'
@@ -205,6 +189,9 @@ export class VideoSource implements LayerSource {
     // When audioEnabled is false (Preview, secondary screens), keep video muted to prevent audio doubling.
     v.muted = audioEnabled ? (content.muted ?? false) : true;
     v.volume = audioEnabled ? (content.volume ?? 1.0) : 0;
+    // The one window that makes sound routes the video's audio through the
+    // Ambo mixer (Video channel) — metered, limited, and feeding visualizers.
+    if (audioEnabled && typeof document !== 'undefined') this.routed = amboAudio.attachElement(v, 'video');
     v.src = content.src;
     if (content.inSec) v.currentTime = content.inSec;
     void v.play().catch(() => { /* autoplay blocked until a gesture */ });
@@ -229,7 +216,7 @@ export class VideoSource implements LayerSource {
   frame() { return this.el.readyState >= 2 ? this.el : null; }
   size() { return this.el.videoWidth ? { w: this.el.videoWidth, h: this.el.videoHeight } : null; }
   ready() { return this.el.readyState >= 2; }
-  dispose() { try { this.el.pause(); this.el.src = ''; this.el.load(); } catch { /* */ } }
+  dispose() { try { this.el.pause(); this.el.src = ''; this.el.load(); } catch { /* */ } if (this.routed) amboAudio.detachElement(this.el); }
 }
 
 // ── Lottie — dotLottie renders straight to a canvas ─────────────────────────
@@ -269,6 +256,14 @@ export class LottieSource implements LayerSource {
 //
 // GeneratorRenderer draws into a pooled FBO texture, so a tiny present pass
 // blits that texture onto the canvas the 2D compositor can drawImage.
+//
+// A GENERATOR `mode` can be any visualizer the library lists, so the source
+// picks a render path per mode:
+//   · gen      — a Pixels GEN_GLSL mode (GeneratorRenderer)
+//   · flux     — a Flux three.js scene (FLUX_*; shared renderFluxLatest env)
+//   · gl       — a Studio GL preset (STUDIO_PLASMA / STUDIO_RAYMARCH; GLRenderer)
+//   · milkdrop — `MILKDROP:<preset name>` (butterchurn via milkdropDriver)
+//   · fallback — anything else: an honest labelled card, never a black box.
 
 const PRESENT_VS = `#version 300 es
 void main(){ vec2 p = vec2((gl_VertexID<<1)&2, gl_VertexID&2);
@@ -277,6 +272,162 @@ void main(){ vec2 p = vec2((gl_VertexID<<1)&2, gl_VertexID&2);
 const PRESENT_FS = `#version 300 es
 precision highp float; uniform sampler2D uTex; uniform vec2 uRes;
 out vec4 o; void main(){ o = texture(uTex, gl_FragCoord.xy/uRes); }`;
+
+export const MILKDROP_PREFIX = 'MILKDROP:';
+
+/** Legacy / placeholder mode names that older shows and the DJ injector use. */
+const GEN_MODE_ALIASES: Record<string, string> = {
+  AUDIO_WAVE_SPECTRUM: 'SPECTRUM',
+  FLUX: 'FLUX_FIELD',
+  SHADER: 'KALEIDOSCOPE',
+  MILKDROP: MILKDROP_PREFIX,
+  BUTTERCHURN_COSMIC: MILKDROP_PREFIX,
+  BUTTERCHURN_ACID: MILKDROP_PREFIX,
+  BUTTERCHURN_NEON: MILKDROP_PREFIX,
+  BUTTERCHURN_LORENZ: MILKDROP_PREFIX,
+};
+
+export function normalizeGeneratorMode(mode: string | undefined | null): string {
+  const m = (mode || '').trim();
+  return GEN_MODE_ALIASES[m] ?? m;
+}
+
+/** "STUDIO_AURORA" → "Studio Aurora"; "MILKDROP:Geiss - X" → "Geiss - X". */
+function humanizeMode(mode: string): string {
+  if (mode.startsWith(MILKDROP_PREFIX)) return mode.slice(MILKDROP_PREFIX.length) || 'Milkdrop';
+  if (mode.length > 48 || /[\n{;]/.test(mode)) return 'Custom visual';
+  return mode.toLowerCase().split(/[_\s]+/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ') || 'Visualizer';
+}
+
+// Visualizers with no analyser connected still get gentle synthetic "idle"
+// audio, so a reactive mode on an empty stage moves instead of sitting dead.
+const synthFreq = new Uint8Array(256);
+const synthWave = new Uint8Array(256);
+function synthAudio(t: number) {
+  for (let i = 0; i < 256; i++) {
+    synthFreq[i] = Math.max(0, Math.min(255, 120 * Math.exp(-i / 42) * (0.6 + 0.4 * Math.sin(t * 2.2 - i * 0.05)) + 20));
+    synthWave[i] = Math.max(0, Math.min(255, 128 + 48 * Math.sin(t * 6 + i * 0.19) * (0.6 + 0.4 * Math.sin(t * 0.7))));
+  }
+  return { freq: synthFreq, wave: synthWave };
+}
+
+// Real mix → visuals, with an idle floor: as the Ambo master goes silent the
+// synthetic motion fades in, so a visual reacts to music when there is music
+// and still breathes (rather than freezing) when there isn't.
+const liveFreq = new Uint8Array(256), liveWave = new Uint8Array(256);
+const rawFreq = new Uint8Array(1024), rawWave = new Uint8Array(2048);
+let liveStamp = -1;
+function readLive(analyser: AnalyserNode, t: number): { freq: Uint8Array; wave: Uint8Array; level: number } {
+  if (liveStamp === t) return { freq: liveFreq, wave: liveWave, level: liveLevel };
+  const nb = Math.min(1024, analyser.frequencyBinCount), nw = Math.min(2048, analyser.fftSize);
+  const f = rawFreq.subarray(0, nb), w = rawWave.subarray(0, nw);
+  analyser.getByteFrequencyData(f);
+  analyser.getByteTimeDomainData(w);
+  let sum = 0;
+  for (let i = 0; i < 256; i++) { liveFreq[i] = f[Math.min(nb - 1, i)]; sum += liveFreq[i]; }
+  for (let i = 0; i < 256; i++) liveWave[i] = w[Math.floor((i / 256) * nw)];
+  const level = sum / 256 / 255;
+  // 0 → fully idle, 1 → fully live (crossover around a quiet room's floor)
+  const live = Math.min(1, level / 0.06);
+  if (live < 1) {
+    const s = synthAudio(t);
+    const k = (1 - live) * 0.65;
+    for (let i = 0; i < 256; i++) {
+      liveFreq[i] = Math.min(255, liveFreq[i] + s.freq[i] * k);
+      liveWave[i] = Math.round(liveWave[i] * live + (128 + (s.wave[i] - 128) * k) * (1 - live));
+    }
+  }
+  liveLevel = level;
+  liveStamp = t;
+  return { freq: liveFreq, wave: liveWave, level };
+}
+let liveLevel = 0;
+
+function feedAudioTexture(audio: any, analyser: AnalyserNode | null, t: number) {
+  if (!audio) return;
+  try {
+    if (analyser) {
+      const l = readLive(analyser, t);
+      audio.updateFromArrays(l.freq, l.wave, 48000);
+      return;
+    }
+    const s = synthAudio(t);
+    audio.updateFromArrays(s.freq, s.wave, 48000);
+  } catch { /* audio is optional */ }
+}
+
+function bandsFrom(analyser: AnalyserNode | null, t: number) {
+  if (analyser) {
+    try {
+      const f = readLive(analyser, t).freq;
+      const avg = (a: number, b: number) => { let s = 0; const e = Math.min(f.length, b); for (let i = a; i < e; i++) s += f[i]; return e > a ? s / (e - a) / 255 : 0; };
+      const bass = avg(0, 8), mid = avg(8, 64), treble = avg(64, 256);
+      return { bass, mid, treble, level: (bass + mid + treble) / 3, beat: bass > 0.6 ? 1 : 0 };
+    } catch { /* fall through */ }
+  }
+  const bass = 0.35 + 0.2 * Math.sin(t * 2.1), mid = 0.3 + 0.15 * Math.sin(t * 1.3 + 1), treble = 0.22 + 0.1 * Math.sin(t * 3.1 + 2);
+  return { bass, mid, treble, level: (bass + mid + treble) / 3, beat: 0 };
+}
+
+/** Free a WebGL context NOW rather than at GC — browsers cap live contexts at ~16. */
+function loseGL(gl: WebGLRenderingContext | WebGL2RenderingContext | null | undefined) {
+  try { gl?.getExtension('WEBGL_lose_context')?.loseContext(); } catch { /* */ }
+}
+
+/** Honest "can't render this here" card — labelled, gently animated, never black. */
+function drawFallbackCard(ctx: CanvasRenderingContext2D, w: number, h: number, t: number, title: string, note: string) {
+  const a = t * 0.35;
+  const grad = ctx.createLinearGradient(w * (0.5 + 0.4 * Math.sin(a)), 0, w * (0.5 + 0.4 * Math.cos(a * 0.7)), h);
+  grad.addColorStop(0, '#100720');
+  grad.addColorStop(0.45, '#2a1040');
+  grad.addColorStop(1, '#061727');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(0, 218, 243, 0.07)';
+  ctx.beginPath();
+  ctx.moveTo(0, h * 0.55);
+  for (let x = 0; x <= w; x += 24) ctx.lineTo(x, h * 0.55 + Math.sin(x * 0.006 + a * 2) * h * 0.06);
+  ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath(); ctx.fill();
+  const s = Math.max(10, Math.round(h * 0.055));
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillStyle = 'rgba(255,255,255,0.82)';
+  ctx.font = `600 ${s}px system-ui, sans-serif`;
+  ctx.fillText(title.length > 40 ? title.slice(0, 38) + '…' : title, w / 2, h * 0.44);
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.font = `500 ${Math.round(s * 0.6)}px system-ui, sans-serif`;
+  ctx.fillText(note, w / 2, h * 0.44 + s * 1.3);
+}
+
+/** While a visualizer is still loading (lazy modules, three.js, butterchurn), show
+ *  a labelled card after a short grace period instead of a black hole. */
+function pendingFrame(holder: { pendingCanvas?: HTMLCanvasElement | null; w: number; h: number; bornAt: number }, t: number, title: string): HTMLCanvasElement | null {
+  if (Date.now() - holder.bornAt < 400) return null;
+  if (!holder.pendingCanvas) holder.pendingCanvas = off(holder.w, holder.h);
+  const ctx = holder.pendingCanvas.getContext('2d');
+  if (!ctx) return null;
+  drawFallbackCard(ctx, holder.w, holder.h, t, title, 'Loading visual…');
+  return holder.pendingCanvas;
+}
+
+// One wall clock for every Flux consumer: the three.js env (and its camera
+// director) is shared, so feeding it several unrelated clocks makes it jitter.
+const fluxT0 = typeof performance !== 'undefined' ? performance.now() : 0;
+const fluxClock = () => ((typeof performance !== 'undefined' ? performance.now() : 0) - fluxT0) / 1000;
+
+// Milkdrop needs an AudioContext to construct even when we inject waveforms;
+// one suspended context is shared instead of one per source.
+let sharedMilkdropCtx: AudioContext | null = null;
+function milkdropAudioCtx(): AudioContext | null {
+  if (sharedMilkdropCtx) return sharedMilkdropCtx;
+  try {
+    const AC = (window as any).AudioContext || (window as any).webkitAudioContext;
+    sharedMilkdropCtx = AC ? new AC() : null;
+  } catch { sharedMilkdropCtx = null; }
+  return sharedMilkdropCtx;
+}
+
+type GenPath = 'pending' | 'gen' | 'flux' | 'gl' | 'milkdrop' | 'fallback';
 
 export class GeneratorSource implements LayerSource {
   readonly kind = 'GENERATOR';
@@ -289,220 +440,416 @@ export class GeneratorSource implements LayerSource {
   private uTex: WebGLUniformLocation | null = null;
   private uRes: WebGLUniformLocation | null = null;
   private vao: any = null;
-  private ok = false;
-  private isFallback = false;
+  private path: GenPath = 'pending';
+  private mode: string;
+  private fluxScene = '';
+  private glKey = '';
+  private flux: { render: (spec: any, w: number, h: number, t: number, a?: any) => HTMLCanvasElement | null; status: () => string } | null = null;
+  private milk: any = null;
+  private fluxDrawn = false;
+  private fallbackNote = 'Not available on this output';
+  private disposed = false;
+  private analyserNode: AnalyserNode | null = null;
+  bornAt = Date.now();
+  pendingCanvas: HTMLCanvasElement | null = null;
 
-  constructor(private content: Extract<LayerContent, { kind: 'GENERATOR' }>, private w = 1280, private h = 720) {
+  constructor(private content: Extract<LayerContent, { kind: 'GENERATOR' }>, public w = 1280, public h = 720) {
     this.canvas = off(w, h);
+    this.mode = normalizeGeneratorMode(content.mode);
     void this.init();
+    const src = (content as any).audioSource;
+    this.setAudioSource(src ?? 'ambo-playback');
+  }
+
+  /** Which render path this source resolved to (for diagnostics / tests). */
+  get renderPath(): GenPath { return this.path; }
+
+  setAudioSource(source: 'ambo-playback' | 'live-input' | 'none'): void {
+    if (source === 'ambo-playback') {
+      this.analyserNode = (typeof window !== 'undefined' ? (window as any).getAmboMasterAnalyser?.() : null) ?? null;
+    } else if (source === 'live-input') {
+      navigator.mediaDevices?.getUserMedia({ audio: true }).then(stream => {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const src = audioCtx.createMediaStreamSource(stream);
+        this.analyserNode = audioCtx.createAnalyser();
+        this.analyserNode.fftSize = 256;
+        src.connect(this.analyserNode);
+      }).catch(() => {});
+    } else {
+      this.analyserNode = null;
+    }
+  }
+
+  private toFallback(note?: string) {
+    loseGL(this.gl);
+    this.gl = null; this.renderer = null; this.prog = null;
+    if (note) this.fallbackNote = note;
+    // A canvas that already holds a WebGL context cannot hand out a 2D one.
+    this.canvas = off(this.w, this.h);
+    this.ctx2d = this.canvas.getContext('2d');
+    this.path = 'fallback';
   }
 
   private async init() {
+    const mode = this.mode;
     try {
-      const [{ createGL, createProgram, createFullscreenQuad }, { GeneratorRenderer, hasGenerator, hexToRgb }, { AudioTexture }] =
-        await Promise.all([
-          import('../../components/plajahPixels/engine/core/glUtil'),
-          import('../../components/plajahPixels/engine/core/generators'),
-          import('../../components/plajahPixels/engine/core/audioTexture'),
-        ]);
+      const [glUtil, gens, { AudioTexture }, types] = await Promise.all([
+        import('../../components/plajahPixels/engine/core/glUtil'),
+        import('../../components/plajahPixels/engine/core/generators'),
+        import('../../components/plajahPixels/engine/core/audioTexture'),
+        import('../../components/plajahPixels/types'),
+      ]);
+      if (this.disposed) return;
 
-      if (hasGenerator(this.content.mode)) {
-        const gl = createGL(this.canvas);
-        if (gl) {
-          this.gl = gl;
-          this.renderer = new GeneratorRenderer(gl);
-          this.audio = new AudioTexture(gl);
-          this.prog = createProgram(gl, PRESENT_VS, PRESENT_FS);
-          this.uTex = gl.getUniformLocation(this.prog, 'uTex');
-          this.uRes = gl.getUniformLocation(this.prog, 'uRes');
-          this.vao = createFullscreenQuad(gl);
-          void hexToRgb;
-          this.ok = true;
-          return;
-        }
+      // 1) Pixels GEN_GLSL generator.
+      if (gens.hasGenerator(mode)) {
+        const gl = glUtil.createGL(this.canvas);
+        if (!gl) { this.toFallback('WebGL2 unavailable'); return; }
+        this.gl = gl;
+        this.renderer = new gens.GeneratorRenderer(gl);
+        this.audio = new AudioTexture(gl);
+        this.prog = glUtil.createProgram(gl, PRESENT_VS, PRESENT_FS);
+        this.uTex = gl.getUniformLocation(this.prog, 'uTex');
+        this.uRes = gl.getUniformLocation(this.prog, 'uRes');
+        this.vao = glUtil.createFullscreenQuad(gl);
+        this.path = 'gen';
+        return;
       }
-    } catch { /* proceed to procedural fallback */ }
 
-    // Resilient fallback: 2D Canvas Procedural Visualizer (guarantees live visualizer output)
-    this.ctx2d = this.canvas.getContext('2d');
-    this.isFallback = true;
-    this.ok = true;
+      // 2) Flux three.js scene — rendered by the shared env, copied into our canvas.
+      const fluxScene = (types as any).MODE_TO_FLUX_SCENE?.[mode] as string | undefined;
+      if (fluxScene) {
+        const flux = await import('../../components/plajahPixels/engine/core/flux');
+        if (this.disposed) return;
+        this.fluxScene = fluxScene;
+        this.flux = { render: flux.renderFluxLatest as any, status: flux.fluxStatus };
+        this.ctx2d = this.canvas.getContext('2d');
+        // Kick the async three.js load now so the first frames are not wasted.
+        void flux.renderFlux({ scene: fluxScene as any }, 64, 36, 0).catch(() => null);
+        this.path = 'flux';
+        return;
+      }
+
+      // 3) Studio GL preset (Plasma / Raymarch).
+      const studioKey = (types as any).MODE_TO_STUDIO_SCENE?.[mode] as string | undefined;
+      if (studioKey === 'plasma' || studioKey === 'raymarch') {
+        const { GLRenderer } = await import('../../components/plajahPixels/engine/webgl/glRenderer');
+        if (this.disposed) return;
+        const r = new GLRenderer(this.canvas);
+        if (!r.ok) { loseGL(r.gl); this.toFallback('WebGL2 unavailable'); return; }
+        this.renderer = r;
+        this.gl = r.gl;
+        this.glKey = studioKey;
+        this.path = 'gl';
+        return;
+      }
+
+      // 4) Milkdrop preset.
+      if (mode.startsWith(MILKDROP_PREFIX)) {
+        const actx = milkdropAudioCtx();
+        if (!actx) { this.toFallback('Audio engine unavailable'); return; }
+        const { createMilkdropDriver } = await import('../../components/plajahPixels/engine/core/milkdropDriver');
+        const drv = await createMilkdropDriver({ width: this.w, height: this.h, audioCtx: actx, fps: 60 });
+        if (this.disposed) { try { drv?.dispose(); loseGL(drv?.canvas.getContext('webgl2') as any); } catch { /* */ } return; }
+        if (!drv) { this.toFallback('Milkdrop unavailable'); return; }
+        const name = mode.slice(MILKDROP_PREFIX.length);
+        drv.setPreset(name ? name : 0, 0);
+        this.milk = drv;
+        this.path = 'milkdrop';
+        return;
+      }
+    } catch (err) {
+      console.warn('[ambo] generator init failed for', mode, err);
+      this.toFallback('Failed to start');
+      return;
+    }
+
+    this.toFallback('Not available on this output');
   }
 
   frame(timeSec: number) {
-    if (!this.ok) return null;
-
-    if (!this.isFallback && this.gl && this.renderer && this.prog) {
-      const gl = this.gl;
-      const p = this.content.params ?? {};
-      const num = (k: string, d: number) => (typeof p[k] === 'number' ? (p[k] as number) : d);
-
-      const tex = this.renderer.render('bg', this.content.mode, this.w, this.h, {
-        time: timeSec,
-        audio: this.audio,
-        colors: [[0.55, 0.36, 0.95], [0.83, 0, 0.33], [1, 0.55, 0]],
-        params: [num('p0', 0.5), num('p1', 0.5), num('p2', 0.5), num('p3', 0.5)],
-      });
-
-      // Present the generator texture onto the visible canvas.
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-      gl.viewport(0, 0, this.w, this.h);
-      gl.disable(gl.BLEND);
-      gl.useProgram(this.prog);
-      gl.bindVertexArray(this.vao);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, tex);
-      gl.uniform1i(this.uTex, 0);
-      gl.uniform2f(this.uRes, this.w, this.h);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-      gl.bindVertexArray(null);
-      return this.canvas;
+    if (this.disposed) return null;
+    if (!this.analyserNode && typeof window !== 'undefined') {
+      this.analyserNode = (window as any).getAmboMasterAnalyser?.() ?? null;
     }
 
-    if (this.ctx2d) {
-      const ctx = this.ctx2d;
-      const w = this.w, h = this.h;
-      const t = timeSec * 0.35;
-      const grad = ctx.createLinearGradient(
-        w * (0.5 + 0.4 * Math.sin(t)),
-        0,
-        w * (0.5 + 0.4 * Math.cos(t * 0.7)),
-        h
-      );
-      grad.addColorStop(0, '#100720');
-      grad.addColorStop(0.35, '#311042');
-      grad.addColorStop(0.7, '#1e1b4b');
-      grad.addColorStop(1, '#061727');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, w, h);
+    try {
+      if (this.path === 'gen' && this.gl && this.renderer && this.prog) {
+        const gl = this.gl;
+        if (gl.isContextLost()) { this.toFallback('Graphics context lost'); return this.frame(timeSec); }
+        feedAudioTexture(this.audio, this.analyserNode, timeSec);
+        const p = this.content.params ?? {};
+        const num = (k: string, d: number) => (typeof p[k] === 'number' ? (p[k] as number) : d);
 
-      // Procedural light swell ribbons
-      ctx.fillStyle = 'rgba(0, 218, 243, 0.08)';
-      ctx.beginPath();
-      ctx.moveTo(0, h * 0.45);
-      for (let x = 0; x <= w; x += 30) {
-        const y = h * 0.45 + Math.sin(x * 0.006 + t * 2) * 60 + Math.cos(x * 0.003 - t) * 40;
-        ctx.lineTo(x, y);
+        const tex = this.renderer.render('bg', this.mode, this.w, this.h, {
+          time: timeSec,
+          audio: this.audio,
+          colors: [[0.55, 0.36, 0.95], [0.83, 0, 0.33], [1, 0.55, 0]],
+          params: [num('p0', 0.5), num('p1', 0.5), num('p2', 0.5), num('p3', 0.5)],
+        });
+
+        // Present the generator texture onto the visible canvas.
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, this.w, this.h);
+        gl.disable(gl.BLEND);
+        gl.useProgram(this.prog);
+        gl.bindVertexArray(this.vao);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.uniform1i(this.uTex, 0);
+        gl.uniform2f(this.uRes, this.w, this.h);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        gl.bindVertexArray(null);
+        return this.canvas;
       }
-      ctx.lineTo(w, h);
-      ctx.lineTo(0, h);
-      ctx.closePath();
-      ctx.fill();
 
-      ctx.fillStyle = 'rgba(208, 188, 255, 0.06)';
-      ctx.beginPath();
-      ctx.moveTo(0, h * 0.6);
-      for (let x = 0; x <= w; x += 30) {
-        const y = h * 0.6 + Math.cos(x * 0.005 + t * 1.5) * 50 + Math.sin(x * 0.002 + t) * 35;
-        ctx.lineTo(x, y);
+      if (this.path === 'gl' && this.renderer) {
+        if (this.gl?.isContextLost()) { this.toFallback('Graphics context lost'); return this.frame(timeSec); }
+        const b = bandsFrom(this.analyserNode, timeSec);
+        this.renderer.resize();
+        this.renderer.draw(this.glKey, timeSec * 1000, b, { speed: 1, glow: 1 } as any, ['#8b5cf6', '#d40055', '#ff8c00', '#0a0612']);
+        return this.canvas;
       }
-      ctx.lineTo(w, h);
-      ctx.lineTo(0, h);
-      ctx.closePath();
-      ctx.fill();
 
-      return this.canvas;
+      if (this.path === 'flux' && this.flux && this.ctx2d) {
+        const t = fluxClock();
+        const src = this.flux.render({ scene: this.fluxScene }, this.w, this.h, t, bandsFrom(this.analyserNode, t));
+        if (src) {
+          this.ctx2d.drawImage(src, 0, 0, this.w, this.h);
+          this.fluxDrawn = true;
+          return this.canvas;
+        }
+        if (this.flux.status() === 'failed') { this.toFallback('3D engine unavailable'); return this.frame(timeSec); }
+        if (!this.fluxDrawn) drawFallbackCard(this.ctx2d, this.w, this.h, timeSec, humanizeMode(this.mode), 'Loading 3D scene…');
+        return this.canvas;
+      }
+
+      if (this.path === 'milkdrop' && this.milk) {
+        let wave: Uint8Array | null = null;
+        if (this.analyserNode) {
+          try { wave = readLive(this.analyserNode, timeSec).wave; } catch { wave = null; }
+        }
+        if (!wave) wave = synthAudio(timeSec).wave;
+        this.milk.renderFrame(wave);
+        return this.milk.canvas as HTMLCanvasElement;
+      }
+
+      if (this.path === 'fallback' && this.ctx2d) {
+        drawFallbackCard(this.ctx2d, this.w, this.h, timeSec, humanizeMode(this.mode), this.fallbackNote);
+        return this.canvas;
+      }
+      if (this.path === 'pending') return pendingFrame(this, timeSec, humanizeMode(this.mode));
+    } catch (err) {
+      console.warn('[ambo] generator frame failed for', this.mode, err);
+      this.toFallback('Render error');
     }
-
     return null;
   }
 
   size() { return { w: this.w, h: this.h }; }
-  ready() { return this.ok; }
-  dispose() { try { this.renderer?.dispose?.(); } catch { /* */ } }
+  ready() { return this.path !== 'pending'; }
+  dispose() {
+    this.disposed = true;
+    try { if (this.path === 'gen') { this.renderer?.dispose?.(); this.audio?.dispose?.(); } } catch { /* */ }
+    try { if (this.milk) { this.milk.dispose(); loseGL(this.milk.canvas.getContext('webgl2')); } } catch { /* */ }
+    loseGL(this.gl);
+    this.gl = null; this.renderer = null; this.milk = null;
+  }
 }
 
 // ── Shader — Custom GLSL / Shaders from Plajah Pixels Library ─────────────────
+//
+// Library shaders are Shadertoy-style (`void mainImage(out vec4, in vec2)`) and
+// render through Pixels' ShaderRenderer — the same surface the Pixels gallery,
+// its thumbnails and the offline renderer use. A raw `void main()` fragment is
+// still accepted for hand-written sources. A shader that will not compile shows
+// a labelled card, not transparency.
 
 export class ShaderSource implements LayerSource {
   readonly kind = 'SHADER';
   private canvas: HTMLCanvasElement;
   private ctx2d: CanvasRenderingContext2D | null = null;
   private gl: WebGL2RenderingContext | null = null;
+  private renderer: any = null;
+  private audio: any = null;
   private prog: WebGLProgram | null = null;
   private vao: any = null;
   private uTime: WebGLUniformLocation | null = null;
   private uRes: WebGLUniformLocation | null = null;
-  private ok = true;
-  private isGl = false;
+  private uTex: WebGLUniformLocation | null = null;
+  private uPRes: WebGLUniformLocation | null = null;
+  private path: 'pending' | 'shadertoy' | 'raw' | 'fallback' = 'pending';
+  private checked = false;
+  private disposed = false;
+  private note = 'Shader unavailable';
+  bornAt = Date.now();
+  pendingCanvas: HTMLCanvasElement | null = null;
 
-  constructor(private content: Extract<LayerContent, { kind: 'SHADER' }>, private w = 1280, private h = 720) {
+  constructor(private content: Extract<LayerContent, { kind: 'SHADER' }>, public w = 1280, public h = 720) {
     this.canvas = off(w, h);
     void this.init();
   }
 
+  get renderPath() { return this.path; }
+
+  private toFallback(note: string) {
+    loseGL(this.gl);
+    this.gl = null; this.renderer = null; this.prog = null;
+    this.note = note;
+    this.canvas = off(this.w, this.h);
+    this.ctx2d = this.canvas.getContext('2d');
+    this.path = 'fallback';
+  }
+
   private async init() {
+    const src = this.content.src || '';
     try {
-      const { createGL, createProgram, createFullscreenQuad } = await import('../../components/plajahPixels/engine/core/glUtil');
-      const gl = createGL(this.canvas);
-      if (gl && this.content.src && this.content.src.includes('void main')) {
-        let fsSrc = this.content.src;
+      const glUtil = await import('../../components/plajahPixels/engine/core/glUtil');
+      if (this.disposed) return;
+      if (/\bmainImage\s*\(/.test(src)) {
+        const [{ ShaderRenderer }, { AudioTexture }] = await Promise.all([
+          import('../../components/plajahPixels/engine/core/shaderRenderer'),
+          import('../../components/plajahPixels/engine/core/audioTexture'),
+        ]);
+        if (this.disposed) return;
+        const gl = glUtil.createGL(this.canvas);
+        if (!gl) { this.toFallback('WebGL2 unavailable'); return; }
+        this.gl = gl;
+        this.renderer = new ShaderRenderer(gl);
+        this.audio = new AudioTexture(gl);
+        this.prog = glUtil.createProgram(gl, PRESENT_VS, PRESENT_FS);
+        this.uTex = gl.getUniformLocation(this.prog, 'uTex');
+        this.uPRes = gl.getUniformLocation(this.prog, 'uRes');
+        this.vao = glUtil.createFullscreenQuad(gl);
+        this.path = 'shadertoy';
+        return;
+      }
+      if (src.includes('void main')) {
+        const gl = glUtil.createGL(this.canvas);
+        if (!gl) { this.toFallback('WebGL2 unavailable'); return; }
+        let fsSrc = src;
         if (!fsSrc.startsWith('#version')) {
           fsSrc = `#version 300 es\nprecision highp float;\nuniform float uTime;\nuniform vec2 uRes;\nout vec4 fragColor;\n` + fsSrc;
         }
-        const prog = createProgram(gl, PRESENT_VS, fsSrc);
-        if (prog) {
-          this.gl = gl;
-          this.prog = prog;
-          this.uTime = gl.getUniformLocation(prog, 'uTime') || gl.getUniformLocation(prog, 'time') || gl.getUniformLocation(prog, 'iTime');
-          this.uRes = gl.getUniformLocation(prog, 'uRes') || gl.getUniformLocation(prog, 'resolution') || gl.getUniformLocation(prog, 'iResolution');
-          this.vao = createFullscreenQuad(gl);
-          this.isGl = true;
-          this.ok = true;
-          return;
-        }
+        this.gl = gl;
+        this.prog = glUtil.createProgram(gl, PRESENT_VS, fsSrc);
+        this.uTime = gl.getUniformLocation(this.prog, 'uTime') || gl.getUniformLocation(this.prog, 'time') || gl.getUniformLocation(this.prog, 'iTime');
+        this.uRes = gl.getUniformLocation(this.prog, 'uRes') || gl.getUniformLocation(this.prog, 'resolution') || gl.getUniformLocation(this.prog, 'iResolution');
+        this.vao = glUtil.createFullscreenQuad(gl);
+        this.path = 'raw';
+        return;
       }
-    } catch { /* fallback to procedural canvas */ }
-
-    this.ctx2d = this.canvas.getContext('2d');
-    this.ok = true;
+    } catch (err) {
+      console.warn('[ambo] shader failed to compile', err);
+      this.toFallback('Shader failed to compile');
+      return;
+    }
+    this.toFallback(src.trim() ? 'Unrecognised shader format' : 'No shader source');
   }
 
   frame(timeSec: number) {
-    if (!this.ok) return null;
-    if (this.isGl && this.gl && this.prog) {
-      const gl = this.gl;
-      gl.viewport(0, 0, this.w, this.h);
-      gl.useProgram(this.prog);
-      gl.bindVertexArray(this.vao);
-      if (this.uTime) gl.uniform1f(this.uTime, timeSec);
-      if (this.uRes) gl.uniform2f(this.uRes, this.w, this.h);
-      gl.drawArrays(gl.TRIANGLES, 0, 3);
-      gl.bindVertexArray(null);
-      return this.canvas;
+    if (this.disposed) return null;
+    try {
+      if (this.path === 'shadertoy' && this.gl && this.renderer && this.prog) {
+        const gl = this.gl;
+        if (gl.isContextLost()) { this.toFallback('Graphics context lost'); return this.frame(timeSec); }
+        const analyser: AnalyserNode | null = (typeof window !== 'undefined' ? (window as any).getAmboMasterAnalyser?.() : null) ?? null;
+        feedAudioTexture(this.audio, analyser, timeSec);
+        const p = this.content.params ?? {};
+        const num = (k: string, d: number) => (typeof p[k] === 'number' ? (p[k] as number) : d);
+        const tex = this.renderer.render('bg', this.content.src, this.w, this.h, {
+          time: timeSec, audio: this.audio,
+          params: [num('p0', 0.5), num('p1', 0.5), num('p2', 0.5), num('p3', 0.5)],
+        });
+        if (!this.checked) {
+          this.checked = true;
+          // ShaderRenderer caches a null program for a source that failed to compile.
+          const entry = this.renderer.progs?.get?.(this.content.src);
+          if (entry && !entry.p) { this.toFallback('Shader failed to compile'); return this.frame(timeSec); }
+        }
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, this.w, this.h);
+        gl.disable(gl.BLEND);
+        gl.useProgram(this.prog);
+        gl.bindVertexArray(this.vao);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.uniform1i(this.uTex, 0);
+        gl.uniform2f(this.uPRes, this.w, this.h);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        gl.bindVertexArray(null);
+        return this.canvas;
+      }
+      if (this.path === 'raw' && this.gl && this.prog) {
+        const gl = this.gl;
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        gl.viewport(0, 0, this.w, this.h);
+        gl.useProgram(this.prog);
+        gl.bindVertexArray(this.vao);
+        if (this.uTime) gl.uniform1f(this.uTime, timeSec);
+        if (this.uRes) gl.uniform2f(this.uRes, this.w, this.h);
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
+        gl.bindVertexArray(null);
+        return this.canvas;
+      }
+      if (this.path === 'fallback' && this.ctx2d) {
+        drawFallbackCard(this.ctx2d, this.w, this.h, timeSec, 'Shader', this.note);
+        return this.canvas;
+      }
+      if (this.path === 'pending') return pendingFrame(this, timeSec, 'Shader');
+    } catch (err) {
+      console.warn('[ambo] shader frame failed', err);
+      this.toFallback('Render error');
     }
-
-    if (this.ctx2d) {
-      const ctx = this.ctx2d;
-      const w = this.w, h = this.h;
-      const t = timeSec * 0.4;
-      const grad = ctx.createLinearGradient(
-        w * (0.5 + 0.5 * Math.sin(t)),
-        0,
-        w * (0.5 + 0.5 * Math.cos(t * 0.8)),
-        h
-      );
-      grad.addColorStop(0, '#1a0b2e');
-      grad.addColorStop(0.3, '#701a75');
-      grad.addColorStop(0.65, '#0d9488');
-      grad.addColorStop(1, '#022c22');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, w, h);
-
-      ctx.fillStyle = 'rgba(255, 140, 0, 0.08)';
-      ctx.beginPath();
-      ctx.arc(w * 0.5 + Math.sin(t) * 120, h * 0.5 + Math.cos(t * 0.8) * 80, 260, 0, Math.PI * 2);
-      ctx.fill();
-
-      return this.canvas;
-    }
-
     return null;
   }
 
   size() { return { w: this.w, h: this.h }; }
-  ready() { return this.ok; }
-  dispose() { /* clean up */ }
+  ready() { return this.path !== 'pending'; }
+  dispose() {
+    this.disposed = true;
+    try { this.renderer?.dispose?.(); this.audio?.dispose?.(); } catch { /* */ }
+    loseGL(this.gl);
+    this.gl = null; this.renderer = null;
+  }
+}
+
+/**
+ * Render one still of a visualizer through the exact source the monitors use —
+ * for library thumbnails of modes the shared preview engine cannot draw (Flux
+ * 3D, Studio GL presets, Milkdrop). Builds, renders a few frames, snapshots,
+ * and frees its GL context. Returns a data URL, or null if nothing rendered.
+ */
+export async function snapshotVisualizer(
+  content: Extract<LayerContent, { kind: 'GENERATOR' | 'SHADER' }>,
+  w = 320, h = 180, atSec = 6, timeoutMs = 15000,
+): Promise<string | null> {
+  const src: GeneratorSource | ShaderSource = content.kind === 'GENERATOR'
+    ? new GeneratorSource(content, w, h)
+    : new ShaderSource(content, w, h);
+  try {
+    const t0 = Date.now();
+    while (!src.ready() && Date.now() - t0 < timeoutMs) await new Promise(r => setTimeout(r, 40));
+    if (!src.ready()) return null;
+    const out = off(w, h);
+    const ctx = out.getContext('2d');
+    if (!ctx) return null;
+    // Flux loads three.js lazily and Milkdrop needs a few frames to build up.
+    let drew = false;
+    for (let i = 0; i < 90 && Date.now() - t0 < timeoutMs; i++) {
+      const f = src.frame(atSec + i / 30);
+      const path = (src as any).renderPath;
+      if (path === 'flux' && !(src as any).fluxDrawn) { await new Promise(r => setTimeout(r, 60)); continue; }
+      if (f) { ctx.drawImage(f, 0, 0, w, h); drew = true; }
+      if (path === 'milkdrop' && i < 40) continue;
+      if (drew) break;
+    }
+    return drew ? out.toDataURL('image/jpeg', 0.75) : null;
+  } catch {
+    return null;
+  } finally {
+    src.dispose();
+  }
 }
 
 // ── Audio ────────────────────────────────────────────────────────────────────
@@ -521,8 +868,12 @@ export class AudioSource implements LayerSource {
   readonly kind = 'AUDIO';
   private el: HTMLAudioElement;
   private target: number;
+  /** The bed's own fade level, before the video-priority factor is applied. */
+  private level: number;
   private fadeTimer: ReturnType<typeof setInterval> | null = null;
   private gone = false;
+  private offPriority: () => void;
+  private routed = false;
 
   constructor(content: Extract<LayerContent, { kind: 'AUDIO' }>) {
     const a = new Audio();
@@ -533,8 +884,16 @@ export class AudioSource implements LayerSource {
     this.target = content.volume ?? 1;
 
     const fadeIn = content.fadeInSec ?? 0;
-    a.volume = fadeIn > 0 ? 0 : this.target;
+    this.level = fadeIn > 0 ? 0 : this.target;
     this.el = a;
+    this.apply();
+    // Through the Ambo mixer (Slide Audio channel): metered, limited, visible
+    // to the visualizers. AudioSource only exists in the window that plays.
+    this.routed = amboAudio.attachElement(a, 'slides');
+
+    // With scope 'all', a video with sound on Program ducks/silences this bed
+    // too (audioPriority.ts). The default policy leaves it alone.
+    this.offPriority = subscribeAudioPriority(() => this.apply());
 
     // Autoplay needs a prior gesture. The operator has always clicked something
     // by the time a cue fires, but if it's blocked we retry on the next one
@@ -547,16 +906,20 @@ export class AudioSource implements LayerSource {
     if (fadeIn > 0) this.ramp(this.target, fadeIn);
   }
 
+  private apply() {
+    try { this.el.volume = Math.min(1, Math.max(0, this.level * otherAudioFactor())); } catch { /* */ }
+  }
+
   private ramp(to: number, seconds: number, then?: () => void) {
     if (this.fadeTimer) clearInterval(this.fadeTimer);
     const step = 50;
     const steps = Math.max(1, Math.round((seconds * 1000) / step));
-    const from = this.el.volume;
+    const from = this.level;
     let i = 0;
     this.fadeTimer = setInterval(() => {
       i++;
-      const v = from + (to - from) * (i / steps);
-      try { this.el.volume = Math.min(1, Math.max(0, v)); } catch { /* */ }
+      this.level = from + (to - from) * (i / steps);
+      this.apply();
       if (i >= steps) {
         if (this.fadeTimer) clearInterval(this.fadeTimer);
         this.fadeTimer = null;
@@ -568,7 +931,7 @@ export class AudioSource implements LayerSource {
   update(content: Extract<LayerContent, { kind: 'AUDIO' }>) {
     this.target = content.volume ?? 1;
     this.el.loop = content.loop ?? false;
-    if (!this.fadeTimer) { try { this.el.volume = this.target; } catch { /* */ } }
+    if (!this.fadeTimer) { this.level = this.target; this.apply(); }
   }
 
   /** Fade out, then stop — so clearing a bed doesn't chop it off. */
@@ -582,6 +945,8 @@ export class AudioSource implements LayerSource {
 
   dispose() {
     this.gone = true;
+    this.offPriority();
+    if (this.routed) amboAudio.detachElement(this.el);
     if (this.fadeTimer) clearInterval(this.fadeTimer);
     try { this.el.pause(); this.el.src = ''; } catch { /* */ }
   }
@@ -683,6 +1048,7 @@ export function createSource(
     // Gated so only one window in the building actually makes noise.
     case 'AUDIO': return audioEnabled ? new AudioSource(content) : null;
     case 'TEXT': return new TextSource(content, frame.w, frame.h);
+    case 'LYRICS': return new LyricSource(content, frame.w, frame.h);
     case 'SCRIPTURE': return new ScriptureSource(content, frame.w, frame.h);
     case 'IMAGE': return new ImageSource(content.src);
     case 'VIDEO': return new VideoSource(content, audioEnabled);
@@ -704,6 +1070,8 @@ export function createSource(
 export function canUpdateInPlace(a: LayerContent, b: LayerContent): boolean {
   if (a.kind !== b.kind) return false;
   if (a.kind === 'TEXT' || a.kind === 'SCRIPTURE') return true;
+  // A re-anchored clock, a new style or the next song: repaint, never rebuild.
+  if (a.kind === 'LYRICS') return true;
   if (a.kind === 'IMAGE' && b.kind === 'IMAGE') return a.src === b.src;
   if (a.kind === 'VIDEO' && b.kind === 'VIDEO') return a.src === b.src;
   if (a.kind === 'LIVE' && b.kind === 'LIVE') return a.inputId === b.inputId;
@@ -713,4 +1081,37 @@ export function canUpdateInPlace(a: LayerContent, b: LayerContent): boolean {
   // Same track = a volume/loop change, not a restart from the top.
   if (a.kind === 'AUDIO' && b.kind === 'AUDIO') return a.src === b.src;
   return a.kind === 'CLOCK' || a.kind === 'TIMER';
+}
+
+// ── Lyrics ───────────────────────────────────────────────────────────────────
+// Chora lyric sync, drawn by one of the council-credited looks in
+// lyricStyles.ts. The song position comes from the content's clock anchor, so
+// every output window animates the type itself in step with the music.
+
+export class LyricSource implements LayerSource {
+  readonly kind = 'LYRICS';
+  private canvas: HTMLCanvasElement;
+  private lines: Array<{ time: number; text: string }>;
+
+  constructor(private content: Extract<LayerContent, { kind: 'LYRICS' }>, private w: number, private h: number) {
+    this.canvas = off(w, h);
+    this.lines = [...(content.lines || [])].sort((a, b) => a.time - b.time);
+  }
+
+  update(content: Extract<LayerContent, { kind: 'LYRICS' }>) {
+    if (content.lines !== this.content.lines) this.lines = [...(content.lines || [])].sort((a, b) => a.time - b.time);
+    this.content = content;
+  }
+
+  frame() {
+    const ctx = this.canvas.getContext('2d');
+    if (!ctx) return null;
+    const c = this.content;
+    renderLyricFrame(ctx, lyricStyleById(c.styleId), this.lines, lyricClockPos(c.clock), this.w, this.h,
+      { title: c.title, artist: c.artist, bpm: c.bpm, firstBeat: c.firstBeat });
+    return this.canvas;
+  }
+  size() { return { w: this.w, h: this.h }; }
+  ready() { return true; }
+  dispose() { /* canvas is GC'd */ }
 }

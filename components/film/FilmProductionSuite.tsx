@@ -89,7 +89,11 @@ export const useProd = () => {
   return c;
 };
 
-export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null; onGoTab: (t: string) => void; children: React.ReactNode }> = ({ currentUser, onGoTab, children }) => {
+/** Lets a host (the Fabula Studio shell) own the page frame: it receives the workspace picker, the master
+ *  clock and the body (children, or the empty state) and decides where they sit. Default = stacked as before. */
+export interface ProdChromeParts { bar: React.ReactNode; clock: React.ReactNode; content: React.ReactNode; hasProd: boolean }
+
+export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null; onGoTab: (t: string) => void; children?: React.ReactNode; chrome?: (parts: ProdChromeParts) => React.ReactNode }> = ({ currentUser, onGoTab, children, chrome }) => {
   const uid = currentUser?.uid || FP.currentUid() || '';
   const [productions, setProductions] = useState<Production[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -263,9 +267,18 @@ export const FilmProductionProvider: React.FC<{ currentUser?: UserProfile | null
   };
   return (
     <ProdCtx.Provider value={value}>
-      <ProductionWorkspaceBar />
-      {prod && <MasterClock />}
-      {prod ? children : <ProductionEmptyState signedIn={!!uid} />}
+      {chrome ? chrome({
+        bar: <ProductionWorkspaceBar />,
+        clock: prod ? <MasterClock /> : null,
+        content: prod ? children : <ProductionEmptyState signedIn={!!uid} />,
+        hasProd: !!prod,
+      }) : (
+        <>
+          <ProductionWorkspaceBar />
+          {prod && <MasterClock />}
+          {prod ? children : <ProductionEmptyState signedIn={!!uid} />}
+        </>
+      )}
     </ProdCtx.Provider>
   );
 };

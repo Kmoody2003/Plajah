@@ -1,0 +1,1309 @@
+{
+ "courseId": "civics-hall",
+ "label": "Civics Hall",
+ "lessons": [
+  {
+   "id": "civ-found-1",
+   "title": "The King Signs Something: Magna Carta, 1215",
+   "body": [
+    "In June 1215, a group of English barons cornered a king who had lost a war and raised taxes to pay for it, and made him put his seal to a list of promises. Most of the sixty-three clauses concern medieval grievances that mean nothing to us now — fish weirs, forest law, the debts owed to moneylenders. Two of them changed the world.",
+    "Clause 39 says that a free man cannot be seized, imprisoned or stripped of his possessions except by the lawful judgement of his equals or by the law of the land. Clause 40 says that justice will not be sold, denied or delayed to anyone. Read them slowly and notice what they assume: that there is a law standing above the king, and that he is inside it rather than over it.",
+    "It is worth being honest about what the document was. It was not a declaration of universal rights; it was a peace treaty between an unpopular king and the aristocrats who could raise armies against him. \"No free man\" excluded most people alive in England at the time. The king repudiated it within weeks and the Pope annulled it.",
+    "It survived anyway, because later generations read it more generously than it was written. Seventeenth-century English lawyers turned clause 39 into \"due process of law\". Colonial charters copied it. It arrives, five and a half centuries later, in the Fifth Amendment. That is the pattern this whole strand will keep showing you: the words matter, and what later people decide the words mean matters just as much."
+   ]
+  },
+  {
+   "id": "civ-found-2",
+   "title": "Consent: Locke and the State of Nature",
+   "body": [
+    "John Locke published the Second Treatise in 1689, and the founders read it so closely that pieces of it appear almost verbatim in the Declaration of Independence eighty-seven years later.",
+    "His method is to ask an odd question: what would people be like with no government at all? He calls this the state of nature, and his answer is that people there are free and equal — not because someone granted it, but because no one was born with authority over anyone else. From that starting point everything follows. If no one naturally rules, then the only way legitimate authority can arise is if people agree to it. Government is therefore a trust, created for a purpose, and holding power on condition.",
+    "That word \"condition\" is the dangerous part, and Locke knew it. If government exists to protect life, liberty and property, then a government destroying those things has broken the trust — and the people may replace it. This is why the same book could be quoted in 1776 to justify a revolution and in 1787 to justify a constitution.",
+    "The obvious objection is worth taking seriously, because your learners will raise it: nobody actually signed anything. Locke's answer — tacit consent, shown by continuing to live under a government and enjoy its protections — has never satisfied everyone, and it should not simply be handed over as settled. Ask whether an argument built on a hypothetical starting point can bind real people. It is a genuinely open question, and the course is better for leaving it open."
+   ]
+  },
+  {
+   "id": "civ-found-3",
+   "title": "1689: What the English Had Already Won",
+   "body": [
+    "The English Bill of Rights of 1689 is the missing document in most American civics classes, and its absence makes 1776 much harder to understand.",
+    "After deposing one king and installing another, Parliament set conditions. The monarch could not suspend laws without Parliament's consent. He could not raise money by prerogative. Elections to Parliament must be free. Excessive bail must not be required, nor cruel and unusual punishments inflicted. Read that last clause and then read the Eighth Amendment: the wording is nearly identical, a century apart.",
+    "This reframes the revolutionary crisis. When colonists objected to taxation without representation, they were not proposing a novel political theory. They were claiming a settled English constitutional right — as Englishmen — and arguing that Parliament was violating it. That is why so much of the early resistance is phrased as loyalty rather than rebellion, and it explains why the break, when it came, needed a *different* argument. Paine's Common Sense in early 1776 supplied it, by attacking monarchy itself rather than a particular king's policies.",
+    "So the arc of this strand is: a limit on the king (1215), a settlement of who rules (1689), an argument that legitimacy comes from consent (Locke), and then a rupture (1776) that used all three."
+   ]
+  },
+  {
+   "id": "civ-found-4",
+   "title": "The Declaration as an Argument",
+   "body": [
+    "Almost everyone can quote the second sentence. Almost no one reads the rest, which is where the actual work happens.",
+    "The Declaration is structured like a legal argument. It opens with a premise about where legitimate authority comes from — equality, unalienable rights, government by consent, and the right to replace a government that destroys those ends. Then it does something a manifesto would not bother to do: it lists specific charges. Twenty-seven of them, naming particular acts by a particular king, because the authors were trying to prove a case to what they called \"a candid world\", not simply express a feeling.",
+    "That structure is the lesson. The famous sentence is the premise; the grievances are the evidence; independence is the conclusion. Students who learn to read it that way stop treating founding documents as scripture and start treating them as arguments that can be examined, tested and answered.",
+    "And then the hardest part, which this course does not route around. The man who wrote \"all men are created equal\" enslaved people, as did many signers. The right response is neither to discard the document nor to pretend the contradiction away, but to notice what happened next: the sentence turned out to be more powerful than its authors. Abolitionists used it. Seneca Falls rewrote it to include women. Lincoln re-founded the country on it. Douglass, in 1852, held it up as an indictment. A promise, once written down, becomes something people can demand."
+   ]
+  },
+  {
+   "id": "civ-struct-1",
+   "title": "If Men Were Angels",
+   "body": [
+    "Madison's Federalist 51 contains the most quoted sentence in American constitutional design, and the quotation usually stops one line too early.",
+    "\"If men were angels, no government would be necessary. If angels were to govern men, neither external nor internal controls on government would be necessary.\" Then the part that matters: \"In framing a government which is to be administered by men over men, the great difficulty lies in this: you must first enable the government to control the governed; and in the next place oblige it to control itself.\"",
+    "Two requirements pulling in opposite directions — strong enough to actually govern, restrained enough to be safe. Almost every structural feature of the Constitution is an answer to that tension. Three branches so no one holds every kind of power. Two chambers with different terms and constituencies. A veto, and an override of the veto. Judicial review. Federalism, splitting power between nation and states.",
+    "Madison's move is the interesting one. He does not ask officials to be good. He assumes they will be ambitious and self-interested, and then arranges the offices so that a senator defending the Senate's power against a president is simultaneously defending the structure. \"Ambition must be made to counteract ambition.\"",
+    "Which raises the question worth spending class time on: what happens when ambition stops counteracting — when the people in two branches share an interest and cooperate rather than checking each other? Madison's design assumes rivalry between institutions. Ask your learners what holds if the rivalry moves elsewhere."
+   ]
+  },
+  {
+   "id": "civ-struct-2",
+   "title": "The Case Against: Reading Brutus",
+   "body": [
+    "Teaching the Federalist Papers without the Anti-Federalists is like reading one side of a court transcript. The Constitution was ratified over strenuous objection, and the objectors were not fools — several of their predictions read uncomfortably well today.",
+    "The writer using the name Brutus argued that a republic could not work across a territory that large and that diverse, because representatives would be too distant from the people they represented and would form an interest of their own. He warned that the \"necessary and proper\" clause and the supremacy clause would let national power expand indefinitely at the expense of the states. He predicted the federal judiciary would become enormously powerful and effectively unaccountable, since judges served for life and interpreted the very document that limited them.",
+    "Two things follow. First, the Bill of Rights exists largely because the Anti-Federalists demanded it as the price of ratification — the losing side wrote the most-cited part of the document. Second, this is the honest way to teach a founding: as an argument that was genuinely contested, by serious people, with real stakes, rather than as a settled consensus that only cranks resisted.",
+    "Have your learners score the predictions. Some Anti-Federalist fears look overstated now; others look prophetic. Deciding which is which is real civic reasoning."
+   ]
+  },
+  {
+   "id": "civ-struct-3",
+   "title": "How a Law Is Actually Made",
+   "body": [
+    "The classic diagram is accurate as far as it goes: a bill is introduced, referred to committee, reported, debated, passed in both chambers in identical form, reconciled if they differ, then signed or vetoed.",
+    "What the diagram hides is where bills actually die. The overwhelming majority never leave committee — not by a vote against them, but by never being scheduled. Control of the calendar is therefore one of the most consequential powers in a legislature, and it belongs to leadership rather than to the chamber as a whole. In the Senate, procedural rules mean most significant legislation needs a supermajority to reach a vote at all, which is a rule the chamber wrote for itself rather than anything in the Constitution.",
+    "Two other realities belong in an honest account. Much of what governs daily life is not statute but regulation — written by agencies under authority delegated by statute, which is why administrative agencies are a permanent constitutional argument. And a great deal of legislating happens through must-pass vehicles: provisions attached to bills that have to move, because they could not survive a vote of their own.",
+    "None of this is corruption; it is the mechanics of a body that has to prioritise. But a citizen who knows only the diagram will misread almost every news story about Congress, which is exactly why it is worth teaching the second layer."
+   ]
+  },
+  {
+   "id": "civ-rights-1",
+   "title": "Five Freedoms in One Sentence",
+   "body": [
+    "Forty-five words carrying five distinct freedoms: religion (both no establishment and free exercise), speech, press, assembly, and petition. Have learners find all five before anything else — most people can name two.",
+    "Then the sentence's first word, which is where most public confusion lives: \"Congress\". The First Amendment restrains government. It is not a rule about your employer, your school's private club, a social platform, or your family dinner. Through the Fourteenth Amendment it now binds state and local government too, but it has never bound private people. An enormous share of arguments about \"free speech\" are actually arguments about private power, and separating those two questions is one of the most useful things a civics course can teach.",
+    "Third, \"no law\" has never meant no law. Courts have carved out narrow categories — incitement to imminent lawless action, true threats, defamation, fraud — and the carving is deliberately narrow, because the presumption runs strongly toward protection. The interesting work is at the edges.",
+    "Teach the edges as genuinely contested. Where speech is hateful but not threatening, where a platform is private but functions as a public square, where religious exercise collides with a general law — reasonable people who all take the First Amendment seriously land in different places. Ask learners to state the strongest version of the position they disagree with before giving their own."
+   ]
+  },
+  {
+   "id": "civ-rights-2",
+   "title": "Due Process: From Clause 39 to the Fourteenth",
+   "body": [
+    "Follow one idea across eight centuries and the Constitution stops looking like a list and starts looking like a conversation.",
+    "It begins with clause 39 of Magna Carta: no free man seized or stripped of possessions except by lawful judgement of his equals or by the law of the land. English lawyers later render \"law of the land\" as \"due process of law\". Colonial charters carry it over. The Fifth Amendment states it against the federal government: no person shall be deprived of life, liberty, or property, without due process of law.",
+    "Then the crucial turn. As written, the Bill of Rights limited only the federal government — a state could, and did, do things the federal government could not. After the Civil War, the Fourteenth Amendment applied due process against the states, and over the following century the Supreme Court used that clause to extend most of the Bill of Rights to state and local government one right at a time. That process is called incorporation, and it is why a city police department is bound by the Fourth Amendment today.",
+    "The text never changed. Its reach changed enormously. Whether that expansion was faithful interpretation or judicial improvisation is one of the genuine, live disagreements in American constitutional law, and a serious civics course lets learners hear both accounts."
+   ]
+  },
+  {
+   "id": "civ-action-1",
+   "title": "Holding a Country to Its Own Words",
+   "body": [
+    "In July 1852, Frederick Douglass was invited to speak at an Independence Day celebration in Rochester. He accepted, and then asked his audience what the Fourth of July meant to an enslaved person: a day revealing, more than any other, the injustice of which he was the constant victim.",
+    "Notice precisely what Douglass does, because it is the strategic heart of this lesson. He does not reject the Declaration. He takes it more seriously than his audience does. The nation had written down that all are created equal; he holds the words up and asks the country to mean them. That move — using a society's own stated principles as the indictment — recurs through Seneca Falls in 1848, through Lincoln at Gettysburg, through the movement literature of the 1950s and 60s.",
+    "It is worth asking why it works. A demand made from outside a society's values can be dismissed as foreign. A demand made from inside them cannot be answered without either changing or admitting hypocrisy. That is not a rhetorical trick; it is a real constraint that written commitments place on the people who make them.",
+    "Which is also the answer to a question learners often ask about founding documents that were not honoured: what is the use of a promise nobody kept? The use is that it can be quoted back."
+   ]
+  },
+  {
+   "id": "civ-action-2",
+   "title": "Taking Informed Action",
+   "body": [
+    "Everything so far has been reading. This lesson is the part the C3 Framework calls taking informed action, and it is deliberately the hardest thing in the course, because it requires finding out how power is actually distributed where you live.",
+    "Work in four steps. First, choose a real issue in your own community, narrow enough to be tractable — a crossing, a library closure, a bus route, a school policy. Second, and this is where most civic projects fail, identify who actually holds the decision. Not \"the government\": the specific body, and often a specific committee within it. Many issues that feel national are decided by a council of seven people who meet on a Tuesday, and many that feel local are constrained by state law. Finding out which is real research.",
+    "Third, build the case as evidence rather than feeling. What does the data show? Who is affected, and how? What has been tried elsewhere, and what did it cost? What is the strongest objection, and what is your answer to it? A proposal that has already engaged its best counterargument is far harder to dismiss.",
+    "Fourth, deliver it in the form that body actually accepts — public comment, a written submission, a petition, a meeting. Then record what happened, including if nothing did. Learning that change is slow and procedural is not a disappointing outcome for this assignment; it is the most accurate civics lesson available."
+   ]
+  },
+  {
+   "id": "civ-living-1",
+   "title": "The Second Founding",
+   "body": [
+    "Between 1865 and 1870 the United States amended its Constitution three times in a way that changed the country more fundamentally than anything since 1787. Historians increasingly call it the second founding, and the label is earned.",
+    "The Thirteenth abolished slavery. The Fourteenth did four enormous things at once: it made everyone born here a citizen, overturning the Court's contrary holding; it forbade states from abridging the privileges or immunities of citizens; it applied due process against the states; and it guaranteed equal protection of the laws. The Fifteenth barred denying the vote on grounds of race.",
+    "Two observations make this a civics lesson rather than a history one. First, the target changed. The original Bill of Rights restrained the federal government, because the perceived threat was a distant central power. The Reconstruction Amendments restrained the states, because the war had demonstrated that a state could be the more immediate threat to a citizen's liberty. That inversion is the single most consequential structural change in American constitutional history.",
+    "Second, the guarantees were substantially unenforced for most of a century, and then became the basis of nearly every major rights case of the twentieth. Which returns to the theme running through this entire course: written commitments do not enforce themselves, and they are also not nothing — because they remain available to be enforced later by people determined enough to insist."
+   ]
+  },
+  {
+   "id": "civ-living-2",
+   "title": "How Should a Constitution Be Read?",
+   "body": [
+    "A short document written in the eighteenth century governs a country facing questions its authors could not have imagined. How should judges read it? Americans genuinely disagree, and this course presents the disagreement rather than resolving it.",
+    "One position holds that the text should be given the meaning it had when it was adopted. Its case is about legitimacy and constraint: the Constitution's authority comes from ratification by the people, so its meaning cannot shift with the preferences of unelected judges; if the country wants change, Article V provides amendment. Its difficulty is that some original understandings are contested, unknowable, or morally unacceptable today.",
+    "The other holds that broad phrases — \"unreasonable searches\", \"cruel and unusual\", \"equal protection\" — were written broadly on purpose, and must be applied to conditions the drafters never anticipated. Its case is that a document unable to address new circumstances becomes irrelevant. Its difficulty is the question of limits: if meaning develops, what stops a judge from finding whatever they prefer?",
+    "Both are honest attempts to answer a real problem: how a fixed text governs a changing society without either freezing it or dissolving into whatever the current majority wants. Have your learners argue both sides in turn — assigned position, not chosen — before writing where they actually land. That exercise, more than any content in this course, is what civic reasoning consists of."
+   ]
+  },
+  {
+   "id": "civ-comp-method",
+   "title": "How to Compare a Country Without Ranking It",
+   "body": [
+    "Most comparative civics goes wrong in the same way. A student reads about another country's government, notices it is different from their own, and concludes it is worse. The comparison produces a ranking, the ranking confirms what they already believed, and nothing has been learned.",
+    "The fix is a method, applied identically to every country, including your own.",
+    "**Ask the same four questions of every system.** Who makes the law? Who can overrule them, and how? What is written down as a right? What actually happens when someone tries to use that right? The four questions are boring on purpose. They are the same for the United Kingdom and for China, and applying them evenly is the entire discipline.",
+    "**Separate the promise from the delivery, and demand evidence for both.** A constitutional text is a promise. Whether the promise is kept is a separate factual question requiring separate evidence — court records, prosecutions, journalists working or not working, elections producing changes of government or not. A country can have a beautiful text and a closed society. A country can have no single constitutional document at all and a functioning free press. Neither fact can be read off the other, and a student who conflates them has learned nothing except how to be fooled by paperwork.",
+    "**Do not treat any one country as the neutral standard.** This is the specific trap for an American student. The United States is not the yardstick in this strand; it is the eighth case. When you ask whether Germany's ban on anti-democratic parties is dangerous, you must also ask what the American refusal to ban them has cost. When you note that China's constitution is not judicially enforceable against the state, you must also ask how often the US Supreme Court has ruled against the government that appointed it. Applying the questions evenly is uncomfortable, which is how you know it is working.",
+    "**Notice your own position.** You will find some violations obvious and others invisible, and which is which depends on where you are standing. This is not a reason to give up on judgment — some governments genuinely do imprison people for speech and others genuinely do not, and pretending otherwise is its own dishonesty. It is a reason to check whether you applied your standard evenly before you reached the verdict.",
+    "**A rule for this strand: name the mechanism, not the vibe.** \"Country X is less free\" is not an analysis. \"Country X permits prior restraint of publication through mechanism Y, which the courts have upheld in cases Z\" is an analysis. The first is a feeling wearing the costume of a finding. The second can be checked, argued with, and proved wrong — which is what makes it worth writing.",
+    "You will apply this to seven countries. Each lesson gives you the actual constitutional words, the structure that surrounds them, and a question with no settled answer."
+   ]
+  },
+  {
+   "id": "civ-comp-uk",
+   "title": "United Kingdom: The Constitution You Cannot Hold",
+   "body": [
+    "Ask for a copy of the British constitution and nobody can hand you one, because it is not in a single document. It is spread across statutes, court decisions and conventions that everyone follows without any court enforcing them. Magna Carta 1215, the Bill of Rights 1689, the Acts of Union, the Parliament Acts of 1911 and 1949, the Human Rights Act 1998, the Constitutional Reform Act 2005 — plus a large body of unwritten practice about what a prime minister or a monarch simply does not do.",
+    "The organising principle is **parliamentary sovereignty**. Parliament can make or unmake any law, and no Parliament can bind its successor. Follow that to its conclusion and you reach the thing that most surprises an American student: **British courts cannot strike down an Act of Parliament.** Under section 4 of the Human Rights Act, the higher courts may issue a *declaration of incompatibility* — a formal statement that a statute conflicts with the rights the Act protects. The statute remains fully in force. Parliament is expected to respond, and in practice usually has, but nothing legally compels it.",
+    "The rights themselves arrive by an interesting route. The Human Rights Act brought the European Convention on Human Rights into domestic law, so Article 10 became directly usable in a British court:",
+    "> \"Everyone has the right to freedom of expression. This right shall include freedom to hold opinions and to receive and impart information and ideas without interference by public authority and regardless of frontiers.\"",
+    "Read the second paragraph, which most people skip. Article 10 continues that the exercise of these freedoms \"carries with it duties and responsibilities\" and may be subject to restrictions \"prescribed by law and necessary in a democratic society\" — in the interests of national security, public safety, the prevention of disorder or crime, the protection of health or morals, the reputation or rights of others, and more.",
+    "That structure is the deep contrast with the American text. The First Amendment states a prohibition on government and lists no exceptions on its face; the exceptions were built later by courts. Article 10 states the right and then writes the exceptions *into the same article*, with a test — prescribed by law, necessary in a democratic society, proportionate — that a judge applies case by case. One system hides its balancing inside doctrine; the other puts the balancing in the text. Neither is obviously better, and arguing about which you prefer is a real argument rather than a patriotic one.",
+    "The practical consequences are visible. British courts issue reporting restrictions on active criminal trials that would be unconstitutional prior restraint in the United States; the stated purpose is protecting the fairness of the jury. British defamation law placed the burden on the defendant far more heavily than American law does, which drew enough international criticism — including American statutes passed specifically to blunt it — that Parliament rewrote it in the Defamation Act 2013. Both are cases where you can name the mechanism rather than the vibe.",
+    "And then the question that makes this lesson worth teaching. A system with no entrenched constitution, where the legislature can amend any right by ordinary majority, sounds fragile. Yet it has run for centuries without the collapse the theory predicts, and it produced the ideas the Americans entrenched. Either the entrenchment matters less than we assume, or Britain has been lucky, or the unwritten conventions are doing work we are failing to see. Decide which, and say what evidence would change your mind."
+   ]
+  },
+  {
+   "id": "civ-comp-france",
+   "title": "France: Rights Declared for Everyone",
+   "body": [
+    "The American Declaration of Independence is addressed to a candid world but argues about one king and thirteen colonies. The French Declaration of the Rights of Man and of the Citizen, adopted in August 1789, does something structurally different: it declares rights belonging to *man*, as such, everywhere.",
+    "Article 11 is the free-expression clause:",
+    "> \"The free communication of ideas and opinions is one of the most precious of the rights of man. Every citizen may thus speak, write and publish freely, except that he shall be responsible for such abuses of this freedom as shall be defined by law.\"",
+    "Notice the last clause, because it is the whole French tradition in one line. The right is declared in the most expansive possible terms — *one of the most precious of the rights of man* — and then handed to the legislature to define its abuses. Where the American text restrains the legislature, the French text trusts it. That is not an accident or a loophole; it follows from the revolutionary conviction that the law expresses the general will, so the body that makes the law is the guardian of liberty rather than its main threat.",
+    "This produced a country that for most of its modern history had **no way for a court to protect a right against a statute at all**. The remedy came slowly and from an unexpected place. The Conseil constitutionnel, created in 1958 mainly to police the boundary between government and parliament, held in a 1971 decision that the 1789 Declaration and the 1946 preamble were part of the constitutional standard against which laws must be measured — the *bloc de constitutionnalité*. A 2008 reform then created the *question prioritaire de constitutionnalité*, which since 2010 lets an ordinary litigant have a statute already in force referred for constitutional review. France therefore acquired something close to judicial review of rights roughly two centuries after declaring the rights.",
+    "The second thing to hold is the contradiction, and it is not a small one. The Declaration says rights are universal. France maintained an empire for a century and a half afterwards in which those rights plainly were not extended. The revolutionary assembly abolished slavery in 1794; Napoleon restored it in 1802; it was abolished again in 1848. A learner should sit with that sequence rather than resolve it quickly, because the same pattern appears in the American strand of this course, and noticing it in one country while excusing it in the other is exactly the failure the method lesson warned about.",
+    "The distinctively French concept you need is **laïcité**, established by the 1905 law separating the churches and the state. It is often translated as secularism, and the translation misleads. The American religion clauses primarily restrain the state from establishing or prohibiting religion, leaving private religious expression very broadly protected. Laïcité is a stronger claim about the neutrality of *public space*, and it has been used to justify restrictions on religious dress in state schools and by public employees — measures that would be plainly unconstitutional in the United States. Whether that protects citizens from religious coercion or imposes a majority's preference on a minority is genuinely contested inside France, along lines that do not map onto American political divisions at all.",
+    "So France gives you two lessons that no other case in this strand gives as cleanly: a rights tradition that placed its faith in the legislature rather than the courts and had to invent review afterwards, and a universal declaration that its own authors did not universally apply."
+   ]
+  },
+  {
+   "id": "civ-comp-germany",
+   "title": "Germany: The Democracy That Defends Itself",
+   "body": [
+    "Every constitution is a response to something. Germany's Basic Law of 1949 is a response to the previous fifteen years, and you cannot understand a single one of its unusual features without holding that in mind.",
+    "The document opens where no other constitution in this strand opens. Article 1 begins by declaring human dignity inviolable and binding all state authority to respect and protect it. Dignity comes before democracy, before the state, before every other right in the text — a deliberate architectural decision by people who had just seen what a state does when it decides some humans do not have any.",
+    "Article 5 carries free expression. In the official English translation, every person has the right freely to express and disseminate their opinions in speech, writing and pictures, and to inform themselves without hindrance from generally accessible sources; freedom of the press and of reporting by broadcast and film are guaranteed; and — in four words that land hard given what preceded them — **there shall be no censorship.** The next paragraph then sets the limits: these rights find their limits in the provisions of general laws, in provisions for the protection of young persons, and in the right to personal honour.",
+    "Now the two features that make Germany the most argued-about case in comparative civics.",
+    "**The eternity clause.** Article 79(3) declares that amendments affecting the principles laid down in Articles 1 and 20 — human dignity, and the democratic, federal, social and rule-of-law character of the state — are **inadmissible**. Not difficult. Not requiring a supermajority. Inadmissible. The Basic Law places part of itself permanently beyond amendment, which means the Germans of 1949 bound every future generation of Germans on a question the future generation is not permitted to reopen.",
+    "**Militant democracy.** Article 21 provides that parties which seek to undermine or abolish the free democratic basic order are unconstitutional, with the Federal Constitutional Court deciding the question. This is not theoretical. A successor to the Nazi party was banned in 1952 and the Communist Party in 1956. In a 2017 case concerning the far-right NPD, the Court found the party's aims incompatible with the free democratic basic order but declined to ban it on the ground that it had no realistic potential to achieve them — after which the constitution was amended to allow such parties to be cut off from state party financing instead.",
+    "Set that beside the American answer. The United States has decided, in substance, that the remedy for anti-democratic speech and organisation is more speech and electoral defeat, and it does not ban parties. Germany decided that a democracy is entitled to defend itself, because it had already run the other experiment and lost.",
+    "The argument for the German position is that the Weimar Republic's neutrality toward its own enemies was not principled tolerance but a fatal design flaw, and that a constitution which cannot survive its own procedures being used against it is unfinished. The argument against is that \"the free democratic basic order\" is defined by the very court that applies it, that every government believes its opponents threaten the order, and that a tool built for actual fascists is available to whoever holds the institutions later.",
+    "Both arguments are serious. Neither is obviously right. What you must not do is pick the one your country already chose and treat the choosing as the reasoning."
+   ]
+  },
+  {
+   "id": "civ-comp-china",
+   "title": "China: Text and Practice",
+   "body": [
+    "This is the lesson where the method from the first lesson stops being an abstraction, so apply it exactly: the promise and the delivery are separate questions, and both need evidence.",
+    "Start with the promise. Article 35 of the 1982 Constitution of the People's Republic of China reads:",
+    "> \"Citizens of the People's Republic of China enjoy freedom of speech, of the press, of assembly, of association, of procession and of demonstration.\"",
+    "Count the freedoms named. Six, explicitly, in one sentence. The First Amendment names religion, speech, press, assembly and petition — five. On the face of the text alone, the Chinese constitution enumerates *more* expressive freedoms than the American one. A student who expected the opposite has just learned the most important thing this lesson teaches: **you cannot read a country's practice off its constitutional text.**",
+    "Now read the rest of the document, because the text also contains its own answer. Article 51 provides that citizens, in exercising their freedoms and rights, may not infringe upon the interests of the state, of society or of the collective, or upon the lawful freedoms and rights of other citizens. That is a general limitation clause of very wide reach — and unlike the German limits in Article 5(2) or the ECHR limits in Article 10(2), there is no independent court applying a proportionality test to it.",
+    "That is the structural fact, and it matters more than any individual clause. Under Article 1, as amended in 2018, the leadership of the Communist Party of China is the defining feature of socialism with Chinese characteristics. The National People's Congress is the highest organ of state power; its Standing Committee, not a separate constitutional court, holds the power to interpret the constitution. **Chinese courts do not exercise judicial review of legislation, and a citizen cannot go to court to have a statute struck down for violating Article 35.** The rights in the text are not, in the American or German sense, judicially enforceable against the state.",
+    "So the four questions produce a coherent picture. Who makes the law: the NPC, under Party leadership. Who can overrule them: no independent body. What is written down as a right: a broad catalogue including six expressive freedoms. What happens when someone uses it: this is the empirical question, and it is the one you must research rather than assume — using press-freedom monitoring, documented prosecutions, and the operation of the censorship and licensing system, and being honest about which sources you trust and why.",
+    "Two further things a serious student should hold.",
+    "First, do not flatten a country of 1.4 billion people into a single sentence. There is real legal development in China — administrative litigation against state agencies, contract and property law, a civil code — and there is genuine domestic argument about law and governance. \"No independent constitutional review of rights against the state\" is a precise claim and defensible; \"there is no law in China\" is neither.",
+    "Second, apply the same scrutiny back. If your test is whether a constitutional right is enforceable in practice against the government, run that test on your own country too, with the same evidentiary standard. That is not false equivalence — the answers will differ, and by a lot — but a comparison is only worth something if the measuring instrument does not change when you turn it around.",
+    "A note on sources: China's own copyright law excludes laws, regulations and official documents, and their official translations, from copyright protection, which is why the constitutional text can be quoted here directly."
+   ]
+  },
+  {
+   "id": "civ-comp-japan",
+   "title": "Japan: Four Words of Difference",
+   "body": [
+    "Japan offers something no other country in this strand does: two complete constitutions, both in the public domain, close enough in time to compare directly and different enough to make the comparison teach.",
+    "The Meiji Constitution of 1889, Article 29:",
+    "> \"Japanese subjects shall, within the limits of law, enjoy the liberty of speech, writing, publication, public meetings and associations.\"",
+    "The Constitution of Japan of 1946, Article 21:",
+    "> \"Freedom of assembly and association as well as speech, press and all other forms of expression are guaranteed. No censorship shall be maintained, nor shall the secrecy of any means of communication be violated.\"",
+    "Put them side by side and the difference is almost entirely four words: **within the limits of law**. In 1889 the liberty exists inside whatever boundary the law draws, so any statute restricting speech is by definition consistent with the guarantee — the right is real but it is subordinate, and the legislature holds the ceiling. In 1946 the guarantee is stated flat, censorship is prohibited outright, and the secrecy of communications is protected in the same breath.",
+    "Notice also *subjects* becoming, in the 1946 document, a people from whom sovereign power derives. The grammatical change tracks the constitutional one exactly.",
+    "Two more features make Japan essential to this strand.",
+    "**Article 9.** Japan renounces war as a sovereign right of the nation and the threat or use of force as a means of settling international disputes. No other major constitution says this. What it permits in practice — self-defence forces, collective self-defence, the reinterpretations successive governments have adopted — is one of the most sustained constitutional arguments in the democratic world, conducted almost entirely through interpretation rather than amendment.",
+    "**It has never been amended.** Article 96 requires a two-thirds vote of both houses of the Diet followed by a majority in a national referendum, and since coming into force in 1947 the text has not changed once. That makes Japan the most stable constitutional text among large democracies by a wide margin, and it raises a genuinely hard question: is a constitution that never changes a sign of durable consensus, or of an amendment procedure so demanding that the country routes real constitutional change through reinterpretation instead — which is precisely what happened with Article 9?",
+    "The Japanese Supreme Court has the power of judicial review under Article 81 but has used it to strike down legislation only a small number of times in its history, far less often than its American counterpart. Set that beside a text with strong stated guarantees and you get the question this lesson is really for: how much of a constitution's force comes from the words, and how much from the institutions willing to enforce them? Japan and China give you very different texts; Japan and the United States give you similar texts with different enforcement patterns. Three cases, two variables, and a genuinely instructive triangle.",
+    "Both Japanese constitutions are public domain, which is why the whole comparison can be done here in the actual words rather than in someone's summary of them."
+   ]
+  },
+  {
+   "id": "civ-comp-brazil",
+   "title": "Brazil: When Housing Is a Right",
+   "body": [
+    "Brazil's 1988 Constitution was written immediately after two decades of military dictatorship, by people determined that the next document would leave nothing to trust. The result is one of the longest constitutions in the world, and the nickname it was given on the day of its promulgation — *Constituição Cidadã*, the Citizen Constitution — tells you what its authors thought they were doing.",
+    "The length is the point, not a flaw to apologise for. A constitution drafted by people who have just watched rights disappear does not leave things implicit. Article 5 alone runs to dozens of enumerated individual rights and guarantees. Two of them cover expression: the expression of thought is free, with anonymity forbidden; and the expression of intellectual, artistic, scientific and communications activity is free, independent of censorship or licence.",
+    "Pause on **anonymity being forbidden**. Almost every other constitution in this strand is silent on the question, and American doctrine has protected anonymous political speech since the pamphlet wars. Brazil made the opposite choice in its constitutional text, and the reasoning is traceable: a country emerging from a period of anonymous denunciation and clandestine state violence wrote accountability for one's own words into the guarantee itself. Whether that protects against defamation and disinformation or chills exactly the speech most in need of protection is a live argument, and it has become sharply more live in the era of platform speech.",
+    "The feature that makes Brazil indispensable to this strand, though, is Article 6. It lists as **social rights**: education, health, food, work, housing, transport, leisure, security, social security, protection of motherhood and childhood, and assistance to the destitute.",
+    "Read that list again as a lawyer rather than as a reader. In the American constitutional tradition, rights are overwhelmingly *negative* — restraints on what government may do to you. Brazil's Article 6 is a list of *positive* rights: things the state must provide. And in Brazil these are not aspirational preamble language. They are justiciable. Citizens sue for them. The most studied consequence is the phenomenon usually called the judicialisation of health — enormous numbers of individual lawsuits demanding that the state supply particular medicines and treatments, which courts frequently grant.",
+    "That produces the honest dilemma this lesson exists to teach. When a court orders the state to fund one claimant's expensive treatment, the claimant's constitutional right has been vindicated — genuinely, and the person may be alive because of it. The money comes from a health budget that was allocated by a legislature, so something else is now unfunded, and the people who lose that funding are diffuse, unnamed and did not file suit. Individual litigants are on average better resourced than the median citizen, so a mechanism designed to protect the vulnerable can systematically redirect resources upward.",
+    "So: does making a social provision a right a court can enforce make it more real, or does it move allocation decisions from a body that must weigh everyone's claims to a body that only ever sees one claimant at a time? Brazil is the world's largest live experiment in that question, and the answer is contested inside Brazil by people who all support the underlying rights.",
+    "The 1988 text has been amended well over a hundred times, which follows from its length: when the constitution specifies detail that other countries leave to ordinary legislation, ordinary policy change requires constitutional amendment."
+   ]
+  },
+  {
+   "id": "civ-comp-argentina",
+   "title": "Argentina: Constitutions After Rupture",
+   "body": [
+    "Argentina's Constitution dates from 1853 and was closely modelled on the United States: a federal republic, a presidential executive, a bicameral congress, a supreme court. If constitutional design alone determined outcomes, the twentieth century of the two countries should have looked broadly similar. It did not. Argentina experienced repeated military coups and long periods in which the constitutional order was suspended outright.",
+    "That fact is the lesson, and it should unsettle anyone who believes a well-designed text is sufficient. **The same institutional blueprint produced very different histories**, which means the blueprint was never the whole explanation. Argentina forces a comparative civics student to take seriously the things that are not in any constitution: the military's relationship to civilian authority, the strength of parties and courts as institutions rather than as chapters, economic shocks, and whether losing an election is survivable for those who lose it.",
+    "The expressive-freedom provisions come from the American lineage and show it. Article 14 guarantees to all inhabitants the right of publishing their ideas through the press **without prior censorship**. Article 32 provides that the federal Congress shall not enact laws restricting the freedom of the press or establishing federal jurisdiction over it. Note what Article 32 does: it is a federalism provision, restricting the *national* legislature specifically — an unusually explicit structural protection, and a direct descendant of the American debate about which government is the danger.",
+    "Two things then make Argentina distinctive rather than derivative.",
+    "**The 1994 reform gave a list of international human-rights treaties constitutional rank.** Not merely ratified them — placed them at the top of the domestic hierarchy alongside the constitution itself. That is a genuine transfer of interpretive authority outward, to treaty bodies and international courts whose members no Argentine voter elects. The case for it is that a country which has lost its constitutional order before has good reason to anchor itself to commitments a future domestic government cannot quietly repeal. The case against is that self-government means the governed decide, and a right whose meaning is fixed abroad is one the people can no longer argue about at home. Both are serious, and this is one of the sharpest live questions in comparative constitutional law.",
+    "**Argentina prosecuted its own.** After the 1976–83 dictatorship, the CONADEP commission produced the *Nunca Más* report in 1984, and in 1985 the country tried the members of the military juntas in a civilian court — while the officers convicted still had living institutional support. Amnesty laws and pardons followed, and were later annulled, with prosecutions resuming in the 2000s. It is not a clean story, and presenting it as one would be a disservice. But the underlying civic decision — that the crimes of a prior regime are a matter for ordinary courts applying ordinary law, argued in public and on the record — is one of the most consequential things any democracy in this strand has done, and it has shaped how transitional justice is attempted everywhere since.",
+    "That gives Argentina a role no other case here fills. Every other lesson asks how a constitution constrains a functioning government. Argentina asks what a country does *after* the constraint has already failed — and whether the answer to that question is itself a part of the constitution, even though it is written nowhere in the text."
+   ]
+  },
+  {
+   "id": "civ-comp-capstone",
+   "title": "The Eight Promises",
+   "body": [
+    "You now have eight constitutional promises of free expression: the United Kingdom by way of Article 10 of the Convention, France's Article 11 of 1789, Germany's Article 5, China's Article 35, Japan's Article 21, Brazil's Article 5, Argentina's Articles 14 and 32, and the American First Amendment. Open the Seven Nations reader and put them on one page.",
+    "Every one of them guarantees free expression. That is the finding that should stop you. If constitutional text alone determined outcomes, these eight countries would have had the same twentieth century, and they did not.",
+    "Work through four things, in order.",
+    "**First, sort the clauses by their grammar, not by your opinion of the country.** Some restrain a named institution — \"Congress shall make no law\", \"the federal Congress shall not enact laws\". Some declare a right belonging to a person — \"everyone has the right\", \"every person shall have the right\". Some grant a right to a defined class — \"citizens of the People's Republic of China enjoy\", \"Japanese subjects shall\". You will find the sorting does not group the way you expected, and that surprise is the lesson.",
+    "**Second, find the limitation clause in each and read it as carefully as the guarantee.** Article 10(2) of the Convention, the \"abuses defined by law\" of 1789, Article 5(2) of the Basic Law, Article 51 of the Chinese constitution, the \"within the limits of law\" of Meiji Japan. Almost every real system limits expression somewhere. The interesting question is never *whether* — it is who decides the limit, by what test, and whether anyone independent can say they got it wrong.",
+    "**Third, apply the delivery question evenly.** For each country: when a person actually publishes something the government does not want published, what happens? Cite evidence — court records, press-freedom monitoring, documented prosecutions — and state which sources you trust and why. Run the test on the United States with the same instrument you used on everyone else. The answers will differ, and some will differ enormously; the discipline is that the instrument does not change.",
+    "**Fourth, answer the question this whole strand was built to ask.** Rank-order the eight by the strength of the *text* alone. Then rank-order them by the strength of the *practice*. Compare your two lists. Wherever a country's position moves, you have found something that a constitution does not contain — an independent judiciary, a professional civil service, a press that survives commercially, a military that stays in barracks, a losing party that concedes. Name what moved each one.",
+    "That gap between the two lists is the real content of comparative civics, and it is why this strand refuses to hand you a scoreboard. A constitution is a promise. What a promise is worth depends on everything around it — and that is as true of your own country's promise as of anyone else's.",
+    "Finally, go back to the document you wrote in the first lesson, before you had read any of this, and mark what you got wrong."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "civics-hall.civ-found-1.q1",
+   "lessonId": "civ-found-1",
+   "kind": "mcq",
+   "prompt": "Which clause of Magna Carta says that justice will not be sold, denied or delayed to anyone?",
+   "choices": [
+    "Clause 63",
+    "Clause 12",
+    "Clause 39",
+    "Clause 40"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-found-1.q2",
+   "lessonId": "civ-found-1",
+   "kind": "tf",
+   "prompt": "Magna Carta was written as a declaration of rights for every person living in England in 1215.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-found-1.q3",
+   "lessonId": "civ-found-1",
+   "kind": "mcq",
+   "prompt": "A student traces the idea in Clause 39 forward and wants to find its descendant in the US Bill of Rights. Which amendment carries it?",
+   "choices": [
+    "The Eighth Amendment",
+    "The Fifth Amendment",
+    "The Second Amendment",
+    "The Third Amendment"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-found-1.q4",
+   "lessonId": "civ-found-1",
+   "kind": "mcq",
+   "prompt": "The king repudiated Magna Carta within weeks and the Pope annulled it. Why does the lesson say it still mattered?",
+   "choices": [
+    "Later generations read it more generously than it was written, turning narrow promises into broad principles",
+    "The Pope later reversed his decision and restored every clause",
+    "It abolished the monarchy and created a republic",
+    "It was enforced by the barons for the next five centuries"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-found-2.q1",
+   "lessonId": "civ-found-2",
+   "kind": "mcq",
+   "prompt": "In what year did John Locke publish the Second Treatise, according to the lesson?",
+   "choices": [
+    "1689",
+    "1776",
+    "1787",
+    "1215"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-found-2.q2",
+   "lessonId": "civ-found-2",
+   "kind": "tf",
+   "prompt": "In Locke's state of nature, people are free and equal because no one is born with natural authority over anyone else.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-found-2.q3",
+   "lessonId": "civ-found-2",
+   "kind": "mcq",
+   "prompt": "A citizen says, \"I never signed anything, so the government has no claim on me.\" Which Lockean reply does the lesson give?",
+   "choices": [
+    "Her ancestors signed the constitution on her behalf",
+    "Government needs no consent because it arises naturally",
+    "Tacit consent, shown by continuing to live under a government and enjoy its protections",
+    "Only kings need the consent of those they govern"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-found-2.q4",
+   "lessonId": "civ-found-2",
+   "kind": "mcq",
+   "prompt": "Why could Locke's book be quoted in 1776 to justify a revolution and in 1787 to justify a constitution?",
+   "choices": [
+    "Because it argued for a monarchy in one chapter and a republic in another",
+    "Because it said property matters more than liberty",
+    "Because it was never read closely by the founders",
+    "Because government is a trust held on condition: it can be replaced if it destroys the rights it exists to protect, and is legitimate if it protects them"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-found-3.q1",
+   "lessonId": "civ-found-3",
+   "kind": "mcq",
+   "prompt": "Which document does the lesson call the missing document in most American civics classes?",
+   "choices": [
+    "The Act of Settlement",
+    "The English Bill of Rights of 1689",
+    "The Petition of Right",
+    "The Habeas Corpus Act"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-found-3.q2",
+   "lessonId": "civ-found-3",
+   "kind": "mcq",
+   "prompt": "Which US amendment has wording on bail and punishments nearly identical to the 1689 English text?",
+   "choices": [
+    "The Eighth Amendment",
+    "The Tenth Amendment",
+    "The Fourth Amendment",
+    "The Sixth Amendment"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-found-3.q3",
+   "lessonId": "civ-found-3",
+   "kind": "mcq",
+   "prompt": "A colonial pamphleteer in the 1760s protests taxation without representation, writing as an English subject. What is he doing, according to the lesson?",
+   "choices": [
+    "Calling for an end to monarchy itself",
+    "Rejecting English law in favour of natural law alone",
+    "Proposing a brand new theory of republican government",
+    "Claiming a settled English constitutional right that Parliament was violating"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-found-3.q4",
+   "lessonId": "civ-found-3",
+   "kind": "mcq",
+   "prompt": "Why did the final break with Britain need a different argument from the one used in the early protests?",
+   "choices": [
+    "Because the Bill of Rights 1689 had been repealed",
+    "Because Locke had written against revolution",
+    "Because an English-rights argument could not justify leaving the system; Paine attacked monarchy itself",
+    "Because Parliament had stopped taxing the colonies"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-found-4.q1",
+   "lessonId": "civ-found-4",
+   "kind": "mcq",
+   "prompt": "How many specific charges against the king does the Declaration of Independence list, according to the lesson?",
+   "choices": [
+    "Twelve",
+    "Nineteen",
+    "Twenty-seven",
+    "Fifty-six"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-found-4.q2",
+   "lessonId": "civ-found-4",
+   "kind": "tf",
+   "prompt": "In the lesson's reading, the list of grievances is the conclusion of the Declaration.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-found-4.q3",
+   "lessonId": "civ-found-4",
+   "kind": "mcq",
+   "prompt": "A student is splitting the Declaration into premise, evidence and conclusion. Where does the list of specific acts by the king belong?",
+   "choices": [
+    "In the evidence",
+    "In the premise",
+    "In the conclusion",
+    "In the list of signatures"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-found-4.q4",
+   "lessonId": "civ-found-4",
+   "kind": "mcq",
+   "prompt": "The lesson says \"all men are created equal\" proved more powerful than its authors. What explains this?",
+   "choices": [
+    "It was later removed from the text, which freed it from its authors",
+    "A written promise can be quoted back by later groups, such as abolitionists, Seneca Falls and Lincoln",
+    "The authors intended it to apply to everyone from the start",
+    "Congress passed a law enforcing it in 1776"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-struct-1.q1",
+   "lessonId": "civ-struct-1",
+   "kind": "mcq",
+   "prompt": "Which Federalist paper contains the line \"If men were angels, no government would be necessary\"?",
+   "choices": [
+    "Federalist 1",
+    "Federalist 10",
+    "Federalist 51",
+    "Federalist 78"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-struct-1.q2",
+   "lessonId": "civ-struct-1",
+   "kind": "mcq",
+   "prompt": "Madison says government must first control the governed. What is the second requirement?",
+   "choices": [
+    "Keep it as small as possible",
+    "Require every official to be virtuous",
+    "Give the states a veto over national laws",
+    "Oblige it to control itself"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-struct-1.q3",
+   "lessonId": "civ-struct-1",
+   "kind": "mcq",
+   "prompt": "A senator blocks a presidential nominee mainly to defend the Senate's power. Which Madison idea does this illustrate?",
+   "choices": [
+    "Ambition must be made to counteract ambition",
+    "Men are angels when given power",
+    "Government must be abolished when it is ambitious",
+    "Judges should veto every statute"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-struct-1.q4",
+   "lessonId": "civ-struct-1",
+   "kind": "mcq",
+   "prompt": "Madison's design assumes rivalry between institutions. What does the lesson say would weaken it?",
+   "choices": [
+    "Officials who are too honest",
+    "People in two branches sharing an interest and cooperating rather than checking each other",
+    "A written constitution",
+    "Too many elections"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-struct-2.q1",
+   "lessonId": "civ-struct-2",
+   "kind": "mcq",
+   "prompt": "What did the writer Brutus argue a republic could not do?",
+   "choices": [
+    "Protect a free press",
+    "Work across a territory that large and diverse",
+    "Hold elections",
+    "Raise any taxes"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-struct-2.q2",
+   "lessonId": "civ-struct-2",
+   "kind": "tf",
+   "prompt": "The Bill of Rights exists largely because the Anti-Federalists demanded it as the price of ratification.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-struct-2.q3",
+   "lessonId": "civ-struct-2",
+   "kind": "mcq",
+   "prompt": "A commentator says Congress stretches the \"necessary and proper\" clause to expand national power at the expense of states. Which earlier view does this echo?",
+   "choices": [
+    "Locke's theory of tacit consent",
+    "The English Bill of Rights",
+    "The Federalist view that states should dominate",
+    "The Anti-Federalist prediction made by Brutus"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-struct-2.q4",
+   "lessonId": "civ-struct-2",
+   "kind": "mcq",
+   "prompt": "Why does the lesson insist on teaching the Anti-Federalists alongside the Federalist Papers?",
+   "choices": [
+    "Because the Constitution was ratified unanimously",
+    "Because the Anti-Federalists were eventually proved right on every point",
+    "Because it shows the founding as a genuinely contested argument by serious people, not a settled consensus",
+    "Because the Federalist Papers were never read at the time"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-struct-3.q1",
+   "lessonId": "civ-struct-3",
+   "kind": "mcq",
+   "prompt": "According to the lesson, where do most bills actually die?",
+   "choices": [
+    "In committee, by never being scheduled",
+    "In a floor vote against them",
+    "At the presidential veto",
+    "In the Supreme Court"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-struct-3.q2",
+   "lessonId": "civ-struct-3",
+   "kind": "mcq",
+   "prompt": "Who controls the legislative calendar, according to the lesson?",
+   "choices": [
+    "The president",
+    "Leadership rather than the chamber as a whole",
+    "Every member equally",
+    "The Supreme Court"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-struct-3.q3",
+   "lessonId": "civ-struct-3",
+   "kind": "mcq",
+   "prompt": "A senator complains that a popular bill cannot even get a vote without a supermajority. According to the lesson, where does that requirement come from?",
+   "choices": [
+    "A presidential order",
+    "Article I of the Constitution",
+    "A rule the Senate wrote for itself",
+    "A Supreme Court decision"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-struct-3.q4",
+   "lessonId": "civ-struct-3",
+   "kind": "mcq",
+   "prompt": "Why will a citizen who knows only the textbook diagram misread many news stories about Congress?",
+   "choices": [
+    "The diagram has the wrong number of steps",
+    "Congress ignores the diagram entirely",
+    "Bills no longer need a presidential signature",
+    "The diagram omits where bills die, the role of regulation, and the use of must-pass vehicles"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-rights-1.q1",
+   "lessonId": "civ-rights-1",
+   "kind": "mcq",
+   "prompt": "How many distinct freedoms does the First Amendment carry, according to the lesson?",
+   "choices": [
+    "Five",
+    "Six",
+    "Three",
+    "Four"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-rights-1.q2",
+   "lessonId": "civ-rights-1",
+   "kind": "tf",
+   "prompt": "The First Amendment restrains private employers and social platforms in the same way it restrains government.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-rights-1.q3",
+   "lessonId": "civ-rights-1",
+   "kind": "mcq",
+   "prompt": "A private social platform removes a user's post. According to the lesson, how should this be analysed?",
+   "choices": [
+    "As a violation of the Fourteenth Amendment only",
+    "As a crime of incitement",
+    "As a question about private power, separate from what the First Amendment restrains",
+    "As a direct First Amendment violation by the platform"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-rights-1.q4",
+   "lessonId": "civ-rights-1",
+   "kind": "mcq",
+   "prompt": "The lesson says \"no law\" has never meant no law. How does it describe the courts' approach?",
+   "choices": [
+    "Broad exceptions whenever speech is unpopular",
+    "No exceptions of any kind",
+    "Exceptions decided by employers",
+    "Narrow, deliberately limited categories of exception, with a strong presumption toward protection"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-rights-2.q1",
+   "lessonId": "civ-rights-2",
+   "kind": "mcq",
+   "prompt": "Which amendment applied due process against the states?",
+   "choices": [
+    "The Fifth Amendment",
+    "The Ninth Amendment",
+    "The Thirteenth Amendment",
+    "The Fourteenth Amendment"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-rights-2.q2",
+   "lessonId": "civ-rights-2",
+   "kind": "mcq",
+   "prompt": "What is the process called by which the Supreme Court extended most of the Bill of Rights to state and local government one right at a time?",
+   "choices": [
+    "Federalisation",
+    "Ratification",
+    "Incorporation",
+    "Nullification"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-rights-2.q3",
+   "lessonId": "civ-rights-2",
+   "kind": "mcq",
+   "prompt": "A city police department is held to the Fourth Amendment today. What is the best explanation?",
+   "choices": [
+    "Magna Carta binds every government that descends from England",
+    "Incorporation extended the right to state and local government through the Fourteenth Amendment",
+    "The Fourth Amendment names cities in its text",
+    "Congress passed a statute binding cities"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-rights-2.q4",
+   "lessonId": "civ-rights-2",
+   "kind": "mcq",
+   "prompt": "The lesson says the text never changed but its reach did. Which live disagreement does it identify about that expansion?",
+   "choices": [
+    "Whether it was faithful interpretation or judicial improvisation",
+    "Whether states may ignore the Fifth Amendment",
+    "Whether the Fourteenth Amendment was ever ratified",
+    "Whether Magna Carta was written in 1215"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-action-1.q1",
+   "lessonId": "civ-action-1",
+   "kind": "mcq",
+   "prompt": "Where and when did Frederick Douglass give the speech the lesson discusses?",
+   "choices": [
+    "Seneca Falls, 1848",
+    "Philadelphia, 1776",
+    "Gettysburg, 1863",
+    "Rochester, 1852"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-action-1.q2",
+   "lessonId": "civ-action-1",
+   "kind": "tf",
+   "prompt": "Douglass rejected the Declaration of Independence as meaningless in his 1852 speech.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-action-1.q3",
+   "lessonId": "civ-action-1",
+   "kind": "mcq",
+   "prompt": "A modern reform group quotes a nation's own constitution to show its laws fall short. Which strategy from the lesson is this?",
+   "choices": [
+    "Waiting for a new constitution",
+    "Holding a society to its own stated principles",
+    "Appealing to a foreign power",
+    "Abandoning the founding documents"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-action-1.q4",
+   "lessonId": "civ-action-1",
+   "kind": "mcq",
+   "prompt": "Why, according to the lesson, does a demand made from inside a society's values work better than one made from outside?",
+   "choices": [
+    "It cannot be answered without either changing or admitting hypocrisy",
+    "Because insiders have more votes",
+    "Because outsiders are never listened to by anyone",
+    "Because the demand is written in legal language"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-action-2.q1",
+   "lessonId": "civ-action-2",
+   "kind": "mcq",
+   "prompt": "According to the lesson, where do most civic projects fail?",
+   "choices": [
+    "Identifying who actually holds the decision",
+    "Choosing an issue",
+    "Collecting data",
+    "Making a speech"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-action-2.q2",
+   "lessonId": "civ-action-2",
+   "kind": "mcq",
+   "prompt": "What is the first of the four steps in taking informed action?",
+   "choices": [
+    "Write to the national government",
+    "Choose a real, tractable issue in your own community",
+    "Deliver the proposal",
+    "Record what happened"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-action-2.q3",
+   "lessonId": "civ-action-2",
+   "kind": "mcq",
+   "prompt": "A student wants a safer street crossing. The decision is made by a seven-member council meeting on Tuesdays. What is the best next move?",
+   "choices": [
+    "Post a general complaint about national government",
+    "Wait for the next national election",
+    "Find the specific body that decides and use its accepted form, such as public comment",
+    "Collect signatures from only close friends"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-action-2.q4",
+   "lessonId": "civ-action-2",
+   "kind": "mcq",
+   "prompt": "The lesson says learning that change is slow and procedural is not a disappointing outcome. Why?",
+   "choices": [
+    "Because local issues are never worth pursuing",
+    "Because national issues are easier to change",
+    "Because the assignment is graded only on success",
+    "Because it is the most accurate civics lesson available"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-living-1.q1",
+   "lessonId": "civ-living-1",
+   "kind": "mcq",
+   "prompt": "Which amendment abolished slavery?",
+   "choices": [
+    "The Fifteenth Amendment",
+    "The Nineteenth Amendment",
+    "The Thirteenth Amendment",
+    "The Fourteenth Amendment"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-living-1.q2",
+   "lessonId": "civ-living-1",
+   "kind": "mcq",
+   "prompt": "The Fifteenth Amendment barred denying the vote on grounds of what?",
+   "choices": [
+    "Age",
+    "Sex",
+    "Property",
+    "Race"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-living-1.q3",
+   "lessonId": "civ-living-1",
+   "kind": "mcq",
+   "prompt": "A state law denies a group of residents the equal protection of the laws. Which amendment's guarantee does it contradict?",
+   "choices": [
+    "The Fourteenth Amendment",
+    "The Second Amendment",
+    "The Thirteenth Amendment",
+    "The Fifteenth Amendment"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-living-1.q4",
+   "lessonId": "civ-living-1",
+   "kind": "mcq",
+   "prompt": "The lesson calls the shift in target from the original Bill of Rights to the Reconstruction Amendments an inversion. What changed?",
+   "choices": [
+    "The amendments restrained the federal government more than the originals did",
+    "The amendments restrained the states, because the war showed a state could be the more immediate threat to liberty",
+    "The amendments removed limits on all governments",
+    "The amendments applied only to private citizens"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-living-2.q1",
+   "lessonId": "civ-living-2",
+   "kind": "mcq",
+   "prompt": "Which reading holds that the Constitution should be given the meaning it had when it was adopted?",
+   "choices": [
+    "A reading based on foreign law",
+    "The original-meaning reading",
+    "A reading that ignores the text",
+    "A reading based on current majority preferences"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-living-2.q2",
+   "lessonId": "civ-living-2",
+   "kind": "mcq",
+   "prompt": "According to the original-meaning view, how should the country change the Constitution if it wants change?",
+   "choices": [
+    "By amendment under Article V",
+    "By a presidential order",
+    "By a majority vote of the justices",
+    "By a state law"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-living-2.q3",
+   "lessonId": "civ-living-2",
+   "kind": "mcq",
+   "prompt": "A judge asks whether \"cruel and unusual\" reaches a new punishment the drafters never imagined. Which position says such phrases were written broadly on purpose?",
+   "choices": [
+    "The original-meaning position",
+    "The Anti-Federalist position",
+    "The position that judges may not read the text",
+    "The view that broad phrases apply to conditions the drafters never anticipated"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-living-2.q4",
+   "lessonId": "civ-living-2",
+   "kind": "mcq",
+   "prompt": "What does the lesson name as the main difficulty of the view that meaning develops over time?",
+   "choices": [
+    "It ignores ratification by the people",
+    "The original text is unknowable",
+    "The question of limits: what stops a judge from finding whatever they prefer",
+    "It requires too many amendments"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-method.q1",
+   "lessonId": "civ-comp-method",
+   "kind": "mcq",
+   "prompt": "Which of the four questions asked of every system is about delivery rather than the written promise?",
+   "choices": [
+    "What actually happens when someone tries to use that right?",
+    "Who makes the law?",
+    "Who can overrule them, and how?",
+    "What is written down as a right?"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-method.q2",
+   "lessonId": "civ-comp-method",
+   "kind": "tf",
+   "prompt": "This strand uses the United States as the neutral standard against which other countries are measured.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-method.q3",
+   "lessonId": "civ-comp-method",
+   "kind": "mcq",
+   "prompt": "A student writes \"Country X is less free.\" Which rewrite follows the strand's rule to name the mechanism, not the vibe?",
+   "choices": [
+    "Country X feels oppressive to visitors",
+    "Everyone knows Country X is worse than ours",
+    "Country X permits prior restraint of publication through mechanism Y, which courts upheld in cases Z",
+    "Country X ranks lower than my own country"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-method.q4",
+   "lessonId": "civ-comp-method",
+   "kind": "mcq",
+   "prompt": "Why does the lesson say you cannot read a country's practice off its constitutional text?",
+   "choices": [
+    "Because only courts can read constitutions",
+    "Because texts are always identical",
+    "Because constitutions are always secret",
+    "Because a country can have a fine text and a closed society, or no single document and a free press"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-uk.q1",
+   "lessonId": "civ-comp-uk",
+   "kind": "mcq",
+   "prompt": "What is the organising principle of the British constitution, according to the lesson?",
+   "choices": [
+    "Judicial supremacy",
+    "Federal supremacy",
+    "Entrenched rights",
+    "Parliamentary sovereignty"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-uk.q2",
+   "lessonId": "civ-comp-uk",
+   "kind": "mcq",
+   "prompt": "Under section 4 of the Human Rights Act, what may higher British courts issue when a statute conflicts with Convention rights?",
+   "choices": [
+    "A royal veto",
+    "An order striking the statute down",
+    "A declaration of incompatibility",
+    "A repeal notice"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-uk.q3",
+   "lessonId": "civ-comp-uk",
+   "kind": "mcq",
+   "prompt": "A British court finds a statute incompatible with Convention rights. What happens to the statute?",
+   "choices": [
+    "It is suspended until the next election",
+    "It remains in force and Parliament is expected, but not legally compelled, to respond",
+    "It is automatically repealed after a year",
+    "It is struck down immediately"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-uk.q4",
+   "lessonId": "civ-comp-uk",
+   "kind": "mcq",
+   "prompt": "How does Article 10 of the Convention differ structurally from the First Amendment?",
+   "choices": [
+    "Article 10 writes the permitted restrictions, with a test, into the same article; the First Amendment's exceptions were built later by courts",
+    "Article 10 allows no restrictions at all",
+    "The First Amendment lists its exceptions in the text, but Article 10 does not",
+    "They are structurally identical"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-france.q1",
+   "lessonId": "civ-comp-france",
+   "kind": "mcq",
+   "prompt": "In which year was the French Declaration of the Rights of Man and of the Citizen adopted?",
+   "choices": [
+    "1905",
+    "1776",
+    "1789",
+    "1848"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-france.q2",
+   "lessonId": "civ-comp-france",
+   "kind": "mcq",
+   "prompt": "What did the French law of 1905 that established laicite separate?",
+   "choices": [
+    "The army and the government",
+    "The courts and the legislature",
+    "The press and the political parties",
+    "The churches and the state"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-france.q3",
+   "lessonId": "civ-comp-france",
+   "kind": "mcq",
+   "prompt": "A French litigant wants a statute already in force reviewed for constitutionality. Which procedure, available since 2010, lets this happen?",
+   "choices": [
+    "The question prioritaire de constitutionnalite",
+    "A bloc request to the Senate",
+    "A referendum petition",
+    "A plea to repeal it before the Court of Cassation"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-france.q4",
+   "lessonId": "civ-comp-france",
+   "kind": "mcq",
+   "prompt": "What does the phrase \"responsible for such abuses of this freedom as shall be defined by law\" in Article 11 reveal about the French tradition?",
+   "choices": [
+    "A rule that courts alone define abuses",
+    "Trust in the legislature as the guardian of liberty, since law expresses the general will",
+    "A ban on all publication",
+    "Distrust of all lawmakers"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-germany.q1",
+   "lessonId": "civ-comp-germany",
+   "kind": "mcq",
+   "prompt": "What does Article 1 of the German Basic Law declare inviolable?",
+   "choices": [
+    "Free speech",
+    "Private property",
+    "Human dignity",
+    "Federalism"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-germany.q2",
+   "lessonId": "civ-comp-germany",
+   "kind": "mcq",
+   "prompt": "What does the eternity clause, Article 79(3), say about amendments affecting Articles 1 and 20?",
+   "choices": [
+    "They require a referendum",
+    "They are decided by the Chancellor",
+    "They require a two-thirds vote",
+    "They are inadmissible"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-germany.q3",
+   "lessonId": "civ-comp-germany",
+   "kind": "mcq",
+   "prompt": "In the 2017 NPD case, the Court found the party's aims incompatible with the free democratic basic order but did not ban it. Why?",
+   "choices": [
+    "It had no realistic potential to achieve its aims",
+    "Parties cannot be banned under German law",
+    "The party had already dissolved itself",
+    "The Court lacked jurisdiction over political parties"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-germany.q4",
+   "lessonId": "civ-comp-germany",
+   "kind": "mcq",
+   "prompt": "Which is the lesson's main argument against militant democracy?",
+   "choices": [
+    "No party has ever been banned in Germany",
+    "The order is defined by the very court that applies it, and the tool could be used by whoever later holds the institutions",
+    "It violates Article 1",
+    "Weimar's neutrality toward its enemies was a fatal flaw"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-china.q1",
+   "lessonId": "civ-comp-china",
+   "kind": "mcq",
+   "prompt": "How many freedoms does Article 35 of China's 1982 Constitution name explicitly?",
+   "choices": [
+    "Six",
+    "Eight",
+    "Three",
+    "Five"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-china.q2",
+   "lessonId": "civ-comp-china",
+   "kind": "tf",
+   "prompt": "A Chinese citizen can go to court to have a statute struck down for violating Article 35.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-china.q3",
+   "lessonId": "civ-comp-china",
+   "kind": "mcq",
+   "prompt": "Which body holds the power to interpret the Chinese constitution, according to the lesson?",
+   "choices": [
+    "The Supreme People's Court",
+    "The State Council",
+    "The Standing Committee of the National People's Congress",
+    "A constitutional court"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-china.q4",
+   "lessonId": "civ-comp-china",
+   "kind": "mcq",
+   "prompt": "What is the main lesson from Article 35 naming more freedoms than the First Amendment?",
+   "choices": [
+    "China protects speech more than the United States",
+    "Constitutional texts are never important",
+    "The First Amendment is incomplete",
+    "You cannot read a country's practice off its constitutional text"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-japan.q1",
+   "lessonId": "civ-comp-japan",
+   "kind": "mcq",
+   "prompt": "Which four words does the lesson say mark the main difference between Article 29 of 1889 and Article 21 of 1946?",
+   "choices": [
+    "\"no censorship shall be maintained\"",
+    "\"within the limits of law\"",
+    "\"subjects of the Emperor\"",
+    "\"all other forms of expression\""
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-japan.q2",
+   "lessonId": "civ-comp-japan",
+   "kind": "mcq",
+   "prompt": "What does Article 9 of Japan's 1946 constitution renounce?",
+   "choices": [
+    "War as a sovereign right of the nation",
+    "Nuclear power",
+    "Foreign trade",
+    "The monarchy"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-japan.q3",
+   "lessonId": "civ-comp-japan",
+   "kind": "mcq",
+   "prompt": "A Japanese government wants to amend the constitution. What does Article 96 require?",
+   "choices": [
+    "Approval from all prefectures",
+    "A simple majority of the Diet",
+    "A decision of the Emperor",
+    "Two-thirds of both houses of the Diet, then a majority in a national referendum"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-japan.q4",
+   "lessonId": "civ-comp-japan",
+   "kind": "mcq",
+   "prompt": "The lesson says Japan and China, and Japan and the United States, form a triangle. What does that comparison illustrate?",
+   "choices": [
+    "That all constitutions are alike",
+    "That Japan's court strikes down more laws than any other",
+    "How much of a constitution's force comes from its words and how much from institutions willing to enforce them",
+    "That only written constitutions matter"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-brazil.q1",
+   "lessonId": "civ-comp-brazil",
+   "kind": "mcq",
+   "prompt": "What nickname was given to Brazil's 1988 Constitution?",
+   "choices": [
+    "The Liberty Code",
+    "The Citizen Constitution",
+    "The Republic Statute",
+    "The Federal Charter"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-brazil.q2",
+   "lessonId": "civ-comp-brazil",
+   "kind": "tf",
+   "prompt": "Brazil's constitutional text forbids anonymity in the expression of thought.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-brazil.q3",
+   "lessonId": "civ-comp-brazil",
+   "kind": "mcq",
+   "prompt": "A Brazilian patient sues the state to supply an expensive medicine and a court orders it. What is this widespread pattern called?",
+   "choices": [
+    "Prior restraint",
+    "Incorporation",
+    "Federal pre-emption",
+    "The judicialisation of health"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-brazil.q4",
+   "lessonId": "civ-comp-brazil",
+   "kind": "mcq",
+   "prompt": "What is the dilemma with court-enforced social rights described in the lesson?",
+   "choices": [
+    "Social rights have no text to rely on",
+    "Individual claims are never successful",
+    "Funding one claimant may leave diffuse, unnamed others unfunded, and litigants tend to be better resourced than the median citizen",
+    "Courts refuse to hear any health cases"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-argentina.q1",
+   "lessonId": "civ-comp-argentina",
+   "kind": "mcq",
+   "prompt": "Which country's constitution was Argentina's 1853 Constitution closely modelled on?",
+   "choices": [
+    "Britain",
+    "France",
+    "The United States",
+    "Germany"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-argentina.q2",
+   "lessonId": "civ-comp-argentina",
+   "kind": "tf",
+   "prompt": "Article 32 of Argentina's Constitution specifically restricts the federal Congress from restricting press freedom.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-argentina.q3",
+   "lessonId": "civ-comp-argentina",
+   "kind": "mcq",
+   "prompt": "A lawyer in the late 1990s invokes a ratified international human-rights treaty in an Argentine court. What status did the 1994 reform give such listed treaties?",
+   "choices": [
+    "Constitutional rank, at the top of the domestic hierarchy",
+    "Advisory status only",
+    "Lower than ordinary statutes",
+    "Equal to municipal rules"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-argentina.q4",
+   "lessonId": "civ-comp-argentina",
+   "kind": "mcq",
+   "prompt": "Argentina copied the American design but had repeated coups. What does the lesson conclude?",
+   "choices": [
+    "American designs are inherently unstable",
+    "The blueprint was never the whole explanation; factors outside the text, like the military's relationship to civilian authority, matter",
+    "Argentina never had a constitution",
+    "Coups cannot be explained"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-capstone.q1",
+   "lessonId": "civ-comp-capstone",
+   "kind": "mcq",
+   "prompt": "How many constitutional promises of free expression does the capstone put on one page?",
+   "choices": [
+    "Eight",
+    "Ten",
+    "Five",
+    "Seven"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-capstone.q2",
+   "lessonId": "civ-comp-capstone",
+   "kind": "mcq",
+   "prompt": "What is the first of the capstone's four tasks?",
+   "choices": [
+    "Rank the countries by freedom",
+    "Sort the clauses by their grammar, not by your opinion of the country",
+    "Translate every constitution",
+    "Find the oldest text"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-capstone.q3",
+   "lessonId": "civ-comp-capstone",
+   "kind": "mcq",
+   "prompt": "A student ranks the eight countries by text and by practice, and one country moves a long way between the lists. What does the movement reveal?",
+   "choices": [
+    "The country's constitution has been rewritten",
+    "The text is irrelevant to every country",
+    "Something a constitution does not contain, such as an independent judiciary or a military that stays in barracks",
+    "The student made an error"
+   ]
+  },
+  {
+   "id": "civics-hall.civ-comp-capstone.q4",
+   "lessonId": "civ-comp-capstone",
+   "kind": "mcq",
+   "prompt": "Why does the lesson say the finding that all eight guarantee free expression should stop you?",
+   "choices": [
+    "Because free expression is unimportant",
+    "Because all eight texts are identical",
+    "Because the texts were all written by the same author",
+    "If text alone determined outcomes, the countries would have had the same twentieth century, and they did not"
+   ]
+  }
+ ]
+}

@@ -1,0 +1,6 @@
+# med-g912 fixes (asOf 2026-10)
+
+- l10: cited only the 2017 ACC/AHA guideline. Now cites the 2025 AHA/ACC High Blood Pressure guideline (Hypertension 82(10), Aug 14 2025), which keeps the 2017 categories and the >=130/80 threshold; 2017 kept as history; categories listed; anchor updated. Sources opened: https://pmc.ncbi.nlm.nih.gov/articles/PMC12425457/ (AHA journal pages returned 403; category numbers also from search summaries of the guideline).
+- l11: said reliever alone is insufficient only for persistent asthma. Now: GINA 2025 says SABA-only treatment is not recommended at any severity; preferred reliever for adolescents/adults is as-needed low-dose ICS-formoterol. Question q4 reworded to a SABA (albuterol) reliever; explanation updated. Sources opened: https://ipu.ie/ipu-review-article/asthma-update-gina-2025-guidelines-2/ ; GINA summary (via search) https://ginasthma.org/wp-content/uploads/2025/11/GINA-Summary-Guide-2025-WEB_FINAL-WMS.pdf (ginasthma.org report page 404).
+- l06.q2: ambiguous (B cell vs plasma cell). Now asks for the direct source of released antibodies; correct option is plasma cells; distractors similar length.
+- Verifier "unverifiable" claims (standard textbook facts, no page opened by verifier) left unchanged; no contradicting evidence.

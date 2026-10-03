@@ -1,0 +1,5072 @@
+{
+ "labsDisciplines": [
+  "physics",
+  "chemistry",
+  "biology",
+  "cs",
+  "engineering",
+  "mathematics",
+  "neuroscience",
+  "earth",
+  "astronomy",
+  "data",
+  "environment",
+  "networks",
+  "history",
+  "architecture",
+  "archaeology",
+  "combat"
+ ],
+ "simulators": [
+  "projectile",
+  "pendulum",
+  "wave",
+  "ideal-gas",
+  "ph-titration",
+  "population",
+  "hardy-weinberg",
+  "sir",
+  "function-plotter",
+  "prime-sieve",
+  "sorting",
+  "big-o",
+  "orbit",
+  "neuron",
+  "beam"
+ ],
+ "lessons": [
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-k2-1",
+   "title": "Counting Coins",
+   "blurb": "Pennies, nickels, dimes and quarters, and how to count them up."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-k2-2",
+   "title": "Needs and Wants",
+   "blurb": "Some things we must have, and some things we would like. Money helps us choose."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-k2-3",
+   "title": "Trading and Swapping",
+   "blurb": "Before coins there was trading. See why money makes swapping easier."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-k2-4",
+   "title": "Our Pretend Shop",
+   "blurb": "Make something small, set a price, and sell it to customers."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-k2-5",
+   "title": "Saving for Something Special",
+   "blurb": "Put some coins away today so you can buy something bigger later."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-35-1",
+   "title": "What Should It Cost?",
+   "blurb": "Set a price that covers what it cost you to make and leaves something over."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-35-2",
+   "title": "Revenue, Cost and Profit",
+   "blurb": "Follow the money through a school film night."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-35-3",
+   "title": "Open the Class Store",
+   "blurb": "Buy supplies in bulk, find the cost of each, and sell at a profit."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-35-4",
+   "title": "My First Budget",
+   "blurb": "Plan where your money will go before you spend it."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-35-5",
+   "title": "Listening to Customers",
+   "blurb": "Ask, count the answers, and improve what you sell."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-68-1",
+   "title": "Unit Economics",
+   "blurb": "Know exactly what you earn on one item before you make a hundred."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-68-2",
+   "title": "Markup and Discount with Percent",
+   "blurb": "Use percent to set prices and run sales without losing money."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-68-3",
+   "title": "Break-Even",
+   "blurb": "Find how many sales cover your fixed costs, and where profit begins."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-68-4",
+   "title": "Advertising by the Numbers",
+   "blurb": "Measure whether a poster, trailer or ad was worth what it cost."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-68-5",
+   "title": "Your First Income Statement",
+   "blurb": "Revenue, cost of goods, expenses and net profit on one page."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-912-1",
+   "title": "Modeling Break-Even with Linear Equations",
+   "blurb": "Write cost and revenue as lines and solve for where they cross."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-912-2",
+   "title": "Margin and Cash Flow",
+   "blurb": "Why a profitable business can still run out of cash."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-912-3",
+   "title": "Compound Growth",
+   "blurb": "When growth builds on growth, small rates become big numbers."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-912-4",
+   "title": "Funding and Equity Basics",
+   "blurb": "Debt versus equity, what a valuation means, and what each costs the founder."
+  },
+  {
+   "courseId": "young-entrepreneurs",
+   "course": "Young Entrepreneurs",
+   "lessonId": "ye-912-5",
+   "title": "Ethics and Law of a Small Business",
+   "blurb": "Honest dealing, permissions, taxes and keeping trust, in general terms."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-found-1",
+   "title": "The King Signs Something: Magna Carta, 1215",
+   "blurb": "The first time a ruler wrote down that he too was bound by law."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-found-2",
+   "title": "Consent: Locke and the State of Nature",
+   "blurb": "The argument that a government is only legitimate if the governed agreed to it."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-found-3",
+   "title": "1689: What the English Had Already Won",
+   "blurb": "Why the colonists thought they were claiming old English rights, not inventing new ones."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-found-4",
+   "title": "The Declaration as an Argument",
+   "blurb": "Read past the famous sentence: it is a legal brief with a premise and a charge sheet."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-struct-1",
+   "title": "If Men Were Angels",
+   "blurb": "Federalist 51 and the design principle behind every branch, chamber and veto."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-struct-2",
+   "title": "The Case Against: Reading Brutus",
+   "blurb": "The Anti-Federalists lost — and predicted a great deal of what happened next."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-struct-3",
+   "title": "How a Law Is Actually Made",
+   "blurb": "The textbook diagram, and the several places where it is misleading."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-rights-1",
+   "title": "Five Freedoms in One Sentence",
+   "blurb": "The First Amendment, what it restrains, and what it conspicuously does not."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-rights-2",
+   "title": "Due Process: From Clause 39 to the Fourteenth",
+   "blurb": "The oldest right in the book, and how it came to bind the states."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-action-1",
+   "title": "Holding a Country to Its Own Words",
+   "blurb": "Douglass in 1852, and the most durable move in American reform."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-action-2",
+   "title": "Taking Informed Action",
+   "blurb": "The capstone: pick a real local issue, find out who actually decides, and make the case."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-living-1",
+   "title": "The Second Founding",
+   "blurb": "The Thirteenth, Fourteenth and Fifteenth Amendments rebuilt the country. Most courses spend a week on them."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-living-2",
+   "title": "How Should a Constitution Be Read?",
+   "blurb": "The genuine, unresolved argument about interpretation — taught as an argument."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-comp-method",
+   "title": "How to Compare a Country Without Ranking It",
+   "blurb": "The method comes first, because comparison without one produces a scoreboard instead of an understanding."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-comp-uk",
+   "title": "United Kingdom: The Constitution You Cannot Hold",
+   "blurb": "No single document, no power to strike down a law — and the source of most of the ideas in the American constitution."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-comp-france",
+   "title": "France: Rights Declared for Everyone",
+   "blurb": "The 1789 Declaration claimed universal rights for all humanity — while France held colonies for another 150 years."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-comp-germany",
+   "title": "Germany: The Democracy That Defends Itself",
+   "blurb": "Written by people who had watched a democracy vote itself out of existence — and built so it could not happen twice."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-comp-china",
+   "title": "China: Text and Practice",
+   "blurb": "Article 35 names more freedoms than the First Amendment does. The lesson is what a text does and does not tell you."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-comp-japan",
+   "title": "Japan: Four Words of Difference",
+   "blurb": "Two constitutions, both public domain, fifty-seven years apart — the cleanest before-and-after pair in the world."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-comp-brazil",
+   "title": "Brazil: When Housing Is a Right",
+   "blurb": "The \"Citizen Constitution\" made health, education and housing enforceable rights — and then had to pay for them."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-comp-argentina",
+   "title": "Argentina: Constitutions After Rupture",
+   "blurb": "A text that survived repeated coups — and a country that built a civic culture out of prosecuting them."
+  },
+  {
+   "courseId": "civics-hall",
+   "course": "Civics Hall",
+   "lessonId": "civ-comp-capstone",
+   "title": "The Eight Promises",
+   "blurb": "Every constitution here guarantees free expression. Put the eight clauses on one page and account for the differences."
+  },
+  {
+   "courseId": "philosophy-school",
+   "course": "School of Philosophy",
+   "lessonId": "ph-wonder-1",
+   "title": "Running a Wonder Circle",
+   "blurb": "The one ritual this whole school is built on — and it works from age four."
+  },
+  {
+   "courseId": "philosophy-school",
+   "course": "School of Philosophy",
+   "lessonId": "ph-wonder-2",
+   "title": "Question of the Week",
+   "blurb": "Structured inquiry for 3–5: the same ritual, with the reasons written down."
+  },
+  {
+   "courseId": "philosophy-school",
+   "course": "School of Philosophy",
+   "lessonId": "ph-arg-1",
+   "title": "Premises, Conclusions and the Fallacies",
+   "blurb": "Taking an argument apart — and naming the moves that only look like reasoning."
+  },
+  {
+   "courseId": "philosophy-school",
+   "course": "School of Philosophy",
+   "lessonId": "ph-arg-2",
+   "title": "Socrates on Trial",
+   "blurb": "Stage the Apology from the actual dialogue — the most famous argument in the West."
+  },
+  {
+   "courseId": "philosophy-school",
+   "course": "School of Philosophy",
+   "lessonId": "ph-arg-3",
+   "title": "Formal Logic: Making Validity Mechanical",
+   "blurb": "Truth-functional logic, proofs, and why symbols help."
+  },
+  {
+   "courseId": "philosophy-school",
+   "course": "School of Philosophy",
+   "lessonId": "ph-eth-1",
+   "title": "Consequences, Duties and Character",
+   "blurb": "The three main answers to \"what makes an action right?\" — each at full strength."
+  },
+  {
+   "courseId": "philosophy-school",
+   "course": "School of Philosophy",
+   "lessonId": "ph-eth-2",
+   "title": "Ethics Bowl: Deliberation, Not Debate",
+   "blurb": "A format that rewards understanding your opponent instead of defeating them."
+  },
+  {
+   "courseId": "philosophy-school",
+   "course": "School of Philosophy",
+   "lessonId": "ph-hist-1",
+   "title": "What Can I Know? Descartes to Hume",
+   "blurb": "The early modern crisis about knowledge, and why it still matters."
+  },
+  {
+   "courseId": "philosophy-school",
+   "course": "School of Philosophy",
+   "lessonId": "ph-hist-2",
+   "title": "Liberty: Locke, Mill and the Limits of Interference",
+   "blurb": "The political-philosophy unit — and the shared spine with Civics Hall."
+  },
+  {
+   "courseId": "money-school",
+   "course": "School of Money",
+   "lessonId": "fl-earn-1",
+   "title": "Where Money Actually Comes From",
+   "blurb": "Income is what you receive for something you provide. Everything else is detail."
+  },
+  {
+   "courseId": "money-school",
+   "course": "School of Money",
+   "lessonId": "fl-earn-2",
+   "title": "Why the Offer Is Not the Paycheque",
+   "blurb": "Gross, net, and the deductions in between — reading a payslip without flinching."
+  },
+  {
+   "courseId": "money-school",
+   "course": "School of Money",
+   "lessonId": "fl-earn-3",
+   "title": "What Education and Skill Are Worth",
+   "blurb": "Treating training as an investment with a cost, a return, and a payback period."
+  },
+  {
+   "courseId": "money-school",
+   "course": "School of Money",
+   "lessonId": "fl-spend-1",
+   "title": "Needs, Wants, and the Space Between",
+   "blurb": "The oldest distinction in personal finance, and why the honest version is a spectrum."
+  },
+  {
+   "courseId": "money-school",
+   "course": "School of Money",
+   "lessonId": "fl-spend-2",
+   "title": "Building a Budget That Survives Contact",
+   "blurb": "Most budgets fail for the same three reasons. Design around them from the start."
+  },
+  {
+   "courseId": "money-school",
+   "course": "School of Money",
+   "lessonId": "fl-spend-3",
+   "title": "Big Decisions: Housing and Transport",
+   "blurb": "Two choices set the shape of a budget for years. Everything else is rounding."
+  },
+  {
+   "courseId": "money-school",
+   "course": "School of Money",
+   "lessonId": "fl-save-1",
+   "title": "Why Saving Is Hard (and What Beats Willpower)",
+   "blurb": "The problem is not virtue. It is that the reward is far away and invisible."
+  },
+  {
+   "courseId": "money-school",
+   "course": "School of Money",
+   "lessonId": "fl-save-2",
+   "title": "Compound Interest: The Only Free Lunch",
+   "blurb": "Interest on interest — small, boring, and the most powerful idea in this course."
+  },
+  {
+   "courseId": "money-school",
+   "course": "School of Money",
+   "lessonId": "fl-save-3",
+   "title": "Investing: Risk, Diversification and Time Horizon",
+   "blurb": "What investing actually is, why spreading matters, and the questions to ask before anything else."
+  },
+  {
+   "courseId": "money-school",
+   "course": "School of Money",
+   "lessonId": "fl-credit-1",
+   "title": "What Borrowing Actually Costs",
+   "blurb": "Interest rate, term, and total cost — and why only one of the three is advertised."
+  },
+  {
+   "courseId": "money-school",
+   "course": "School of Money",
+   "lessonId": "fl-credit-2",
+   "title": "Credit Reports and Scores, Demystified",
+   "blurb": "Who is keeping the file, what is in it, and what actually moves the number."
+  },
+  {
+   "courseId": "money-school",
+   "course": "School of Money",
+   "lessonId": "fl-risk-1",
+   "title": "How Insurance Actually Works",
+   "blurb": "You are not buying a product. You are joining a pool."
+  },
+  {
+   "courseId": "money-school",
+   "course": "School of Money",
+   "lessonId": "fl-risk-2",
+   "title": "Fraud, Scams and Your Identity",
+   "blurb": "Every scam runs the same play. Learn the shape and you will spot the variants."
+  },
+  {
+   "courseId": "money-school",
+   "course": "School of Money",
+   "lessonId": "fl-biz-1",
+   "title": "How a Business Makes Money",
+   "blurb": "Revenue, cost, profit — and why profitable businesses still fail."
+  },
+  {
+   "courseId": "money-school",
+   "course": "School of Money",
+   "lessonId": "fl-biz-2",
+   "title": "Keeping the Books",
+   "blurb": "A chart of accounts, two financial statements, and why double entry has survived 500 years."
+  },
+  {
+   "courseId": "money-school",
+   "course": "School of Money",
+   "lessonId": "fl-biz-3",
+   "title": "Unit Economics and the Cost of Capital",
+   "blurb": "Does each customer pay for themselves — and what does money from outside actually cost?"
+  },
+  {
+   "courseId": "econ-school",
+   "course": "School of Economics",
+   "lessonId": "ec-scar-1",
+   "title": "You Cannot Have Everything",
+   "blurb": "Scarcity is not poverty. It is the permanent condition that makes choosing necessary."
+  },
+  {
+   "courseId": "econ-school",
+   "course": "School of Economics",
+   "lessonId": "ec-scar-2",
+   "title": "Thinking at the Margin",
+   "blurb": "Decisions are almost never all-or-nothing. They are about one more or one less."
+  },
+  {
+   "courseId": "econ-school",
+   "course": "School of Economics",
+   "lessonId": "ec-mkt-1",
+   "title": "Supply, Demand and Where They Meet",
+   "blurb": "The most famous diagram in economics, and the two mistakes everyone makes reading it."
+  },
+  {
+   "courseId": "econ-school",
+   "course": "School of Economics",
+   "lessonId": "ec-mkt-2",
+   "title": "What a Price Is Actually Saying",
+   "blurb": "Prices are not just amounts. They are signals, incentives and a rationing device at once."
+  },
+  {
+   "courseId": "econ-school",
+   "course": "School of Economics",
+   "lessonId": "ec-macro-1",
+   "title": "GDP and What It Misses",
+   "blurb": "The most cited number in economics, its definition, and its honest limits."
+  },
+  {
+   "courseId": "econ-school",
+   "course": "School of Economics",
+   "lessonId": "ec-macro-2",
+   "title": "Inflation: Reading This Month’s Number",
+   "blurb": "What the price index actually measures, and how to pull the real figure yourself."
+  },
+  {
+   "courseId": "econ-school",
+   "course": "School of Economics",
+   "lessonId": "ec-macro-3",
+   "title": "Unemployment and What Counts as a Job",
+   "blurb": "Why the headline rate can fall for a bad reason."
+  },
+  {
+   "courseId": "econ-school",
+   "course": "School of Economics",
+   "lessonId": "ec-money-1",
+   "title": "What Money Actually Is",
+   "blurb": "Three jobs, no intrinsic value, and why we accept it anyway."
+  },
+  {
+   "courseId": "econ-school",
+   "course": "School of Economics",
+   "lessonId": "ec-money-2",
+   "title": "What a Central Bank Does",
+   "blurb": "Interest rates, the transmission mechanism, and the trade-off that cannot be avoided."
+  },
+  {
+   "courseId": "econ-school",
+   "course": "School of Economics",
+   "lessonId": "ec-data-1",
+   "title": "Correlation, Causation and the Missing Variable",
+   "blurb": "Why \"these two move together\" is almost never an answer."
+  },
+  {
+   "courseId": "econ-school",
+   "course": "School of Economics",
+   "lessonId": "ec-data-2",
+   "title": "Build a Live Dashboard",
+   "blurb": "The capstone: pull the real series and tell the country’s story in one page."
+  },
+  {
+   "courseId": "econ-school",
+   "course": "School of Economics",
+   "lessonId": "ec-sys-1",
+   "title": "Why Some Countries Are Rich",
+   "blurb": "Productivity, institutions and the compounding that separates nations over a century."
+  },
+  {
+   "courseId": "econ-school",
+   "course": "School of Economics",
+   "lessonId": "ec-sys-2",
+   "title": "When Markets Fail, and When Governments Do",
+   "blurb": "Both failure modes are real. A serious course teaches both."
+  },
+  {
+   "courseId": "real-estate-school",
+   "course": "Real Estate School",
+   "lessonId": "re-prop-1",
+   "title": "What You Own When You Own Land",
+   "blurb": "Property is not a thing. It is a bundle of rights, and each stick can be sold separately."
+  },
+  {
+   "courseId": "real-estate-school",
+   "course": "Real Estate School",
+   "lessonId": "re-prop-2",
+   "title": "Renting versus Owning, Honestly",
+   "blurb": "Neither is a moral achievement. They are different cost structures with different risks."
+  },
+  {
+   "courseId": "real-estate-school",
+   "course": "Real Estate School",
+   "lessonId": "re-agency-1",
+   "title": "Whose Agent Is That, Exactly?",
+   "blurb": "The most expensive misunderstanding in a first transaction."
+  },
+  {
+   "courseId": "real-estate-school",
+   "course": "Real Estate School",
+   "lessonId": "re-agency-2",
+   "title": "Reading the Loan Estimate",
+   "blurb": "The government designed a form specifically so lenders could be compared. Use it."
+  },
+  {
+   "courseId": "real-estate-school",
+   "course": "Real Estate School",
+   "lessonId": "re-agency-3",
+   "title": "Fair Housing Is Not Optional",
+   "blurb": "The law, why it exists, and how discrimination usually shows up in practice."
+  },
+  {
+   "courseId": "real-estate-school",
+   "course": "Real Estate School",
+   "lessonId": "re-val-1",
+   "title": "Comparables: The Sales Comparison Approach",
+   "blurb": "The method behind almost every residential valuation, done properly."
+  },
+  {
+   "courseId": "real-estate-school",
+   "course": "Real Estate School",
+   "lessonId": "re-val-2",
+   "title": "Cost and Income: The Other Two Approaches",
+   "blurb": "What it would cost to replace, and what the income stream is worth."
+  },
+  {
+   "courseId": "real-estate-school",
+   "course": "Real Estate School",
+   "lessonId": "re-fin-1",
+   "title": "Building a Pro Forma",
+   "blurb": "A forecast of cash in and out. Every investment decision rests on one."
+  },
+  {
+   "courseId": "real-estate-school",
+   "course": "Real Estate School",
+   "lessonId": "re-fin-2",
+   "title": "Leverage, Cap Rates and Return Measures",
+   "blurb": "Cap rate, cash-on-cash and IRR answer different questions. Using the wrong one hides risk."
+  },
+  {
+   "courseId": "real-estate-school",
+   "course": "Real Estate School",
+   "lessonId": "re-fin-3",
+   "title": "Capital Markets: REITs, Securitisation and Waterfalls",
+   "blurb": "How property becomes a traded security — and who gets paid in what order."
+  },
+  {
+   "courseId": "real-estate-school",
+   "course": "Real Estate School",
+   "lessonId": "re-dev-1",
+   "title": "Zoning and the Buildable Envelope",
+   "blurb": "Setbacks, height, coverage, floor-area ratio: the invisible box every building sits inside."
+  },
+  {
+   "courseId": "real-estate-school",
+   "course": "Real Estate School",
+   "lessonId": "re-dev-2",
+   "title": "Feasibility: Does the Envelope Pay?",
+   "blurb": "The residual land value question — what the site is worth given what can be built on it."
+  },
+  {
+   "courseId": "real-estate-school",
+   "course": "Real Estate School",
+   "lessonId": "re-mkt-1",
+   "title": "Reading a Submarket from Public Data",
+   "blurb": "Supply, demand and absorption — using sources that cost nothing."
+  },
+  {
+   "courseId": "real-estate-school",
+   "course": "Real Estate School",
+   "lessonId": "re-mkt-2",
+   "title": "The Policy Layer",
+   "blurb": "Property tax, housing policy and the public decisions that set private value."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-found-1",
+   "title": "What Cinema Actually Is",
+   "blurb": "Photography plus time — and the two inventions that turned a novelty into a language."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-found-2",
+   "title": "The Shot: Size, Angle, and What They Mean",
+   "blurb": "Every shot size is an argument about how close the audience should stand."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-found-3",
+   "title": "The Cut: Why the Audience Doesn't Notice",
+   "blurb": "Continuity is not realism. It is a set of conventions the audience agreed to a century ago."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-found-4",
+   "title": "Mise-en-Scène: Everything Inside the Frame",
+   "blurb": "Design, staging, costume, light and blocking are one composite argument."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-found-5",
+   "title": "Sound Is Half the Picture",
+   "blurb": "The soundtrack is the fastest emotional instrument you have, and the one nobody notices you playing."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-found-6",
+   "title": "Movement: Camera, Subject, and the Frame as a Field",
+   "blurb": "Kurosawa staged movement in three planes at once. Start by seeing which plane is moving."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-found-7",
+   "title": "Genre and the Contract with the Audience",
+   "blurb": "Genre is not a shelf label. It is a set of promises, and the interesting work is in which one you break."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-found-8",
+   "title": "How to Watch a Film Like a Filmmaker",
+   "blurb": "The single most valuable habit in this school, and it costs nothing."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-write-1",
+   "title": "Premise, Logline, and the Idea That Can Carry Ninety Minutes",
+   "blurb": "Most scripts fail here, before a word of dialogue is written."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-write-2",
+   "title": "Three-Act Structure and What It Is Actually Describing",
+   "blurb": "Not a formula imposed on stories — a description of how attention behaves over two hours."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-write-3",
+   "title": "Format: The Page as a Production Document",
+   "blurb": "Screenplay format is not etiquette. It is a shared interface with two hundred people."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-write-4",
+   "title": "The Scene: Conflict, Turn, and Getting Out Early",
+   "blurb": "A scene where nothing changes is a scene that will be cut in post. Cut it now instead."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-write-5",
+   "title": "Dialogue and Subtext",
+   "blurb": "People almost never say what they want. Write what they say instead."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-write-6",
+   "title": "Character: Want, Need, Wound, and the Lie",
+   "blurb": "The gap between what a character is chasing and what would actually help them is the story."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-write-7",
+   "title": "The Rewrite",
+   "blurb": "The first draft exists to be diagnosed, not defended."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-write-8",
+   "title": "Writing Comedy: Structure, Not Jokes",
+   "blurb": "A gag is built like a scene — setup, escalation, and a turn you did not see coming."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-dir-1",
+   "title": "The Director's Actual Job",
+   "blurb": "Not \"having a vision\" — answering several hundred questions a day consistently."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-dir-2",
+   "title": "Coverage, Blocking, and the Shot List",
+   "blurb": "Design the scene, then decide how much of it you need on film."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-dir-3",
+   "title": "Composition and Perspective",
+   "blurb": "Where you put the frame around the world is an argument about order."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-dir-4",
+   "title": "Camera Movement as Meaning",
+   "blurb": "Every move should change what the audience knows or feels. Otherwise hold."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-dir-5",
+   "title": "Directing Actors",
+   "blurb": "Give actions, not adjectives. Build the room where failure is safe."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-dir-6",
+   "title": "Precision, Repetition, and Knowing When You Have It",
+   "blurb": "Some directors shoot fifty takes. The reason is not perfectionism."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-dir-7",
+   "title": "Directing Action and Physical Comedy",
+   "blurb": "Geography, legibility, and the wide shot that proves it really happened."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-dir-8",
+   "title": "Tone: Holding One Note Across a Hundred Days",
+   "blurb": "The hardest thing to sustain, and the first thing an audience notices when it slips."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-cine-1",
+   "title": "Exposure: Aperture, Shutter, ISO",
+   "blurb": "Three controls, and each one has a side effect that is really an aesthetic decision."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-cine-2",
+   "title": "Lenses: Focal Length and the Shape of a Face",
+   "blurb": "The lens decides how far away the audience feels, independent of where the camera is."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-cine-3",
+   "title": "Lighting: Key, Fill, Back and the Ratio Between Them",
+   "blurb": "The three-point setup is not a look. It is a chassis you deform on purpose."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-cine-4",
+   "title": "Available Light, Night, and Shooting With Nothing",
+   "blurb": "Constraint-driven cinematography, which is the kind you will actually be doing."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-cine-5",
+   "title": "Colour: Temperature, Palette, and Grading",
+   "blurb": "Colour is the fastest emotional channel in the image and the easiest to use badly."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-cine-6",
+   "title": "Camera Support and Operating",
+   "blurb": "The physical instrument: sticks, dolly, gimbal, shoulder — and what each one says."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-cine-7",
+   "title": "The Director–DP Partnership",
+   "blurb": "The look book, the shot list, and dividing responsibility so nobody is guessing."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-edit-1",
+   "title": "What an Editor Is Deciding",
+   "blurb": "Not \"which take\" — where the audience should be looking and when."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-edit-2",
+   "title": "The Rule of Six: What a Cut Owes",
+   "blurb": "Walter Murch's priority list — and why emotion outranks continuity by a distance."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-edit-3",
+   "title": "Montage: Meaning Made by Collision",
+   "blurb": "Eisenstein's claim was that the cut itself generates ideas the shots do not contain."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-edit-4",
+   "title": "Rhythm, Pace, and Time",
+   "blurb": "Screen time is elastic. Editing is the instrument that stretches it."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-edit-5",
+   "title": "Comedy Editing: Timing Is the Whole Craft",
+   "blurb": "Two frames is the difference between a laugh and a silence."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-edit-6",
+   "title": "From Assembly to Picture Lock",
+   "blurb": "The unglamorous process that turns four hours of material into ninety minutes."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-edit-7",
+   "title": "Editing for Subjectivity",
+   "blurb": "Putting the audience inside someone's head using nothing but order and duration."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-sound-1",
+   "title": "The Four Elements of a Soundtrack",
+   "blurb": "Dialogue, ambience, effects, music — and the diegetic line running through all of them."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-sound-2",
+   "title": "Production Sound: Get It Right on the Day",
+   "blurb": "Microphone placement is 90% of audio quality, and it costs nothing."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-sound-3",
+   "title": "Dialogue Editing and ADR",
+   "blurb": "Making assembled speech sound like one person spoke it once, in one room."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-sound-4",
+   "title": "Sound Design: Building a World That Was Never Recorded",
+   "blurb": "Almost nothing you hear in a film is the sound of the thing you are watching."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-sound-5",
+   "title": "Score: What Music Is Allowed to Say",
+   "blurb": "The temp track problem, the theme, and the danger of music that only reports the emotion."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-sound-6",
+   "title": "The Mix",
+   "blurb": "Where every layer is balanced, and where a film either becomes intelligible or does not."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-prod-1",
+   "title": "What a Producer Does",
+   "blurb": "The only role that is present from the first idea to the last payment."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-prod-2",
+   "title": "Development and Rights",
+   "blurb": "Options, chains of title, and why you cannot film the book you love."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-prod-3",
+   "title": "Budget and Schedule",
+   "blurb": "Every creative decision on the page becomes a number and a day."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-prod-4",
+   "title": "Locations and the Geography Lie",
+   "blurb": "Films are almost never shot where they are set, and the seam is where the craft is."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-prod-5",
+   "title": "Clearance, Copyright and the Public Domain",
+   "blurb": "The legal layer that decides whether a finished film can legally be shown."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-prod-6",
+   "title": "Post Pipeline and Delivery",
+   "blurb": "Codecs, conform, and the deliverables list that no one warns you about."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-prod-7",
+   "title": "Distribution, Festivals and Finding an Audience",
+   "blurb": "Making the film is half the job. Nobody tells you the other half."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-act-1",
+   "title": "Stanislavski: The Root of Everything",
+   "blurb": "The system that replaced demonstration with truthful behaviour."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-act-2",
+   "title": "The Method, Adler, and the American Split",
+   "blurb": "One system, three teachers, and the argument that shaped screen acting."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-act-3",
+   "title": "Meisner: Get Out of Your Own Head",
+   "blurb": "\"Living truthfully under imaginary circumstances\" — and the repetition exercise that builds it."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-act-4",
+   "title": "Practical Aesthetics: Play the Action",
+   "blurb": "The anti-mystical school — analyse the scene, choose an action, do it, stop worrying about feeling."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-act-5",
+   "title": "Scene Study: Objectives, Obstacles, Beats and Tactics",
+   "blurb": "The practical craft all the lineages agree on."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-act-6",
+   "title": "Acting for the Camera",
+   "blurb": "The lens is closer than any audience has ever been, and it photographs thought."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-act-7",
+   "title": "Audition and Self-Tape Craft",
+   "blurb": "A separate skill from acting, with its own rules — and most of them are technical."
+  },
+  {
+   "courseId": "film-school",
+   "course": "Taleo Film School",
+   "lessonId": "fs-act-8",
+   "title": "Voice and Movement: The Body as Instrument",
+   "blurb": "Linklater, Laban, Alexander and Chekhov — the physical training the screen still requires."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "px-1",
+   "title": "What a photograph is",
+   "blurb": "Light, a sensitive surface, and a decision about time."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "px-2",
+   "title": "Aperture and depth of field",
+   "blurb": "The f-number, why it runs backwards, and what a wide lens really does to space."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "px-3",
+   "title": "Shutter speed and the shape of time",
+   "blurb": "Freezing, blurring, panning, and the reciprocal rule for hand-holding."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "px-4",
+   "title": "ISO, noise, and the signal you are actually recording",
+   "blurb": "Sensitivity is amplification. Understand what you amplify."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "px-5",
+   "title": "Metering, the histogram, and dynamic range",
+   "blurb": "Why your camera meters snow as grey, and how to read the only honest display you have."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "px-6",
+   "title": "Focal length is a statement about distance",
+   "blurb": "Wide, normal, long — and the compression myth, corrected."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "px-7",
+   "title": "Focus, and what to do when the camera is wrong",
+   "blurb": "Single vs continuous, back-button focus, hyperfocal distance, and manual override."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "px-8",
+   "title": "RAW, colour, and the file as a negative",
+   "blurb": "Why RAW is not a \"better JPEG\", plus white balance and the case for shooting flat."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pc-1",
+   "title": "The frame is the first decision",
+   "blurb": "Photography is subtractive. Everything begins with the edges."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pc-2",
+   "title": "Thirds, the golden ratio, and when to break them",
+   "blurb": "Useful defaults, not laws — and the centred frame’s underrated power."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pc-3",
+   "title": "Leading lines, shape, and visual rhythm",
+   "blurb": "Directing a viewer’s eye on a path you chose."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pc-4",
+   "title": "Layering, depth, and the decisive moment",
+   "blurb": "Building a photograph in three dimensions — the hardest skill in street work."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pc-5",
+   "title": "Negative space and simplification",
+   "blurb": "Emptiness as an active element."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pc-6",
+   "title": "Point of view and the height of the camera",
+   "blurb": "The most powerful under-used variable: where your body is."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pc-7",
+   "title": "The series: composing across frames",
+   "blurb": "Sequencing, pacing, and why photographers are judged on bodies of work."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pl-1",
+   "title": "The four properties of light",
+   "blurb": "Quality, direction, intensity, colour — the vocabulary everything else depends on."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pl-2",
+   "title": "Reading natural light across the day",
+   "blurb": "Golden hour, blue hour, hard noon, overcast — and how to use each honestly."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pl-3",
+   "title": "Window light and the one-light portrait",
+   "blurb": "The oldest studio in the world, and how the painters used it first."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pl-4",
+   "title": "Flash: from on-camera to off",
+   "blurb": "Bounce, fill, high-speed sync, and getting the light off the hot shoe."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pl-5",
+   "title": "Modifiers and shaping",
+   "blurb": "Softboxes, umbrellas, grids, flags, gels — and the physics behind each."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pl-6",
+   "title": "Chiaroscuro: what painters knew first",
+   "blurb": "Caravaggio, Rembrandt, and translating four centuries of light into a camera."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pl-7",
+   "title": "Available darkness: night and low light",
+   "blurb": "Working when there is not enough light, and deciding you do not need more."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pk-1",
+   "title": "Colour as structure",
+   "blurb": "Hue, saturation, luminance — and why colour photography took so long to be taken seriously."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pk-2",
+   "title": "Harmony: complements, analogues, triads",
+   "blurb": "The colour wheel as a scouting tool."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pk-3",
+   "title": "Colour temperature and mixed light",
+   "blurb": "The hardest technical problem in colour, and how to make it the point."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pk-4",
+   "title": "Seeing in black and white",
+   "blurb": "Monochrome is not colour removed — it is a different medium."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pk-5",
+   "title": "Colour meaning is cultural",
+   "blurb": "What colours mean, where, and the danger of assuming."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pk-6",
+   "title": "Building a consistent palette",
+   "blurb": "How a body of work comes to look like one photographer made it."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pg-1",
+   "title": "Portraiture: direction and trust",
+   "blurb": "The technical part is easy. Getting a real face is the job."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pg-2",
+   "title": "Street photography: nerve and geometry",
+   "blurb": "Working in public — technique, courage and law."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pg-3",
+   "title": "Landscape: light, patience, and place",
+   "blurb": "Why most landscape photographs fail, and the fix is almost never the camera."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pg-4",
+   "title": "Documentary and photojournalism",
+   "blurb": "Photographing what is true — the craft, the constraints, and the responsibility."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pg-5",
+   "title": "Still life and product",
+   "blurb": "Total control — the genre where you have no excuses."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pg-6",
+   "title": "Architecture and the built environment",
+   "blurb": "Verticals, scale, and photographing buildings as ideas."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pg-7",
+   "title": "Events, weddings and working under pressure",
+   "blurb": "The genre that pays for the others — and cannot be reshot."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pg-8",
+   "title": "Finding your own subject",
+   "blurb": "The transition from doing exercises to making work."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pe-1",
+   "title": "Editing means two different things",
+   "blurb": "Selection and processing — and selection is the more important one."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pe-2",
+   "title": "The global edit: tone before anything else",
+   "blurb": "Black point, white point, exposure, contrast — in that order."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pe-3",
+   "title": "Local adjustments and dodging & burning",
+   "blurb": "The darkroom technique that survived digitisation intact."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pe-4",
+   "title": "Colour grading with intent",
+   "blurb": "HSL, split toning, and calibrating rather than filtering."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pe-5",
+   "title": "Sharpening, noise and output",
+   "blurb": "The last mile — and why it depends entirely on where the picture is going."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pe-6",
+   "title": "Non-destructive workflow and asset management",
+   "blurb": "Keeping your negatives — the boring lesson that saves careers."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pe-7",
+   "title": "How far is too far?",
+   "blurb": "Manipulation, AI, and disclosure — drawing your own line and stating it."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pb-1",
+   "title": "You own the copyright. Act like it.",
+   "blurb": "Copyright, licensing, releases, and the difference between selling a file and selling a right."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pb-2",
+   "title": "Pricing: cost of doing business",
+   "blurb": "Why your day rate is not your salary divided by working days."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pb-3",
+   "title": "Contracts and the awkward conversations",
+   "blurb": "Everything that goes wrong was in a clause you did not write."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pb-4",
+   "title": "The portfolio and getting hired",
+   "blurb": "You are hired for what you show, so only show what you want to be hired for."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pb-5",
+   "title": "Revenue models beyond the commission",
+   "blurb": "Prints, stock, editorial, teaching, licensing and patronage."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "pb-6",
+   "title": "Working with clients, subjects and crews",
+   "blurb": "Professionalism is a craft skill and it is why people book you twice."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ae-1",
+   "title": "Line",
+   "blurb": "The most economical mark, and the one that carries the most personality."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ae-2",
+   "title": "Shape, form and space",
+   "blurb": "Two dimensions pretending to be three, and the emptiness between."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ae-3",
+   "title": "Value: the element that does the work",
+   "blurb": "Light and dark carries form, mood and legibility — and outranks colour."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ae-4",
+   "title": "Texture and surface",
+   "blurb": "Actual and implied — and why the paint itself is part of the subject."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ae-5",
+   "title": "Balance, emphasis and hierarchy",
+   "blurb": "Distributing visual weight, and deciding what the viewer sees first."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ae-6",
+   "title": "Rhythm, repetition, pattern and movement",
+   "blurb": "How a still image is made to move."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ae-7",
+   "title": "Scale, proportion and the human body",
+   "blurb": "Size relationships, canons, and deliberate distortion."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ae-8",
+   "title": "Unity, variety and knowing when to stop",
+   "blurb": "The principle that governs all the others."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ad-1",
+   "title": "Drawing is seeing",
+   "blurb": "The real obstacle is not your hand — it is the symbol your brain substitutes for the object."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ad-2",
+   "title": "Line, gesture and construction",
+   "blurb": "Fast lines for life, slow lines for structure."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ad-3",
+   "title": "Value, shading and rendering form",
+   "blurb": "Turning outlines into objects with light."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ad-4",
+   "title": "Perspective",
+   "blurb": "One-, two- and three-point — plus the fact that it is a convention, not the truth."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ad-5",
+   "title": "The figure and anatomy",
+   "blurb": "Enough anatomy to draw a body that stands up."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ad-6",
+   "title": "Composition on the page",
+   "blurb": "Thumbnails, cropping, and designing before committing."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ad-7",
+   "title": "Materials, and building a practice",
+   "blurb": "Graphite to charcoal to digital — and the habit that matters more than any of them."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ac-1",
+   "title": "The wheel, and why there are two of them",
+   "blurb": "Additive versus subtractive — the source of most colour confusion."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ac-2",
+   "title": "Harmony schemes",
+   "blurb": "Complementary, analogous, triadic, split-complementary — and how to weight them."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ac-3",
+   "title": "Simultaneous contrast and the unreliable eye",
+   "blurb": "Colour is relational — Chevreul, Albers, and why you cannot judge a colour alone."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ac-4",
+   "title": "Pigments, history and the economics of colour",
+   "blurb": "Where colours came from, what they cost, and how that shaped what was painted."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ac-5",
+   "title": "Colour in practice: limited palettes",
+   "blurb": "Why fewer colours produce better paintings."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ac-6",
+   "title": "Colour as meaning",
+   "blurb": "Symbolism, culture, and the artists for whom colour was the entire subject."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ah-1",
+   "title": "Prehistory and the ancient world",
+   "blurb": "Lascaux to Egypt to Mesopotamia — art before art was a category."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ah-2",
+   "title": "Greece and Rome",
+   "blurb": "The invention of the idealised body, and the Roman invention of the portrait."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ah-3",
+   "title": "Medieval, Byzantine and the wider world",
+   "blurb": "Gold, hierarchy, illumination — and the parallel traditions Western surveys skip."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ah-4",
+   "title": "The Renaissance",
+   "blurb": "Perspective, anatomy, humanism — and the Northern alternative in oil."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ah-5",
+   "title": "Baroque and the Dutch Golden Age",
+   "blurb": "Drama, darkness and the invention of the middle-class picture."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ah-6",
+   "title": "Neoclassicism, Romanticism and Realism",
+   "blurb": "Reason, feeling, and then the decision to paint ordinary life at heroic scale."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ah-7",
+   "title": "Impressionism and Post-Impressionism",
+   "blurb": "Painting light, then painting past it."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ah-8",
+   "title": "Modernism: 1900 to 1945",
+   "blurb": "Cubism, abstraction, Dada, Surrealism — the fastest forty years in art history."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ah-9",
+   "title": "Post-war to postmodern",
+   "blurb": "Abstract Expressionism, Pop, Minimalism, Conceptualism — and the collapse of a single story."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ah-10",
+   "title": "Photography’s own history",
+   "blurb": "From the daguerreotype to the phone — the medium this school teaches, historicised."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ak-1",
+   "title": "Slow looking",
+   "blurb": "The average museum visitor looks at a painting for seventeen seconds. Try ten minutes."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ak-2",
+   "title": "Formal analysis",
+   "blurb": "Describing what is there, in the vocabulary of Art I, before saying what it means."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ak-3",
+   "title": "Iconography and context",
+   "blurb": "What the symbols meant to the people who first saw them."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ak-4",
+   "title": "Critical frameworks",
+   "blurb": "Formalist, biographical, Marxist, feminist, postcolonial, psychoanalytic — lenses, not verdicts."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ak-5",
+   "title": "Judgment: is it any good?",
+   "blurb": "Making an evaluative claim you can actually defend."
+  },
+  {
+   "courseId": "photo-art-school",
+   "course": "Art & Photography School",
+   "lessonId": "ak-6",
+   "title": "Writing and speaking about art",
+   "blurb": "Artist statements, wall text, critique — and giving feedback that helps."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "harm-01",
+   "title": "One Line, No Harmony: Plainchant",
+   "blurb": "For most of recorded Western music history there was exactly one note at a time — and that was a deliberate aesthetic, not a limitation."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "harm-02",
+   "title": "Organum: The First Second Voice",
+   "blurb": "Around the 9th century somebody sang a chant in parallel a fourth below. Western harmony starts there."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "harm-03",
+   "title": "Counterpoint and the Renaissance Ideal",
+   "blurb": "Josquin, Palestrina, and the century in which independent melodic lines became the highest art in Europe."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "harm-04",
+   "title": "Tonality Arrives: Functional Harmony",
+   "blurb": "How eight modes collapsed into two keys, and why the dominant chord wanting to resolve is the engine of 300 years of music."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "harm-05",
+   "title": "Bach, Temperament, and the Twelve Keys",
+   "blurb": "Why you can modulate to any key at all — and why that required a compromise every note on a piano still carries."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "harm-06",
+   "title": "Chromaticism and the Breaking of the Key",
+   "blurb": "Wagner's Tristan chord, and the century in which harmony stopped resolving."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "harm-07",
+   "title": "Blue Notes and the Other Harmonic Tradition",
+   "blurb": "A parallel system that never asked permission from Rameau: bent thirds, dominant chords that are home, and harmony as friction."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "harm-08",
+   "title": "Modern Pop Harmony: Loops, Modes and the Four Chords",
+   "blurb": "Why so much contemporary music circles rather than resolves — and why that is a choice, not a failure."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "rec-01",
+   "title": "Before the Microphone: Scott, Edison, Berliner",
+   "blurb": "Sound was first written down as a picture, then played back as a groove, then stamped as a disc."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "rec-02",
+   "title": "The Acoustic Era: Playing Into the Horn",
+   "blurb": "For nearly fifty years, recording meant shouting into a cone — and it reshaped how musicians played."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "rec-03",
+   "title": "1925: Electrical Recording and the Invention of Intimacy",
+   "blurb": "The microphone did not just improve fidelity. It created a new kind of singing."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "rec-04",
+   "title": "Magnetic Tape: Editing, Overdubbing, and the End of the Take",
+   "blurb": "Captured German technology reaches America in 1945 and the recording stops having to be a single continuous performance."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "rec-05",
+   "title": "The LP, the 45, and the Format Wars",
+   "blurb": "Columbia and RCA fought over rpm, and in doing so invented both the album and the single as artistic categories."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "rec-06",
+   "title": "Field Recording: The Lomaxes and Folkways",
+   "blurb": "Some of the most important recordings of the century were made on portable disc cutters in prison yards and front porches."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "rec-07",
+   "title": "Digital: Sampling Rates, the CD, and the Loudness War",
+   "blurb": "Nyquist, 44.1 kHz, and how a technology built for fidelity ended up being used to destroy dynamic range."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "rec-08",
+   "title": "Streaming: Music as a Service",
+   "blurb": "What changes when nobody owns a copy — for discovery, for archives, and for the people who made the record."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "form-01",
+   "title": "Phrase, Period, and the Musical Sentence",
+   "blurb": "Before you can hear a form you have to hear its bricks. Music breathes in units, and they are surprisingly regular."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "form-02",
+   "title": "Binary, Ternary, and the Dance Suite",
+   "blurb": "The two simplest forms in music, and the Baroque suite that strings them together."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "form-03",
+   "title": "Sonata Form: Argument in Three Acts",
+   "blurb": "The most consequential formal idea in European music — and it is fundamentally about key, not about tunes."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "form-04",
+   "title": "Theme and Variations, Rondo, Fugue",
+   "blurb": "Three other ways to fill several minutes: transform one idea, keep returning to one idea, or grow everything from one idea."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "form-05",
+   "title": "The 32-Bar Standard and the 12-Bar Blues",
+   "blurb": "Two American forms so efficient that they became the shared language of an entire century of improvisers."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "form-06",
+   "title": "Verse–Chorus and the Modern Pop Architecture",
+   "blurb": "Intro, verse, pre-chorus, chorus, post-chorus, bridge, drop — the modular grammar of the last sixty years."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "form-07",
+   "title": "Process, Loop, and Form Without Sections",
+   "blurb": "Minimalism, ambient and club music organise time by gradual change rather than by contrast."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "rhy-01",
+   "title": "Pulse, Metre, and the Feel of Two Against Three",
+   "blurb": "The difference between counting and feeling — and why 6/8 is not just fast 3/4."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "rhy-02",
+   "title": "Syncopation: Accenting What Should Be Weak",
+   "blurb": "Ragtime, the backbeat, and how displacement became the engine of American music."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "rhy-03",
+   "title": "Clave: The West African Timeline in the Americas",
+   "blurb": "A two-bar asymmetric pattern that organises the rhythm of most of the Western hemisphere."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "rhy-04",
+   "title": "Swing and Microtiming",
+   "blurb": "The ratio that is not a ratio — what \"swing\" actually measures, and why it changes with tempo."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "rhy-05",
+   "title": "Funk: The One, and Rhythm as Composition",
+   "blurb": "James Brown reorganised an entire band around the downbeat and invented a genre by subtraction."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "rhy-06",
+   "title": "The Drum Machine: 808, 909, and Programmed Time",
+   "blurb": "Commercial failures that became the sound of three decades of music."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "rhy-07",
+   "title": "Polyrhythm, Odd Metre, and Rhythm as the Frontier",
+   "blurb": "Where contemporary music is actually getting more complex — and it is not in the harmony."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "law-01",
+   "title": "What a Sample Is: Musique Concrète to the Break",
+   "blurb": "Recorded sound became a compositional material long before hip-hop — but hip-hop made it a music."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "law-02",
+   "title": "Two Copyrights: The Song and the Master",
+   "blurb": "Every recording contains two separate legal works owned by different people. Clear one and you have cleared nothing."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "law-03",
+   "title": "Grand Upright (1991): The Year Sampling Got Expensive",
+   "blurb": "A judge opened his opinion with \"Thou shalt not steal\" and the golden age of dense sampling ended."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "law-04",
+   "title": "Campbell v. Acuff-Rose (1994): Parody and Transformative Use",
+   "blurb": "The Supreme Court decision that made \"transformative\" the central word in fair use."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "law-05",
+   "title": "Bridgeport vs. VMG: The De Minimis Split",
+   "blurb": "Two federal circuits disagree about whether a two-second sample can ever be too small to matter."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "law-06",
+   "title": "Clearing a Sample: The Practical Process",
+   "blurb": "Who you contact, in what order, what they ask for, and what it costs."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "law-07",
+   "title": "The Public Domain, Creative Commons, and AI",
+   "blurb": "What is genuinely free to use, and the unresolved question now sitting on top of all of it."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "pop-01",
+   "title": "Roots: Work Songs, Spirituals and the Delta",
+   "blurb": "The music that everything after is downstream of, and the conditions that produced it."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "pop-02",
+   "title": "New Orleans to Swing: Jazz Becomes Popular Music",
+   "blurb": "Collective improvisation, then Armstrong's soloist, then a dance craze that ran a decade."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "pop-03",
+   "title": "Bebop and the Break with Entertainment",
+   "blurb": "A small group of musicians deliberately made jazz difficult, and turned popular music into art music in about five years."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "pop-04",
+   "title": "Gospel, R&B, and the Birth of Rock and Roll",
+   "blurb": "Electrified blues plus gospel fervour plus a teenage market — and a distribution system built on covering Black records."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "pop-05",
+   "title": "Soul: Motown, Stax, and the Sound of the Sixties",
+   "blurb": "Gospel technique applied to secular songs, produced by two houses with opposite philosophies."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "pop-06",
+   "title": "Rock: The Album, the Studio, and the Split",
+   "blurb": "From three-minute singles to the LP as a statement, and then into a dozen mutually hostile subgenres."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "pop-07",
+   "title": "Disco, Dub, and the Twelve-Inch",
+   "blurb": "Two parallel revolutions that gave the DJ the tools to become the author."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "pop-08",
+   "title": "Hip-Hop: From the Break to the Dominant Form",
+   "blurb": "A party technique in the Bronx becomes the most commercially and culturally significant music on earth."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "pop-09",
+   "title": "House, Techno, and the Global Electronic Diaspora",
+   "blurb": "Chicago, Detroit, and how two American cities exported a music the American mainstream ignored."
+  },
+  {
+   "courseId": "chora-history",
+   "course": "The Chora Curriculum",
+   "lessonId": "pop-10",
+   "title": "The Present: Genre Collapse and the Algorithm",
+   "blurb": "What happens to popular music when distribution is free, genre stops signifying, and a recommender decides what you hear."
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "11",
+   "title": "Alice's Adventures in Wonderland",
+   "blurb": "Lewis Carroll was the pen name of Charles Dodgson, an Oxford mathematics lecturer who first told the story to the daughters of a college col"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "236",
+   "title": "The Jungle Book",
+   "blurb": "Rudyard Kipling, who was born in India, published these linked stories in 1894. They include Mowgli, a boy raised by wolves, and other tales"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "514",
+   "title": "Little Women",
+   "blurb": "Louisa May Alcott published Little Women in 1868 and 1869, drawing on her own sisters and her father's unusual household in Massachusetts. I"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "120",
+   "title": "Treasure Island",
+   "blurb": "Robert Louis Stevenson published Treasure Island in 1883 after serializing it as \"The Sea Cook\" in a boys' magazine. Narrated by young Jim H"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "730",
+   "title": "Oliver Twist",
+   "blurb": "Charles Dickens published Oliver Twist in installments between 1837 and 1839, shortly after England's 1834 Poor Law reform created harsh wor"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "46",
+   "title": "A Christmas Carol",
+   "blurb": "Charles Dickens published A Christmas Carol on December 19, 1843, in a year when Britain faced widespread poverty and child labor. He wrote "
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "1257",
+   "title": "The Three Musketeers",
+   "blurb": "Alexandre Dumas published the novel as a newspaper serial in 1844, setting it two centuries earlier in the reign of Louis XIII, when Cardina"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "103",
+   "title": "Around the World in Eighty Days",
+   "blurb": "Jules Verne published this novel in 1872-1873, after new technology such as steamships, transcontinental railways, and the Suez Canal had ma"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "164",
+   "title": "Twenty Thousand Leagues Under the Sea",
+   "blurb": "Jules Verne published the novel in 1869-1870, when submarines were primitive and the deep ocean was largely unknown. Captain Nemo's Nautilus"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "215",
+   "title": "The Call of the Wild",
+   "blurb": "Jack London published the book in 1903, drawing on his own time in the Klondike Gold Rush of 1897-1898. Buck, a pampered California dog, is "
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "74",
+   "title": "The Adventures of Tom Sawyer",
+   "blurb": "Mark Twain published the novel in 1876, drawing on his own boyhood in Hannibal, Missouri, which he renamed St. Petersburg. It is set before "
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "1661",
+   "title": "The Adventures of Sherlock Holmes",
+   "blurb": "Arthur Conan Doyle collected twelve Holmes stories in 1892 after they first appeared in The Strand Magazine. Narrated by Dr. Watson, they fo"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "1342",
+   "title": "Pride and Prejudice",
+   "blurb": "Jane Austen published Pride and Prejudice in 1813, during the Regency, when a gentry daughter without an inheritance had few ways to secure "
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "84",
+   "title": "Frankenstein",
+   "blurb": "Mary Shelley began Frankenstein at nineteen, during a rainy 1816 summer near Lake Geneva, and published it anonymously in 1818. It was writt"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "98",
+   "title": "A Tale of Two Cities",
+   "blurb": "Charles Dickens published A Tale of Two Cities in weekly installments in 1859, setting it during the French Revolution and the Reign of Terr"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "345",
+   "title": "Dracula",
+   "blurb": "Bram Stoker published Dracula in 1897, when Victorians were anxious about invasion, disease, and changing roles for women. The novel is told"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "76",
+   "title": "Adventures of Huckleberry Finn",
+   "blurb": "Mark Twain published Huckleberry Finn in 1884 (in the U.S. in 1885), setting it decades earlier along the Mississippi when slavery was legal"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "174",
+   "title": "The Picture of Dorian Gray",
+   "blurb": "Oscar Wilde first published The Picture of Dorian Gray in a magazine in 1890 and expanded it into a novel in 1891. It belongs to the Aesthet"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "1260",
+   "title": "Jane Eyre",
+   "blurb": "Charlotte Bronte published Jane Eyre in 1847 under the pen name Currer Bell, and it was an immediate success. It is narrated by Jane, an orp"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "768",
+   "title": "Wuthering Heights",
+   "blurb": "Emily Bronte published Wuthering Heights in 1847 under the pen name Ellis Bell, and critics at first found it shocking. The story is set on "
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "1513",
+   "title": "Romeo and Juliet",
+   "blurb": "William Shakespeare wrote Romeo and Juliet in the 1590s, drawing on an older Italian tale, and the first printing appeared in 1597. It was p"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "1524",
+   "title": "Hamlet",
+   "blurb": "Shakespeare wrote Hamlet around 1600, and early printed versions appeared in 1603 and 1604. It is based on an older Scandinavian legend of a"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "1400",
+   "title": "Great Expectations",
+   "blurb": "Charles Dickens serialized Great Expectations in weekly installments in 1860 and 1861. It follows Pip, an orphan raised by his sister and he"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "1184",
+   "title": "The Count of Monte Cristo",
+   "blurb": "Alexandre Dumas published this novel in newspaper installments in 1844-1846. It is set during the turbulent years after Napoleon's fall, whe"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "135",
+   "title": "Les Misérables",
+   "blurb": "Victor Hugo wrote the novel largely while in exile from Napoleon III's France and published it in 1862. It follows ex-convict Jean Valjean t"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "161",
+   "title": "Sense and Sensibility",
+   "blurb": "Jane Austen's first published novel appeared anonymously in 1811, \"By a Lady\". Under the inheritance laws of the time, the Dashwood sisters "
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "158",
+   "title": "Emma",
+   "blurb": "Jane Austen published Emma in 1815, setting it entirely in and around the village of Highbury. Austen herself said she was creating a heroin"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "36",
+   "title": "The War of the Worlds",
+   "blurb": "H. G. Wells published the novel in 1897-1898, when Britain ruled a vast empire. He flipped the usual story by imagining a more advanced powe"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "35",
+   "title": "The Time Machine",
+   "blurb": "H. G. Wells published this short novel in 1895, drawing on Darwin's theory of evolution and worries about the gap between rich and poor in i"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "43",
+   "title": "The Strange Case of Dr Jekyll and Mr Hyde",
+   "blurb": "Robert Louis Stevenson published this short novel in 1886, in a London that prized respectability and hidden private vice. The story is told"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "844",
+   "title": "The Importance of Being Earnest",
+   "blurb": "Oscar Wilde's comedy premiered in London in 1895 and was subtitled \"A Trivial Comedy for Serious People\". Two friends invent false identitie"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "5200",
+   "title": "The Metamorphosis",
+   "blurb": "Franz Kafka, a German-speaking Jewish writer in Prague, published the novella in 1915. It opens with salesman Gregor Samsa waking to find hi"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "25344",
+   "title": "The Scarlet Letter",
+   "blurb": "Nathaniel Hawthorne published the novel in 1850, setting it in seventeenth-century Puritan Massachusetts, a community ruled closely by relig"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "1727",
+   "title": "The Odyssey",
+   "blurb": "The Odyssey is attributed to Homer and was performed aloud for centuries before it was written down. It tells of Odysseus's ten-year journey"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "17405",
+   "title": "The Art of War",
+   "blurb": "Traditionally credited to Sun Tzu, a Chinese general, this short text was written during a long period of conflict among rival Chinese state"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "2701",
+   "title": "Moby Dick",
+   "blurb": "Herman Melville published Moby-Dick in 1851, drawing on his own time aboard a whaling ship in the 1840s. At that time whaling was a major Am"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "2554",
+   "title": "Crime and Punishment",
+   "blurb": "Fyodor Dostoevsky serialized Crime and Punishment in 1866 in a Russian journal, setting it in the poor districts of St. Petersburg. It follo"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "2600",
+   "title": "War and Peace",
+   "blurb": "Leo Tolstoy published War and Peace between 1865 and 1869. It follows several aristocratic Russian families through Napoleon's campaigns, in"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "1399",
+   "title": "Anna Karenina",
+   "blurb": "Leo Tolstoy serialized Anna Karenina from 1875 to 1877 and published it as a book in 1878. It interweaves the story of Anna, a married arist"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "996",
+   "title": "Don Quixote",
+   "blurb": "Miguel de Cervantes published the first part of Don Quixote in 1605 and the second in 1615. It follows an old gentleman who reads so many ch"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "6130",
+   "title": "The Iliad",
+   "blurb": "The Iliad is attributed to Homer and covers a few weeks in the tenth year of the Trojan War. It opens with the rage of Achilles after Agamem"
+  },
+  {
+   "courseId": "classic-literature",
+   "course": "Classic Literature",
+   "lessonId": "145",
+   "title": "Middlemarch",
+   "blurb": "George Eliot, the pen name of Mary Ann Evans, published Middlemarch in installments in 1871-1872. It is set in a Midlands town around the ti"
+  },
+  {
+   "courseId": "history-sentences",
+   "course": "Grammar Through History",
+   "lessonId": "hs-capitals",
+   "title": "Capital Letters in History",
+   "blurb": "Capitalize names, places and titles; the sentences draw on Motown, Woodstock, Mozart, Scott Joplin, the Lumiere brothers, The Wizard of Oz, "
+  },
+  {
+   "courseId": "history-sentences",
+   "course": "Grammar Through History",
+   "lessonId": "hs-end-marks",
+   "title": "Periods, Question Marks and Exclamation Points",
+   "blurb": "Choose the right ending mark; the sentences draw on Louis Armstrong, the Beatles, Kind of Blue, MTV, Melies, Parasite, Toy Story, Van Gogh, "
+  },
+  {
+   "courseId": "history-sentences",
+   "course": "Grammar Through History",
+   "lessonId": "hs-verb-tense",
+   "title": "Past, Present and Future Verbs",
+   "blurb": "Pick the verb tense that fits; the sentences draw on Edison, the Motown Museum, the compact disc, Mozart, The Jazz Singer, Toy Story, the Ac"
+  },
+  {
+   "courseId": "history-sentences",
+   "course": "Grammar Through History",
+   "lessonId": "hs-sv-agree",
+   "title": "Subject-Verb Agreement",
+   "blurb": "Make the verb agree with its subject; the sentences draw on the Beatles, Vivaldi, Beethoven and Mozart, hip hop, silent films, Star Wars, Mo"
+  },
+  {
+   "courseId": "history-sentences",
+   "course": "Grammar Through History",
+   "lessonId": "hs-homophones",
+   "title": "Look-Alike Words",
+   "blurb": "Sort out their/there/they're, its/it's, to/too/two and your/you're; the sentences draw on Johnny B. Goode, Motown, Bach, Sun Studio, silent "
+  },
+  {
+   "courseId": "history-sentences",
+   "course": "Grammar Through History",
+   "lessonId": "hs-commas",
+   "title": "Commas",
+   "blurb": "Use commas in lists, after introductory phrases and in compound sentences; the sentences draw on the Beatles, The Rite of Spring, Switched-O"
+  },
+  {
+   "courseId": "history-sentences",
+   "course": "Grammar Through History",
+   "lessonId": "hs-apostrophes",
+   "title": "Apostrophes",
+   "blurb": "Handle possessives and contractions; the sentences draw on Beethoven's Ninth, Chuck Berry, Elvis Presley, the Funk Brothers, Seven Samurai, "
+  },
+  {
+   "courseId": "history-sentences",
+   "course": "Grammar Through History",
+   "lessonId": "hs-pronouns",
+   "title": "Pronoun Case: Who/Whom, I/Me",
+   "blurb": "Choose the correct pronoun case; the sentences draw on Sun Records, Bob Dylan, Duke Ellington, Louis Armstrong, Jaws, Metropolis, Melies, Va"
+  },
+  {
+   "courseId": "history-sentences",
+   "course": "Grammar Through History",
+   "lessonId": "hs-modifiers",
+   "title": "Adjectives, Adverbs and Misplaced Modifiers",
+   "blurb": "Pick adjectives vs adverbs and fix dangling modifiers; the sentences draw on Bach, Beethoven, the Moog synthesizer, Aretha Franklin, Buster "
+  },
+  {
+   "courseId": "history-sentences",
+   "course": "Grammar Through History",
+   "lessonId": "hs-parallel",
+   "title": "Parallel Structure",
+   "blurb": "Keep list items in matching form; the sentences draw on Bach, Les Paul, Motown, hip hop, Alice Guy-Blache, nickelodeons, Hitchcock, Leonardo"
+  },
+  {
+   "courseId": "history-sentences",
+   "course": "Grammar Through History",
+   "lessonId": "hs-semicolons",
+   "title": "Semicolons, Colons and Dashes",
+   "blurb": "Join and set off ideas with semicolons, colons and dashes; the sentences draw on Armstrong's Hot Five, Bob Dylan, Kind of Blue, Chuck Berry,"
+  },
+  {
+   "courseId": "history-sentences",
+   "course": "Grammar Through History",
+   "lessonId": "hs-word-choice",
+   "title": "Precise Word Choice",
+   "blurb": "Untangle affect/effect, principal/principle and imply/infer; the sentences draw on Leo Fender, Napster, Fela Kuti, Vivaldi, Snow White, Metr"
+  },
+  {
+   "courseId": "art-masters",
+   "course": "Art Masters",
+   "lessonId": "art-masters.l01",
+   "title": "Leonardo da Vinci",
+   "blurb": "The archetype of the Renaissance mind, who blended art and science."
+  },
+  {
+   "courseId": "art-masters",
+   "course": "Art Masters",
+   "lessonId": "art-masters.l02",
+   "title": "Michelangelo and Raphael",
+   "blurb": "Force and grace: two High Renaissance ideals side by side."
+  },
+  {
+   "courseId": "art-masters",
+   "course": "Art Masters",
+   "lessonId": "art-masters.l03",
+   "title": "Caravaggio and Tenebrism",
+   "blurb": "Violent light, deep darkness and sacred scenes set in the street."
+  },
+  {
+   "courseId": "art-masters",
+   "course": "Art Masters",
+   "lessonId": "art-masters.l04",
+   "title": "Rembrandt and Vermeer",
+   "blurb": "Two Dutch Golden Age masters of light, one dramatic and one quiet."
+  },
+  {
+   "courseId": "art-masters",
+   "course": "Art Masters",
+   "lessonId": "art-masters.l05",
+   "title": "Goya: From Court to Nightmare",
+   "blurb": "A Spanish court painter becomes the prophet of the modern nightmare."
+  },
+  {
+   "courseId": "art-masters",
+   "course": "Art Masters",
+   "lessonId": "art-masters.l06",
+   "title": "Hokusai and the Floating World",
+   "blurb": "Japanese woodblock prints and the wave that traveled the globe."
+  },
+  {
+   "courseId": "art-masters",
+   "course": "Art Masters",
+   "lessonId": "art-masters.l07",
+   "title": "Monet and Impressionism",
+   "blurb": "Painting the light itself, from sunrise harbours to water lilies."
+  },
+  {
+   "courseId": "art-masters",
+   "course": "Art Masters",
+   "lessonId": "art-masters.l08",
+   "title": "Van Gogh and Cezanne",
+   "blurb": "Two Post-Impressionists: feeling made visible and structure made solid."
+  },
+  {
+   "courseId": "art-masters",
+   "course": "Art Masters",
+   "lessonId": "art-masters.l09",
+   "title": "Picasso and Matisse",
+   "blurb": "Cubist form versus Fauvist colour at the birth of modernism."
+  },
+  {
+   "courseId": "art-masters",
+   "course": "Art Masters",
+   "lessonId": "art-masters.l10",
+   "title": "Surrealism: Dali and Kahlo",
+   "blurb": "Dreams, myths and the unconscious made visible."
+  },
+  {
+   "courseId": "art-masters",
+   "course": "Art Masters",
+   "lessonId": "art-masters.l11",
+   "title": "American Modernists to Basquiat",
+   "blurb": "Magnified flowers, drips, colour fields and street-born neo-expressionism."
+  },
+  {
+   "courseId": "art-masters",
+   "course": "Art Masters",
+   "lessonId": "art-masters.l12",
+   "title": "Sculptors: Rodin to Bourgeois",
+   "blurb": "Four sculptors who redefined form, surface and space."
+  },
+  {
+   "courseId": "art-masters",
+   "course": "Art Masters",
+   "lessonId": "art-masters.l13",
+   "title": "Photographers as Artists",
+   "blurb": "How the camera became an instrument of art and conscience."
+  },
+  {
+   "courseId": "art-masters",
+   "course": "Art Masters",
+   "lessonId": "art-masters.l14",
+   "title": "Architects as Artists",
+   "blurb": "Space as sculpture and structure as statement."
+  },
+  {
+   "courseId": "botany-forest",
+   "course": "Botany: The Living Forest",
+   "lessonId": "botany-forest.l01",
+   "title": "Plants Become a Science",
+   "blurb": "From Theophrastus to Hooke, botany began by asking what a plant is and what it is made of."
+  },
+  {
+   "courseId": "botany-forest",
+   "course": "Botany: The Living Forest",
+   "lessonId": "botany-forest.l02",
+   "title": "Plant Anatomy: Tissues and Vessels",
+   "blurb": "Plants have organs and tissues, including vessels that carry water up and sugar around."
+  },
+  {
+   "courseId": "botany-forest",
+   "course": "Botany: The Living Forest",
+   "lessonId": "botany-forest.l03",
+   "title": "Photosynthesis: Plants Eat Air",
+   "blurb": "Green plants turn carbon dioxide and water into sugar and oxygen, and they need light to do it."
+  },
+  {
+   "courseId": "botany-forest",
+   "course": "Botany: The Living Forest",
+   "lessonId": "botany-forest.l04",
+   "title": "Inside the Chloroplast",
+   "blurb": "Carbon is fixed in a cycle inside chloroplasts, organelles that were once free-living bacteria."
+  },
+  {
+   "courseId": "botany-forest",
+   "course": "Botany: The Living Forest",
+   "lessonId": "botany-forest.l05",
+   "title": "Reading a Tree: Form and Growth",
+   "blurb": "Crown shape, branch whorls and trunk structure record how a tree grew and what it is."
+  },
+  {
+   "courseId": "botany-forest",
+   "course": "Botany: The Living Forest",
+   "lessonId": "botany-forest.l06",
+   "title": "Light and the Forest Layers",
+   "blurb": "Tall canopy trees, shade-tolerant understorey and light-hungry seedlings share one stack of light."
+  },
+  {
+   "courseId": "botany-forest",
+   "course": "Botany: The Living Forest",
+   "lessonId": "botany-forest.l07",
+   "title": "Pioneers, Fire and Succession",
+   "blurb": "Some trees arrive first on bare ground, and some are built to survive fire."
+  },
+  {
+   "courseId": "botany-forest",
+   "course": "Botany: The Living Forest",
+   "lessonId": "botany-forest.l08",
+   "title": "Underground Networks: Fungi and Lichens",
+   "blurb": "Fungi are a separate kingdom, linked to tree roots by mycorrhizal networks."
+  },
+  {
+   "courseId": "botany-forest",
+   "course": "Botany: The Living Forest",
+   "lessonId": "botany-forest.l09",
+   "title": "Flowers, Seeds and Pollination",
+   "blurb": "Flowers are reproductive organs, and seeds are how most trees start a new generation."
+  },
+  {
+   "courseId": "botany-forest",
+   "course": "Botany: The Living Forest",
+   "lessonId": "botany-forest.l10",
+   "title": "Mendel's Peas: Rules of Inheritance",
+   "blurb": "Counting 28,000 pea plants showed that traits pass on in discrete units."
+  },
+  {
+   "courseId": "botany-forest",
+   "course": "Botany: The Living Forest",
+   "lessonId": "botany-forest.l11",
+   "title": "Clones, Cuttings and Diversity",
+   "blurb": "Clones are fast and convenient but vulnerable, which is why seed banks matter."
+  },
+  {
+   "courseId": "botany-forest",
+   "course": "Botany: The Living Forest",
+   "lessonId": "botany-forest.l12",
+   "title": "Adaptations to Heat, Cold and Drought",
+   "blurb": "Needles, scales, bark and stored water are all answers to the problem of losing water."
+  },
+  {
+   "courseId": "botany-forest",
+   "course": "Botany: The Living Forest",
+   "lessonId": "botany-forest.l13",
+   "title": "Ferns, Mosses and Life Cycles",
+   "blurb": "Ferns make spores rather than seeds, and their life cycle has two different bodies."
+  },
+  {
+   "courseId": "botany-forest",
+   "course": "Botany: The Living Forest",
+   "lessonId": "botany-forest.l14",
+   "title": "Living Fossils and the Plant Family Tree",
+   "blurb": "Ginkgo, ferns and conifers show how old lineages persist beside the flowering plants."
+  },
+  {
+   "courseId": "comic-history",
+   "course": "Comics and Manga: A History",
+   "lessonId": "comic-history.l01",
+   "title": "Panels and Page Layout",
+   "blurb": "The panel is the basic unit of a comic page, and layouts arrange panels into a rhythm."
+  },
+  {
+   "courseId": "comic-history",
+   "course": "Comics and Manga: A History",
+   "lessonId": "comic-history.l02",
+   "title": "The Gutter and Panel Spacing",
+   "blurb": "The space between panels is where the reader joins the pictures together."
+  },
+  {
+   "courseId": "comic-history",
+   "course": "Comics and Manga: A History",
+   "lessonId": "comic-history.l03",
+   "title": "Speech Balloons, Captions and Sound Effects",
+   "blurb": "The vocabulary of words on a comic page."
+  },
+  {
+   "courseId": "comic-history",
+   "course": "Comics and Manga: A History",
+   "lessonId": "comic-history.l04",
+   "title": "Reading Direction: Left to Right and Right to Left",
+   "blurb": "Why a manga page runs backwards compared with a Western comic."
+  },
+  {
+   "courseId": "comic-history",
+   "course": "Comics and Manga: A History",
+   "lessonId": "comic-history.l05",
+   "title": "Pacing: Silence, Reveals and the Big Panel",
+   "blurb": "How panel size and number control the speed of reading."
+  },
+  {
+   "courseId": "comic-history",
+   "course": "Comics and Manga: A History",
+   "lessonId": "comic-history.l06",
+   "title": "The Strip and the Newsstand",
+   "blurb": "Newspaper strips build a mass audience and Action Comics #1 launches the comic book."
+  },
+  {
+   "courseId": "comic-history",
+   "course": "Comics and Manga: A History",
+   "lessonId": "comic-history.l07",
+   "title": "The Golden and Silver Ages",
+   "blurb": "Superheroes explode, then Marvel redefines them as flawed humans."
+  },
+  {
+   "courseId": "comic-history",
+   "course": "Comics and Manga: A History",
+   "lessonId": "comic-history.l08",
+   "title": "Bronze Age to Modern Age",
+   "blurb": "Darker stories, then comics as literature."
+  },
+  {
+   "courseId": "comic-history",
+   "course": "Comics and Manga: A History",
+   "lessonId": "comic-history.l09",
+   "title": "Graphic Novels and the Creators Who Built Them",
+   "blurb": "Eisner, Moore, Miller and the idea of a comic as a book."
+  },
+  {
+   "courseId": "comic-history",
+   "course": "Comics and Manga: A History",
+   "lessonId": "comic-history.l10",
+   "title": "Roots of Manga",
+   "blurb": "From Hokusai to kamishibai: Japan's visual story tradition."
+  },
+  {
+   "courseId": "comic-history",
+   "course": "Comics and Manga: A History",
+   "lessonId": "comic-history.l11",
+   "title": "Tezuka and the Birth of Story Manga",
+   "blurb": "The God of Manga brings film language to the page."
+  },
+  {
+   "courseId": "comic-history",
+   "course": "Comics and Manga: A History",
+   "lessonId": "comic-history.l12",
+   "title": "Shonen, Shojo and the Magazine Boom",
+   "blurb": "Weekly serials and the Year 24 Group shape the industry."
+  },
+  {
+   "courseId": "comic-history",
+   "course": "Comics and Manga: A History",
+   "lessonId": "comic-history.l13",
+   "title": "The Global Era",
+   "blurb": "Dragon Ball, Sailor Moon, One Piece, Naruto and digital publishing."
+  },
+  {
+   "courseId": "comic-history",
+   "course": "Comics and Manga: A History",
+   "lessonId": "comic-history.l14",
+   "title": "Webtoons: Comics for the Scroll",
+   "blurb": "Vertical strips designed for phones."
+  },
+  {
+   "courseId": "film-history",
+   "course": "Film History",
+   "lessonId": "film-history.l01",
+   "title": "German Expressionism: Sets as Psychology",
+   "blurb": "Weimar Germany turned painted shadows and crooked sets into a map of the mind."
+  },
+  {
+   "courseId": "film-history",
+   "course": "Film History",
+   "lessonId": "film-history.l02",
+   "title": "Orson Welles and Citizen Kane",
+   "blurb": "A 25-year-old reinvented film grammar on his very first picture."
+  },
+  {
+   "courseId": "film-history",
+   "course": "Film History",
+   "lessonId": "film-history.l03",
+   "title": "Hitchcock: The Master of Suspense",
+   "blurb": "Why a bomb the audience knows about is scarier than a bomb that surprises them."
+  },
+  {
+   "courseId": "film-history",
+   "course": "Film History",
+   "lessonId": "film-history.l04",
+   "title": "Italian Neorealism",
+   "blurb": "Real streets, real faces and real poverty in post-war Italy."
+  },
+  {
+   "courseId": "film-history",
+   "course": "Film History",
+   "lessonId": "film-history.l05",
+   "title": "The Japanese Golden Age and Kurosawa",
+   "blurb": "In the 1950s, Japan carried its cinema to the world stage."
+  },
+  {
+   "courseId": "film-history",
+   "course": "Film History",
+   "lessonId": "film-history.l06",
+   "title": "The French New Wave and Agnes Varda",
+   "blurb": "Young critics grabbed cameras and tore up the rules of classical storytelling."
+  },
+  {
+   "courseId": "film-history",
+   "course": "Film History",
+   "lessonId": "film-history.l07",
+   "title": "New Hollywood",
+   "blurb": "A film-school generation seized the studios and made the director king."
+  },
+  {
+   "courseId": "film-history",
+   "course": "Film History",
+   "lessonId": "film-history.l08",
+   "title": "Coppola, Willis and The Godfather",
+   "blurb": "How shadows, cross-cutting and sound turned a gangster film into American opera."
+  },
+  {
+   "courseId": "film-history",
+   "course": "Film History",
+   "lessonId": "film-history.l09",
+   "title": "Scorsese and Schoonmaker",
+   "blurb": "Rhythm, pop music and a fifty-year partnership between director and editor."
+  },
+  {
+   "courseId": "film-history",
+   "course": "Film History",
+   "lessonId": "film-history.l10",
+   "title": "Spielberg, Williams and the Blockbuster",
+   "blurb": "Suspense from what you do not see, and a symphonic score you can hum."
+  },
+  {
+   "courseId": "film-history",
+   "course": "Film History",
+   "lessonId": "film-history.l11",
+   "title": "Wong Kar-wai and Christopher Doyle",
+   "blurb": "Smeared motion, saturated colour and the poetry of longing."
+  },
+  {
+   "courseId": "film-history",
+   "course": "Film History",
+   "lessonId": "film-history.l12",
+   "title": "Dogme 95: A Vow of Chastity",
+   "blurb": "Handheld cameras, natural light and no tricks: a manifesto for stripped-back storytelling."
+  },
+  {
+   "courseId": "founding-documents",
+   "course": "The Founding Documents",
+   "lessonId": "founding-documents.l01",
+   "title": "Magna Carta: Nobody Above the Law",
+   "blurb": "A bargain between a king and his barons that planted the idea of lawful judgement."
+  },
+  {
+   "courseId": "founding-documents",
+   "course": "The Founding Documents",
+   "lessonId": "founding-documents.l02",
+   "title": "Locke and Government by Consent",
+   "blurb": "The Second Treatise argues that legitimate power rests on the agreement of the people."
+  },
+  {
+   "courseId": "founding-documents",
+   "course": "The Founding Documents",
+   "lessonId": "founding-documents.l03",
+   "title": "The English Bill of Rights of 1689",
+   "blurb": "Limits on the Crown that the American colonists later claimed as their own."
+  },
+  {
+   "courseId": "founding-documents",
+   "course": "The Founding Documents",
+   "lessonId": "founding-documents.l04",
+   "title": "The Declaration of Independence: Anatomy of an Argument",
+   "blurb": "A premise, a principle and a list of charges."
+  },
+  {
+   "courseId": "founding-documents",
+   "course": "The Founding Documents",
+   "lessonId": "founding-documents.l05",
+   "title": "Key Phrases of the Declaration",
+   "blurb": "What \"self-evident,\" \"unalienable\" and \"consent of the governed\" mean."
+  },
+  {
+   "courseId": "founding-documents",
+   "course": "The Founding Documents",
+   "lessonId": "founding-documents.l06",
+   "title": "The Declaration and Its Unfinished Promise",
+   "blurb": "Principles stated in 1776 and the long argument over who they included."
+  },
+  {
+   "courseId": "founding-documents",
+   "course": "The Founding Documents",
+   "lessonId": "founding-documents.l07",
+   "title": "The Preamble: We the People",
+   "blurb": "One sentence that states the purposes of the Constitution."
+  },
+  {
+   "courseId": "founding-documents",
+   "course": "The Founding Documents",
+   "lessonId": "founding-documents.l08",
+   "title": "Federalist No. 51: Ambition Against Ambition",
+   "blurb": "Madison explains why power is divided so that officials restrain one another."
+  },
+  {
+   "courseId": "founding-documents",
+   "course": "The Founding Documents",
+   "lessonId": "founding-documents.l09",
+   "title": "The First Amendment: Five Freedoms",
+   "blurb": "Religion, speech, press, assembly and petition in a single sentence."
+  },
+  {
+   "courseId": "founding-documents",
+   "course": "The Founding Documents",
+   "lessonId": "founding-documents.l10",
+   "title": "Douglass: What to the Slave Is the Fourth of July?",
+   "blurb": "An 1852 oration that used the nation's own principles as the indictment."
+  },
+  {
+   "courseId": "founding-documents",
+   "course": "The Founding Documents",
+   "lessonId": "founding-documents.l11",
+   "title": "Lincoln at Gettysburg",
+   "blurb": "Two minutes that re-founded the nation on the Declaration's premise."
+  },
+  {
+   "courseId": "founding-documents",
+   "course": "The Founding Documents",
+   "lessonId": "founding-documents.l12",
+   "title": "Following the Thread: From 1215 to 1863",
+   "blurb": "How ideas travel from one document to the next and how to read them closely."
+  },
+  {
+   "courseId": "hq-quest",
+   "course": "History Quest",
+   "lessonId": "hq-quest.l01",
+   "title": "Reading the Timeline of Ages",
+   "blurb": "Nine ages cover the human story, and their dates overlap."
+  },
+  {
+   "courseId": "hq-quest",
+   "course": "History Quest",
+   "lessonId": "hq-quest.l02",
+   "title": "The Ancient Ages",
+   "blurb": "Prehistory, the river valleys and the classical age in order."
+  },
+  {
+   "courseId": "hq-quest",
+   "course": "History Quest",
+   "lessonId": "hq-quest.l03",
+   "title": "Medieval and Early Modern Turning Points",
+   "blurb": "From the rise of Islam to Luther, a thousand years of connection."
+  },
+  {
+   "courseId": "hq-quest",
+   "course": "History Quest",
+   "lessonId": "hq-quest.l04",
+   "title": "Revolutions and Industry",
+   "blurb": "Two overlapping ages that reshaped politics and work."
+  },
+  {
+   "courseId": "hq-quest",
+   "course": "History Quest",
+   "lessonId": "hq-quest.l05",
+   "title": "World Wars and the Contemporary World",
+   "blurb": "Total war, new nations and an interconnected present."
+  },
+  {
+   "courseId": "hq-quest",
+   "course": "History Quest",
+   "lessonId": "hq-quest.l06",
+   "title": "Why Perspectives Differ",
+   "blurb": "The same event looks different from different positions."
+  },
+  {
+   "courseId": "hq-quest",
+   "course": "History Quest",
+   "lessonId": "hq-quest.l07",
+   "title": "Voices from the Past",
+   "blurb": "Meet rulers, travellers and leaders and read through their eyes."
+  },
+  {
+   "courseId": "hq-quest",
+   "course": "History Quest",
+   "lessonId": "hq-quest.l08",
+   "title": "Primary and Secondary Sources",
+   "blurb": "Telling first-hand evidence from later accounts."
+  },
+  {
+   "courseId": "hq-quest",
+   "course": "History Quest",
+   "lessonId": "hq-quest.l09",
+   "title": "Finding Evidence in Open Archives",
+   "blurb": "Where to search for real documents, newspapers and books."
+  },
+  {
+   "courseId": "hq-quest",
+   "course": "History Quest",
+   "lessonId": "hq-quest.l10",
+   "title": "Gaps, Bias and Corroboration",
+   "blurb": "Every record is incomplete, so test claims across sources."
+  },
+  {
+   "courseId": "hq-quest",
+   "course": "History Quest",
+   "lessonId": "hq-quest.l11",
+   "title": "Causes and Effects of Developments",
+   "blurb": "Link developments to the ages that produced them."
+  },
+  {
+   "courseId": "hq-quest",
+   "course": "History Quest",
+   "lessonId": "hq-quest.l12",
+   "title": "Civilisation Hallmarks as Clues",
+   "blurb": "What a culture is famous for tells you how it lived."
+  },
+  {
+   "courseId": "hq-quest",
+   "course": "History Quest",
+   "lessonId": "hq-quest.l13",
+   "title": "Building a Historical Argument",
+   "blurb": "Turn evidence and causes into a claim you can defend."
+  },
+  {
+   "courseId": "lab-archaeology",
+   "course": "Archaeology",
+   "lessonId": "lab-archaeology.l01",
+   "title": "Winckelmann, Schliemann and the Search for Troy",
+   "blurb": "Two pioneers who made the ancient world a subject of study."
+  },
+  {
+   "courseId": "lab-archaeology",
+   "course": "Archaeology",
+   "lessonId": "lab-archaeology.l02",
+   "title": "Pitt Rivers and Petrie: Recording Everything",
+   "blurb": "Why ordinary pottery sherds became as important as gold."
+  },
+  {
+   "courseId": "lab-archaeology",
+   "course": "Archaeology",
+   "lessonId": "lab-archaeology.l03",
+   "title": "Tutankhamun and Knossos",
+   "blurb": "Two famous discoveries and the debates they left behind."
+  },
+  {
+   "courseId": "lab-archaeology",
+   "course": "Archaeology",
+   "lessonId": "lab-archaeology.l04",
+   "title": "Stratigraphy and the Harris Matrix",
+   "blurb": "Reading the layers of a site like pages in a book."
+  },
+  {
+   "courseId": "lab-archaeology",
+   "course": "Archaeology",
+   "lessonId": "lab-archaeology.l05",
+   "title": "Wheeler, Kenyon and the Grid",
+   "blurb": "A system that kept excavations under control."
+  },
+  {
+   "courseId": "lab-archaeology",
+   "course": "Archaeology",
+   "lessonId": "lab-archaeology.l06",
+   "title": "Survey and Remote Sensing",
+   "blurb": "Finding and mapping sites without digging."
+  },
+  {
+   "courseId": "lab-archaeology",
+   "course": "Archaeology",
+   "lessonId": "lab-archaeology.l07",
+   "title": "Science in the Lab",
+   "blurb": "Seeds, bones, photographs and maps tell the rest of the story."
+  },
+  {
+   "courseId": "lab-archaeology",
+   "course": "Archaeology",
+   "lessonId": "lab-archaeology.l08",
+   "title": "Radiocarbon and Tree Rings",
+   "blurb": "The two best-known clocks for recent millennia."
+  },
+  {
+   "courseId": "lab-archaeology",
+   "course": "Archaeology",
+   "lessonId": "lab-archaeology.l09",
+   "title": "Beyond Radiocarbon",
+   "blurb": "Clocks for ceramics, sediments, caves and deep time."
+  },
+  {
+   "courseId": "lab-archaeology",
+   "course": "Archaeology",
+   "lessonId": "lab-archaeology.l10",
+   "title": "Human Origins at Olduvai and Laetoli",
+   "blurb": "Fossils, footprints and the African story of humankind."
+  },
+  {
+   "courseId": "lab-archaeology",
+   "course": "Archaeology",
+   "lessonId": "lab-archaeology.l11",
+   "title": "The First Monuments and Towns",
+   "blurb": "Gobekli Tepe, Catalhoyuk and a rethink of the Neolithic."
+  },
+  {
+   "courseId": "lab-archaeology",
+   "course": "Archaeology",
+   "lessonId": "lab-archaeology.l12",
+   "title": "Ancient Cities: Giza to Pompeii",
+   "blurb": "Great urban sites and what each one preserves."
+  },
+  {
+   "courseId": "lab-archaeology",
+   "course": "Archaeology",
+   "lessonId": "lab-archaeology.l13",
+   "title": "Americas, Africa and Southeast Asia",
+   "blurb": "Stone cities beyond the Mediterranean and the Near East."
+  },
+  {
+   "courseId": "lab-archaeology",
+   "course": "Archaeology",
+   "lessonId": "lab-archaeology.l14",
+   "title": "Theory, Ethics and Heritage",
+   "blurb": "How ideas about the past and who owns it have changed."
+  },
+  {
+   "courseId": "lab-architecture",
+   "course": "Architecture",
+   "lessonId": "lab-architecture.l01",
+   "title": "Egypt: Stone, Mass and Imhotep",
+   "blurb": "How Egyptian builders turned dressed stone into monuments meant to last forever."
+  },
+  {
+   "courseId": "lab-architecture",
+   "course": "Architecture",
+   "lessonId": "lab-architecture.l02",
+   "title": "Greece: Orders and the Parthenon",
+   "blurb": "The column-and-lintel temple canon and the optical refinements of the Parthenon."
+  },
+  {
+   "courseId": "lab-architecture",
+   "course": "Architecture",
+   "lessonId": "lab-architecture.l03",
+   "title": "Rome: Arch, Concrete and Vitruvius",
+   "blurb": "How concrete, the arch and the dome let Rome span huge interiors."
+  },
+  {
+   "courseId": "lab-architecture",
+   "course": "Architecture",
+   "lessonId": "lab-architecture.l04",
+   "title": "Byzantine: Domes on Pendentives",
+   "blurb": "How Hagia Sophia floated a great dome over a square plan."
+  },
+  {
+   "courseId": "lab-architecture",
+   "course": "Architecture",
+   "lessonId": "lab-architecture.l05",
+   "title": "Romanesque to Gothic",
+   "blurb": "From fortress-like walls to soaring stone and glass."
+  },
+  {
+   "courseId": "lab-architecture",
+   "course": "Architecture",
+   "lessonId": "lab-architecture.l06",
+   "title": "Renaissance: Dome, Treatise, Villa",
+   "blurb": "Brunelleschi, Alberti and Palladio revive classical order."
+  },
+  {
+   "courseId": "lab-architecture",
+   "course": "Architecture",
+   "lessonId": "lab-architecture.l07",
+   "title": "Baroque, Wren and Neoclassicism",
+   "blurb": "Drama and curves, then a sober return to classical purity."
+  },
+  {
+   "courseId": "lab-architecture",
+   "course": "Architecture",
+   "lessonId": "lab-architecture.l08",
+   "title": "Iron, Steel and the Skyscraper",
+   "blurb": "The Industrial Revolution makes tall, open buildings possible."
+  },
+  {
+   "courseId": "lab-architecture",
+   "course": "Architecture",
+   "lessonId": "lab-architecture.l09",
+   "title": "Art Nouveau and Gaudi",
+   "blurb": "Whiplash curves and nature-inspired structure in Barcelona."
+  },
+  {
+   "courseId": "lab-architecture",
+   "course": "Architecture",
+   "lessonId": "lab-architecture.l10",
+   "title": "Bauhaus and the International Style",
+   "blurb": "Gropius and Mies strip away ornament for glass, steel and clarity."
+  },
+  {
+   "courseId": "lab-architecture",
+   "course": "Architecture",
+   "lessonId": "lab-architecture.l11",
+   "title": "Le Corbusier and Wright",
+   "blurb": "Two modernist masters with opposite attitudes to machine and landscape."
+  },
+  {
+   "courseId": "lab-architecture",
+   "course": "Architecture",
+   "lessonId": "lab-architecture.l12",
+   "title": "Brutalism and Louis Kahn",
+   "blurb": "Raw concrete, monumental forms and architecture built around light."
+  },
+  {
+   "courseId": "lab-architecture",
+   "course": "Architecture",
+   "lessonId": "lab-architecture.l13",
+   "title": "Postmodern, Deconstructivist, Parametric",
+   "blurb": "From irony and ornament to fragmentation and algorithmic curves."
+  },
+  {
+   "courseId": "lab-architecture",
+   "course": "Architecture",
+   "lessonId": "lab-architecture.l14",
+   "title": "How Structures Carry Load",
+   "blurb": "The basic equations of beams, supports and cantilevers."
+  },
+  {
+   "courseId": "lab-astronomy",
+   "course": "Astronomy",
+   "lessonId": "lab-astronomy.l01",
+   "title": "The Copernican Revolution",
+   "blurb": "How a Sun-centred model, better data and the telescope overturned the ancient Earth-centred cosmos."
+  },
+  {
+   "courseId": "lab-astronomy",
+   "course": "Astronomy",
+   "lessonId": "lab-astronomy.l02",
+   "title": "Kepler's Laws of Planetary Motion",
+   "blurb": "Three simple rules describe the shape, speed and period of every orbit."
+  },
+  {
+   "courseId": "lab-astronomy",
+   "course": "Astronomy",
+   "lessonId": "lab-astronomy.l03",
+   "title": "Gravitation and Escape",
+   "blurb": "Newton's inverse-square law explains orbits, and tells us how fast a rocket must go to leave."
+  },
+  {
+   "courseId": "lab-astronomy",
+   "course": "Astronomy",
+   "lessonId": "lab-astronomy.l04",
+   "title": "Spectroscopy and Starlight",
+   "blurb": "Splitting light into a spectrum reveals temperature, composition and motion."
+  },
+  {
+   "courseId": "lab-astronomy",
+   "course": "Astronomy",
+   "lessonId": "lab-astronomy.l05",
+   "title": "Luminosity: Size and Temperature",
+   "blurb": "A star's power output depends on its surface area and the fourth power of its temperature."
+  },
+  {
+   "courseId": "lab-astronomy",
+   "course": "Astronomy",
+   "lessonId": "lab-astronomy.l06",
+   "title": "How Stars Live: Stellar Evolution",
+   "blurb": "A star's mass sets its life story from birth in a gas cloud to its final state."
+  },
+  {
+   "courseId": "lab-astronomy",
+   "course": "Astronomy",
+   "lessonId": "lab-astronomy.l07",
+   "title": "Stellar Remnants and the Chandrasekhar Limit",
+   "blurb": "Why some stars end as white dwarfs and others collapse further."
+  },
+  {
+   "courseId": "lab-astronomy",
+   "course": "Astronomy",
+   "lessonId": "lab-astronomy.l08",
+   "title": "Black Holes",
+   "blurb": "Regions where gravity is so strong that even light cannot escape."
+  },
+  {
+   "courseId": "lab-astronomy",
+   "course": "Astronomy",
+   "lessonId": "lab-astronomy.l09",
+   "title": "Parallax: The First Rung",
+   "blurb": "Geometry gives direct distances to nearby stars."
+  },
+  {
+   "courseId": "lab-astronomy",
+   "course": "Astronomy",
+   "lessonId": "lab-astronomy.l10",
+   "title": "Standard Candles and the Distance Ladder",
+   "blurb": "Using objects of known brightness to measure distances across the universe."
+  },
+  {
+   "courseId": "lab-astronomy",
+   "course": "Astronomy",
+   "lessonId": "lab-astronomy.l11",
+   "title": "Redshift and Hubble's Law",
+   "blurb": "Stretched light shows that distant galaxies are receding in proportion to their distance."
+  },
+  {
+   "courseId": "lab-astronomy",
+   "course": "Astronomy",
+   "lessonId": "lab-astronomy.l12",
+   "title": "The Cosmic Microwave Background",
+   "blurb": "The afterglow of the early universe, and a snapshot of its infancy."
+  },
+  {
+   "courseId": "lab-astronomy",
+   "course": "Astronomy",
+   "lessonId": "lab-astronomy.l13",
+   "title": "Dark Matter and Dark Energy",
+   "blurb": "Most of the cosmos is made of components we cannot yet see."
+  },
+  {
+   "courseId": "lab-biology",
+   "course": "Biology",
+   "lessonId": "lab-biology.l01",
+   "title": "Cell Theory",
+   "blurb": "All living things are made of cells, and cells come from cells."
+  },
+  {
+   "courseId": "lab-biology",
+   "course": "Biology",
+   "lessonId": "lab-biology.l02",
+   "title": "DNA and the Double Helix",
+   "blurb": "A paired-strand molecule that stores and copies heredity."
+  },
+  {
+   "courseId": "lab-biology",
+   "course": "Biology",
+   "lessonId": "lab-biology.l03",
+   "title": "The Central Dogma",
+   "blurb": "Information flows from DNA to RNA to protein."
+  },
+  {
+   "courseId": "lab-biology",
+   "course": "Biology",
+   "lessonId": "lab-biology.l04",
+   "title": "Mendelian Inheritance",
+   "blurb": "Discrete factors of heredity show predictable ratios."
+  },
+  {
+   "courseId": "lab-biology",
+   "course": "Biology",
+   "lessonId": "lab-biology.l05",
+   "title": "Evolution by Natural Selection",
+   "blurb": "Variation, heredity and differential reproduction."
+  },
+  {
+   "courseId": "lab-biology",
+   "course": "Biology",
+   "lessonId": "lab-biology.l06",
+   "title": "Hardy-Weinberg Equilibrium",
+   "blurb": "The baseline for detecting evolution in gene pools."
+  },
+  {
+   "courseId": "lab-biology",
+   "course": "Biology",
+   "lessonId": "lab-biology.l07",
+   "title": "Heritability and Response to Selection",
+   "blurb": "How much of a trait can selection change?"
+  },
+  {
+   "courseId": "lab-biology",
+   "course": "Biology",
+   "lessonId": "lab-biology.l08",
+   "title": "Speciation",
+   "blurb": "How one lineage splits into two."
+  },
+  {
+   "courseId": "lab-biology",
+   "course": "Biology",
+   "lessonId": "lab-biology.l09",
+   "title": "Homeostasis, Metabolism and Scaling",
+   "blurb": "Stable insides, energy flow and body size."
+  },
+  {
+   "courseId": "lab-biology",
+   "course": "Biology",
+   "lessonId": "lab-biology.l10",
+   "title": "Enzyme Kinetics",
+   "blurb": "Why enzyme reactions saturate."
+  },
+  {
+   "courseId": "lab-biology",
+   "course": "Biology",
+   "lessonId": "lab-biology.l11",
+   "title": "Population Growth",
+   "blurb": "Exponential, logistic and predator-prey dynamics."
+  },
+  {
+   "courseId": "lab-biology",
+   "course": "Biology",
+   "lessonId": "lab-biology.l12",
+   "title": "Ecosystems and Biodiversity",
+   "blurb": "Energy flow, nutrient cycles and measuring diversity."
+  },
+  {
+   "courseId": "lab-biology",
+   "course": "Biology",
+   "lessonId": "lab-biology.l13",
+   "title": "CRISPR and Genome Editing",
+   "blurb": "A bacterial defence turned into programmable scissors."
+  },
+  {
+   "courseId": "lab-biology",
+   "course": "Biology",
+   "lessonId": "lab-biology.l14",
+   "title": "A Short History of Biology",
+   "blurb": "From Aristotle to genomes: how the science grew."
+  },
+  {
+   "courseId": "lab-chemistry",
+   "course": "Chemistry",
+   "lessonId": "lab-chemistry.l01",
+   "title": "The Birth of Modern Chemistry",
+   "blurb": "Boyle, Lavoisier and the conservation of mass."
+  },
+  {
+   "courseId": "lab-chemistry",
+   "course": "Chemistry",
+   "lessonId": "lab-chemistry.l02",
+   "title": "Atomic Theory",
+   "blurb": "Matter is made of atoms combining in fixed ratios."
+  },
+  {
+   "courseId": "lab-chemistry",
+   "course": "Chemistry",
+   "lessonId": "lab-chemistry.l03",
+   "title": "The Periodic Table",
+   "blurb": "Elements ordered by atomic number reveal repeating patterns."
+  },
+  {
+   "courseId": "lab-chemistry",
+   "course": "Chemistry",
+   "lessonId": "lab-chemistry.l04",
+   "title": "Chemical Bonding",
+   "blurb": "Atoms transfer, share or pool electrons."
+  },
+  {
+   "courseId": "lab-chemistry",
+   "course": "Chemistry",
+   "lessonId": "lab-chemistry.l05",
+   "title": "The Mole",
+   "blurb": "A counting unit linking mass to numbers of particles."
+  },
+  {
+   "courseId": "lab-chemistry",
+   "course": "Chemistry",
+   "lessonId": "lab-chemistry.l06",
+   "title": "Stoichiometry",
+   "blurb": "Balanced equations as exact recipes."
+  },
+  {
+   "courseId": "lab-chemistry",
+   "course": "Chemistry",
+   "lessonId": "lab-chemistry.l07",
+   "title": "Gases and Their Laws",
+   "blurb": "Boyle's law and the ideal gas law."
+  },
+  {
+   "courseId": "lab-chemistry",
+   "course": "Chemistry",
+   "lessonId": "lab-chemistry.l08",
+   "title": "Thermochemistry and Free Energy",
+   "blurb": "Heat, entropy and spontaneity."
+  },
+  {
+   "courseId": "lab-chemistry",
+   "course": "Chemistry",
+   "lessonId": "lab-chemistry.l09",
+   "title": "Reaction Rates",
+   "blurb": "What controls how fast reactions go."
+  },
+  {
+   "courseId": "lab-chemistry",
+   "course": "Chemistry",
+   "lessonId": "lab-chemistry.l10",
+   "title": "Chemical Equilibrium",
+   "blurb": "Reversible reactions settle into a dynamic balance."
+  },
+  {
+   "courseId": "lab-chemistry",
+   "course": "Chemistry",
+   "lessonId": "lab-chemistry.l11",
+   "title": "Acids, Bases and pH",
+   "blurb": "Proton donors, acceptors and the logarithmic pH scale."
+  },
+  {
+   "courseId": "lab-chemistry",
+   "course": "Chemistry",
+   "lessonId": "lab-chemistry.l12",
+   "title": "Redox and Electrochemistry",
+   "blurb": "Electron transfer powers batteries and metabolism."
+  },
+  {
+   "courseId": "lab-chemistry",
+   "course": "Chemistry",
+   "lessonId": "lab-chemistry.l13",
+   "title": "Organic Chemistry and Synthesis",
+   "blurb": "Carbon chemistry from urea to polymers and green design."
+  },
+  {
+   "courseId": "lab-chemistry",
+   "course": "Chemistry",
+   "lessonId": "lab-chemistry.l14",
+   "title": "Measuring Matter with Light and X-rays",
+   "blurb": "Spectrophotometry and crystallography reveal structure."
+  },
+  {
+   "courseId": "lab-combat",
+   "course": "Combat Atlas: Martial Arts of the World",
+   "lessonId": "lab-combat.l01",
+   "title": "Tahtib: The Stick Dance of Egypt",
+   "blurb": "Stick play painted on tomb walls and still danced at weddings today."
+  },
+  {
+   "courseId": "lab-combat",
+   "course": "Combat Atlas: Martial Arts of the World",
+   "lessonId": "lab-combat.l02",
+   "title": "Nguni Stick Fighting",
+   "blurb": "From herd-boys sparring in the fields to a Zulu rite of passage."
+  },
+  {
+   "courseId": "lab-combat",
+   "course": "Combat Atlas: Martial Arts of the World",
+   "lessonId": "lab-combat.l03",
+   "title": "Laamb: Wrestling of Senegal",
+   "blurb": "Serer harvest rites that grew into a national stadium sport."
+  },
+  {
+   "courseId": "lab-combat",
+   "course": "Combat Atlas: Martial Arts of the World",
+   "lessonId": "lab-combat.l04",
+   "title": "Engolo: The Inverted Art",
+   "blurb": "A circle game on the Cunene River that crossed the Atlantic."
+  },
+  {
+   "courseId": "lab-combat",
+   "course": "Combat Atlas: Martial Arts of the World",
+   "lessonId": "lab-combat.l05",
+   "title": "Capoeira: Roda, Music and Memory",
+   "blurb": "How an Afro-Brazilian game survived criminalisation and went global."
+  },
+  {
+   "courseId": "lab-combat",
+   "course": "Combat Atlas: Martial Arts of the World",
+   "lessonId": "lab-combat.l06",
+   "title": "Shaolin: Chan and the Staff",
+   "blurb": "A Buddhist monastery that became the symbol of Chinese martial arts."
+  },
+  {
+   "courseId": "lab-combat",
+   "course": "Combat Atlas: Martial Arts of the World",
+   "lessonId": "lab-combat.l07",
+   "title": "Kalaripayattu of Kerala",
+   "blurb": "The earthen kalari, the guru and the oiled body."
+  },
+  {
+   "courseId": "lab-combat",
+   "course": "Combat Atlas: Martial Arts of the World",
+   "lessonId": "lab-combat.l08",
+   "title": "Judo: The Gentle Way",
+   "blurb": "Kano Jigoro reforms jujutsu into an educational discipline."
+  },
+  {
+   "courseId": "lab-combat",
+   "course": "Combat Atlas: Martial Arts of the World",
+   "lessonId": "lab-combat.l09",
+   "title": "Karate: From Okinawa to the World",
+   "blurb": "Okinawan hand, Chinese influence and the philosophy of courtesy."
+  },
+  {
+   "courseId": "lab-combat",
+   "course": "Combat Atlas: Martial Arts of the World",
+   "lessonId": "lab-combat.l10",
+   "title": "Muay Thai: The Art of Eight Limbs",
+   "blurb": "Ritual, music and the modernisation of Siamese boxing."
+  },
+  {
+   "courseId": "lab-combat",
+   "course": "Combat Atlas: Martial Arts of the World",
+   "lessonId": "lab-combat.l11",
+   "title": "Pankration: All Power at Olympia",
+   "blurb": "The most demanding event of the ancient Olympics."
+  },
+  {
+   "courseId": "lab-combat",
+   "course": "Combat Atlas: Martial Arts of the World",
+   "lessonId": "lab-combat.l12",
+   "title": "Glima: Wrestling of Iceland",
+   "blurb": "A courteous Viking inheritance built around honour."
+  },
+  {
+   "courseId": "lab-combat",
+   "course": "Combat Atlas: Martial Arts of the World",
+   "lessonId": "lab-combat.l13",
+   "title": "Armizare: Fiore and the Fight Book",
+   "blurb": "A medieval Italian master and his illustrated manual."
+  },
+  {
+   "courseId": "lab-combat",
+   "course": "Combat Atlas: Martial Arts of the World",
+   "lessonId": "lab-combat.l14",
+   "title": "Pugilism and the Prize Ring",
+   "blurb": "The rules that turned English fistfighting into a modern sport."
+  },
+  {
+   "courseId": "lab-cs",
+   "course": "Computer Science",
+   "lessonId": "lab-cs.l01",
+   "title": "Algorithms",
+   "blurb": "A finite, unambiguous recipe that always terminates with the right answer."
+  },
+  {
+   "courseId": "lab-cs",
+   "course": "Computer Science",
+   "lessonId": "lab-cs.l02",
+   "title": "The Turing Machine",
+   "blurb": "A tape, a head and a rule table define what it means to compute."
+  },
+  {
+   "courseId": "lab-cs",
+   "course": "Computer Science",
+   "lessonId": "lab-cs.l03",
+   "title": "The Halting Problem",
+   "blurb": "Some questions about programs can never be answered by any algorithm."
+  },
+  {
+   "courseId": "lab-cs",
+   "course": "Computer Science",
+   "lessonId": "lab-cs.l04",
+   "title": "The Stored-Program Computer",
+   "blurb": "Code and data share one memory under the fetch-decode-execute cycle."
+  },
+  {
+   "courseId": "lab-cs",
+   "course": "Computer Science",
+   "lessonId": "lab-cs.l05",
+   "title": "Big-O Growth",
+   "blurb": "Describe how running time scales with input size, ignoring constants."
+  },
+  {
+   "courseId": "lab-cs",
+   "course": "Computer Science",
+   "lessonId": "lab-cs.l06",
+   "title": "Recursion and Divide-and-Conquer",
+   "blurb": "Solve a problem by solving smaller copies of it, with a base case to stop."
+  },
+  {
+   "courseId": "lab-cs",
+   "course": "Computer Science",
+   "lessonId": "lab-cs.l07",
+   "title": "The Cost of Sorting",
+   "blurb": "Any comparison sort needs on the order of n log n comparisons."
+  },
+  {
+   "courseId": "lab-cs",
+   "course": "Computer Science",
+   "lessonId": "lab-cs.l08",
+   "title": "P versus NP",
+   "blurb": "Fast to check does not obviously mean fast to solve."
+  },
+  {
+   "courseId": "lab-cs",
+   "course": "Computer Science",
+   "lessonId": "lab-cs.l09",
+   "title": "Information, Entropy and Error Codes",
+   "blurb": "Shannon defined the bit; Hamming distance measures how far apart codewords are."
+  },
+  {
+   "courseId": "lab-cs",
+   "course": "Computer Science",
+   "lessonId": "lab-cs.l10",
+   "title": "Cryptography and Public Keys",
+   "blurb": "Security rests on problems that are easy to do and hard to undo."
+  },
+  {
+   "courseId": "lab-cs",
+   "course": "Computer Science",
+   "lessonId": "lab-cs.l11",
+   "title": "Parallelism and Moore's Law",
+   "blurb": "Hardware scaled exponentially, but serial work limits parallel speed-up."
+  },
+  {
+   "courseId": "lab-cs",
+   "course": "Computer Science",
+   "lessonId": "lab-cs.l12",
+   "title": "Machine Learning and Gradient Descent",
+   "blurb": "Models infer their parameters by minimising a loss on data."
+  },
+  {
+   "courseId": "lab-cs",
+   "course": "Computer Science",
+   "lessonId": "lab-cs.l13",
+   "title": "Neural Networks and Attention",
+   "blurb": "Stacked nonlinear layers, softmax outputs and the Transformer."
+  },
+  {
+   "courseId": "lab-data",
+   "course": "Data Science",
+   "lessonId": "lab-data.l01",
+   "title": "Probability and Its Origins",
+   "blurb": "How games of chance became a theory of uncertainty."
+  },
+  {
+   "courseId": "lab-data",
+   "course": "Data Science",
+   "lessonId": "lab-data.l02",
+   "title": "The Normal Distribution",
+   "blurb": "The bell curve and why it shows up everywhere."
+  },
+  {
+   "courseId": "lab-data",
+   "course": "Data Science",
+   "lessonId": "lab-data.l03",
+   "title": "The Central Limit Theorem",
+   "blurb": "Why averages of many samples look normal."
+  },
+  {
+   "courseId": "lab-data",
+   "course": "Data Science",
+   "lessonId": "lab-data.l04",
+   "title": "Bayes' Theorem",
+   "blurb": "How evidence turns a prior into a posterior."
+  },
+  {
+   "courseId": "lab-data",
+   "course": "Data Science",
+   "lessonId": "lab-data.l05",
+   "title": "Hypothesis Testing",
+   "blurb": "Deciding when data are surprising enough to reject a null."
+  },
+  {
+   "courseId": "lab-data",
+   "course": "Data Science",
+   "lessonId": "lab-data.l06",
+   "title": "Correlation and Looking at Data",
+   "blurb": "Measuring linear relationships and exploring before modelling."
+  },
+  {
+   "courseId": "lab-data",
+   "course": "Data Science",
+   "lessonId": "lab-data.l07",
+   "title": "Linear Regression",
+   "blurb": "Predicting a number from one or more predictors."
+  },
+  {
+   "courseId": "lab-data",
+   "course": "Data Science",
+   "lessonId": "lab-data.l08",
+   "title": "Least Squares and Mean Squared Error",
+   "blurb": "How the best line is chosen and how errors are scored."
+  },
+  {
+   "courseId": "lab-data",
+   "course": "Data Science",
+   "lessonId": "lab-data.l09",
+   "title": "Logistic Regression and the Sigmoid",
+   "blurb": "Turning a score into a probability for yes-or-no outcomes."
+  },
+  {
+   "courseId": "lab-data",
+   "course": "Data Science",
+   "lessonId": "lab-data.l10",
+   "title": "Overfitting and the Bias-Variance Trade-off",
+   "blurb": "Why a perfect fit to training data can be a bad model."
+  },
+  {
+   "courseId": "lab-data",
+   "course": "Data Science",
+   "lessonId": "lab-data.l11",
+   "title": "Regularisation and Cross-Validation",
+   "blurb": "Penalising complexity and honestly measuring performance."
+  },
+  {
+   "courseId": "lab-data",
+   "course": "Data Science",
+   "lessonId": "lab-data.l12",
+   "title": "Gradient Descent",
+   "blurb": "Finding good parameters by following the slope downhill."
+  },
+  {
+   "courseId": "lab-data",
+   "course": "Data Science",
+   "lessonId": "lab-data.l13",
+   "title": "Dimensionality Reduction and PCA",
+   "blurb": "Finding the few directions that carry the most information."
+  },
+  {
+   "courseId": "lab-earth",
+   "course": "Earth Science",
+   "lessonId": "lab-earth.l01",
+   "title": "Reading the Layers: Superposition",
+   "blurb": "In an undisturbed stack of sedimentary rock, lower layers are older than the layers above them."
+  },
+  {
+   "courseId": "lab-earth",
+   "course": "Earth Science",
+   "lessonId": "lab-earth.l02",
+   "title": "Hutton and Deep Time",
+   "blurb": "Slow processes working over immense spans of time explain how the Earth got its shape."
+  },
+  {
+   "courseId": "lab-earth",
+   "course": "Earth Science",
+   "lessonId": "lab-earth.l03",
+   "title": "Radiometric Dating",
+   "blurb": "Radioactive decay gives rocks a built-in clock that reaches back billions of years."
+  },
+  {
+   "courseId": "lab-earth",
+   "course": "Earth Science",
+   "lessonId": "lab-earth.l04",
+   "title": "Minerals and the Rock Cycle",
+   "blurb": "Rocks continually change among igneous, sedimentary and metamorphic forms."
+  },
+  {
+   "courseId": "lab-earth",
+   "course": "Earth Science",
+   "lessonId": "lab-earth.l05",
+   "title": "The Plate Tectonic Model",
+   "blurb": "Earth's rigid outer shell is broken into plates that move on a slowly flowing mantle."
+  },
+  {
+   "courseId": "lab-earth",
+   "course": "Earth Science",
+   "lessonId": "lab-earth.l06",
+   "title": "From Drift to Seafloor Spreading",
+   "blurb": "How evidence from fossils, seafloor maps and magnetism turned a rejected idea into a theory."
+  },
+  {
+   "courseId": "lab-earth",
+   "course": "Earth Science",
+   "lessonId": "lab-earth.l07",
+   "title": "Volcanoes and Magma",
+   "blurb": "Where and why rock melts, and what controls whether a volcano flows gently or explodes."
+  },
+  {
+   "courseId": "lab-earth",
+   "course": "Earth Science",
+   "lessonId": "lab-earth.l08",
+   "title": "Seismic Waves and Earth's Layers",
+   "blurb": "Waves from earthquakes act like an X-ray of the planet's interior."
+  },
+  {
+   "courseId": "lab-earth",
+   "course": "Earth Science",
+   "lessonId": "lab-earth.l09",
+   "title": "Measuring Earthquakes",
+   "blurb": "Logarithmic magnitude scales and how often earthquakes of different sizes occur."
+  },
+  {
+   "courseId": "lab-earth",
+   "course": "Earth Science",
+   "lessonId": "lab-earth.l10",
+   "title": "The Water Cycle and Ocean Circulation",
+   "blurb": "Water and heat circulate through air, land and sea, steered by winds, density and Earth's rotation."
+  },
+  {
+   "courseId": "lab-earth",
+   "course": "Earth Science",
+   "lessonId": "lab-earth.l11",
+   "title": "Energy Balance and the Greenhouse Effect",
+   "blurb": "Why Earth is warmer than sunlight alone would make it."
+  },
+  {
+   "courseId": "lab-earth",
+   "course": "Earth Science",
+   "lessonId": "lab-earth.l12",
+   "title": "The Carbon Cycle and the Keeling Curve",
+   "blurb": "How carbon moves between air, ocean, life and rock, and how people have disturbed it."
+  },
+  {
+   "courseId": "lab-earth",
+   "course": "Earth Science",
+   "lessonId": "lab-earth.l13",
+   "title": "Ice Ages and Orbital Cycles",
+   "blurb": "How slow changes in Earth's orbit pace glacial cycles, and what ice cores record."
+  },
+  {
+   "courseId": "lab-engineering",
+   "course": "Engineering",
+   "lessonId": "lab-engineering.l01",
+   "title": "Static Equilibrium",
+   "blurb": "A structure at rest has zero net force and zero net moment."
+  },
+  {
+   "courseId": "lab-engineering",
+   "course": "Engineering",
+   "lessonId": "lab-engineering.l02",
+   "title": "Stress and Strain",
+   "blurb": "Stress is force per area, strain is fractional stretch, and Young's modulus links them."
+  },
+  {
+   "courseId": "lab-engineering",
+   "course": "Engineering",
+   "lessonId": "lab-engineering.l03",
+   "title": "Axial Deformation",
+   "blurb": "How much a bar stretches under load: delta = PL / AE."
+  },
+  {
+   "courseId": "lab-engineering",
+   "course": "Engineering",
+   "lessonId": "lab-engineering.l04",
+   "title": "Bending of Beams",
+   "blurb": "Bending stress sigma = Mc / I is largest at the outer fibres."
+  },
+  {
+   "courseId": "lab-engineering",
+   "course": "Engineering",
+   "lessonId": "lab-engineering.l05",
+   "title": "Buckling and Stability",
+   "blurb": "Slender columns fail by bowing sideways, not by crushing."
+  },
+  {
+   "courseId": "lab-engineering",
+   "course": "Engineering",
+   "lessonId": "lab-engineering.l06",
+   "title": "Factor of Safety",
+   "blurb": "The margin between failure strength and working load absorbs uncertainty."
+  },
+  {
+   "courseId": "lab-engineering",
+   "course": "Engineering",
+   "lessonId": "lab-engineering.l07",
+   "title": "The First Law of Thermodynamics",
+   "blurb": "Energy is conserved: delta U = Q - W."
+  },
+  {
+   "courseId": "lab-engineering",
+   "course": "Engineering",
+   "lessonId": "lab-engineering.l08",
+   "title": "Carnot Efficiency",
+   "blurb": "The absolute efficiency ceiling set by two temperatures."
+  },
+  {
+   "courseId": "lab-engineering",
+   "course": "Engineering",
+   "lessonId": "lab-engineering.l09",
+   "title": "Fluid Flow: Bernoulli and Reynolds",
+   "blurb": "Pressure trades off against speed, and Reynolds number predicts turbulence."
+  },
+  {
+   "courseId": "lab-engineering",
+   "course": "Engineering",
+   "lessonId": "lab-engineering.l10",
+   "title": "Ohm's Law and Electrical Power",
+   "blurb": "V = IR and P = VI = I^2 R, the most-used relations in electronics."
+  },
+  {
+   "courseId": "lab-engineering",
+   "course": "Engineering",
+   "lessonId": "lab-engineering.l11",
+   "title": "Kirchhoff's Laws",
+   "blurb": "Conservation of charge and energy lets you solve any linear circuit."
+  },
+  {
+   "courseId": "lab-engineering",
+   "course": "Engineering",
+   "lessonId": "lab-engineering.l12",
+   "title": "Feedback and PID Control",
+   "blurb": "Measure the output, compare with the target and correct the error."
+  },
+  {
+   "courseId": "lab-engineering",
+   "course": "Engineering",
+   "lessonId": "lab-engineering.l13",
+   "title": "Semiconductors and Information Limits",
+   "blurb": "Transistors switch and amplify; Shannon set the ceiling on data rates."
+  },
+  {
+   "courseId": "lab-environment",
+   "course": "Environment",
+   "lessonId": "lab-environment.l01",
+   "title": "Nature as One Connected System",
+   "blurb": "How early naturalists and ecologists learned to see the biosphere and the ecosystem as wholes."
+  },
+  {
+   "courseId": "lab-environment",
+   "course": "Environment",
+   "lessonId": "lab-environment.l02",
+   "title": "Energy Flow and Food Webs",
+   "blurb": "Energy flows one way through trophic levels, while nutrients cycle."
+  },
+  {
+   "courseId": "lab-environment",
+   "course": "Environment",
+   "lessonId": "lab-environment.l03",
+   "title": "Population Growth and Limits",
+   "blurb": "Why populations level off at a carrying capacity and how outbreaks spread."
+  },
+  {
+   "courseId": "lab-environment",
+   "course": "Environment",
+   "lessonId": "lab-environment.l04",
+   "title": "Discovering the Greenhouse Effect",
+   "blurb": "How nineteenth-century experiments showed that some gases trap heat."
+  },
+  {
+   "courseId": "lab-environment",
+   "course": "Environment",
+   "lessonId": "lab-environment.l05",
+   "title": "Earth's Energy Balance",
+   "blurb": "The Stefan-Boltzmann law and albedo set a planet's baseline temperature."
+  },
+  {
+   "courseId": "lab-environment",
+   "course": "Environment",
+   "lessonId": "lab-environment.l06",
+   "title": "The Carbon Cycle",
+   "blurb": "Carbon moves between air, ocean, land and rock, but human emissions are outpacing natural removal."
+  },
+  {
+   "courseId": "lab-environment",
+   "course": "Environment",
+   "lessonId": "lab-environment.l07",
+   "title": "Radiative Forcing and Climate Change",
+   "blurb": "How CO2 changes the energy balance, and why warming also intensifies the water cycle."
+  },
+  {
+   "courseId": "lab-environment",
+   "course": "Environment",
+   "lessonId": "lab-environment.l08",
+   "title": "Ocean Acidification",
+   "blurb": "As the ocean absorbs CO2, its chemistry shifts and shell-building life is put at risk."
+  },
+  {
+   "courseId": "lab-environment",
+   "course": "Environment",
+   "lessonId": "lab-environment.l09",
+   "title": "The Ozone Layer",
+   "blurb": "A natural UV shield, damaged by human-made chemicals and repaired by international agreement."
+  },
+  {
+   "courseId": "lab-environment",
+   "course": "Environment",
+   "lessonId": "lab-environment.l10",
+   "title": "Water and Nitrogen Cycles",
+   "blurb": "Matter cycles that link ocean, air, soil and life, and how fertiliser has changed them."
+  },
+  {
+   "courseId": "lab-environment",
+   "course": "Environment",
+   "lessonId": "lab-environment.l11",
+   "title": "Biodiversity and Habitat Loss",
+   "blurb": "Genes, species and ecosystems, and how shrinking habitat predicts extinction."
+  },
+  {
+   "courseId": "lab-environment",
+   "course": "Environment",
+   "lessonId": "lab-environment.l12",
+   "title": "The Conservation Movement",
+   "blurb": "The writers and activists who turned ecological knowledge into protection."
+  },
+  {
+   "courseId": "lab-environment",
+   "course": "Environment",
+   "lessonId": "lab-environment.l13",
+   "title": "Planetary Boundaries and the Anthropocene",
+   "blurb": "Nine Earth-system limits define a safe operating space for humanity."
+  },
+  {
+   "courseId": "lab-history",
+   "course": "World History",
+   "lessonId": "lab-history.l01",
+   "title": "Prehistory and the Farming Revolution",
+   "blurb": "Before writing, people spread across the globe and then learned to farm."
+  },
+  {
+   "courseId": "lab-history",
+   "course": "World History",
+   "lessonId": "lab-history.l02",
+   "title": "Sumer, Babylon and the First Laws",
+   "blurb": "Between two rivers, people built the first cities, wrote on clay and set laws in stone."
+  },
+  {
+   "courseId": "lab-history",
+   "course": "World History",
+   "lessonId": "lab-history.l03",
+   "title": "Egypt and the Indus Valley",
+   "blurb": "Two river civilizations, one built on monuments and one on careful planning."
+  },
+  {
+   "courseId": "lab-history",
+   "course": "World History",
+   "lessonId": "lab-history.l04",
+   "title": "Ancient Greece",
+   "blurb": "City-states that experimented with democracy, philosophy and drama."
+  },
+  {
+   "courseId": "lab-history",
+   "course": "World History",
+   "lessonId": "lab-history.l05",
+   "title": "Persia and the Mauryan Empire",
+   "blurb": "Two vast empires, two different answers to ruling many peoples."
+  },
+  {
+   "courseId": "lab-history",
+   "course": "World History",
+   "lessonId": "lab-history.l06",
+   "title": "China from Shang to Qin",
+   "blurb": "From oracle bones and bronze to the first emperor who unified the country."
+  },
+  {
+   "courseId": "lab-history",
+   "course": "World History",
+   "lessonId": "lab-history.l07",
+   "title": "Rome: Republic to Empire",
+   "blurb": "How a republic became an empire that shaped law, language and engineering."
+  },
+  {
+   "courseId": "lab-history",
+   "course": "World History",
+   "lessonId": "lab-history.l08",
+   "title": "After Rome: Byzantium, Islam and the Franks",
+   "blurb": "Three heirs to the late Roman world went three different ways."
+  },
+  {
+   "courseId": "lab-history",
+   "course": "World History",
+   "lessonId": "lab-history.l09",
+   "title": "Mongols and the Great Travellers",
+   "blurb": "A conquering empire opened roads, and travellers wrote what they saw."
+  },
+  {
+   "courseId": "lab-history",
+   "course": "World History",
+   "lessonId": "lab-history.l10",
+   "title": "Mali and Great Zimbabwe",
+   "blurb": "Gold, learning and mortarless stone in medieval Africa."
+  },
+  {
+   "courseId": "lab-history",
+   "course": "World History",
+   "lessonId": "lab-history.l11",
+   "title": "Print, Renaissance and Reformation",
+   "blurb": "New technology and new ideas changed how Europe thought."
+  },
+  {
+   "courseId": "lab-history",
+   "course": "World History",
+   "lessonId": "lab-history.l12",
+   "title": "Oceans Connect the World",
+   "blurb": "Voyages after 1450 joined the hemispheres, with enormous consequences."
+  },
+  {
+   "courseId": "lab-history",
+   "course": "World History",
+   "lessonId": "lab-history.l13",
+   "title": "The Age of Revolutions",
+   "blurb": "Enlightenment ideals turned into revolts from Philadelphia to Port-au-Prince."
+  },
+  {
+   "courseId": "lab-history",
+   "course": "World History",
+   "lessonId": "lab-history.l14",
+   "title": "War, Empire and Freedom",
+   "blurb": "Industry, world wars and the movements that ended empire and apartheid."
+  },
+  {
+   "courseId": "lab-mathematics",
+   "course": "Mathematics",
+   "lessonId": "lab-mathematics.l01",
+   "title": "What Is a Proof?",
+   "blurb": "A chain of deductions from axioms and definitions that establishes a statement beyond doubt."
+  },
+  {
+   "courseId": "lab-mathematics",
+   "course": "Mathematics",
+   "lessonId": "lab-mathematics.l02",
+   "title": "Infinitely Many Primes",
+   "blurb": "Euclid's proof by contradiction, still taught today."
+  },
+  {
+   "courseId": "lab-mathematics",
+   "course": "Mathematics",
+   "lessonId": "lab-mathematics.l03",
+   "title": "Cantor and the Sizes of Infinity",
+   "blurb": "Some infinities are strictly larger than others."
+  },
+  {
+   "courseId": "lab-mathematics",
+   "course": "Mathematics",
+   "lessonId": "lab-mathematics.l04",
+   "title": "Gödel and the Limits of Proof",
+   "blurb": "No consistent formal system captures all arithmetical truth."
+  },
+  {
+   "courseId": "lab-mathematics",
+   "course": "Mathematics",
+   "lessonId": "lab-mathematics.l05",
+   "title": "The Prime Number Theorem",
+   "blurb": "Primes near x thin out like 1 divided by the natural logarithm of x."
+  },
+  {
+   "courseId": "lab-mathematics",
+   "course": "Mathematics",
+   "lessonId": "lab-mathematics.l06",
+   "title": "Euler's Product and the Zeta Function",
+   "blurb": "The zeta function encodes the primes, and the Riemann hypothesis remains open."
+  },
+  {
+   "courseId": "lab-mathematics",
+   "course": "Mathematics",
+   "lessonId": "lab-mathematics.l07",
+   "title": "Algebra and the Quadratic Formula",
+   "blurb": "From Al-Khwarizmi's balancing method to a formula for every quadratic."
+  },
+  {
+   "courseId": "lab-mathematics",
+   "course": "Mathematics",
+   "lessonId": "lab-mathematics.l08",
+   "title": "Roots of Polynomials and Galois",
+   "blurb": "Every polynomial has complex roots, but the quintic has no general formula."
+  },
+  {
+   "courseId": "lab-mathematics",
+   "course": "Mathematics",
+   "lessonId": "lab-mathematics.l09",
+   "title": "Geometry: Parallel Lines and Polyhedra",
+   "blurb": "From Euclid's fifth postulate to curved spaces and V - E + F = 2."
+  },
+  {
+   "courseId": "lab-mathematics",
+   "course": "Mathematics",
+   "lessonId": "lab-mathematics.l10",
+   "title": "Calculus and Its Foundations",
+   "blurb": "Derivatives, integrals, and the fundamental theorem that links them."
+  },
+  {
+   "courseId": "lab-mathematics",
+   "course": "Mathematics",
+   "lessonId": "lab-mathematics.l11",
+   "title": "Infinite Series: Harmonic and Basel",
+   "blurb": "Terms that shrink to zero can still add up to infinity."
+  },
+  {
+   "courseId": "lab-mathematics",
+   "course": "Mathematics",
+   "lessonId": "lab-mathematics.l12",
+   "title": "Euler's Formula and Identity",
+   "blurb": "The complex exponential links e, i and pi to sine and cosine."
+  },
+  {
+   "courseId": "lab-mathematics",
+   "course": "Mathematics",
+   "lessonId": "lab-mathematics.l13",
+   "title": "Modern Mathematics and Computer Proof",
+   "blurb": "Landmark proofs from the twentieth century onward and a new role for computers."
+  },
+  {
+   "courseId": "lab-networks",
+   "course": "Computer Networks",
+   "lessonId": "lab-networks.l01",
+   "title": "Packet Switching",
+   "blurb": "Chopping messages into packets that share links."
+  },
+  {
+   "courseId": "lab-networks",
+   "course": "Computer Networks",
+   "lessonId": "lab-networks.l02",
+   "title": "Where Delay Comes From",
+   "blurb": "Transmission, propagation, queueing and processing delay."
+  },
+  {
+   "courseId": "lab-networks",
+   "course": "Computer Networks",
+   "lessonId": "lab-networks.l03",
+   "title": "Queues and Little's Law",
+   "blurb": "Why delay explodes as a link nears full load."
+  },
+  {
+   "courseId": "lab-networks",
+   "course": "Computer Networks",
+   "lessonId": "lab-networks.l04",
+   "title": "Channel Capacity: Nyquist and Shannon",
+   "blurb": "The physical limits of any link."
+  },
+  {
+   "courseId": "lab-networks",
+   "course": "Computer Networks",
+   "lessonId": "lab-networks.l05",
+   "title": "TCP/IP and the End-to-End Principle",
+   "blurb": "Best-effort delivery below, reliability at the edges."
+  },
+  {
+   "courseId": "lab-networks",
+   "course": "Computer Networks",
+   "lessonId": "lab-networks.l06",
+   "title": "Layers and Addresses",
+   "blurb": "The layered model, IP addresses and subnets."
+  },
+  {
+   "courseId": "lab-networks",
+   "course": "Computer Networks",
+   "lessonId": "lab-networks.l07",
+   "title": "Routing and BGP",
+   "blurb": "How each router picks the next hop."
+  },
+  {
+   "courseId": "lab-networks",
+   "course": "Computer Networks",
+   "lessonId": "lab-networks.l08",
+   "title": "Error Detection and Hamming Distance",
+   "blurb": "Redundancy that catches or repairs corrupted bits."
+  },
+  {
+   "courseId": "lab-networks",
+   "course": "Computer Networks",
+   "lessonId": "lab-networks.l09",
+   "title": "Bandwidth-Delay Product and TCP Throughput",
+   "blurb": "How much data must be in flight to fill a link."
+  },
+  {
+   "courseId": "lab-networks",
+   "course": "Computer Networks",
+   "lessonId": "lab-networks.l10",
+   "title": "Congestion Control",
+   "blurb": "How TCP shares links without collapsing them."
+  },
+  {
+   "courseId": "lab-networks",
+   "course": "Computer Networks",
+   "lessonId": "lab-networks.l11",
+   "title": "DNS: The Internet's Phone Book",
+   "blurb": "Turning names into addresses with a distributed hierarchy."
+  },
+  {
+   "courseId": "lab-networks",
+   "course": "Computer Networks",
+   "lessonId": "lab-networks.l12",
+   "title": "TLS and Secure Connections",
+   "blurb": "Encryption and authentication for traffic in transit."
+  },
+  {
+   "courseId": "lab-networks",
+   "course": "Computer Networks",
+   "lessonId": "lab-networks.l13",
+   "title": "The Web, Ethernet and Network Value",
+   "blurb": "Local links, the application layer and why networks grow in value."
+  },
+  {
+   "courseId": "lab-neuroscience",
+   "course": "Neuroscience",
+   "lessonId": "lab-neuroscience.l01",
+   "title": "The Neuron Doctrine",
+   "blurb": "The brain is made of separate cells, not a continuous web."
+  },
+  {
+   "courseId": "lab-neuroscience",
+   "course": "Neuroscience",
+   "lessonId": "lab-neuroscience.l02",
+   "title": "The Resting Potential",
+   "blurb": "A neuron at rest is a charged battery, about -70 mV inside."
+  },
+  {
+   "courseId": "lab-neuroscience",
+   "course": "Neuroscience",
+   "lessonId": "lab-neuroscience.l03",
+   "title": "The Action Potential",
+   "blurb": "The all-or-nothing spike that carries a signal down an axon."
+  },
+  {
+   "courseId": "lab-neuroscience",
+   "course": "Neuroscience",
+   "lessonId": "lab-neuroscience.l04",
+   "title": "The Synapse",
+   "blurb": "Where one neuron hands a chemical signal to the next."
+  },
+  {
+   "courseId": "lab-neuroscience",
+   "course": "Neuroscience",
+   "lessonId": "lab-neuroscience.l05",
+   "title": "Neurotransmitters",
+   "blurb": "The chemical vocabulary of the brain."
+  },
+  {
+   "courseId": "lab-neuroscience",
+   "course": "Neuroscience",
+   "lessonId": "lab-neuroscience.l06",
+   "title": "Passive Spread: Time and Length Constants",
+   "blurb": "How voltage fades along and across a membrane."
+  },
+  {
+   "courseId": "lab-neuroscience",
+   "course": "Neuroscience",
+   "lessonId": "lab-neuroscience.l07",
+   "title": "Hebb and Long-Term Potentiation",
+   "blurb": "Cells that fire together wire together."
+  },
+  {
+   "courseId": "lab-neuroscience",
+   "course": "Neuroscience",
+   "lessonId": "lab-neuroscience.l08",
+   "title": "Neuroplasticity",
+   "blurb": "The brain rewires itself throughout life."
+  },
+  {
+   "courseId": "lab-neuroscience",
+   "course": "Neuroscience",
+   "lessonId": "lab-neuroscience.l09",
+   "title": "Memory Systems and Patient H.M.",
+   "blurb": "The hippocampus and the different kinds of memory."
+  },
+  {
+   "courseId": "lab-neuroscience",
+   "course": "Neuroscience",
+   "lessonId": "lab-neuroscience.l10",
+   "title": "Functional Localisation",
+   "blurb": "Different regions handle different jobs."
+  },
+  {
+   "courseId": "lab-neuroscience",
+   "course": "Neuroscience",
+   "lessonId": "lab-neuroscience.l11",
+   "title": "Neural Coding and Spike Statistics",
+   "blurb": "How patterns of spikes represent information."
+  },
+  {
+   "courseId": "lab-neuroscience",
+   "course": "Neuroscience",
+   "lessonId": "lab-neuroscience.l12",
+   "title": "Imaging, Connectomes and Computation",
+   "blurb": "Watching the living brain and mapping its wiring."
+  },
+  {
+   "courseId": "lab-physics",
+   "course": "Physics",
+   "lessonId": "lab-physics.l01",
+   "title": "Newton's Laws of Motion",
+   "blurb": "Three laws link force, mass and acceleration."
+  },
+  {
+   "courseId": "lab-physics",
+   "course": "Physics",
+   "lessonId": "lab-physics.l02",
+   "title": "Universal Gravitation",
+   "blurb": "Every pair of masses attracts, weaker with distance squared."
+  },
+  {
+   "courseId": "lab-physics",
+   "course": "Physics",
+   "lessonId": "lab-physics.l03",
+   "title": "Kinetic Energy and Conservation Laws",
+   "blurb": "Energy of motion, and the quantities that nature keeps constant."
+  },
+  {
+   "courseId": "lab-physics",
+   "course": "Physics",
+   "lessonId": "lab-physics.l04",
+   "title": "Springs and Pendulums",
+   "blurb": "Restoring forces create repeating oscillations."
+  },
+  {
+   "courseId": "lab-physics",
+   "course": "Physics",
+   "lessonId": "lab-physics.l05",
+   "title": "Waves",
+   "blurb": "Speed, frequency and wavelength are linked by one relation."
+  },
+  {
+   "courseId": "lab-physics",
+   "course": "Physics",
+   "lessonId": "lab-physics.l06",
+   "title": "Heat, Work and the Ideal Gas",
+   "blurb": "The first law of thermodynamics and the gas law."
+  },
+  {
+   "courseId": "lab-physics",
+   "course": "Physics",
+   "lessonId": "lab-physics.l07",
+   "title": "Entropy and the Arrow of Time",
+   "blurb": "Why heat flows one way and time seems to as well."
+  },
+  {
+   "courseId": "lab-physics",
+   "course": "Physics",
+   "lessonId": "lab-physics.l08",
+   "title": "Electric Charge and Coulomb's Law",
+   "blurb": "The force between charges, and what Gauss added."
+  },
+  {
+   "courseId": "lab-physics",
+   "course": "Physics",
+   "lessonId": "lab-physics.l09",
+   "title": "Induction and Maxwell's Light",
+   "blurb": "Electricity, magnetism and light become one theory."
+  },
+  {
+   "courseId": "lab-physics",
+   "course": "Physics",
+   "lessonId": "lab-physics.l10",
+   "title": "Special Relativity and E = mc squared",
+   "blurb": "The speed of light is the same for everyone."
+  },
+  {
+   "courseId": "lab-physics",
+   "course": "Physics",
+   "lessonId": "lab-physics.l11",
+   "title": "General Relativity",
+   "blurb": "Gravity as the curvature of spacetime."
+  },
+  {
+   "courseId": "lab-physics",
+   "course": "Physics",
+   "lessonId": "lab-physics.l12",
+   "title": "Quantum Mechanics",
+   "blurb": "Energy comes in packets and nature is probabilistic."
+  },
+  {
+   "courseId": "lab-physics",
+   "course": "Physics",
+   "lessonId": "lab-physics.l13",
+   "title": "Wave-Particle Duality",
+   "blurb": "Light and matter show both faces."
+  },
+  {
+   "courseId": "lab-physics",
+   "course": "Physics",
+   "lessonId": "lab-physics.l14",
+   "title": "The Standard Model and the Modern Frontier",
+   "blurb": "From fundamental particles to dark matter and black-hole images."
+  },
+  {
+   "courseId": "music-figures",
+   "course": "Music Figures",
+   "lessonId": "music-figures.l01",
+   "title": "Monteverdi: The Bridge to Opera",
+   "blurb": "The composer who carried Renaissance polyphony into the age of opera."
+  },
+  {
+   "courseId": "music-figures",
+   "course": "Music Figures",
+   "lessonId": "music-figures.l02",
+   "title": "Bach: The Summit of Counterpoint",
+   "blurb": "The composer other composers study, and the rules of harmony he helped fix."
+  },
+  {
+   "courseId": "music-figures",
+   "course": "Music Figures",
+   "lessonId": "music-figures.l03",
+   "title": "Vivaldi and Handel: Concerto and Oratorio",
+   "blurb": "Two Baroque masters who shaped the concerto and the public choral work."
+  },
+  {
+   "courseId": "music-figures",
+   "course": "Music Figures",
+   "lessonId": "music-figures.l04",
+   "title": "Haydn and Mozart: The Classical Balance",
+   "blurb": "Clarity, wit and dramatic truth in the age of the symphony."
+  },
+  {
+   "courseId": "music-figures",
+   "course": "Music Figures",
+   "lessonId": "music-figures.l05",
+   "title": "Beethoven: The Hinge of Music History",
+   "blurb": "A composer who made the artist a hero and the symphony a vast drama."
+  },
+  {
+   "courseId": "music-figures",
+   "course": "Music Figures",
+   "lessonId": "music-figures.l06",
+   "title": "Schubert and Chopin: Song and Piano Poetry",
+   "blurb": "Two young Romantics who found the voice of the song and the piano."
+  },
+  {
+   "courseId": "music-figures",
+   "course": "Music Figures",
+   "lessonId": "music-figures.l07",
+   "title": "Wagner and Brahms: Two Roads for the Romantic",
+   "blurb": "Total art and the leitmotif versus classical rigour in warm colours."
+  },
+  {
+   "courseId": "music-figures",
+   "course": "Music Figures",
+   "lessonId": "music-figures.l08",
+   "title": "Debussy and Ravel: Colour and Precision",
+   "blurb": "French composers who painted with timbre and orchestrated with watch-like exactness."
+  },
+  {
+   "courseId": "music-figures",
+   "course": "Music Figures",
+   "lessonId": "music-figures.l09",
+   "title": "Stravinsky and Schoenberg: Rebuilding the Language",
+   "blurb": "Rhythm that caused a riot and a method that abandoned the key."
+  },
+  {
+   "courseId": "music-figures",
+   "course": "Music Figures",
+   "lessonId": "music-figures.l10",
+   "title": "Jazz: Armstrong and Ellington",
+   "blurb": "The soloist who made jazz swing and the composer who made it concert-length."
+  },
+  {
+   "courseId": "music-figures",
+   "course": "Music Figures",
+   "lessonId": "music-figures.l11",
+   "title": "Blues and Gospel: From the Delta to the Electric Guitar",
+   "blurb": "How the twelve-bar root of nearly everything after found its voice."
+  },
+  {
+   "courseId": "music-figures",
+   "course": "Music Figures",
+   "lessonId": "music-figures.l12",
+   "title": "Soul: Ray Charles, Aretha Franklin and James Brown",
+   "blurb": "Gospel fervour meets the secular groove, and the invention of funk."
+  },
+  {
+   "courseId": "music-figures",
+   "course": "Music Figures",
+   "lessonId": "music-figures.l13",
+   "title": "Rock: Berry, The Beatles, Hendrix and Dylan",
+   "blurb": "From the guitar riff to the album as an art form and the song as literature."
+  },
+  {
+   "courseId": "music-figures",
+   "course": "Music Figures",
+   "lessonId": "music-figures.l14",
+   "title": "Hip-Hop: The Break, the Sample and the Voice",
+   "blurb": "A new music built from records themselves, from the DJ to the Pulitzer."
+  },
+  {
+   "courseId": "music-theory",
+   "course": "Music Theory and Instruments",
+   "lessonId": "music-theory.l01",
+   "title": "The Musical Alphabet and the Octave",
+   "blurb": "Seven letter names repeat at higher and lower pitches, and each repeat is an octave."
+  },
+  {
+   "courseId": "music-theory",
+   "course": "Music Theory and Instruments",
+   "lessonId": "music-theory.l02",
+   "title": "Sharps, Flats and the Twelve Tones",
+   "blurb": "Between most letter names lies a black key, giving twelve different pitches in every octave."
+  },
+  {
+   "courseId": "music-theory",
+   "course": "Music Theory and Instruments",
+   "lessonId": "music-theory.l03",
+   "title": "The Staff and Clefs",
+   "blurb": "Notes are written on five lines, and a clef says which pitch each line stands for."
+  },
+  {
+   "courseId": "music-theory",
+   "course": "Music Theory and Instruments",
+   "lessonId": "music-theory.l04",
+   "title": "Rhythm: Note Values and Rests",
+   "blurb": "Note lengths are relative to the beat, and silence is written down just as carefully."
+  },
+  {
+   "courseId": "music-theory",
+   "course": "Music Theory and Instruments",
+   "lessonId": "music-theory.l05",
+   "title": "Meter and Time Signatures",
+   "blurb": "A time signature groups beats into measures and gives music its feel, from march to waltz."
+  },
+  {
+   "courseId": "music-theory",
+   "course": "Music Theory and Instruments",
+   "lessonId": "music-theory.l06",
+   "title": "The Major Scale and Keys",
+   "blurb": "The pattern whole-whole-half-whole-whole-whole-half builds a major scale from any starting note."
+  },
+  {
+   "courseId": "music-theory",
+   "course": "Music Theory and Instruments",
+   "lessonId": "music-theory.l07",
+   "title": "Intervals: Measuring the Distance",
+   "blurb": "An interval names the distance between two pitches by number and quality."
+  },
+  {
+   "courseId": "music-theory",
+   "course": "Music Theory and Instruments",
+   "lessonId": "music-theory.l08",
+   "title": "Ratios: The Octave 2:1 and the Fifth 3:2",
+   "blurb": "The most consonant intervals correspond to simple frequency ratios."
+  },
+  {
+   "courseId": "music-theory",
+   "course": "Music Theory and Instruments",
+   "lessonId": "music-theory.l09",
+   "title": "Triads: Stacking Thirds",
+   "blurb": "Three notes a third apart make a triad, and the quality of the thirds decides the sound."
+  },
+  {
+   "courseId": "music-theory",
+   "course": "Music Theory and Instruments",
+   "lessonId": "music-theory.l10",
+   "title": "Chord Function and Seventh Chords",
+   "blurb": "Chords play roles in a key: home, contrast and tension that wants to resolve."
+  },
+  {
+   "courseId": "music-theory",
+   "course": "Music Theory and Instruments",
+   "lessonId": "music-theory.l11",
+   "title": "Modes: Other Colours of the Scale",
+   "blurb": "Each mode is a rotation of the major scale starting on a different degree."
+  },
+  {
+   "courseId": "music-theory",
+   "course": "Music Theory and Instruments",
+   "lessonId": "music-theory.l12",
+   "title": "Instrument Families and How They Sound",
+   "blurb": "Strings, woodwinds, brass, percussion, keyboards, voice and electronics each make sound differently."
+  },
+  {
+   "courseId": "music-theory",
+   "course": "Music Theory and Instruments",
+   "lessonId": "music-theory.l13",
+   "title": "Range and Transposing Instruments",
+   "blurb": "Some instruments sound at a different pitch from the one written on the page."
+  },
+  {
+   "courseId": "music-theory",
+   "course": "Music Theory and Instruments",
+   "lessonId": "music-theory.l14",
+   "title": "Musical Form and Reading a Score",
+   "blurb": "Forms such as sonata, canon, fugue and variations give pieces a shape you can see on the page."
+  },
+  {
+   "courseId": "sports-history",
+   "course": "Sports History: The World Cup",
+   "lessonId": "sports-history.l01",
+   "title": "1930: Uruguay and the First World Cup",
+   "blurb": "Thirteen teams, one host and a trophy named after a FIFA president."
+  },
+  {
+   "courseId": "sports-history",
+   "course": "Sports History: The World Cup",
+   "lessonId": "sports-history.l02",
+   "title": "Italy, Back-to-Back and the War Gap",
+   "blurb": "The first repeat champions and two tournaments that never happened."
+  },
+  {
+   "courseId": "sports-history",
+   "course": "Sports History: The World Cup",
+   "lessonId": "sports-history.l03",
+   "title": "1950: The Maracanazo",
+   "blurb": "Uruguay silence the Maracana, and the United States stun England."
+  },
+  {
+   "courseId": "sports-history",
+   "course": "Sports History: The World Cup",
+   "lessonId": "sports-history.l04",
+   "title": "1954 and 1958: Bern and the Birth of Pele",
+   "blurb": "The Magyars fall and a 17-year-old arrives."
+  },
+  {
+   "courseId": "sports-history",
+   "course": "Sports History: The World Cup",
+   "lessonId": "sports-history.l05",
+   "title": "Brazil and the Jules Rimet Trophy",
+   "blurb": "Three titles in 12 years and a trophy kept forever."
+  },
+  {
+   "courseId": "sports-history",
+   "course": "Sports History: The World Cup",
+   "lessonId": "sports-history.l06",
+   "title": "1966 and 1974: England at Wembley, Germany at Munich",
+   "blurb": "A hat-trick, a new trophy and the shadow of Total Football."
+  },
+  {
+   "courseId": "sports-history",
+   "course": "Sports History: The World Cup",
+   "lessonId": "sports-history.l07",
+   "title": "1978 and 1982: Kempes and Rossi",
+   "blurb": "A home triumph in Buenos Aires and a redemption in Madrid."
+  },
+  {
+   "courseId": "sports-history",
+   "course": "Sports History: The World Cup",
+   "lessonId": "sports-history.l08",
+   "title": "1986: Maradona's World Cup",
+   "blurb": "The Hand of God, the Goal of the Century and a title for Argentina."
+  },
+  {
+   "courseId": "sports-history",
+   "course": "Sports History: The World Cup",
+   "lessonId": "sports-history.l09",
+   "title": "1990 and 1994: Penalties and a Shootout Final",
+   "blurb": "A low-scoring Italia 90, Roger Milla's dance and the first final decided by penalties."
+  },
+  {
+   "courseId": "sports-history",
+   "course": "Sports History: The World Cup",
+   "lessonId": "sports-history.l10",
+   "title": "1998 and 2002: Zidane, Ronaldo and Korea",
+   "blurb": "France's first title, Brazil's fifth, and an Asian co-hosted shock."
+  },
+  {
+   "courseId": "sports-history",
+   "course": "Sports History: The World Cup",
+   "lessonId": "sports-history.l11",
+   "title": "2006 and 2010: The Headbutt and Iniesta",
+   "blurb": "A final marked by a red card and a first title for Spain."
+  },
+  {
+   "courseId": "sports-history",
+   "course": "Sports History: The World Cup",
+   "lessonId": "sports-history.l12",
+   "title": "2014 and 2018: The 7-1 and a French Triumph",
+   "blurb": "Germany humble Brazil, then France win in Moscow."
+  },
+  {
+   "courseId": "sports-history",
+   "course": "Sports History: The World Cup",
+   "lessonId": "sports-history.l13",
+   "title": "2022: Qatar and the Greatest Final",
+   "blurb": "Messi completes football in a 3-3 final decided on penalties."
+  },
+  {
+   "courseId": "sports-history",
+   "course": "Sports History: The World Cup",
+   "lessonId": "sports-history.l14",
+   "title": "2026: Three Hosts, 48 Teams and 16 Stadiums",
+   "blurb": "The biggest World Cup ever spreads across the USA, Canada and Mexico."
+  },
+  {
+   "courseId": "theatre-scripts",
+   "course": "Theatre and Scripts",
+   "lessonId": "theatre-scripts.l01",
+   "title": "Reading a Play on the Page",
+   "blurb": "A script is a blueprint: acts, scenes, dialogue and stage directions."
+  },
+  {
+   "courseId": "theatre-scripts",
+   "course": "Theatre and Scripts",
+   "lessonId": "theatre-scripts.l02",
+   "title": "Protagonists and Conflict",
+   "blurb": "Every play needs someone who wants something and something in the way."
+  },
+  {
+   "courseId": "theatre-scripts",
+   "course": "Theatre and Scripts",
+   "lessonId": "theatre-scripts.l03",
+   "title": "Comedy and Tragedy",
+   "blurb": "The two great masks of the theatre and how the library labels each."
+  },
+  {
+   "courseId": "theatre-scripts",
+   "course": "Theatre and Scripts",
+   "lessonId": "theatre-scripts.l04",
+   "title": "Soliloquy and Aside",
+   "blurb": "How a stage character lets us hear their thoughts."
+  },
+  {
+   "courseId": "theatre-scripts",
+   "course": "Theatre and Scripts",
+   "lessonId": "theatre-scripts.l05",
+   "title": "Greek Tragedy: Where the Form Began",
+   "blurb": "Chorus, reversal and recognition in Aeschylus, Sophocles and Euripides."
+  },
+  {
+   "courseId": "theatre-scripts",
+   "course": "Theatre and Scripts",
+   "lessonId": "theatre-scripts.l06",
+   "title": "Greek Comedy: Aristophanes",
+   "blurb": "Satire, absurd premises and criticism written as comedy."
+  },
+  {
+   "courseId": "theatre-scripts",
+   "course": "Theatre and Scripts",
+   "lessonId": "theatre-scripts.l07",
+   "title": "Classical India: Rasa and Sakoontala",
+   "blurb": "Sanskrit drama organised around emotional flavour rather than conflict."
+  },
+  {
+   "courseId": "theatre-scripts",
+   "course": "Theatre and Scripts",
+   "lessonId": "theatre-scripts.l08",
+   "title": "The English Renaissance Stage",
+   "blurb": "Blank verse, public playhouses and the great plays of Marlowe, Shakespeare, Jonson and Webster."
+  },
+  {
+   "courseId": "theatre-scripts",
+   "course": "Theatre and Scripts",
+   "lessonId": "theatre-scripts.l09",
+   "title": "Classicism and Comedy of Manners",
+   "blurb": "Spanish, French and English plays from 1635 to 1777."
+  },
+  {
+   "courseId": "theatre-scripts",
+   "course": "Theatre and Scripts",
+   "lessonId": "theatre-scripts.l10",
+   "title": "Ibsen and the Realist Stage",
+   "blurb": "When the living room became the battlefield."
+  },
+  {
+   "courseId": "theatre-scripts",
+   "course": "Theatre and Scripts",
+   "lessonId": "theatre-scripts.l11",
+   "title": "Chekhov, Gogol and the Russian Stage",
+   "blurb": "Subtext, ensemble and the drama of what is not said."
+  },
+  {
+   "courseId": "theatre-scripts",
+   "course": "Theatre and Scripts",
+   "lessonId": "theatre-scripts.l12",
+   "title": "Wilde and Shaw: Dialogue as Spectacle",
+   "blurb": "The most quotable dialogue in English."
+  },
+  {
+   "courseId": "theatre-scripts",
+   "course": "Theatre and Scripts",
+   "lessonId": "theatre-scripts.l13",
+   "title": "One-Acts, Irish Voices and the American Stage",
+   "blurb": "Short forms, vernacular speech and the arrival of American drama."
+  },
+  {
+   "courseId": "thinking-methods",
+   "course": "Thinking Like a Scientist and Engineer",
+   "lessonId": "thinking-methods.l01",
+   "title": "What Makes a Question Testable",
+   "blurb": "A testable question can be answered by measurement or observation."
+  },
+  {
+   "courseId": "thinking-methods",
+   "course": "Thinking Like a Scientist and Engineer",
+   "lessonId": "thinking-methods.l02",
+   "title": "Observation, Inference and Hypothesis",
+   "blurb": "Separate what you see from what you conclude, then turn the conclusion into a claim you can test."
+  },
+  {
+   "courseId": "thinking-methods",
+   "course": "Thinking Like a Scientist and Engineer",
+   "lessonId": "thinking-methods.l03",
+   "title": "Hypotheses That Can Be Wrong",
+   "blurb": "A scientific claim must forbid some outcomes, so that evidence could count against it."
+  },
+  {
+   "courseId": "thinking-methods",
+   "course": "Thinking Like a Scientist and Engineer",
+   "lessonId": "thinking-methods.l04",
+   "title": "Variables and Fair Tests",
+   "blurb": "Change one thing, measure its effect, and keep everything else the same."
+  },
+  {
+   "courseId": "thinking-methods",
+   "course": "Thinking Like a Scientist and Engineer",
+   "lessonId": "thinking-methods.l05",
+   "title": "Sample Size and Repeating Trials",
+   "blurb": "One result can be luck; repeated results reveal the pattern."
+  },
+  {
+   "courseId": "thinking-methods",
+   "course": "Thinking Like a Scientist and Engineer",
+   "lessonId": "thinking-methods.l06",
+   "title": "Measurement, Precision, Accuracy and Uncertainty",
+   "blurb": "Every measurement has an uncertainty, and precision and accuracy are different things."
+  },
+  {
+   "courseId": "thinking-methods",
+   "course": "Thinking Like a Scientist and Engineer",
+   "lessonId": "thinking-methods.l07",
+   "title": "Choosing and Reading Graphs",
+   "blurb": "The right graph type depends on your data, and every axis needs a label and units."
+  },
+  {
+   "courseId": "thinking-methods",
+   "course": "Thinking Like a Scientist and Engineer",
+   "lessonId": "thinking-methods.l08",
+   "title": "Mean, Median and Outliers",
+   "blurb": "Different averages answer different questions, and outliers can pull some of them far off."
+  },
+  {
+   "courseId": "thinking-methods",
+   "course": "Thinking Like a Scientist and Engineer",
+   "lessonId": "thinking-methods.l09",
+   "title": "Correlation Is Not Causation",
+   "blurb": "Two things that move together may be linked by a third factor, or by coincidence."
+  },
+  {
+   "courseId": "thinking-methods",
+   "course": "Thinking Like a Scientist and Engineer",
+   "lessonId": "thinking-methods.l10",
+   "title": "Linearising Data",
+   "blurb": "Plot a transformed quantity so that a curve becomes a straight line you can read."
+  },
+  {
+   "courseId": "thinking-methods",
+   "course": "Thinking Like a Scientist and Engineer",
+   "lessonId": "thinking-methods.l11",
+   "title": "Claim, Evidence, Reasoning",
+   "blurb": "A strong scientific argument links a claim to evidence through explicit reasoning."
+  },
+  {
+   "courseId": "thinking-methods",
+   "course": "Thinking Like a Scientist and Engineer",
+   "lessonId": "thinking-methods.l12",
+   "title": "The Engineering Design Process",
+   "blurb": "Define the problem, set criteria and constraints, then build, test and improve."
+  },
+  {
+   "courseId": "thinking-methods",
+   "course": "Thinking Like a Scientist and Engineer",
+   "lessonId": "thinking-methods.l13",
+   "title": "Trade-offs, Iteration and Learning from Failure",
+   "blurb": "Every design balances competing goals, and a failed test is useful information."
+  },
+  {
+   "courseId": "thinking-methods",
+   "course": "Thinking Like a Scientist and Engineer",
+   "lessonId": "thinking-methods.l14",
+   "title": "Models and Simulation",
+   "blurb": "Models are simplified stand-ins that let us predict before we build."
+  },
+  {
+   "courseId": "thinking-methods",
+   "course": "Thinking Like a Scientist and Engineer",
+   "lessonId": "thinking-methods.l15",
+   "title": "Safety, Ethics and Designing for People",
+   "blurb": "Good engineering protects people, respects their needs and tests with real users."
+  },
+  {
+   "courseId": "thinking-methods",
+   "course": "Thinking Like a Scientist and Engineer",
+   "lessonId": "thinking-methods.l16",
+   "title": "There Is No Single Scientific Method",
+   "blurb": "Real science mixes observation, experiment and theory, and the ideas behind it have a history."
+  },
+  {
+   "courseId": "thinking-methods",
+   "course": "Thinking Like a Scientist and Engineer",
+   "lessonId": "thinking-methods.l17",
+   "title": "Reasoning: Deductive, Inductive, Abductive and Socratic",
+   "blurb": "Different kinds of inference carry different strengths of certainty."
+  },
+  {
+   "courseId": "thinking-methods",
+   "course": "Thinking Like a Scientist and Engineer",
+   "lessonId": "thinking-methods.l18",
+   "title": "Fallacies, Systems and Computational Thinking",
+   "blurb": "Spot flawed arguments, then break problems down and see how the parts interact."
+  },
+  {
+   "courseId": "world-religions",
+   "course": "World Religions: A Study Guide",
+   "lessonId": "world-religions.l01",
+   "title": "How We Study the World's Faiths",
+   "blurb": "A fair-minded method: describe each tradition in its own terms across the same ten themes."
+  },
+  {
+   "courseId": "world-religions",
+   "course": "World Religions: A Study Guide",
+   "lessonId": "world-religions.l02",
+   "title": "Hinduism: Many Paths, One Dharma",
+   "blurb": "The Vedas and epics, the ideas of dharma and karma, and a tradition of many paths."
+  },
+  {
+   "courseId": "world-religions",
+   "course": "World Religions: A Study Guide",
+   "lessonId": "world-religions.l03",
+   "title": "From the Bodhi Tree: The Story of Buddhism",
+   "blurb": "Siddhartha's awakening, Ashoka's support and the spread of Buddhism across Asia."
+  },
+  {
+   "courseId": "world-religions",
+   "course": "World Religions: A Study Guide",
+   "lessonId": "world-religions.l04",
+   "title": "The Dharma: Truths, Path and Marks",
+   "blurb": "The Four Noble Truths, the Eightfold Path and the three marks of existence."
+  },
+  {
+   "courseId": "world-religions",
+   "course": "World Religions: A Study Guide",
+   "lessonId": "world-religions.l05",
+   "title": "Buddhist Texts, Practice and Schools",
+   "blurb": "The three baskets, the Dhammapada and Heart Sutra, meditation, and the three vehicles."
+  },
+  {
+   "courseId": "world-religions",
+   "course": "World Religions: A Study Guide",
+   "lessonId": "world-religions.l06",
+   "title": "Judaism: Covenant, Torah and Festivals",
+   "blurb": "The Tanakh and Talmud, the covenant, and a year shaped by holy days."
+  },
+  {
+   "courseId": "world-religions",
+   "course": "World Religions: A Study Guide",
+   "lessonId": "world-religions.l07",
+   "title": "Christianity: The Story and the Creeds",
+   "blurb": "From first-century Judea to the councils, the great split of 1054 and the Reformation."
+  },
+  {
+   "courseId": "world-religions",
+   "course": "World Religions: A Study Guide",
+   "lessonId": "world-religions.l08",
+   "title": "Christian Worship, Branches and Art",
+   "blurb": "The Bible, sacraments, three major families, the church year, cathedrals and icons."
+  },
+  {
+   "courseId": "world-religions",
+   "course": "World Religions: A Study Guide",
+   "lessonId": "world-religions.l09",
+   "title": "Islam: Revelation and the Five Pillars",
+   "blurb": "The Qur'an, the Prophet Muhammad, the practices of prayer, fasting and pilgrimage."
+  },
+  {
+   "courseId": "world-religions",
+   "course": "World Religions: A Study Guide",
+   "lessonId": "world-religions.l10",
+   "title": "Sikhism: Guru Granth Sahib and Seva",
+   "blurb": "The ten Gurus, the Khalsa, shared meals and service."
+  },
+  {
+   "courseId": "world-religions",
+   "course": "World Religions: A Study Guide",
+   "lessonId": "world-religions.l11",
+   "title": "Sacred Texts Around the World",
+   "blurb": "Oral and written scriptures, canons, and how communities read and honour them."
+  },
+  {
+   "courseId": "world-religions",
+   "course": "World Religions: A Study Guide",
+   "lessonId": "world-religions.l12",
+   "title": "The Sacred Year: Calendars and Holy Days",
+   "blurb": "How lunar and solar calendars shape festivals from Vesak to Ramadan."
+  },
+  {
+   "courseId": "world-religions",
+   "course": "World Religions: A Study Guide",
+   "lessonId": "world-religions.l13",
+   "title": "Religion, Art, Law and Society",
+   "blurb": "How faiths have shaped buildings, images, legal systems and acts of service."
+  }
+ ]
+}

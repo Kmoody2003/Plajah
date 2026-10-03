@@ -11,69 +11,26 @@
     <Grid x:Name="RootGrid">
         <!-- Mica/Acrylic backdrop applied in code-behind via SystemBackdrop -->
 
-        <!-- Custom title bar — extends into non-client area -->
+        <!-- Custom title bar — extends into non-client area; coordinated with web DesktopGlobalToolbar -->
         <Grid x:Name="AppTitleBar"
-              Height="48"
+              Height="40"
               VerticalAlignment="Top"
               Canvas.ZIndex="10"
               Background="Transparent">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto" />    <!-- drag region left -->
-                <ColumnDefinition Width="*" />       <!-- title text -->
-                <ColumnDefinition Width="Auto" />    <!-- mini player controls -->
-                <ColumnDefinition Width="148" />     <!-- caption buttons (Win11) -->
+                <ColumnDefinition Width="*" />       <!-- drag region -->
+                <ColumnDefinition Width="144" />     <!-- caption buttons (Win11) -->
             </Grid.ColumnDefinitions>
 
-            <!-- App icon -->
-            <Image Grid.Column="0"
-                   Source="Assets/Square44x44Logo.scale-100.png"
-                   Width="20" Height="20"
-                   Margin="14,0,8,0"
-                   VerticalAlignment="Center"
-                   IsHitTestVisible="False" />
-
-            <!-- Title -->
-            <TextBlock Grid.Column="1"
-                       x:Name="TitleText"
-                       Text="Plajah"
-                       VerticalAlignment="Center"
-                       Style="{StaticResource CaptionTextBlockStyle}"
-                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"
-                       IsHitTestVisible="False" />
-
-            <!-- Mini player strip (hidden when nothing is playing) -->
-            <StackPanel Grid.Column="2"
-                        x:Name="MiniPlayerPanel"
-                        Orientation="Horizontal"
-                        Spacing="4"
-                        VerticalAlignment="Center"
-                        Margin="0,0,12,0"
-                        Visibility="Collapsed">
-
-                <!-- Track info -->
-                <TextBlock x:Name="MiniTrackText"
-                           MaxWidth="200"
-                           TextTrimming="CharacterEllipsis"
-                           VerticalAlignment="Center"
-                           Style="{StaticResource CaptionTextBlockStyle}"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-
-                <!-- Prev / Play-Pause / Next -->
-                <Button x:Name="MiniPrevBtn" Width="32" Height="32"
-                        Style="{StaticResource DateTimePickerFlyoutButtonStyle}"
-                        Click="MiniPrev_Click">
-                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE892;" FontSize="12" />
+            <!-- Kept collapsed for code-behind compatibility -->
+            <TextBlock x:Name="TitleText" Text="Plajah" Visibility="Collapsed" />
+            <StackPanel x:Name="MiniPlayerPanel" Visibility="Collapsed">
+                <TextBlock x:Name="MiniTrackText" />
+                <Button x:Name="MiniPrevBtn" Click="MiniPrev_Click" />
+                <Button x:Name="MiniPlayPauseBtn" Click="MiniPlayPause_Click">
+                    <FontIcon x:Name="PlayPauseIcon" />
                 </Button>
-                <Button x:Name="MiniPlayPauseBtn" Width="32" Height="32"
-                        Style="{StaticResource DateTimePickerFlyoutButtonStyle}"
-                        Click="MiniPlayPause_Click">
-                    <FontIcon x:Name="PlayPauseIcon" FontFamily="Segoe Fluent Icons" Glyph="&#xE769;" FontSize="12" />
-                </Button>
-                <Button x:Name="MiniNextBtn" Width="32" Height="32"
-                        Style="{StaticResource DateTimePickerFlyoutButtonStyle}"
-                        Click="MiniNext_Click">
-                    <FontIcon FontFamily="Segoe Fluent Icons" Glyph="&#xE893;" FontSize="12" />
-                </Button>
+                <Button x:Name="MiniNextBtn" Click="MiniNext_Click" />
             </StackPanel>
         </Grid>
 

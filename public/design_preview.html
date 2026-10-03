@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plajah - Social Share Cards & Comment Composer Design System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Inter:wght@400;500;600;700;900&family=Manrope:wght@600;800&family=Newsreader:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif; }
+    .display-font { font-family: 'Manrope', sans-serif; }
+    .serif-title { font-family: 'Cinzel', serif; }
+    .editorial-font { font-family: 'Newsreader', serif; }
+    .glow-amber { box-shadow: 0 0 50px -10px rgba(245, 158, 11, 0.45); }
+    .glow-purple { box-shadow: 0 0 50px -10px rgba(168, 85, 247, 0.45); }
+    .glow-orange { box-shadow: 0 0 40px -10px rgba(255, 140, 0, 0.45); }
+    .glow-pink { box-shadow: 0 0 50px -10px rgba(236, 72, 153, 0.45); }
+
+    /* Custom smooth scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.15); border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.25); }
+  </style>
+</head>
+<body class="bg-[#07060a] text-white p-4 sm:p-8 antialiased selection:bg-orange-500 selection:text-white min-h-screen">
+  <div class="max-w-5xl mx-auto space-y-10">
+
+    <!-- Top Navigation / Header -->
+    <header class="border-b border-white/10 pb-6 flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div>
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-orange-500/20 via-purple-500/20 to-amber-500/20 border border-white/15 text-xs font-black uppercase tracking-widest text-orange-400 mb-3 shadow-inner">
+          <span class="w-2 h-2 rounded-full bg-orange-400 animate-pulse"></span>
+          Plajah Design System · Verified Preview
+        </div>
+        <h1 class="text-2xl sm:text-4xl font-black tracking-tight text-white display-font">
+          Post & Poll Share Cards + Comment Composer
+        </h1>
+        <p class="text-sm text-white/60 mt-1 max-w-2xl leading-relaxed">
+          High-converting social share thumbnails with feathered cover art dissolving into obsidian dark canvas, plus the spacious, balanced comment thread.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2 bg-white/[0.04] p-1.5 rounded-2xl border border-white/10 self-start md:self-auto">
+        <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 ml-2"></span>
+        <span class="text-xs font-bold text-white/80 pr-2">Self-Contained · Zero Broken Assets</span>
+      </div>
+    </header>
+
+    <!-- SECTION 1: High-Converting Share Card Gallery -->
+    <section class="space-y-5">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div>
+          <h2 class="text-sm font-black uppercase tracking-widest text-white/90 flex items-center gap-2">
+            <span class="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
+            1. Universal Social Share Cards (1080×1080 Square)
+          </h2>
+          <p class="text-xs text-white/50 mt-0.5">
+            Switch between content types to see the tailored typography, feather dissolves, and call-to-actions.
+          </p>
+        </div>
+
+        <!-- Mode Switcher Tabs -->
+        <div class="flex flex-wrap gap-1.5 p-1 bg-white/[0.05] rounded-xl border border-white/10" id="tabs-container">
+          <button id="btn-taleo" onclick="setCardMode('taleo')" class="px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider bg-amber-500 text-black shadow-md transition-all">
+            🏆 Taleo Cinema
+          </button>
+          <button id="btn-lorea" onclick="setCardMode('lorea')" class="px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider bg-white/5 text-white/60 hover:text-white transition-all">
+            📖 Lorea Literary
+          </button>
+          <button id="btn-poll" onclick="setCardMode('poll')" class="px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider bg-white/5 text-white/60 hover:text-white transition-all">
+            ⚡ Live Poll
+          </button>
+          <button id="btn-music" onclick="setCardMode('music')" class="px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider bg-white/5 text-white/60 hover:text-white transition-all">
+            🎵 Sound / Music
+          </button>
+          <button id="btn-reello" onclick="setCardMode('reello')" class="px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider bg-white/5 text-white/60 hover:text-white transition-all">
+            🎬 Reello Short
+          </button>
+          <button id="btn-post" onclick="setCardMode('post')" class="px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider bg-white/5 text-white/60 hover:text-white transition-all">
+            💬 Post
+          </button>
+        </div>
+      </div>
+
+      <!-- Main Showcase Card Stage -->
+      <div class="flex flex-col lg:flex-row items-center justify-center gap-8 p-6 sm:p-10 bg-gradient-to-b from-[#111019] to-[#0a0910] rounded-3xl border border-white/10 shadow-2xl">
+        
+        <!-- The Card (Exactly proportional to 1080x1080) -->
+        <div id="card-wrapper" class="relative group">
+          <!-- Ambient Card Backglow -->
+          <div id="card-ambient-glow" class="absolute -inset-2 rounded-[2.5rem] opacity-70 blur-2xl transition-all duration-500 bg-amber-500/20"></div>
+
+          <!-- 480x480 Square Card Container -->
+          <div id="share-card" class="relative w-[340px] sm:w-[440px] h-[340px] sm:h-[440px] rounded-[2rem] p-6 sm:p-7 flex flex-col justify-between overflow-hidden border border-white/15 shadow-2xl transition-all duration-300 select-none bg-[#0a0910]">
+            
+            <!-- Dynamic Background Layers -->
+            <div id="card-bg-gradient" class="absolute inset-0 pointer-events-none transition-all duration-500"
+                 style="background: radial-gradient(circle at 50% 35%, rgba(217, 119, 6, 0.35), rgba(180, 83, 9, 0.18) 50%, rgba(10, 9, 16, 0) 75%), #0a0910;">
+            </div>
+
+            <!-- Background Soundwave / Grid Accent -->
+            <svg class="absolute inset-0 w-full h-full pointer-events-none opacity-20" xmlns="http://www.w3.org/2000/svg">
+              <path d="M0,340 Q110,320 220,340 T440,340" fill="none" stroke="white" stroke-width="1.5" stroke-dasharray="4,6" />
+              <path d="M0,348 Q110,360 220,348 T440,348" fill="none" stroke="white" stroke-width="1" />
+            </svg>
+
+            <!-- Card Top: Brand Header + Badge -->
+            <div class="flex items-center justify-between relative z-10">
+              <div class="flex items-center gap-2.5">
+                <div id="brand-logo-badge" class="w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center font-black text-xs sm:text-sm shadow-lg text-black bg-gradient-to-tr from-[#F59E0B] via-[#D97706] to-[#92400E]">
+                  T
+                </div>
+                <div>
+                  <span id="brand-title" class="text-xs sm:text-sm font-black tracking-widest text-white uppercase block leading-tight">
+                    TALEO
+                  </span>
+                  <span class="text-[9px] font-bold text-white/40 tracking-wider uppercase block">Social Network</span>
+                </div>
+              </div>
+
+              <!-- Content Category Badge -->
+              <div id="card-badge" class="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 bg-amber-500/20 border border-amber-400/50 text-amber-300">
+                🏆 TALEO CINEMA PREMIERE
+              </div>
+            </div>
+
+            <!-- Card Center: Artwork + Metadata (Adjusted with feathered gradients) -->
+            <div id="card-content" class="relative z-10 my-auto flex flex-col items-center text-center">
+              <!-- Rendered Dynamically by JS -->
+            </div>
+
+            <!-- Card Bottom: High-Conversion Gradient CTA Pill -->
+            <div class="relative z-10 pt-1">
+              <div id="card-cta" class="w-full py-3 px-4 sm:px-5 rounded-2xl text-white flex items-center justify-between shadow-xl cursor-pointer hover:opacity-95 transition-all bg-gradient-to-r from-[#F59E0B] via-[#D97706] to-[#78350F]">
+                <div class="flex items-center gap-2">
+                  <span id="cta-icon" class="text-sm">▶</span>
+                  <span id="cta-title" class="text-[11px] sm:text-xs font-black uppercase tracking-wider">Watch Premiere on Plajah</span>
+                </div>
+                <span id="cta-action" class="text-[10px] font-black uppercase tracking-widest bg-black/40 px-3 py-1 rounded-full border border-white/20 whitespace-nowrap">
+                  Watch Free →
+                </span>
+              </div>
+              <p class="text-center text-[9px] text-white/30 uppercase tracking-widest font-black mt-2">
+                plajah.com/share · Instant Web & App Access
+              </p>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Specifications & Details Sidebar -->
+        <div class="w-full lg:w-72 space-y-4 text-xs">
+          <div class="bg-white/[0.04] p-4 rounded-2xl border border-white/10 space-y-2.5">
+            <span class="text-[10px] font-black uppercase tracking-widest text-orange-400 block">
+              Share Card Anatomy
+            </span>
+            <div class="space-y-1.5 text-white/70">
+              <p><strong class="text-white">Square Ratio (1:1):</strong> Optimized for X/Twitter cards, Instagram, iMessage, and WhatsApp previews.</p>
+              <p><strong class="text-white">Feathered Gradient:</strong> Top and bottom linear gradient masks blend the artwork softly into the ambient dark mesh.</p>
+              <p><strong class="text-white">High-Impact CTA:</strong> Enticing, context-specific action pill with high-contrast text and glowing border.</p>
+            </div>
+          </div>
+
+          <div class="bg-white/[0.04] p-4 rounded-2xl border border-white/10 space-y-2">
+            <span class="text-[10px] font-black uppercase tracking-widest text-purple-400 block">
+              Multi-Platform Ready
+            </span>
+            <p class="text-white/60 leading-relaxed">
+              Implemented in both live responsive CSS and native HTML5 2D Canvas (<code class="text-white">generateShareCard</code>) with offline fallback SVG art.
+            </p>
+            <div class="pt-2">
+              <button onclick="triggerDownloadSim()" class="w-full py-2 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2">
+                <span>⚡</span> Download 1080px Canvas
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SECTION 2: Balanced, Legible Comment Section & Modernized Composer -->
+    <section class="space-y-5">
+      <div class="border-t border-white/10 pt-8">
+        <h2 class="text-sm font-black uppercase tracking-widest text-white/90 flex items-center gap-2 mb-1">
+          <span class="w-2.5 h-2.5 rounded-full bg-purple-500"></span>
+          2. Balanced, Legible Comments & Modernized Composer
+        </h2>
+        <p class="text-xs text-white/50 leading-relaxed">
+          Spacious vertical rhythm, comfortable 14px text with 1.6 line height, inline media/GIF attachments, and real-time synchronization indicator.
+        </p>
+      </div>
+
+      <!-- Comment Section Shell -->
+      <div class="bg-[#100f16] rounded-3xl border border-white/10 overflow-hidden shadow-2xl">
+        
+        <!-- Header -->
+        <div class="px-6 py-4 border-b border-white/8 flex items-center justify-between bg-white/[0.02]">
+          <div class="flex items-center gap-3">
+            <div class="w-2 h-2 rounded-full bg-orange-400 animate-ping"></div>
+            <span class="text-xs font-black uppercase tracking-widest text-white">Discussion & Signals</span>
+            <span class="text-xs font-bold text-white/40">24 comments</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-[10px] font-black uppercase tracking-wider text-purple-300 bg-purple-500/10 border border-purple-500/20 px-3 py-1 rounded-full flex items-center gap-1.5">
+              <span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span>
+              Realtime Firestore Sync Active
+            </span>
+          </div>
+        </div>
+
+        <!-- Scrollable Comments Thread -->
+        <div class="p-6 space-y-6 max-h-[420px] overflow-y-auto">
+          
+          <!-- Comment 1: Standard Balanced Text -->
+          <div class="flex items-start gap-4 group">
+            <!-- Elena Rostova Avatar SVG -->
+            <div class="w-10 h-10 rounded-2xl overflow-hidden ring-2 ring-orange-400/30 shrink-0 bg-gradient-to-tr from-orange-500 to-amber-400 flex items-center justify-center text-xs font-black text-white shadow-md">
+              ER
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="bg-white/[0.04] hover:bg-white/[0.07] transition-all rounded-2xl rounded-tl-sm p-4 border border-white/5">
+                <div class="flex items-baseline justify-between mb-1.5">
+                  <span class="text-xs font-black text-orange-400 uppercase tracking-wider">Elena Rostova</span>
+                  <span class="text-[10px] font-bold text-white/30">Just now</span>
+                </div>
+                <p class="text-[14px] leading-relaxed text-white/90 font-medium">
+                  The harmonic separation in the second pass creates an unforgettable presence. Really impressed by how deep the spatial audio depth feels even on stereo headphones!
+                </p>
+              </div>
+              <div class="flex items-center gap-4 mt-2 px-2 text-[11px] font-bold text-white/40">
+                <button class="hover:text-red-400 flex items-center gap-1.5 transition-colors">
+                  <span>❤️</span> 12
+                </button>
+                <button class="hover:text-white transition-colors">Reply</button>
+                <span class="text-white/20">•</span>
+                <span class="text-white/30 text-[10px]">Verified Artist</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Comment 2: Comment with Rich Reaction Attachment -->
+          <div class="flex items-start gap-4 group">
+            <!-- Marcus Vance Avatar SVG -->
+            <div class="w-10 h-10 rounded-2xl overflow-hidden ring-2 ring-purple-400/30 shrink-0 bg-gradient-to-tr from-purple-600 to-indigo-500 flex items-center justify-center text-xs font-black text-white shadow-md">
+              MV
+            </div>
+            <div class="flex-1 min-w-0">
+              <div class="bg-white/[0.04] hover:bg-white/[0.07] transition-all rounded-2xl rounded-tl-sm p-4 border border-white/5">
+                <div class="flex items-baseline justify-between mb-1.5">
+                  <span class="text-xs font-black text-purple-400 uppercase tracking-wider">Marcus Vance</span>
+                  <span class="text-[10px] font-bold text-white/30">8m ago</span>
+                </div>
+                <p class="text-[14px] leading-relaxed text-white/90 font-medium">
+                  That low-frequency drop at 01:42 literally shook the studio monitors. Here’s my immediate reaction:
+                </p>
+                <!-- Embedded Self-Contained Reaction Card -->
+                <div class="mt-3 rounded-xl overflow-hidden border border-white/10 max-w-[280px] bg-gradient-to-br from-[#1a102a] to-[#0a0910] p-3 shadow-lg">
+                  <div class="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-purple-300 mb-2">
+                    <span>⚡ SOUND REACTION</span>
+                    <span class="bg-purple-500/20 px-2 py-0.5 rounded-full border border-purple-400/30">GIF</span>
+                  </div>
+                  <!-- Animated sound bars graphic -->
+                  <div class="h-20 rounded-lg bg-black/40 flex items-end justify-center gap-1.5 p-3 overflow-hidden border border-white/5">
+                    <div class="w-2 bg-gradient-to-t from-purple-500 to-pink-500 rounded-t h-12 animate-pulse"></div>
+                    <div class="w-2 bg-gradient-to-t from-purple-500 to-orange-500 rounded-t h-16 animate-bounce"></div>
+                    <div class="w-2 bg-gradient-to-t from-pink-500 to-purple-500 rounded-t h-8 animate-pulse"></div>
+                    <div class="w-2 bg-gradient-to-t from-orange-500 to-amber-500 rounded-t h-14 animate-bounce"></div>
+                    <div class="w-2 bg-gradient-to-t from-purple-500 to-indigo-500 rounded-t h-10 animate-pulse"></div>
+                  </div>
+                  <p class="text-[10px] text-white/60 font-bold mt-2 text-center uppercase tracking-wide">“Mind Blown · Pure Dynamics”</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-4 mt-2 px-2 text-[11px] font-bold text-white/40">
+                <button class="hover:text-red-400 flex items-center gap-1.5 transition-colors">
+                  <span>❤️</span> 28
+                </button>
+                <button class="hover:text-white transition-colors">Reply</button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Modernized, Spacious Composer Bar -->
+        <div class="p-4 sm:p-5 border-t border-white/8 bg-black/50">
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-purple-500 via-pink-500 to-orange-500 flex items-center justify-center text-xs font-black shadow-md shrink-0">
+              You
+            </div>
+
+            <div class="flex-1 relative flex items-center">
+              <input 
+                id="preview-comment-input"
+                type="text" 
+                placeholder="Share a thoughtful signal or reaction..." 
+                class="w-full bg-white/[0.06] border border-white/15 focus:border-orange-500/60 focus:bg-white/[0.09] rounded-full pl-5 pr-28 py-3 text-[14px] text-white placeholder-white/35 outline-none transition-all"
+              />
+              
+              <div class="absolute right-3 flex items-center gap-1.5">
+                <button title="Add GIF" class="px-2.5 py-1 rounded-full bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border border-purple-400/30 text-[10px] font-black uppercase tracking-wider transition-all">
+                  GIF
+                </button>
+                <button title="Add Emoji" class="p-1.5 text-white/50 hover:text-white transition-colors text-sm">
+                  😊
+                </button>
+              </div>
+            </div>
+
+            <button onclick="handleSendComment()" class="px-5 py-3 rounded-full bg-white text-black hover:bg-orange-500 hover:text-white font-black text-xs uppercase tracking-wider transition-all shadow-lg shrink-0">
+              Send
+            </button>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </div>
+
+  <!-- Interactive Card Mode Script -->
+  <script>
+    // Embedded SVG artwork strings that will NEVER fail or trigger CORS/network issues
+    const ARTWORK = {
+      // Taleo Cinema Premiere Still: Sci-Fi celestial eclipse
+      taleo: `
+        <div class="relative w-full aspect-[16/9] max-h-[190px] rounded-2xl overflow-hidden border border-amber-500/30 shadow-2xl">
+          <svg class="w-full h-full object-cover" viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="taleoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#1c1206"/>
+                <stop offset="50%" stop-color="#451a03"/>
+                <stop offset="100%" stop-color="#0a0500"/>
+              </linearGradient>
+              <radialGradient id="sunGlow" cx="65%" cy="35%" r="60%">
+                <stop offset="0%" stop-color="#fef08a" stop-opacity="0.95"/>
+                <stop offset="25%" stop-color="#f59e0b" stop-opacity="0.8"/>
+                <stop offset="60%" stop-color="#b45309" stop-opacity="0.3"/>
+                <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <rect width="640" height="360" fill="url(#taleoGrad)"/>
+            <circle cx="410" cy="120" r="140" fill="url(#sunGlow)"/>
+            <circle cx="390" cy="120" r="100" fill="#08070b"/>
+            <!-- Mountains / Horizon silhouette -->
+            <polygon points="0,360 80,240 180,310 320,190 440,290 560,220 640,360" fill="#0c0a12"/>
+            <polygon points="0,360 120,280 240,360 360,270 510,360 640,300 640,360" fill="#070609"/>
+            <!-- Stars -->
+            <circle cx="80" cy="60" r="1.5" fill="#fef08a" opacity="0.8"/>
+            <circle cx="190" cy="40" r="1.2" fill="#ffffff" opacity="0.7"/>
+            <circle cx="530" cy="70" r="1.8" fill="#fef08a" opacity="0.9"/>
+          </svg>
+          <!-- Feathered Dissolve Masks into Obsidian Base -->
+          <div class="absolute inset-0 bg-gradient-to-t from-[#0a0910] via-transparent to-transparent opacity-95"></div>
+          <div class="absolute inset-0 bg-gradient-to-b from-[#0a0910]/60 via-transparent to-transparent"></div>
+          <div class="absolute bottom-2 left-3 flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-black/60 border border-white/10 text-[9px] font-black uppercase text-amber-300">
+            <span>4K HDR</span> · <span>Dolby Atmos</span>
+          </div>
+        </div>
+        <div class="text-center pt-2 sm:pt-3">
+          <span class="text-[9px] sm:text-[10px] font-black text-amber-400 uppercase tracking-widest block">Original Motion Picture</span>
+          <h3 class="text-base sm:text-xl font-black text-white uppercase tracking-tight mt-0.5 serif-title">ECLIPSE OF TIME</h3>
+          <p class="text-[11px] text-white/60 font-bold mt-0.5">Directed by Amelia Reed · Sci-Fi Mystery</p>
+        </div>
+      `,
+
+      // Lorea Literary Press Cover: Hardcover silk violet book with gold foil
+      lorea: `
+        <div class="relative w-[150px] sm:w-[170px] aspect-[3/4] rounded-xl overflow-hidden border-2 border-purple-400/40 shadow-2xl mx-auto my-1">
+          <svg class="w-full h-full" viewBox="0 0 300 400" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="bookGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#2e1065"/>
+                <stop offset="50%" stop-color="#581c87"/>
+                <stop offset="100%" stop-color="#1e1b4b"/>
+              </linearGradient>
+            </defs>
+            <rect width="300" height="400" fill="url(#bookGrad)"/>
+            <!-- Ornate Book Border -->
+            <rect x="18" y="18" width="264" height="364" fill="none" stroke="#e9d5ff" stroke-width="2" stroke-opacity="0.4"/>
+            <rect x="24" y="24" width="252" height="352" fill="none" stroke="#fef08a" stroke-width="1" stroke-opacity="0.5"/>
+            <!-- Emblem -->
+            <circle cx="150" cy="130" r="38" fill="none" stroke="#fef08a" stroke-width="1.5"/>
+            <path d="M150,105 L158,125 L178,130 L158,135 L150,155 L142,135 L122,130 L142,125 Z" fill="#fef08a" opacity="0.85"/>
+            <!-- Spine shadow -->
+            <rect x="0" y="0" width="16" height="400" fill="black" opacity="0.35"/>
+          </svg>
+          <div class="absolute inset-x-0 bottom-6 text-center px-2">
+            <div class="text-[8px] font-black uppercase tracking-widest text-amber-200">Lorea First Edition</div>
+            <div class="text-xs font-black text-white uppercase tracking-wider serif-title mt-0.5">Chronicles of Solitude</div>
+          </div>
+          <!-- Feathered edge dissolve -->
+          <div class="absolute inset-0 bg-gradient-to-t from-[#0a0910] via-transparent to-transparent opacity-80"></div>
+        </div>
+        <div class="text-center pt-2 sm:pt-2.5">
+          <span class="text-[9px] sm:text-[10px] font-black text-purple-300 uppercase tracking-widest block">Featured Literary Release</span>
+          <h3 class="text-sm sm:text-base font-bold text-white tracking-wide italic editorial-font">“Before the stars withdrew their light, the architects of memory began to write.”</h3>
+          <p class="text-[11px] text-white/50 font-bold mt-1">Author: Julian Vance · Chapter 1 Available</p>
+        </div>
+      `,
+
+      // Live Community Poll
+      poll: `
+        <div class="w-full text-left space-y-2.5">
+          <div class="flex items-center gap-2 text-white/60 text-xs">
+            <div class="w-6 h-6 rounded-full bg-gradient-to-tr from-orange-400 to-purple-500 flex items-center justify-center text-[10px] font-black text-white">
+              ES
+            </div>
+            <span class="font-bold text-white/90">@elena_sound</span>
+            <span class="text-white/40">asks the community</span>
+          </div>
+
+          <h3 class="text-sm sm:text-base font-black text-white leading-snug tracking-tight">
+            Which stem arrangement gives the most emotional impact in live performance?
+          </h3>
+
+          <div class="space-y-2 pt-0.5">
+            <div class="relative rounded-xl p-2.5 bg-white/[0.05] border border-purple-400/40 overflow-hidden">
+              <div class="absolute inset-y-0 left-0 bg-purple-600/30 rounded-xl" style="width: 58%;"></div>
+              <div class="relative flex justify-between items-center text-xs font-bold">
+                <span class="text-white">A. Isolated Sub + Vocal Harmony</span>
+                <span class="text-purple-300 font-black">58% · Leading</span>
+              </div>
+            </div>
+            <div class="relative rounded-xl p-2.5 bg-white/[0.05] border border-white/10 overflow-hidden">
+              <div class="absolute inset-y-0 left-0 bg-white/10 rounded-xl" style="width: 27%;"></div>
+              <div class="relative flex justify-between items-center text-xs font-bold">
+                <span class="text-white/80">B. Full Acoustic Resonance</span>
+                <span class="text-white/50">27%</span>
+              </div>
+            </div>
+            <div class="relative rounded-xl p-2.5 bg-white/[0.05] border border-white/10 overflow-hidden">
+              <div class="absolute inset-y-0 left-0 bg-white/10 rounded-xl" style="width: 15%;"></div>
+              <div class="relative flex justify-between items-center text-xs font-bold">
+                <span class="text-white/80">C. Live Granular Resynthesis</span>
+                <span class="text-white/50">15%</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      `,
+
+      // Sound / Music Album Release
+      music: `
+        <div class="relative w-[150px] sm:w-[170px] aspect-square rounded-2xl overflow-hidden border border-orange-500/30 shadow-2xl mx-auto my-1">
+          <svg class="w-full h-full" viewBox="0 0 300 300" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="musicArtGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#ff8c00"/>
+                <stop offset="50%" stop-color="#d40055"/>
+                <stop offset="100%" stop-color="#6b0099"/>
+              </linearGradient>
+            </defs>
+            <rect width="300" height="300" fill="url(#musicArtGrad)"/>
+            <!-- Vinyl disc grooves -->
+            <circle cx="150" cy="150" r="110" fill="none" stroke="white" stroke-width="1" stroke-opacity="0.15"/>
+            <circle cx="150" cy="150" r="80" fill="none" stroke="white" stroke-width="1.5" stroke-opacity="0.2"/>
+            <circle cx="150" cy="150" r="50" fill="none" stroke="white" stroke-width="2" stroke-opacity="0.25"/>
+            <circle cx="150" cy="150" r="20" fill="#0a0910"/>
+            <circle cx="150" cy="150" r="5" fill="#f59e0b"/>
+          </svg>
+          <!-- Feathered gradient dissolve -->
+          <div class="absolute inset-0 bg-gradient-to-t from-[#0a0910] via-transparent to-transparent opacity-75"></div>
+          <div class="absolute bottom-1.5 right-2 px-2 py-0.5 rounded bg-black/70 border border-white/10 text-[8px] font-black uppercase text-orange-400">
+            24-Bit / 96kHz Lossless
+          </div>
+        </div>
+        <div class="text-center pt-2 sm:pt-2.5">
+          <span class="text-[9px] sm:text-[10px] font-black text-orange-400 uppercase tracking-widest block">Spatial Audio Premiere</span>
+          <h3 class="text-base sm:text-lg font-black text-white uppercase tracking-tight mt-0.5">SYNAPSE DRIFT</h3>
+          <p class="text-[11px] text-white/60 font-bold mt-0.5">Kaelen Voss · Plajah Master Sound</p>
+        </div>
+      `,
+
+      // Reello Short Video
+      reello: `
+        <div class="relative w-full aspect-[16/9] max-h-[190px] rounded-2xl overflow-hidden border border-pink-500/30 shadow-2xl group">
+          <svg class="w-full h-full" viewBox="0 0 640 360" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+              <linearGradient id="reelloGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#831843"/>
+                <stop offset="50%" stop-color="#be185d"/>
+                <stop offset="100%" stop-color="#1f112e"/>
+              </linearGradient>
+            </defs>
+            <rect width="640" height="360" fill="url(#reelloGrad)"/>
+            <!-- Neon Synth Studio visualization -->
+            <path d="M0,180 Q160,100 320,180 T640,180" fill="none" stroke="#f472b6" stroke-width="4" opacity="0.6"/>
+            <path d="M0,200 Q160,280 320,200 T640,200" fill="none" stroke="#38bdf8" stroke-width="3" opacity="0.5"/>
+          </svg>
+          <div class="absolute inset-0 bg-gradient-to-t from-[#0a0910] via-transparent to-transparent opacity-90"></div>
+          <div class="absolute inset-0 flex items-center justify-center">
+            <div class="w-12 h-12 rounded-full bg-pink-500/90 text-white flex items-center justify-center shadow-2xl pl-1 ring-4 ring-pink-500/30">
+              ▶
+            </div>
+          </div>
+        </div>
+        <div class="text-center pt-2 sm:pt-2.5">
+          <span class="text-[9px] sm:text-[10px] font-black text-pink-400 uppercase tracking-widest block">@analog_dreams · Modular Synthesis</span>
+          <h3 class="text-sm sm:text-base font-black text-white leading-snug mt-0.5">Live Eurorack Tape Saturation Performance 🔊</h3>
+        </div>
+      `,
+
+      // Featured Social Post
+      post: `
+        <div class="w-full text-left space-y-3">
+          <div class="flex items-center gap-2.5 text-white/60 text-xs">
+            <div class="w-7 h-7 rounded-full bg-gradient-to-tr from-purple-500 to-indigo-600 flex items-center justify-center text-xs font-black text-white">
+              MV
+            </div>
+            <div>
+              <span class="font-bold text-orange-400 block leading-tight">@marcus_vance</span>
+              <span class="text-[9px] text-white/40 uppercase font-black tracking-wider">Audio Architect</span>
+            </div>
+          </div>
+          <h3 class="text-base sm:text-lg font-medium text-white/95 leading-relaxed pt-1">
+            “Just finished mixing our newest spatial audio session in 9.1.4 Dolby Atmos. The difference in headroom and spatial separation is completely mindblowing...”
+          </h3>
+          <div class="flex items-center gap-4 text-[11px] font-bold text-white/40 pt-1">
+            <span>❤️ 142 Likes</span>
+            <span>💬 28 Replies</span>
+            <span>⚡ 44 Signals</span>
+          </div>
+        </div>
+      `
+    };
+
+    function setCardMode(mode) {
+      const cardBg = document.getElementById('card-bg-gradient');
+      const ambientGlow = document.getElementById('card-ambient-glow');
+      const badge = document.getElementById('card-badge');
+      const brandBadge = document.getElementById('brand-logo-badge');
+      const brandTitle = document.getElementById('brand-title');
+      const content = document.getElementById('card-content');
+      const cta = document.getElementById('card-cta');
+      const ctaIcon = document.getElementById('cta-icon');
+      const ctaTitle = document.getElementById('cta-title');
+      const ctaAction = document.getElementById('cta-action');
+
+      // Update button tabs active styling
+      ['taleo', 'lorea', 'poll', 'music', 'reello', 'post'].forEach(m => {
+        const btn = document.getElementById('btn-' + m);
+        if (btn) {
+          if (m === mode) {
+            btn.className = 'px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider bg-orange-500 text-white shadow-md transition-all';
+          } else {
+            btn.className = 'px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider bg-white/5 text-white/60 hover:text-white transition-all';
+          }
+        }
+      });
+
+      // Inject Content
+      content.innerHTML = ARTWORK[mode];
+
+      // Tailor Theme / Colors / Typography / Badges
+      if (mode === 'taleo') {
+        ambientGlow.className = 'absolute -inset-2 rounded-[2.5rem] opacity-70 blur-2xl transition-all duration-500 bg-amber-500/20';
+        cardBg.style.background = 'radial-gradient(circle at 50% 35%, rgba(217, 119, 6, 0.35), rgba(180, 83, 9, 0.18) 50%, rgba(10, 9, 16, 0) 75%), #0a0910';
+        brandBadge.className = 'w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center font-black text-xs sm:text-sm shadow-lg text-black bg-gradient-to-tr from-[#F59E0B] via-[#D97706] to-[#92400E]';
+        brandBadge.innerText = 'T';
+        brandTitle.innerText = 'TALEO';
+        badge.className = 'px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 bg-amber-500/20 border border-amber-400/50 text-amber-300';
+        badge.innerText = '🏆 TALEO CINEMA PREMIERE';
+        cta.className = 'w-full py-3 px-4 sm:px-5 rounded-2xl text-white flex items-center justify-between shadow-xl cursor-pointer hover:opacity-95 transition-all bg-gradient-to-r from-[#F59E0B] via-[#D97706] to-[#78350F]';
+        ctaIcon.innerText = '▶';
+        ctaTitle.innerText = 'Watch Premiere on Plajah';
+        ctaAction.innerText = 'Watch Free →';
+      } 
+      else if (mode === 'lorea') {
+        ambientGlow.className = 'absolute -inset-2 rounded-[2.5rem] opacity-70 blur-2xl transition-all duration-500 bg-purple-600/25';
+        cardBg.style.background = 'radial-gradient(circle at 50% 35%, rgba(167, 139, 250, 0.32), rgba(109, 40, 217, 0.18) 50%, rgba(10, 9, 16, 0) 75%), #0a0910';
+        brandBadge.className = 'w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center font-black text-xs sm:text-sm shadow-lg text-white bg-gradient-to-tr from-[#C084FC] via-[#9333EA] to-[#581C87]';
+        brandBadge.innerText = 'L';
+        brandTitle.innerText = 'LOREA';
+        badge.className = 'px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 bg-purple-500/20 border border-purple-400/50 text-purple-300';
+        badge.innerText = '📖 LOREA LITERARY PRESS';
+        cta.className = 'w-full py-3 px-4 sm:px-5 rounded-2xl text-white flex items-center justify-between shadow-xl cursor-pointer hover:opacity-95 transition-all bg-gradient-to-r from-[#A855F7] via-[#7E22CE] to-[#3B0764]';
+        ctaIcon.innerText = '📖';
+        ctaTitle.innerText = 'Read Chapter on Plajah';
+        ctaAction.innerText = 'Read Free →';
+      }
+      else if (mode === 'poll') {
+        ambientGlow.className = 'absolute -inset-2 rounded-[2.5rem] opacity-70 blur-2xl transition-all duration-500 bg-purple-500/20';
+        cardBg.style.background = 'radial-gradient(circle at 85% 15%, rgba(147, 51, 234, 0.25), transparent 50%), radial-gradient(circle at 10% 90%, rgba(255, 140, 0, 0.22), transparent 45%), #0c0b11';
+        brandBadge.className = 'w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center font-black text-xs sm:text-sm shadow-lg text-white bg-gradient-to-tr from-[#FF8C00] via-[#D40055] to-[#6B0099]';
+        brandBadge.innerText = 'P';
+        brandTitle.innerText = 'PLAJAH';
+        badge.className = 'px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 bg-purple-500/20 border border-purple-400/40 text-purple-300';
+        badge.innerHTML = '<span class="w-1.5 h-1.5 rounded-full bg-purple-400 animate-pulse"></span> Live Community Poll';
+        cta.className = 'w-full py-3 px-4 sm:px-5 rounded-2xl text-white flex items-center justify-between shadow-xl cursor-pointer hover:opacity-95 transition-all bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#8A2BE2]';
+        ctaIcon.innerText = '⚡';
+        ctaTitle.innerText = 'Cast Your Vote on Plajah';
+        ctaAction.innerText = 'Vote Free →';
+      }
+      else if (mode === 'music') {
+        ambientGlow.className = 'absolute -inset-2 rounded-[2.5rem] opacity-70 blur-2xl transition-all duration-500 bg-orange-500/25';
+        cardBg.style.background = 'radial-gradient(circle at 50% 35%, rgba(255, 140, 0, 0.3), rgba(212, 0, 85, 0.18) 50%, rgba(10, 9, 16, 0) 75%), #0a0910';
+        brandBadge.className = 'w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center font-black text-xs sm:text-sm shadow-lg text-white bg-gradient-to-tr from-[#FF8C00] via-[#D40055] to-[#6B0099]';
+        brandBadge.innerText = 'P';
+        brandTitle.innerText = 'PLAJAH';
+        badge.className = 'px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 bg-orange-500/20 border border-orange-400/40 text-orange-300';
+        badge.innerText = '🎵 SOUND RELEASE';
+        cta.className = 'w-full py-3 px-4 sm:px-5 rounded-2xl text-white flex items-center justify-between shadow-xl cursor-pointer hover:opacity-95 transition-all bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#6B0099]';
+        ctaIcon.innerText = '▶';
+        ctaTitle.innerText = 'Listen Lossless on Plajah';
+        ctaAction.innerText = 'Listen Free →';
+      }
+      else if (mode === 'reello') {
+        ambientGlow.className = 'absolute -inset-2 rounded-[2.5rem] opacity-70 blur-2xl transition-all duration-500 bg-pink-500/25';
+        cardBg.style.background = 'radial-gradient(circle at 50% 35%, rgba(236, 72, 153, 0.32), rgba(190, 24, 93, 0.18) 50%, rgba(10, 9, 16, 0) 75%), #0a0910';
+        brandBadge.className = 'w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center font-black text-xs sm:text-sm shadow-lg text-white bg-gradient-to-tr from-[#EC4899] via-[#BE185D] to-[#831843]';
+        brandBadge.innerText = 'R';
+        brandTitle.innerText = 'REELLO';
+        badge.className = 'px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 bg-pink-500/20 border border-pink-400/40 text-pink-300';
+        badge.innerText = '🎬 REELLO VIDEO';
+        cta.className = 'w-full py-3 px-4 sm:px-5 rounded-2xl text-white flex items-center justify-between shadow-xl cursor-pointer hover:opacity-95 transition-all bg-gradient-to-r from-[#EC4899] via-[#D946EF] to-[#8B5CF6]';
+        ctaIcon.innerText = '▶';
+        ctaTitle.innerText = 'Watch Short on Plajah';
+        ctaAction.innerText = 'Watch Clip →';
+      }
+      else if (mode === 'post') {
+        ambientGlow.className = 'absolute -inset-2 rounded-[2.5rem] opacity-70 blur-2xl transition-all duration-500 bg-orange-500/20';
+        cardBg.style.background = 'radial-gradient(circle at 85% 15%, rgba(138, 43, 226, 0.3), transparent 50%), radial-gradient(circle at 10% 90%, rgba(255, 140, 0, 0.25), transparent 45%), #0a0910';
+        brandBadge.className = 'w-8 h-8 sm:w-9 sm:h-9 rounded-xl flex items-center justify-center font-black text-xs sm:text-sm shadow-lg text-white bg-gradient-to-tr from-[#FF8C00] via-[#D40055] to-[#8A2BE2]';
+        brandBadge.innerText = 'P';
+        brandTitle.innerText = 'PLAJAH';
+        badge.className = 'px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5 bg-orange-500/20 border border-orange-400/40 text-orange-300';
+        badge.innerText = '💬 FEATURED POST';
+        cta.className = 'w-full py-3 px-4 sm:px-5 rounded-2xl text-white flex items-center justify-between shadow-xl cursor-pointer hover:opacity-95 transition-all bg-gradient-to-r from-[#FF8C00] via-[#D40055] to-[#8A2BE2]';
+        ctaIcon.innerText = '💬';
+        ctaTitle.innerText = 'Join The Discussion on Plajah';
+        ctaAction.innerText = 'Read Post →';
+      }
+    }
+
+    function handleSendComment() {
+      const input = document.getElementById('preview-comment-input');
+      if (input && input.value.trim()) {
+        alert('Signal posted: "' + input.value.trim() + '"\\nIn production, this triggers Firestore real-time onSnapshot sync across Web, Android, WinUI, and TV!');
+        input.value = '';
+      }
+    }
+
+    function triggerDownloadSim() {
+      alert('⚡ 1080×1080 Card Rendered!\\nWhen sharing from Plajah, the card is generated via native Canvas, feathered with dark dissolve gradients, and shared directly to your device or saved as high-res PNG.');
+    }
+
+    // Initialize cleanly on load
+    window.addEventListener('DOMContentLoaded', () => {
+      setCardMode('taleo');
+    });
+  </script>
+</body>
+</html>

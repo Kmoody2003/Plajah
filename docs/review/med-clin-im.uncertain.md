@@ -1,0 +1,26 @@
+# med-clin-im: claims for expert review
+
+- l01: ACC/AHA STEMI timing (door-to-balloon about 90 min, PCI-capable within about 120 min of first contact, fibrinolysis within 30 min). The 2021 chest pain guideline and 2013 STEMI guideline are anchored, but a newer ACS guideline may supersede details; check current text.
+- l01: statement that morphine is "no longer routine" is a simplification.
+- l02: 2022 AHA/ACC/HFSA four foundational drug classes; EF cut-offs (40 and 50 percent) and ICD/CRT thresholds (EF 35 percent, 3 months of therapy, wide LBBB QRS). 36-hour washout for ACE inhibitor before sacubitril-valsartan.
+- l02: hydralazine-nitrate indication wording ("self-identified Black patients" and ACE/ARB intolerance).
+- l03: CHA2DS2-VASc thresholds (2 in men, 3 in women) and 2023 ACC/AHA/ACCP/HRS wording on early rhythm control. Anticoagulation of at least 4 weeks after cardioversion.
+- l04: 130/80 threshold from 2017 ACC/AHA; whether newer guidance has changed it. Dental endocarditis prophylaxis categories and the "AHA from 2007 onward" phrasing.
+- l04: Duke criteria version (modified Duke; a 2023 Duke-ISCVID revision exists and is not described).
+- l05: GINA and GOLD report year (2024) and ICS/formoterol reliever wording; blood eosinophil threshold (about 300) for adding ICS in COPD; long-term oxygen thresholds (PaO2 55, SaO2 88 percent).
+- l06: ESC 2019 PE risk language; ATS/IDSA 2019 CAP regimens; CURB-65 definition; empyema pH threshold 7.2.
+- l07: ACG 2021 upper GI bleed guideline anchor; restrictive transfusion threshold of about 7 g/dL; toxic megacolon 6 cm; UC surveillance start at about 8 years.
+- l08: Pancreatitis criteria; triglyceride threshold about 1000 mg/dL; SBP neutrophil threshold 250/uL; USPSTF 2020 HCV screening (ages 18-79); "rifaximin to prevent recurrence".
+- l09: KDIGO AKI criteria; FENa thresholds (1 and 2 percent); KDIGO 2024 CKD recommendations (SGLT2 inhibitor and finerenone placement); AEIOU dialysis mnemonic.
+- l10: sodium correction limit (8 mEq/L per 24 h in high-risk patients); urine sodium threshold in SIADH (about 40); anion gap normal range.
+- l11: ADA 2024 anchors and statements on GLP-1/SGLT2 inhibitor independence from A1c; potassium threshold of 3.3 before insulin in DKA; HHS osmolality threshold (about 320) and glucose (above 600).
+- l12: ATA 2016 hyperthyroidism guideline anchor; "iodine given after the thionamide" in thyroid storm; propylthiouracil in first trimester.
+- l13: Mentzer index below 13; hemoglobin thresholds; hydroxyurea in sickle cell wording.
+- l14: HIT timing and 4Ts; reversal agents (andexanet alfa still marketed status uncertain; its US availability may have changed); protein C and warfarin skin necrosis.
+- l15: USPSTF 2021 colorectal (45-75), 2021 lung (50-80, 20 pack-years, 15 years), 2024 breast (40-74 biennial), 2018 cervical and 2018 prostate; check whether any have been updated since. AAA screening ages.
+- l16: neutropenic fever definitions (38.3 C, ANC below 500); rasburicase avoidance in G6PD deficiency; stated adult CLL "commonest in the West".
+- l17: Surviving Sepsis 2021 (about 30 mL/kg fluids, norepinephrine first-line, MAP 65); meningitis empiric regimen and dexamethasone timing; IDSA/SHEA 2021 preference for fidaxomicin; prophylaxis agents for meningococcal contacts.
+- l18: HHS antiretroviral guidance year (2024) and the integrase-based regimen statement; CD4 thresholds for prophylaxis; TB regimen, latent TB regimens; CDC 2021 STI guideline (a newer edition may exist; doxycycline for chlamydia).
+- l19: ACR 2020 gout guideline wording; synovial fluid count of 50,000 for septic arthritis; autoantibody associations (anticentromere vs Scl-70).
+- l20: AGS Beers 2023; USPSTF 2025 osteoporosis screening anchor (wording of the update is less certain); status of anti-amyloid antibodies "as of this writing"; capacity elements.
+- Question l09.q4 and similar: scenario wording uses antihistamine plus sympathomimetic as a retention trigger; accepted but check.

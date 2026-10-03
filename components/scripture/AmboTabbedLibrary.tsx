@@ -18,7 +18,7 @@ import {
   Sliders, Plus, Play, Eye, Check, Radio, FileText, Flame, Activity,
   Maximize2, ChevronRight, Grid, List, Volume2, RefreshCw, X, AlignLeft,
   Type, MoveHorizontal, Compass, Clock, Folder, FolderPlus, Pin, Trash2,
-  Image, ChevronDown, ChevronUp, SlidersHorizontal, Wand2
+  Image, ChevronDown, ChevronUp, SlidersHorizontal, Wand2, ChevronLeft
 } from 'lucide-react';
 import { BOOKS, TRANSLATIONS, type BibleBook, type BibleVerse } from '../../services/bibleService';
 import { parseRef, formatRef, type ScriptureRef } from '../../services/scriptureRef';
@@ -36,15 +36,21 @@ import {
   type WindowsPickedFile,
 } from '../../services/windowsBridgeService';
 import {
-  fetchAllPublicAlbums, fetchPersonalTracks, fetchPersonalPlaylists,
+  fetchAllPublicAlbums, fetchPersonalTracks, fetchPersonalAlbums, fetchPersonalPlaylists, updatePlaylist,
   fetchAllVideos, fetchUserVideos, fetchGlobalPhotos, fetchUserPhotos, auth,
 } from '../../services/backendService';
 import type { Video, Album, Photo } from '../../types';
 import { gridSrc } from '../../services/imageDerivatives';
+import { thumb, THUMB } from '../../src/lib/imageThumb';
+import { searchAudius, fetchAudiusTrending } from '../../services/audiusService';
 import { SHADER_LIBRARY, type ShaderLibraryEntry } from '../plajahPixels/components/ShaderPanel';
 import { SCENE_CATALOG } from '../plajahPixels/engine/sceneCatalog';
+import { AmboVisualizerThumb } from './AmboVisualizerThumb';
+import { MILKDROP_PREFIX } from '../../services/ambo/layerSources';
 import { type AmboDJTrack } from './AmboDJTrackPlayer';
 import { AmboNewAudioPlaylistModal, type AmboAudioPlaylist } from './AmboNewAudioPlaylistModal';
+import AmboChoraAudioPanel from './AmboChoraAudioPanel';
+import { rememberLyrics } from '../../services/ambo/lyricFeed';
 
 export type AmboLibraryTab =
   | 'shows'
@@ -54,7 +60,8 @@ export type AmboLibraryTab =
   | 'reello'
   | 'taleo'
   | 'visualizers'
-  | 'assets';
+  | 'assets'
+  | 'live';
 
 interface PinnedFolder {
   id: string;
@@ -104,6 +111,13 @@ const GOLD = '#E3C57E';
 const LILAC = '#D0BCFF';
 const EMERALD = '#10B981';
 const line = 'rgba(255,255,255,0.09)';
+
+/** Merge playlists from the Chora service: the server copy replaces any older local copy. */
+function mergeChoraPlaylists(prev: AmboAudioPlaylist[], incoming: AmboAudioPlaylist[]): AmboAudioPlaylist[] {
+  const byId = new Map(incoming.map(p => [p.id, p]));
+  const kept = prev.filter(p => !byId.has(p.id));
+  return [...kept, ...incoming];
+}
 const glass = 'rgba(255,255,255,0.035)';
 
 // ── Default OS Mapped Folders ──
@@ -248,6 +262,16 @@ const TELA_DESIGN_TEMPLATES = [
   { id: 'tela_vis_timer', title: '5-Minute Service Countdown Clock', kind: 'Data Visualizer', category: 'Data Visualizers', sub: 'Live Vector Timer' },
 ];
 
+// Module-level data cache — survives tab switches, only refetches if stale
+const _cache = {
+  chora: { data: null as any, ts: 0 },
+  reello: { data: null as any, ts: 0 },
+  taleo: { data: null as any, ts: 0 },
+  photos: { data: null as any, ts: 0 },
+};
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const isFresh = (key: keyof typeof _cache) => _cache[key].data && (Date.now() - _cache[key].ts) < CACHE_TTL;
+
 // ── Complete 16 Fabula Native Transitions from transitionRenderer.ts ──
 export const FABULA_TRANSITIONS = [
   { id: 'cut', name: 'Cut', sub: 'Instantaneous 0-frame switch', duration: 0 },
@@ -302,7 +326,20 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
 }) => {
   // ── Global Search and Subcategory selection ──
   const [searchQuery, setSearchQuery] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
   const [selectedSubcat, setSelectedSubcat] = useState<string>('all');
+
+  const INITIAL_RENDER_LIMIT = 50;
+  const [renderLimit, setRenderLimit] = useState(INITIAL_RENDER_LIMIT);
+
+  useEffect(() => {
+    setRenderLimit(INITIAL_RENDER_LIMIT);
+  }, [activeTab, selectedSubcat]);
 
   // ── Chora Platform Music, Locker Tracks & Audio Playlists ──
   const [choraPublicTracks, setChoraPublicTracks] = useState<AmboDJTrack[]>([]);
@@ -320,19 +357,57 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   });
   const [selectedPlaylistId, setSelectedPlaylistId] = useState<string | null>(null);
   const [isNewAudioPlaylistModalOpen, setIsNewAudioPlaylistModalOpen] = useState(false);
+  
+  const [choraPublicAlbums, setChoraPublicAlbums] = useState<Album[]>([]);
+  const [personalLockerAlbums, setPersonalLockerAlbums] = useState<Album[]>([]);
+  const [audiusTrending, setAudiusTrending] = useState<AmboDJTrack[]>([]);
+  const [expandedAlbumId, setExpandedAlbumId] = useState<string | null>(null);
+
+  const [isLoadingChora, setIsLoadingChora] = useState(false);
 
   useEffect(() => {
     let active = true;
     const loadChora = async () => {
+      if (isFresh('chora')) {
+        const c = _cache.chora.data;
+        setChoraPublicAlbums(c.albums);
+        setPersonalLockerAlbums(c.pAlbums);
+        setAudiusTrending(c.audius);
+        setChoraPublicTracks(c.pub);
+        setPersonalLockerTracks(c.locker);
+        rememberLyrics([...c.pub, ...c.locker]);
+        if (c.mappedPlaylists) {
+          setAudioPlaylists(prev => mergeChoraPlaylists(prev, c.mappedPlaylists));
+        }
+        return;
+      }
+      
       try {
+        setIsLoadingChora(true);
         const uid = auth.currentUser?.uid;
-        const [albums, personal, pPlaylists] = await Promise.all([
+        const [albums, personal, pAlbums, pPlaylists, audiusRes] = await Promise.all([
           fetchAllPublicAlbums().catch(() => []),
           fetchPersonalTracks().catch(() => []),
+          fetchPersonalAlbums().catch(() => []),
           uid ? fetchPersonalPlaylists(uid).catch(() => []) : Promise.resolve([]),
+          fetchAudiusTrending('Electronic', 20).catch(() => []),
         ]);
 
         if (!active) return;
+        
+        setChoraPublicAlbums(albums || []);
+        setPersonalLockerAlbums(pAlbums || []);
+        
+        const mappedAudius: AmboDJTrack[] = (audiusRes || []).map(t => ({
+          id: t.id,
+          title: t.title,
+          artist: t.artist,
+          url: t.url,
+          duration: t.duration,
+          coverImage: t.thumbnailUrl,
+          category: 'Audius',
+        }));
+        setAudiusTrending(mappedAudius);
 
         // Flatten all public album tracks from artists across Chora
         const pub: AmboDJTrack[] = [];
@@ -348,6 +423,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
               key: (t as any).key || 'Key of C',
               bpm: (t as any).bpm || 72,
               category: 'Artists & Albums',
+              timeCodedLyrics: (t as any).timeCodedLyrics,
             });
           }
         }
@@ -364,28 +440,45 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
           key: t.key || 'Key of G',
           bpm: t.bpm || 70,
           category: 'Personal Music Locker',
+          timeCodedLyrics: t.timeCodedLyrics,
         }));
         setPersonalLockerTracks(locker);
+        // Lyric sync resolves songs queued from a snapshot through this cache.
+        rememberLyrics([...pub, ...locker]);
 
+        let mappedPlaylists: AmboAudioPlaylist[] = [];
         if (pPlaylists && pPlaylists.length > 0) {
-          const mappedPlaylists: AmboAudioPlaylist[] = pPlaylists.map((p: any) => ({
+          mappedPlaylists = pPlaylists.map((p: any) => ({
             id: p.id,
             title: p.title || p.name || 'Playlist',
             description: p.description,
             category: 'Audio Playlists',
             trackIds: p.trackIds || [],
-            createdAt: p.createdAt || Date.now(),
+            createdAt: p.createdAt || p.timestamp || Date.now(),
+            source: 'chora' as const,
+            tracks: (p.tracks || []).map((t: any) => ({
+              id: t.id, title: t.title, artist: t.artist, url: t.url,
+              duration: t.duration, coverImage: t.coverImage || p.coverImage, category: 'Audio Playlists',
+            })),
           }));
-          setAudioPlaylists(prev => {
-            const merged = [...prev];
-            for (const mp of mappedPlaylists) {
-              if (!merged.some(x => x.id === mp.id)) merged.push(mp);
-            }
-            return merged;
-          });
+          setAudioPlaylists(prev => mergeChoraPlaylists(prev, mappedPlaylists));
         }
+        
+        _cache.chora = {
+          data: {
+            albums: albums || [],
+            pAlbums: pAlbums || [],
+            audius: mappedAudius,
+            pub,
+            locker,
+            mappedPlaylists
+          },
+          ts: Date.now()
+        };
       } catch (err) {
         console.warn('[AmboTabbedLibrary] Failed loading Chora tracks', err);
+      } finally {
+        setIsLoadingChora(false);
       }
     };
     loadChora();
@@ -406,31 +499,42 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   useEffect(() => {
     let active = true;
 
-    // Load real on-platform Reello videos
-    setIsLoadingVideos(true);
-    fetchAllVideos()
-      .then(vids => {
-        if (active && vids) setPlatformVideos(vids);
-      })
-      .catch(err => console.warn('[AmboTabbedLibrary] Failed loading platform videos', err))
-      .finally(() => {
+    const loadReello = async () => {
+      if (isFresh('reello')) {
+        const c = _cache.reello.data;
+        setPlatformVideos(c.platform);
+        setUserVideos(c.user);
+        return;
+      }
+      setIsLoadingVideos(true);
+      try {
+        const vids = await fetchAllVideos().catch(() => []);
+        let uVids: Video[] = [];
+        if (auth.currentUser?.uid) {
+          uVids = await fetchUserVideos(auth.currentUser.uid).catch(() => []);
+        }
+        if (!active) return;
+        setPlatformVideos(vids || []);
+        setUserVideos(uVids || []);
+        _cache.reello = { data: { platform: vids || [], user: uVids || [] }, ts: Date.now() };
+      } catch (err) {
+        console.warn('[AmboTabbedLibrary] Failed loading platform videos', err);
+      } finally {
         if (active) setIsLoadingVideos(false);
-      });
+      }
+    };
+    loadReello();
 
-    // Load signed-in user videos/reels
-    if (auth.currentUser?.uid) {
-      fetchUserVideos(auth.currentUser.uid)
-        .then(vids => {
-          if (active && vids) setUserVideos(vids);
-        })
-        .catch(() => {});
-    }
-
-    // Load on-platform Taleo films, docuseries, TV series, narrative releases
-    setIsLoadingTaleo(true);
-    fetchAllPublicAlbums()
-      .then(albums => {
-        if (active && albums) {
+    const loadTaleo = async () => {
+      if (isFresh('taleo')) {
+        setTaleoReleases(_cache.taleo.data);
+        return;
+      }
+      setIsLoadingTaleo(true);
+      try {
+        const albums = await fetchAllPublicAlbums().catch(() => []);
+        if (!active) return;
+        if (albums) {
           const taleo = albums.filter(
             a =>
               a.type === 'VIDEO' ||
@@ -441,12 +545,15 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
               (a.seasons && a.seasons.length > 0)
           );
           setTaleoReleases(taleo);
+          _cache.taleo = { data: taleo, ts: Date.now() };
         }
-      })
-      .catch(err => console.warn('[AmboTabbedLibrary] Failed loading Taleo series', err))
-      .finally(() => {
+      } catch (err) {
+        console.warn('[AmboTabbedLibrary] Failed loading Taleo series', err);
+      } finally {
         if (active) setIsLoadingTaleo(false);
-      });
+      }
+    };
+    loadTaleo();
 
     // Load full Butterchurn Milkdrop preset names
     import('butterchurn-presets')
@@ -465,14 +572,42 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     };
   }, []);
 
+  // Only Ambo's own playlists are stored locally; Chora playlists live in the
+  // Chora service and are re-read from it.
+  const persistPlaylists = (list: AmboAudioPlaylist[]) => {
+    try { localStorage.setItem('ambo_audio_playlists', JSON.stringify(list.filter(x => x.source !== 'chora'))); } catch {}
+  };
+
   const handleCreateAudioPlaylist = (newPl: AmboAudioPlaylist) => {
     setAudioPlaylists(prev => {
-      const updated = [newPl, ...prev];
-      try { localStorage.setItem('ambo_audio_playlists', JSON.stringify(updated)); } catch {}
+      const updated = [{ ...newPl, source: 'local' as const }, ...prev];
+      persistPlaylists(updated);
       return updated;
     });
     setSelectedPlaylistId(newPl.id);
     setSelectedSubcat('Audio Playlists');
+  };
+
+  const handleUpdateAudioPlaylist = (id: string, patch: Partial<AmboAudioPlaylist>) => {
+    const target = audioPlaylists.find(x => x.id === id);
+    setAudioPlaylists(prev => {
+      const updated = prev.map(x => (x.id === id ? { ...x, ...patch } : x));
+      persistPlaylists(updated);
+      return updated;
+    });
+    // Edits to a Chora playlist go back to the Chora service, so the same
+    // playlist is current in the Chora app.
+    if (target?.source === 'chora' && patch.trackIds) {
+      void updatePlaylist(id, { trackIds: patch.trackIds }).catch(err => console.warn('[Ambo] Chora playlist sync failed', err));
+    }
+  };
+
+  const handleDeleteAudioPlaylist = (id: string) => {
+    setAudioPlaylists(prev => {
+      const updated = prev.filter(x => x.id !== id);
+      persistPlaylists(updated);
+      return updated;
+    });
   };
 
   // ── Local OS Pinned Folders ──
@@ -533,8 +668,13 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   // Load real Platform Photos and User Locker Photos
   useEffect(() => {
     let cancelled = false;
-    fetchGlobalPhotos(false)
-      .then(async photos => {
+    const loadPhotos = async () => {
+      if (isFresh('photos')) {
+        setPlatformPhotos(_cache.photos.data);
+        return;
+      }
+      try {
+        const photos = await fetchGlobalPhotos(false);
         if (cancelled || !photos) return;
         let userPhotosList: Photo[] = [];
         const currentUid = auth.currentUser?.uid;
@@ -572,8 +712,13 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
           };
         });
         setPlatformPhotos(mapped);
-      })
-      .catch(() => {});
+        _cache.photos = { data: mapped, ts: Date.now() };
+      } catch (err) {
+        // ignore
+      }
+    };
+    loadPhotos();
+
     return () => {
       cancelled = true;
     };
@@ -686,13 +831,13 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   const filteredBooks = useMemo(() => {
     return BOOKS.filter(b => {
       if (scriptureTestament !== 'ALL' && b.testament !== scriptureTestament) return false;
-      if (searchQuery && searchQuery.trim() && activeTab === 'scripture') {
-        const q = searchQuery.toLowerCase().trim();
+      if (debouncedSearch && debouncedSearch.trim() && activeTab === 'scripture') {
+        const q = debouncedSearch.toLowerCase().trim();
         return (b.name && b.name.toLowerCase().includes(q)) || String(b.num) === q;
       }
       return true;
     });
-  }, [scriptureTestament, searchQuery, activeTab]);
+  }, [scriptureTestament, debouncedSearch, activeTab]);
 
   const activeBook = useMemo(() => {
     return BOOKS.find(b => b.num === selectedBookNum) || BOOKS[42]; // Fallback John
@@ -832,7 +977,10 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     const shaderItems: AmboMediaSourceItem[] = SHADER_LIBRARY.map((s, idx) => ({
       id: `sh_${idx}_${s.name.replace(/\s+/g, '_')}`,
       name: s.name,
-      kind: 'GENERATOR',
+      // Library shaders are Shadertoy sources, not generator modes — they render
+      // through ShaderSource. `mode` mirrors src so cue/live highlighting matches.
+      kind: 'SHADER',
+      src: s.src,
       mode: s.src,
       sub: `${s.setTitle || s.cat || 'Shader'}${s.series ? ` · Series ${s.series}` : ''}`,
       tags: [
@@ -871,7 +1019,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
       id: `milk_${i}`,
       name: name.length > 36 ? name.slice(0, 34) + '…' : name,
       kind: 'GENERATOR',
-      mode: name,
+      mode: `${MILKDROP_PREFIX}${name}`,
       sub: 'Milkdrop Preset',
       tags: ['milkdrop', 'butterchurn', name.toLowerCase()],
       gradient: 'linear-gradient(135deg, #120a1f, #2e1065)',
@@ -894,15 +1042,17 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
           : 'linear-gradient(135deg, #042f2e, #0d9488)',
     }));
 
+    // (The hand-written FLUX_SERIES_VI / SERIES_VII_ART_DIRECTORS cards named modes
+    // that exist nowhere in Pixels; the real Series VI / VII works arrive through
+    // SHADER_LIBRARY above, tagged 'flux' / 'series7'.)
     return [
-      ...FLUX_SERIES_VI,
-      ...SERIES_VII_ART_DIRECTORS,
       ...sceneItems,
       ...shaderItems,
       ...baseItems,
       ...milkPresets,
     ];
   }, [milkdropNames]);
+  const [hoverVizId, setHoverVizId] = useState<string | null>(null);
 
   // ── Combined Reello Videos List (Platform + User Uploads + Fallback) ──
   const activeReelloClips = useMemo(() => {
@@ -1009,6 +1159,28 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
       }));
   }, [nativeSources]);
 
+  // Live Feeds tab (moved here from the old side media bin): the switcher and
+  // capture inputs Ambo always offers, plus every native/NDI source found.
+  const liveFeedItems: AmboMediaSourceItem[] = useMemo(() => {
+    const core: AmboMediaSourceItem[] = [
+      { id: 'switcher:pgm', name: 'Switcher PGM', kind: 'LIVE', inputId: 'switcher:pgm', sub: 'Broadcast program bus', tags: ['switcher'] },
+      { id: 'switcher:aux1', name: 'Switcher AUX 1', kind: 'LIVE', inputId: 'switcher:aux1', sub: 'Camera aux', tags: ['switcher'] },
+      { id: 'decklink_input1', name: 'DeckLink SDI', kind: 'LIVE', inputId: 'decklink_input1', sub: '1080p59.94 SDI', tags: ['sdi'] },
+    ];
+    const seen = new Set(core.map(c => c.id));
+    const native: AmboMediaSourceItem[] = (nativeSources || [])
+      .filter(s => s && !seen.has(s.id))
+      .map(s => ({
+        id: s.id,
+        name: s.streamName || s.label || 'Live source',
+        kind: 'LIVE' as const,
+        inputId: s.id,
+        sub: s.machineName || (s.kind === 'ndi' ? 'NDI network stream' : String(s.kind || 'Capture input')),
+        tags: [String(s.kind || 'live')],
+      }));
+    return [...core, ...native];
+  }, [nativeSources]);
+
   // Combined Media Tab files
   const activeMediaItems: AmboMediaSourceItem[] = useMemo(() => {
     const allPhotos = platformPhotos.length > 0 ? platformPhotos : PLAJAH_PHOTOS;
@@ -1033,13 +1205,13 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
       items = ndiMediaSources;
     }
 
-    if (searchQuery.trim() && activeTab === 'media') {
-      const q = searchQuery.toLowerCase().trim();
+    if (debouncedSearch.trim() && activeTab === 'media') {
+      const q = debouncedSearch.toLowerCase().trim();
       items = items.filter(it => it.name.toLowerCase().includes(q) || it.sub?.toLowerCase().includes(q));
     }
 
     return items;
-  }, [selectedSubcat, activeFolderId, realFolderFiles, platformPhotos, customFolderFiles, ndiMediaSources, searchQuery, activeTab, pinnedFolders]);
+  }, [selectedSubcat, activeFolderId, realFolderFiles, platformPhotos, customFolderFiles, ndiMediaSources, debouncedSearch, activeTab, pinnedFolders]);
 
   // Drag-and-drop helper
   const handleDragStart = (e: React.DragEvent, item: AmboMediaSourceItem) => {
@@ -1057,6 +1229,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     { id: 'taleo', label: 'Taleo', icon: <Film size={13} />, count: activeTaleoSeries.length },
     { id: 'visualizers', label: 'Visualizers', icon: <Sparkles size={13} />, count: visualizerItems.length },
     { id: 'assets', label: 'Assets', icon: <FileText size={13} />, count: FABULA_LOTTIE_PRESETS.length + FABULA_TRANSITIONS.length },
+    { id: 'live', label: 'Live Feeds', icon: <Radio size={13} />, count: liveFeedItems.length },
   ] as const;
 
   if (isCollapsed) {
@@ -1651,7 +1824,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                 </div>
               ) : (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {activeMediaItems.map(item => {
+                  {activeMediaItems.slice(0, renderLimit).map(item => {
                     const isLive = currentLiveInputId === item.id || currentLiveInputId === item.mode || currentLiveInputId === item.inputId;
                     const isPrev = currentPreviewInputId === item.id || currentPreviewInputId === item.inputId;
                     const hasThumb = Boolean(item.thumb || (item.kind === 'IMAGE' && item.src));
@@ -1751,6 +1924,11 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                       </div>
                     );
                   })}
+                  {activeMediaItems.length > renderLimit && (
+                    <button onClick={() => setRenderLimit(r => r + 50)} className="col-span-full py-2 text-center text-xs text-white/50 hover:text-white">
+                      Show more ({activeMediaItems.length - renderLimit} remaining)
+                    </button>
+                  )}
                 </div>
               )}
             </div>
@@ -1761,225 +1939,31 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
         {/* TAB 4: CHORA (All Artists, Albums, Personal Music Locker, Playlists & DJ) */}
         {/* ========================================================================= */}
         {activeTab === 'chora' && (
-          <div className="flex-1 flex min-h-0 overflow-hidden">
-            {/* Left Sidebar: Subcategories & Audio Playlists */}
-            <div className="w-56 border-r p-2 flex flex-col gap-1 flex-none overflow-y-auto" style={{ borderColor: line, background: 'rgba(0,0,0,0.2)' }}>
-              <div className="text-[9.5px] font-extrabold uppercase tracking-wider text-white/40 mb-1">Chora Catalog</div>
-              {[
-                { id: 'all', label: 'All Chora Music' },
-                { id: 'Artists & Albums', label: 'Artists & Albums' },
-                { id: 'Personal Music Locker', label: 'Personal Locker' },
-                { id: 'Audio Playlists', label: 'Audio Playlists' },
-                { id: 'Worship Anthems', label: 'Worship Anthems' },
-                { id: 'Anthems & Hymns', label: 'Anthems & Hymns' },
-                { id: 'Ambient Pads (12 Keys)', label: 'Ambient Pads (12 Keys)' },
-                { id: 'Multitrack Stems', label: 'Multitrack Stems' },
-              ].map(cat => (
-                <button
-                  key={cat.id}
-                  onClick={() => {
-                    setSelectedSubcat(cat.id);
-                    if (cat.id !== 'Audio Playlists') setSelectedPlaylistId(null);
-                  }}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-lg text-[11px] font-medium transition-all ${
-                    selectedSubcat === cat.id ? 'bg-white/15 text-white font-bold' : 'text-white/60 hover:text-white hover:bg-white/5'
-                  }`}
-                >
-                  {cat.label}
-                </button>
-              ))}
-
-              {/* Audio Playlists List & Creator */}
-              <div className="mt-3 pt-2 border-t border-white/10 flex flex-col gap-1">
-                <div className="flex items-center justify-between px-1 mb-1">
-                  <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40">Playlists</span>
-                  <button
-                    onClick={() => setIsNewAudioPlaylistModalOpen(true)}
-                    className="p-1 rounded bg-[#D0BCFF]/15 hover:bg-[#D0BCFF]/25 text-[#D0BCFF] transition-all"
-                    title="Create new audio playlist"
-                  >
-                    <Plus size={11} />
-                  </button>
-                </div>
-                {audioPlaylists.map(pl => (
-                  <button
-                    key={pl.id}
-                    onClick={() => {
-                      setSelectedSubcat('Audio Playlists');
-                      setSelectedPlaylistId(pl.id);
-                    }}
-                    className={`w-full text-left px-2 py-1 rounded-md text-[10.5px] truncate transition-all flex items-center justify-between ${
-                      selectedPlaylistId === pl.id && selectedSubcat === 'Audio Playlists'
-                        ? 'bg-[#D0BCFF]/20 text-[#D0BCFF] font-bold border border-[#D0BCFF]/30'
-                        : 'text-white/60 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    <span className="truncate">{pl.title}</span>
-                    <span className="text-[9px] font-mono opacity-50 flex-none ml-1">{pl.trackIds?.length || 0}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Right: Search & Tracks Grid */}
-            <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-              {/* Header Bar */}
-              <div className="px-3 py-2 border-b border-white/10 bg-black/30 flex items-center justify-between gap-3">
-                <div className="relative flex-1 max-w-sm">
-                  <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-white/40" />
-                  <input
-                    type="text"
-                    placeholder="Search artist, title, album, key, or BPM..."
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    className="w-full pl-8 pr-3 py-1 rounded-lg bg-white/5 border border-white/10 focus:border-[#D0BCFF] text-white text-[11px] outline-none transition-all placeholder:text-white/30"
-                  />
-                </div>
-                <div className="flex items-center gap-2 flex-none">
-                  <span className="text-[10px] text-white/40 font-mono">
-                    Drag track into presentation to create Audio Slide
-                  </span>
-                  <button
-                    onClick={() => setIsNewAudioPlaylistModalOpen(true)}
-                    className="px-2.5 py-1 rounded-lg bg-[#D0BCFF]/15 hover:bg-[#D0BCFF]/25 text-[#D0BCFF] border border-[#D0BCFF]/30 text-[10px] font-bold transition-all flex items-center gap-1"
-                  >
-                    <Plus size={11} />
-                    <span>New Playlist</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Tracks List */}
-              <div className="flex-1 p-3 overflow-y-auto space-y-2">
-                {(() => {
-                  const combinedTracks: AmboDJTrack[] = [
-                    ...CHORA_TRACKS,
-                    ...CHORA_PADS,
-                    ...CHORA_STEMS,
-                    ...choraPublicTracks,
-                    ...personalLockerTracks,
-                  ];
-
-                  const filtered = combinedTracks.filter(t => {
-                    if (selectedSubcat === 'Audio Playlists') {
-                      if (!selectedPlaylistId) return true;
-                      const activePl = audioPlaylists.find(p => p.id === selectedPlaylistId);
-                      return activePl ? activePl.trackIds.includes(t.id || '') : true;
-                    }
-                    if (selectedSubcat !== 'all' && selectedSubcat !== 'All Chora Music') {
-                      if (t.category !== selectedSubcat) return false;
-                    }
-                    if (searchQuery.trim()) {
-                      const q = searchQuery.toLowerCase();
-                      const matchTitle = t.title?.toLowerCase().includes(q);
-                      const matchArtist = t.artist?.toLowerCase().includes(q);
-                      const matchKey = t.key?.toLowerCase().includes(q);
-                      return matchTitle || matchArtist || matchKey;
-                    }
-                    return true;
-                  });
-
-                  if (filtered.length === 0) {
-                    return (
-                      <div className="h-40 flex flex-col items-center justify-center text-white/40 text-xs">
-                        <Music size={24} className="mb-2 opacity-40" />
-                        <span>No audio tracks found in this category.</span>
-                        <span className="text-[10px] opacity-60 mt-1">Try searching or uploading tracks to your Personal Music Locker.</span>
-                      </div>
-                    );
-                  }
-
-                  return filtered.map(t => {
-                    const isPlayingThis = currentPlayingAudioId === t.id;
-                    return (
-                      <div
-                        key={t.id}
-                        draggable
-                        onDragStart={e => {
-                          e.dataTransfer.setData('application/json', JSON.stringify({
-                            type: 'ambo-audio',
-                            track: t,
-                          }));
-                          e.dataTransfer.setData('text/plain', t.title);
-                        }}
-                        className={`flex items-center justify-between p-2.5 rounded-xl border transition-all group cursor-grab active:cursor-grabbing ${
-                          isPlayingThis
-                            ? 'border-[#FF8C00] bg-[#FF8C00]/10 shadow-[0_0_15px_rgba(255,140,0,0.15)]'
-                            : 'border-white/10 hover:border-white/20 bg-white/[0.02] hover:bg-white/[0.05]'
-                        }`}
-                        title="Drag into presentation to create an Audio Asset Slide | Click DJ to open horizontal waveform"
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <div className="w-8 h-8 rounded-lg bg-[#D0BCFF]/10 text-[#D0BCFF] grid place-items-center flex-none">
-                            <Music size={15} />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-[12px] font-semibold text-white truncate flex items-center gap-2">
-                              <span>{t.title}</span>
-                              {t.category && (
-                                <span className="px-1.5 py-0.2 rounded bg-white/10 font-mono text-[8.5px] text-white/50 font-normal">
-                                  {t.category}
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-[10px] text-white/40 flex items-center gap-2 truncate">
-                              <span>{t.artist || 'Chora'}</span>
-                              <span>·</span>
-                              <span className="text-[#00DAF3]">{t.key || 'Key of C'}</span>
-                              {t.bpm && t.bpm > 0 && <span>· {t.bpm} BPM</span>}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2 flex-none">
-                          <span className="font-mono text-[10px] text-white/40">{t.duration || '3:30'}</span>
-
-                          {/* DJ Waveform & Play Button */}
-                          <button
-                            onClick={() => onPlayAudioTrack?.(t)}
-                            className="px-2.5 py-1 rounded text-[10px] font-bold text-white bg-purple-600 hover:bg-purple-500 transition-all flex items-center gap-1 shadow-sm"
-                            title="Play with DJ Waveform, EQ & Hot Cues"
-                          >
-                            <Sparkles size={11} />
-                            <span>DJ Play</span>
-                          </button>
-
-                          {/* Cue Button */}
-                          <button
-                            onClick={() => onCueAudioTrack?.(t)}
-                            className="px-2.5 py-1 rounded text-[10px] font-semibold text-white/80 bg-white/10 hover:bg-white/20 transition-all flex items-center gap-1"
-                            title="Cue audio in Preview"
-                          >
-                            <Volume2 size={11} />
-                            <span>Cue</span>
-                          </button>
-
-                          {/* Take Button */}
-                          <button
-                            onClick={() => onTakeAudioTrack?.(t)}
-                            className="px-2.5 py-1 rounded text-[10px] font-bold text-[#FF8C00] bg-[#FF8C00]/15 hover:bg-[#FF8C00]/25 border border-[#FF8C00]/30 transition-all flex items-center gap-1"
-                            title="Take live on Program Out"
-                          >
-                            <Play size={11} fill="#FF8C00" />
-                            <span>Take</span>
-                          </button>
-
-                          {/* Insert as Audio Slide Button */}
-                          <button
-                            onClick={() => onInsertAudioSlide?.(t)}
-                            className="px-2 py-1 rounded text-[10px] font-semibold text-white/70 hover:text-white bg-white/5 hover:bg-white/15 border border-white/10 transition-all flex items-center gap-1"
-                            title="Create Audio Asset Slide in presentation"
-                          >
-                            <Plus size={11} />
-                            <span>+ Slide</span>
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            </div>
-          </div>
+          <AmboChoraAudioPanel
+            choraPublicTracks={choraPublicTracks}
+            personalLockerTracks={personalLockerTracks}
+            audiusTrending={audiusTrending}
+            choraPublicAlbums={choraPublicAlbums}
+            isLoadingChora={isLoadingChora}
+            audioPlaylists={audioPlaylists}
+            onUpdatePlaylist={handleUpdateAudioPlaylist}
+            onDeletePlaylist={handleDeleteAudioPlaylist}
+            onOpenNewPlaylist={() => setIsNewAudioPlaylistModalOpen(true)}
+            selectedSubcat={selectedSubcat}
+            setSelectedSubcat={setSelectedSubcat}
+            selectedPlaylistId={selectedPlaylistId}
+            setSelectedPlaylistId={setSelectedPlaylistId}
+            expandedAlbumId={expandedAlbumId}
+            setExpandedAlbumId={setExpandedAlbumId}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+            debouncedSearch={debouncedSearch}
+            onPlayAudioTrack={onPlayAudioTrack}
+            onCueAudioTrack={onCueAudioTrack}
+            onTakeAudioTrack={onTakeAudioTrack}
+            onInsertAudioSlide={onInsertAudioSlide}
+            currentPlayingAudioId={currentPlayingAudioId}
+          />
         )}
 
         {/* ========================================================================= */}
@@ -2004,8 +1988,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
             <div className="flex-1 p-3 overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
               {activeReelloClips
                 .filter(r => {
-                  if (searchQuery.trim() && activeTab === 'reello') {
-                    const q = searchQuery.toLowerCase().trim();
+                  if (debouncedSearch.trim() && activeTab === 'reello') {
+                    const q = debouncedSearch.toLowerCase().trim();
                     const match = r.name.toLowerCase().includes(q) || r.author.toLowerCase().includes(q) || r.sub.toLowerCase().includes(q);
                     if (!match) return false;
                   }
@@ -2124,8 +2108,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
             <div className="flex-1 p-3 overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {activeTaleoSeries
                 .filter(t => {
-                  if (searchQuery.trim() && activeTab === 'taleo') {
-                    const q = searchQuery.toLowerCase().trim();
+                  if (debouncedSearch.trim() && activeTab === 'taleo') {
+                    const q = debouncedSearch.toLowerCase().trim();
                     const match = t.title.toLowerCase().includes(q) || (t.artist && t.artist.toLowerCase().includes(q));
                     if (!match) return false;
                   }
@@ -2253,8 +2237,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
             <div className="flex-1 p-3 overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
               {visualizerItems
                 .filter(item => {
-                  if (searchQuery.trim() && activeTab === 'visualizers') {
-                    const q = searchQuery.toLowerCase().trim();
+                  if (debouncedSearch.trim() && activeTab === 'visualizers') {
+                    const q = debouncedSearch.toLowerCase().trim();
                     const match =
                       item.name.toLowerCase().includes(q) ||
                       (item.mode && item.mode.toLowerCase().includes(q)) ||
@@ -2279,6 +2263,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                       onDragStart={e => handleDragStart(e, item)}
                       onClick={() => onPreviewSource(item)}
                       onDoubleClick={() => onProgramSource(item)}
+                      onMouseEnter={() => setHoverVizId(item.id)}
+                      onMouseLeave={() => setHoverVizId(h => (h === item.id ? null : h))}
                       className={`group relative rounded-xl overflow-hidden border cursor-pointer transition-all ${
                         isLive
                           ? 'border-[#FF8C00] shadow-[0_0_18px_rgba(255,140,0,0.3)] ring-1 ring-[#FF8C00]'
@@ -2292,8 +2278,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                         className="w-full aspect-square relative flex items-center justify-center p-2 text-center"
                         style={{ background: item.gradient || '#120a1f' }}
                       >
-                        <Sparkles size={22} className="text-white/60 group-hover:scale-110 transition-transform" />
-                        <div className="absolute top-1 left-1 px-1 py-0.2 rounded bg-black/60 font-mono text-[8px] text-white/80">
+                        <AmboVisualizerThumb item={item} hovered={hoverVizId === item.id} />
+                        <div className="absolute top-1 left-1 px-1 py-0.2 rounded bg-black/60 font-mono text-[8px] text-white/80 max-w-[90%] truncate">
                           {item.sub || 'GLSL'}
                         </div>
                         {isLive && (
@@ -2345,7 +2331,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                       </div>
                       <div className="p-2 bg-black/60">
                         <div className="text-[11px] font-semibold text-white truncate">{item.name}</div>
-                        <div className="text-[9px] text-white/40 truncate">{item.mode}</div>
+                        <div className="text-[9px] text-white/40 truncate">{item.kind === 'SHADER' || item.mode?.startsWith(MILKDROP_PREFIX) ? (item.kind === 'SHADER' ? 'GLSL shader' : 'Milkdrop') : item.mode}</div>
                       </div>
                     </div>
                   );
@@ -2504,6 +2490,62 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
             </div>
           </div>
         )}
+
+        {/* ========================================================================= */}
+        {/* LIVE FEEDS — switcher buses, SDI capture, NDI and native inputs           */}
+        {/* Single-click: Preview · Double-click: Take to Program · drag onto a slide */}
+        {/* ========================================================================= */}
+        {activeTab === 'live' && (
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+            <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 bg-black/30">
+              <div className="text-[10px] text-white/50">Single-click: <span className="text-[#00DAF3] font-bold">Preview</span> · Double-click: <span className="text-[#FF8C00] font-bold">Take</span> · Drag onto a slide for a live background</div>
+              <button
+                onClick={onScanNdi}
+                className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-white/80 bg-white/5 hover:bg-white/15 border border-white/10 flex items-center gap-1"
+                title="Scan the network for NDI streams and refresh native inputs"
+              >
+                <RefreshCw size={11} className={isScanningNdi ? 'animate-spin' : ''} />
+                <span>{isScanningNdi ? 'Scanning…' : 'Scan NDI'}</span>
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-3 grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-2 content-start">
+              {liveFeedItems.map(item => {
+                const id = item.inputId || item.id;
+                const isLive = currentLiveInputId === id;
+                const isPrev = !isLive && currentPreviewInputId === id;
+                return (
+                  <div
+                    key={item.id}
+                    draggable
+                    onDragStart={e => { e.dataTransfer.setData('application/json', JSON.stringify({ type: 'ambo-source', source: item })); e.dataTransfer.effectAllowed = 'copy'; }}
+                    onClick={() => onPreviewSource(item)}
+                    onDoubleClick={() => onProgramSource(item)}
+                    className="group relative rounded-xl border p-2.5 cursor-pointer transition-all select-none"
+                    style={{
+                      background: isLive ? 'rgba(255,140,0,0.16)' : isPrev ? 'rgba(0,218,243,0.12)' : 'rgba(255,255,255,0.03)',
+                      borderColor: isLive ? '#FF8C00' : isPrev ? '#00DAF3' : line,
+                      boxShadow: isLive ? '0 0 14px rgba(255,140,0,0.25)' : isPrev ? '0 0 12px rgba(0,218,243,0.2)' : 'none',
+                    }}
+                    title={`${item.name} — click to preview, double-click to take live`}
+                  >
+                    <div className="aspect-video rounded-lg mb-2 grid place-items-center bg-gradient-to-br from-[#14202b] to-[#0a0f14] border border-white/5">
+                      <Radio size={22} className={isLive ? 'text-[#FF8C00]' : isPrev ? 'text-[#00DAF3]' : 'text-white/25'} />
+                    </div>
+                    <div className="text-[11px] font-semibold text-white truncate">{item.name}</div>
+                    <div className="text-[9.5px] text-white/40 truncate">{item.sub}</div>
+                    {isLive && <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[8px] font-black bg-[#FF8C00] text-black">LIVE</span>}
+                    {isPrev && <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[8px] font-black bg-[#00DAF3] text-black">PREVIEW</span>}
+                  </div>
+                );
+              })}
+              {liveFeedItems.length <= 3 && (
+                <div className="col-span-full text-[10px] text-white/35 px-1 pt-1">
+                  No NDI or native inputs found yet — press Scan NDI, or connect a capture device. (Windows app: DeckLink/NDI appear automatically.)
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       <AmboNewAudioPlaylistModal
@@ -2515,4 +2557,4 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   );
 };
 
-export default AmboTabbedLibrary;
+export default React.memo(AmboTabbedLibrary);

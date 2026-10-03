@@ -1,0 +1,750 @@
+{
+ "courseId": "lab-earth",
+ "label": "Earth Science",
+ "lessons": [
+  {
+   "id": "lab-earth.l01",
+   "title": "Reading the Layers: Superposition",
+   "body": [
+    "Sedimentary rock forms when sand, mud and shells settle out of water and wind and pile up one layer after another. In the 1660s Nicolas Steno saw what that implies. In an undisturbed sequence, each layer must have been laid down after the one beneath it, so the lowest layer is the oldest and the top layer is the youngest. This is the law of superposition. Steno also noted that layers start out nearly flat, which is the principle of original horizontality, so steeply tilted layers must have been disturbed later.",
+    "This gives geologists relative dating: they can say which event came first without knowing any numbers. Think of a stack of newspapers on a doorstep. The paper at the bottom arrived first, and you do not need to read the dates to know the order. Steno also argued that fossils are the remains of once-living things, which turned strata into a record of ancient life.",
+    "The law has limits. Folding, faulting and overturning can flip a sequence, so geologists check for clues such as ripple marks and fossils before trusting the order. William Smith later used fossils to match layers between distant places."
+   ]
+  },
+  {
+   "id": "lab-earth.l02",
+   "title": "Hutton and Deep Time",
+   "body": [
+    "Before the 1700s many Europeans assumed Earth was only a few thousand years old. James Hutton, a Scottish naturalist, argued that the planet is shaped by the same slow processes we see today: rivers carrying silt, rain wearing down hills, sediment settling in seas, and heat pushing rock back up. This idea, later popularised by Charles Lyell, is called uniformitarianism. Hutton famously wrote that he found no vestige of a beginning and no prospect of an end.",
+    "His strongest evidence was the unconformity, such as Siccar Point in Scotland, where tilted older layers lie beneath flat younger ones. To produce that, sediment had to be deposited, buried, hardened, tilted, eroded and then buried again by new sediment. Each step is slow, so the gap in the record represents a vast span of time.",
+    "A useful comparison is a canyon. A small stream cutting a few millimetres a year looks unimpressive, yet over millions of years it carves a gorge. Deep time makes tiny rates add up to enormous change. Uniformitarianism does not rule out sudden events like floods or eruptions; it says the same natural laws apply throughout history."
+   ]
+  },
+  {
+   "id": "lab-earth.l03",
+   "title": "Radiometric Dating",
+   "body": [
+    "Relative dating tells us the order of events. Radiometric dating adds numbers. Some atoms are unstable and decay into other atoms at a fixed, measurable rate, written N(t) = N0 e^(-lambda t), where N0 is the starting number of parent atoms and lambda is the decay constant. A simpler way to think about it is the half-life: the time for half of the parent atoms to decay. After one half-life half remain, after two a quarter, after three an eighth, and so on.",
+    "When a mineral crystallises from magma, it can lock in parent atoms but not the daughter atoms they decay into. By measuring the ratio of parent to daughter, a geologist can calculate how long the clock has been running. Different isotopes suit different ages, from thousands of years to billions.",
+    "In 1956 Clair Patterson used lead isotopes in meteorites to fix Earth's age at about 4.55 billion years, and the modern value is about 4.54 billion. Radiometric dating usually dates igneous rocks, because their crystals lock the clock at formation. Sediments are often dated indirectly, using ash layers or igneous bodies above and below them."
+   ]
+  },
+  {
+   "id": "lab-earth.l04",
+   "title": "Minerals and the Rock Cycle",
+   "body": [
+    "Minerals are naturally occurring inorganic solids with a definite chemical composition and an ordered crystal structure. Quartz, feldspar and calcite are common examples. Rocks are made of minerals, and nearly all rocks belong to one of three families. Igneous rock forms when molten rock cools and crystallises, either slowly underground (coarse crystals, like granite) or quickly at the surface (fine crystals, like basalt). Sedimentary rock forms from compacted and cemented fragments, or from chemical and biological deposits. Metamorphic rock forms when heat and pressure change an existing rock without fully melting it, as when limestone becomes marble.",
+    "The rock cycle links them. Weathering and erosion break rock into sediment, burial and cementation make sedimentary rock, deeper heat and pressure make metamorphic rock, melting makes magma, and cooling makes new igneous rock. Uplift can then bring any of them back to the surface. There is no fixed order, and any rock can take many paths.",
+    "A useful picture is clay being squashed, baked, melted and reshaped: the material is conserved while its form keeps changing."
+   ]
+  },
+  {
+   "id": "lab-earth.l05",
+   "title": "The Plate Tectonic Model",
+   "body": [
+    "Earth's outermost rigid layer, the lithosphere, is cracked into about a dozen large plates. They ride on the slowly flowing mantle beneath and move a few centimetres a year, about as fast as fingernails grow. Most geological action happens where plates meet.",
+    "At divergent boundaries, such as mid-ocean ridges, plates pull apart and new crust forms from rising magma. At convergent boundaries plates collide: where one dives beneath another it is called subduction, which creates deep trenches, volcanic arcs and the largest earthquakes; where two continents collide, they crumple into mountain ranges such as the Himalaya. At transform boundaries plates slide past each other, as along the San Andreas Fault.",
+    "The movement is driven by heat flowing out of Earth's interior, including mantle convection and the sinking of cold, dense plate edges. Because plates move so slowly, the numbers add up over geologic time: at 5 centimetres a year, a plate travels 500 kilometres in 10 million years. GPS now measures these motions directly, and the same framework explains why earthquakes and volcanoes cluster in belts rather than appearing at random."
+   ]
+  },
+  {
+   "id": "lab-earth.l06",
+   "title": "From Drift to Seafloor Spreading",
+   "body": [
+    "In 1915 Alfred Wegener proposed continental drift. He pointed to matching coastlines on either side of the Atlantic, identical fossils and rock sequences across oceans, and evidence of ancient glaciers in places that are now warm. His supercontinent was Pangaea. Most scientists rejected the idea because Wegener could not explain what force could move continents.",
+    "The answer came from the ocean floor. After the Second World War, sonar surveys let Marie Tharp turn depth soundings into maps that revealed a great rift valley along the Mid-Atlantic Ridge. In 1962 Harry Hess proposed seafloor spreading: new crust forms at ridges and old crust sinks at trenches, so the seafloor moves like a slow conveyor belt carrying continents along.",
+    "A decisive test came in the 1960s. Seafloor basalt records Earth's magnetic field as it cools, and the field has flipped many times. Vine and Matthews found symmetric stripes of alternating magnetic polarity on both sides of ridges, just as spreading predicts. J. Tuzo Wilson added transform faults and hotspots. By the late 1960s the pieces had merged into plate tectonics."
+   ]
+  },
+  {
+   "id": "lab-earth.l07",
+   "title": "Volcanoes and Magma",
+   "body": [
+    "Magma is molten rock, and it forms in three main settings: at spreading ridges where the mantle rises and partly melts, above subducting slabs where water released from the sinking plate lowers the melting point, and over hotspots, where a plume of hot mantle rises. Magma rises because it is less dense than the rock around it.",
+    "Whether an eruption is gentle or violent depends on viscosity and dissolved gas. Runny, gas-poor basaltic magma flows easily, so gas escapes quietly and builds broad shield volcanoes, as in Hawaii. Sticky, gas-rich magma traps pressure, much like a shaken soda bottle, and can erupt explosively.",
+    "Hotspots leave a useful record. The Hawaiian-Emperor chain of islands and seamounts grows progressively older away from the active hotspot because the Pacific plate moves over a source that stays roughly fixed. The Volcanic Explosivity Index classifies eruptions on a logarithmic scale by erupted volume and plume height. Volcanism builds new crust and releases heat and gases, and in deep time large eruptions have changed climate."
+   ]
+  },
+  {
+   "id": "lab-earth.l08",
+   "title": "Seismic Waves and Earth's Layers",
+   "body": [
+    "No one has drilled more than a tiny fraction of the way to Earth's centre, so most of what we know about the interior comes from earthquake waves. Seismometers around the world record P-waves, which are compressional and the fastest, and S-waves, which are shear waves and slower. Surface waves arrive last and cause most of the damage. P-waves can travel through solids and liquids, but S-waves cannot pass through liquid.",
+    "Waves bend, reflect and change speed when they cross boundaries, following a rule like Snell's law for light. In 1909 Andrija Mohorovicic noticed a jump in wave speed at shallow depth, marking the boundary between crust and mantle, now called the Moho. Beno Gutenberg located the core-mantle boundary using a shadow zone where direct waves vanish. Because S-waves do not cross the outer core, it must be liquid.",
+    "In 1936 Inge Lehmann detected faint waves reflected within the core and concluded that a solid inner core sits inside the liquid outer core. Our picture of crust, mantle, liquid outer core and solid inner core is built entirely from such travel-time measurements."
+   ]
+  },
+  {
+   "id": "lab-earth.l09",
+   "title": "Measuring Earthquakes",
+   "body": [
+    "Charles Richter introduced a magnitude scale in 1935 based on the largest wave amplitude on a seismogram, corrected for distance: M = log10(A) - log10(A0). The scale is logarithmic, so each whole number means the recorded wave amplitude is 10 times larger. A magnitude 7 produces waves with amplitude 100 times those of a magnitude 5, because 10 times 10 is 100. Energy grows even faster, roughly 32 times per magnitude unit.",
+    "The Richter scale saturates for the very largest earthquakes, so seismologists now use moment magnitude, which is tied to the actual size of the fault slip and the energy released and does not saturate.",
+    "The Gutenberg-Richter law, log10(N) = a - bM, describes how often earthquakes occur. With b close to 1, there are about ten times fewer earthquakes for each magnitude unit larger. If a region had 1000 earthquakes of magnitude 4 or greater in a year, it would be expected to have about 100 of magnitude 5 or greater. Small quakes are common, great ones are rare, and the pattern holds worldwide."
+   ]
+  },
+  {
+   "id": "lab-earth.l10",
+   "title": "The Water Cycle and Ocean Circulation",
+   "body": [
+    "Water continuously moves between ocean, atmosphere, land and ice. The Sun evaporates water, vapour condenses into clouds, precipitation falls, and the water returns by runoff and groundwater flow. The cycle shapes landscapes through erosion and carries heat around the planet.",
+    "The ocean moves heat in two linked ways. Winds drive surface gyres, large circular currents, and because Earth rotates, moving water is deflected by the Coriolis effect. The Coriolis parameter is f = 2 Omega sin(latitude), so it is zero at the equator and strongest at the poles. Warm currents like the Gulf Stream carry heat toward the poles.",
+    "Beneath the surface, cold salty water sinks near the poles because it is denser, driving a slow global conveyor called the thermohaline circulation. It takes hundreds to a thousand years to turn the deep ocean over, and it moderates climate.",
+    "Wave speed in shallow water follows c = sqrt(g d), with g about 10 m/s squared. This is why a tsunami can cross a deep ocean at the speed of a jet but slows and rises as the water becomes shallower."
+   ]
+  },
+  {
+   "id": "lab-earth.l11",
+   "title": "Energy Balance and the Greenhouse Effect",
+   "body": [
+    "A planet settles at the temperature where the energy it absorbs from its star equals the energy it radiates to space. Absorbed sunlight depends on the solar flux S and the albedo, the fraction of sunlight reflected. The equilibrium temperature, T = [S(1 - albedo) / (4 sigma)] to the power 1/4, assumes no atmosphere. Notice that a more reflective planet absorbs less and so ends up colder.",
+    "For Earth this gives roughly minus 18 degrees Celsius, but the real global average is about plus 15. The difference is the greenhouse effect. Sunlight passes through the atmosphere and warms the surface, which radiates infrared. Gases such as water vapour, carbon dioxide and methane absorb that infrared and re-emit part of it downward, so the surface must warm until the energy leaving the top of the atmosphere again balances what arrives.",
+    "This is natural and essential for life. The concern is the amount of enhancement. Eunice Foote and John Tyndall showed in the 1850s that CO2 absorbs heat, and Svante Arrhenius calculated in 1896 how much warming a change in CO2 would cause."
+   ]
+  },
+  {
+   "id": "lab-earth.l12",
+   "title": "The Carbon Cycle and the Keeling Curve",
+   "body": [
+    "Carbon moves among the atmosphere, oceans, soils, living things and rocks. A fast loop of photosynthesis and respiration takes carbon from the air and returns it within years. A slow geological loop of volcanic emissions, weathering and burial operates over hundreds of millions of years and acts as the planet's long-term thermostat.",
+    "In 1958 Charles Keeling began measuring CO2 at Mauna Loa in Hawaii. His record, the Keeling Curve, shows two features. A seasonal sawtooth appears because northern forests take up CO2 in summer and release it in winter, so the biosphere visibly breathes. Superimposed is a steady rise, from about 315 parts per million in 1958 to well over 400 today.",
+    "The rise comes from burning fossil fuels, which moves carbon buried for hundreds of millions of years into the air within decades. The ocean absorbs a large share of the emitted CO2 and becomes more acidic as a result. Falling carbon-13 in the atmosphere fingerprints the added carbon as coming from plants buried long ago. Radiative forcing rises with the logarithm of CO2: delta F = 5.35 ln(C / C0), so every doubling adds about the same warming push."
+   ]
+  },
+  {
+   "id": "lab-earth.l13",
+   "title": "Ice Ages and Orbital Cycles",
+   "body": [
+    "Over the last few million years Earth has swung between long cold glacial periods and shorter warm interglacials. Milutin Milankovic explained the timing with orbital cycles. Eccentricity is how stretched Earth's orbit is, obliquity is the tilt of its axis, and precession is the slow wobble of that axis. Together they change how sunlight is distributed by latitude and season, even though the total received over a year barely changes.",
+    "These cycles act as a pacemaker rather than a direct cause of large temperature swings. The small orbital push is amplified by feedbacks: when ice melts, darker land and ocean absorb more sunlight (ice-albedo feedback), and warming oceans release CO2, which warms the planet further.",
+    "Ice cores from Vostok and EPICA preserve tiny air bubbles that record 800,000 years of CO2 and temperature moving together. They show that CO2 has stayed within a fixed range throughout that time, and today's level is far above that range. Orbital cycles operate over tens of thousands of years, so they cannot explain warming seen over the last century."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "lab-earth.l01.q1",
+   "lessonId": "lab-earth.l01",
+   "kind": "mcq",
+   "prompt": "In an undisturbed sequence of sedimentary layers, which layer is the oldest?",
+   "choices": [
+    "The bottom layer",
+    "The top layer",
+    "The thickest layer",
+    "The middle layer"
+   ]
+  },
+  {
+   "id": "lab-earth.l01.q2",
+   "lessonId": "lab-earth.l01",
+   "kind": "mcq",
+   "prompt": "Who first stated the law of superposition and the principle of original horizontality?",
+   "choices": [
+    "Charles Lyell",
+    "Alfred Wegener",
+    "Charles Richter",
+    "Nicolas Steno"
+   ]
+  },
+  {
+   "id": "lab-earth.l01.q3",
+   "lessonId": "lab-earth.l01",
+   "kind": "mcq",
+   "prompt": "A cliff shows five undisturbed layers, labelled A (top) to E (bottom). Fossils of a fish species appear in layer C. Which statement is supported?",
+   "choices": [
+    "The fish lived before layer E was deposited",
+    "The fish lived after layer A was deposited",
+    "The fish lived after layer D and before layer B was deposited",
+    "The fish lived at the same time as layers A through E"
+   ]
+  },
+  {
+   "id": "lab-earth.l01.q4",
+   "lessonId": "lab-earth.l01",
+   "kind": "mcq",
+   "prompt": "Why must a geologist be careful when applying superposition to mountain belts?",
+   "choices": [
+    "Mountains contain no sedimentary rock",
+    "Folding and faulting can tilt or overturn layers so the order is no longer simple",
+    "Older layers are always on top in mountains",
+    "Fossils cannot survive in mountains"
+   ]
+  },
+  {
+   "id": "lab-earth.l02.q1",
+   "lessonId": "lab-earth.l02",
+   "kind": "mcq",
+   "prompt": "What does uniformitarianism state?",
+   "choices": [
+    "Earth was formed in a single catastrophe",
+    "The same slow natural processes that operate today shaped Earth over long times",
+    "All rocks are the same age",
+    "Earth never changes"
+   ]
+  },
+  {
+   "id": "lab-earth.l02.q2",
+   "lessonId": "lab-earth.l02",
+   "kind": "mcq",
+   "prompt": "What does an unconformity such as Siccar Point show?",
+   "choices": [
+    "A gap in the rock record representing a long span of time",
+    "A volcano that has never erupted",
+    "A place where rock layers are youngest at the bottom",
+    "A boundary between two plates"
+   ]
+  },
+  {
+   "id": "lab-earth.l02.q3",
+   "lessonId": "lab-earth.l02",
+   "kind": "mcq",
+   "prompt": "A river cuts down into rock at 2 millimetres per year. About how deep a gorge could it cut in 5 million years, assuming a steady rate?",
+   "choices": [
+    "100 metres",
+    "1000 metres",
+    "10 metres",
+    "10 000 metres"
+   ]
+  },
+  {
+   "id": "lab-earth.l02.q4",
+   "lessonId": "lab-earth.l02",
+   "kind": "mcq",
+   "prompt": "Which statement best describes how uniformitarianism treats sudden events like floods or eruptions?",
+   "choices": [
+    "It denies they ever occurred",
+    "It says they only occurred in the early Earth",
+    "It accepts them as natural events governed by the same laws",
+    "It says they cannot leave a record"
+   ]
+  },
+  {
+   "id": "lab-earth.l03.q1",
+   "lessonId": "lab-earth.l03",
+   "kind": "mcq",
+   "prompt": "What is a half-life?",
+   "choices": [
+    "The time for all atoms of an isotope to decay",
+    "Half the age of the Earth",
+    "The time for half of the parent atoms to decay",
+    "The time for a rock to cool by half"
+   ]
+  },
+  {
+   "id": "lab-earth.l03.q2",
+   "lessonId": "lab-earth.l03",
+   "kind": "mcq",
+   "prompt": "About how old is Earth, according to radiometric dating of meteorites and the oldest rocks?",
+   "choices": [
+    "454 million years",
+    "4.54 billion years",
+    "45 billion years",
+    "6000 years"
+   ]
+  },
+  {
+   "id": "lab-earth.l03.q3",
+   "lessonId": "lab-earth.l03",
+   "kind": "mcq",
+   "prompt": "An isotope has a half-life of 100 million years. A mineral now contains 1/8 of the parent atoms it started with. How old is the mineral?",
+   "choices": [
+    "300 million years",
+    "100 million years",
+    "200 million years",
+    "800 million years"
+   ]
+  },
+  {
+   "id": "lab-earth.l03.q4",
+   "lessonId": "lab-earth.l03",
+   "kind": "mcq",
+   "prompt": "Why are igneous rocks usually the best candidates for radiometric dating?",
+   "choices": [
+    "They contain no radioactive atoms",
+    "They are always older than sedimentary rocks",
+    "They contain fossils",
+    "Their crystals lock in parent atoms when the rock crystallises, starting the clock"
+   ]
+  },
+  {
+   "id": "lab-earth.l04.q1",
+   "lessonId": "lab-earth.l04",
+   "kind": "mcq",
+   "prompt": "Which type of rock forms when molten rock cools and crystallises?",
+   "choices": [
+    "Sedimentary",
+    "Metamorphic",
+    "Fossil",
+    "Igneous"
+   ]
+  },
+  {
+   "id": "lab-earth.l04.q2",
+   "lessonId": "lab-earth.l04",
+   "kind": "mcq",
+   "prompt": "Which description fits a mineral?",
+   "choices": [
+    "A mixture of rock fragments",
+    "Any hard material made by organisms",
+    "A natural inorganic solid with a definite composition and crystal structure",
+    "A liquid that crystallises in caves"
+   ]
+  },
+  {
+   "id": "lab-earth.l04.q3",
+   "lessonId": "lab-earth.l04",
+   "kind": "mcq",
+   "prompt": "Limestone is buried deep and heated and squeezed without fully melting. What does it become?",
+   "choices": [
+    "Granite",
+    "Marble",
+    "Basalt",
+    "Sandstone"
+   ]
+  },
+  {
+   "id": "lab-earth.l04.q4",
+   "lessonId": "lab-earth.l04",
+   "kind": "mcq",
+   "prompt": "Which statement about the rock cycle is accurate?",
+   "choices": [
+    "Any rock type can be transformed into another through several possible paths",
+    "Rocks must follow the order igneous, sedimentary, metamorphic",
+    "Igneous rock can never become sedimentary rock",
+    "Rocks are created but never destroyed"
+   ]
+  },
+  {
+   "id": "lab-earth.l05.q1",
+   "lessonId": "lab-earth.l05",
+   "kind": "mcq",
+   "prompt": "At which type of plate boundary is new crust created at mid-ocean ridges?",
+   "choices": [
+    "Divergent",
+    "Convergent",
+    "Transform",
+    "Subduction"
+   ]
+  },
+  {
+   "id": "lab-earth.l05.q2",
+   "lessonId": "lab-earth.l05",
+   "kind": "mcq",
+   "prompt": "How fast do tectonic plates typically move?",
+   "choices": [
+    "A few metres per day",
+    "A few kilometres per year",
+    "They do not move",
+    "A few centimetres per year"
+   ]
+  },
+  {
+   "id": "lab-earth.l05.q3",
+   "lessonId": "lab-earth.l05",
+   "kind": "mcq",
+   "prompt": "A plate moves at 5 centimetres per year. How far does it travel in 10 million years?",
+   "choices": [
+    "50 kilometres",
+    "5000 kilometres",
+    "500 kilometres",
+    "50 000 kilometres"
+   ]
+  },
+  {
+   "id": "lab-earth.l05.q4",
+   "lessonId": "lab-earth.l05",
+   "kind": "mcq",
+   "prompt": "Why do the largest earthquakes and volcanic arcs often occur together along the edges of the Pacific Ocean?",
+   "choices": [
+    "The Pacific is the deepest ocean, so it has the most water",
+    "Subduction zones ring much of the Pacific, where one plate sinks beneath another",
+    "The Moon pulls strongest on the Pacific",
+    "Divergent boundaries surround the Pacific"
+   ]
+  },
+  {
+   "id": "lab-earth.l06.q1",
+   "lessonId": "lab-earth.l06",
+   "kind": "mcq",
+   "prompt": "Who proposed continental drift in 1915 and the supercontinent Pangaea?",
+   "choices": [
+    "Harry Hess",
+    "Alfred Wegener",
+    "Inge Lehmann",
+    "James Hutton"
+   ]
+  },
+  {
+   "id": "lab-earth.l06.q2",
+   "lessonId": "lab-earth.l06",
+   "kind": "mcq",
+   "prompt": "What did Harry Hess propose in 1962?",
+   "choices": [
+    "Seafloor spreading: new crust forms at ridges and old crust sinks at trenches",
+    "Earth is hollow",
+    "Continents plough through the ocean floor",
+    "Earthquakes are caused by the Moon"
+   ]
+  },
+  {
+   "id": "lab-earth.l06.q3",
+   "lessonId": "lab-earth.l06",
+   "kind": "mcq",
+   "prompt": "Magnetic stripes on the ocean floor are symmetric on both sides of a ridge. What does this best support?",
+   "choices": [
+    "The seafloor is the same age everywhere",
+    "Continents are fixed in place",
+    "Ridges are older than the surrounding crust",
+    "New crust forms at the ridge and spreads outward, recording magnetic reversals"
+   ]
+  },
+  {
+   "id": "lab-earth.l06.q4",
+   "lessonId": "lab-earth.l06",
+   "kind": "mcq",
+   "prompt": "Why was Wegener's hypothesis rejected by most scientists for decades?",
+   "choices": [
+    "He had no evidence at all",
+    "Fossils proved the continents had never been joined",
+    "He could not explain a mechanism that could move continents",
+    "Seafloor maps contradicted it from the start"
+   ]
+  },
+  {
+   "id": "lab-earth.l07.q1",
+   "lessonId": "lab-earth.l07",
+   "kind": "mcq",
+   "prompt": "Which of these is a place where magma commonly forms?",
+   "choices": [
+    "Inside the inner core",
+    "At the centre of a continent far from any hotspot",
+    "Above a subducting slab",
+    "In the middle of a glacier"
+   ]
+  },
+  {
+   "id": "lab-earth.l07.q2",
+   "lessonId": "lab-earth.l07",
+   "kind": "mcq",
+   "prompt": "What kind of volcano is built by runny, gas-poor basaltic lava?",
+   "choices": [
+    "An explosive supervolcano",
+    "A shield volcano",
+    "A volcanic dome",
+    "A meteor crater"
+   ]
+  },
+  {
+   "id": "lab-earth.l07.q3",
+   "lessonId": "lab-earth.l07",
+   "kind": "mcq",
+   "prompt": "The Hawaiian-Emperor chain gets older to the northwest away from Hawaii. What does this indicate?",
+   "choices": [
+    "The Pacific plate moved over a fixed mantle plume",
+    "The hotspot moved northwest very fast",
+    "Older volcanoes are always farther from the sea",
+    "Volcanoes erupt in order of size"
+   ]
+  },
+  {
+   "id": "lab-earth.l07.q4",
+   "lessonId": "lab-earth.l07",
+   "kind": "mcq",
+   "prompt": "Why does sticky, gas-rich magma tend to erupt more explosively than runny magma?",
+   "choices": [
+    "It is much hotter",
+    "It contains no dissolved water",
+    "It is denser than rock",
+    "Gas cannot escape easily, so pressure builds up"
+   ]
+  },
+  {
+   "id": "lab-earth.l08.q1",
+   "lessonId": "lab-earth.l08",
+   "kind": "mcq",
+   "prompt": "Which seismic wave is the fastest and arrives first?",
+   "choices": [
+    "S-wave",
+    "Surface wave",
+    "Love wave",
+    "P-wave"
+   ]
+  },
+  {
+   "id": "lab-earth.l08.q2",
+   "lessonId": "lab-earth.l08",
+   "kind": "mcq",
+   "prompt": "Who discovered Earth's solid inner core?",
+   "choices": [
+    "Beno Gutenberg",
+    "Charles Richter",
+    "Inge Lehmann",
+    "Andrija Mohorovicic"
+   ]
+  },
+  {
+   "id": "lab-earth.l08.q3",
+   "lessonId": "lab-earth.l08",
+   "kind": "mcq",
+   "prompt": "S-waves are not detected on the far side of Earth after passing through the core. What does this suggest?",
+   "choices": [
+    "The outer core is solid iron",
+    "The outer core is liquid",
+    "The mantle is liquid",
+    "The crust is too thick"
+   ]
+  },
+  {
+   "id": "lab-earth.l08.q4",
+   "lessonId": "lab-earth.l08",
+   "kind": "mcq",
+   "prompt": "Why does a sudden jump in seismic wave speed at shallow depth indicate a boundary between layers?",
+   "choices": [
+    "Wave speed depends on the material, so a jump means the material changes",
+    "Waves speed up whenever they are close to the surface",
+    "Earthquakes are stronger near boundaries",
+    "Wave speed is constant everywhere in the Earth"
+   ]
+  },
+  {
+   "id": "lab-earth.l09.q1",
+   "lessonId": "lab-earth.l09",
+   "kind": "mcq",
+   "prompt": "Why is the Richter scale described as logarithmic?",
+   "choices": [
+    "Each whole number represents a tenfold change in wave amplitude",
+    "It only measures small earthquakes",
+    "It uses a ruler to measure damage",
+    "Each whole number adds the same wave amplitude"
+   ]
+  },
+  {
+   "id": "lab-earth.l09.q2",
+   "lessonId": "lab-earth.l09",
+   "kind": "mcq",
+   "prompt": "Which scale do seismologists now prefer for large earthquakes because it does not saturate?",
+   "choices": [
+    "Mohs scale",
+    "Beaufort scale",
+    "Local Richter amplitude",
+    "Moment magnitude"
+   ]
+  },
+  {
+   "id": "lab-earth.l09.q3",
+   "lessonId": "lab-earth.l09",
+   "kind": "mcq",
+   "prompt": "A magnitude 7 earthquake produces waves with how many times the amplitude of a magnitude 5 earthquake?",
+   "choices": [
+    "2 times",
+    "20 times",
+    "100 times",
+    "10 000 times"
+   ]
+  },
+  {
+   "id": "lab-earth.l09.q4",
+   "lessonId": "lab-earth.l09",
+   "kind": "mcq",
+   "prompt": "A region records about 2000 earthquakes of magnitude 3 or greater in a year. Using the Gutenberg-Richter law with b = 1, roughly how many of magnitude 5 or greater would you expect?",
+   "choices": [
+    "200",
+    "20",
+    "2",
+    "1000"
+   ]
+  },
+  {
+   "id": "lab-earth.l10.q1",
+   "lessonId": "lab-earth.l10",
+   "kind": "mcq",
+   "prompt": "What drives the deep global ocean conveyor (thermohaline circulation)?",
+   "choices": [
+    "Surface winds only",
+    "Differences in water density from temperature and salinity",
+    "The Moon's gravity",
+    "Underwater volcanoes"
+   ]
+  },
+  {
+   "id": "lab-earth.l10.q2",
+   "lessonId": "lab-earth.l10",
+   "kind": "mcq",
+   "prompt": "Where is the Coriolis effect zero?",
+   "choices": [
+    "At the equator",
+    "At the poles",
+    "At 45 degrees latitude",
+    "It is the same everywhere"
+   ]
+  },
+  {
+   "id": "lab-earth.l10.q3",
+   "lessonId": "lab-earth.l10",
+   "kind": "mcq",
+   "prompt": "Using c = sqrt(g d) with g about 10 m/s squared, how fast does a shallow-water wave travel over ocean 4000 metres deep?",
+   "choices": [
+    "About 20 m/s",
+    "About 2000 m/s",
+    "About 40 m/s",
+    "About 200 m/s"
+   ]
+  },
+  {
+   "id": "lab-earth.l10.q4",
+   "lessonId": "lab-earth.l10",
+   "kind": "mcq",
+   "prompt": "Why does a tsunami grow taller as it approaches a shore?",
+   "choices": [
+    "The wind increases near the shore",
+    "The Moon pulls it up",
+    "Water depth decreases, so the wave slows and its energy is compressed into a taller wave",
+    "The wave speeds up in shallow water"
+   ]
+  },
+  {
+   "id": "lab-earth.l11.q1",
+   "lessonId": "lab-earth.l11",
+   "kind": "mcq",
+   "prompt": "What does albedo measure?",
+   "choices": [
+    "The temperature of a planet",
+    "The amount of CO2 in the air",
+    "The fraction of sunlight a surface reflects",
+    "The speed of rotation"
+   ]
+  },
+  {
+   "id": "lab-earth.l11.q2",
+   "lessonId": "lab-earth.l11",
+   "kind": "mcq",
+   "prompt": "Which of these is a greenhouse gas?",
+   "choices": [
+    "Argon",
+    "Methane",
+    "Nitrogen",
+    "Helium"
+   ]
+  },
+  {
+   "id": "lab-earth.l11.q3",
+   "lessonId": "lab-earth.l11",
+   "kind": "mcq",
+   "prompt": "If a planet's albedo increases while the sunlight it receives stays the same, what happens to its equilibrium temperature?",
+   "choices": [
+    "It falls",
+    "It rises",
+    "It stays the same",
+    "It becomes zero"
+   ]
+  },
+  {
+   "id": "lab-earth.l11.q4",
+   "lessonId": "lab-earth.l11",
+   "kind": "mcq",
+   "prompt": "Earth's equilibrium temperature without greenhouse gases is about minus 18 degrees Celsius, but the actual average is about plus 15. Which explanation is best?",
+   "choices": [
+    "The Sun is hotter than the equation assumes",
+    "The equation does not apply to rocky planets",
+    "Earth's core heats the surface by 33 degrees",
+    "Greenhouse gases absorb and re-emit outgoing infrared, warming the surface"
+   ]
+  },
+  {
+   "id": "lab-earth.l12.q1",
+   "lessonId": "lab-earth.l12",
+   "kind": "mcq",
+   "prompt": "What does the Keeling Curve show?",
+   "choices": [
+    "Sea level since 1900",
+    "Global earthquake counts",
+    "Ozone thickness over Antarctica",
+    "Atmospheric CO2 measured at Mauna Loa since 1958"
+   ]
+  },
+  {
+   "id": "lab-earth.l12.q2",
+   "lessonId": "lab-earth.l12",
+   "kind": "mcq",
+   "prompt": "What does the yearly sawtooth in the Keeling Curve reflect?",
+   "choices": [
+    "Volcanic eruptions each year",
+    "Changes in the Sun's output",
+    "Seasonal uptake and release of CO2 by plants and the biosphere",
+    "Errors in the instruments"
+   ]
+  },
+  {
+   "id": "lab-earth.l12.q3",
+   "lessonId": "lab-earth.l12",
+   "kind": "mcq",
+   "prompt": "Using delta F = 5.35 ln(C / C0), how do the forcings compare for a rise from 280 to 560 ppm and a rise from 560 to 1120 ppm?",
+   "choices": [
+    "The second is twice as large",
+    "They are equal",
+    "The second is four times as large",
+    "The first is twice as large"
+   ]
+  },
+  {
+   "id": "lab-earth.l12.q4",
+   "lessonId": "lab-earth.l12",
+   "kind": "mcq",
+   "prompt": "Why does a falling carbon-13 to carbon-12 ratio in the atmosphere point to fossil fuels as a source of added CO2?",
+   "choices": [
+    "Plants preferentially take up carbon-12, so carbon from ancient plants is relatively low in carbon-13",
+    "Fossil fuels contain only carbon-13",
+    "Volcanoes release only carbon-12",
+    "The ocean releases mostly carbon-13"
+   ]
+  },
+  {
+   "id": "lab-earth.l13.q1",
+   "lessonId": "lab-earth.l13",
+   "kind": "mcq",
+   "prompt": "Which three orbital factors make up the Milankovitch cycles?",
+   "choices": [
+    "Eccentricity, obliquity and precession",
+    "Speed, mass and density",
+    "Latitude, longitude and altitude",
+    "Tides, winds and currents"
+   ]
+  },
+  {
+   "id": "lab-earth.l13.q2",
+   "lessonId": "lab-earth.l13",
+   "kind": "mcq",
+   "prompt": "What do the Vostok and EPICA ice cores record?",
+   "choices": [
+    "About 800 years of earthquakes",
+    "The age of the Earth",
+    "Only the last decade of weather",
+    "About 800 000 years of CO2 and temperature"
+   ]
+  },
+  {
+   "id": "lab-earth.l13.q3",
+   "lessonId": "lab-earth.l13",
+   "kind": "mcq",
+   "prompt": "Orbital cycles operate over tens of thousands of years. What does that imply for the warming seen over the last 100 years?",
+   "choices": [
+    "It is explained by orbital cycles",
+    "Orbital cycles have sped up recently",
+    "Orbital cycles are too slow to account for it",
+    "Orbital cycles cause no warming at all"
+   ]
+  },
+  {
+   "id": "lab-earth.l13.q4",
+   "lessonId": "lab-earth.l13",
+   "kind": "mcq",
+   "prompt": "Why are feedbacks needed to explain ice-age swings from a small orbital change?",
+   "choices": [
+    "Orbital changes have no effect on climate",
+    "The orbital change in total yearly sunlight is small, so processes like ice-albedo and CO2 release amplify the effect",
+    "Feedbacks only cool the planet",
+    "Ice sheets are unaffected by sunlight"
+   ]
+  }
+ ]
+}

@@ -521,6 +521,35 @@ const TVNavigationLayer = () => {
         e.preventDefault();
         e.stopImmediatePropagation();
         handleBack(false);
+        return;
+      }
+
+      // Amazon Silk / Fire TV remote media playback controls
+      const isMediaPlayPause = kc === 179 || kc === 85 || kc === 250 || kc === 126 || kc === 127 ||
+        e.key === 'MediaPlayPause' || e.key === 'MediaPlay' || e.key === 'MediaPause';
+      if (isMediaPlayPause) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        window.dispatchEvent(new CustomEvent('tv:media-play-pause'));
+        return;
+      }
+
+      const isMediaNext = kc === 176 || kc === 87 || kc === 228 ||
+        e.key === 'MediaTrackNext' || e.key === 'MediaFastForward';
+      if (isMediaNext) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        window.dispatchEvent(new CustomEvent('tv:media-next'));
+        return;
+      }
+
+      const isMediaPrev = kc === 177 || kc === 88 || kc === 227 ||
+        e.key === 'MediaTrackPrevious' || e.key === 'MediaRewind';
+      if (isMediaPrev) {
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        window.dispatchEvent(new CustomEvent('tv:media-prev'));
+        return;
       }
     };
 

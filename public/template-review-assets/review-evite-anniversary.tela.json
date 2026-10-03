@@ -1,0 +1,295 @@
+{
+  "id": "review-evite-anniversary-copy-e2a438e8-9e87-4a13-b83f-340c2779072e",
+  "ownerId": "local-review",
+  "title": "Still Us · review copy",
+  "createdAt": 1790719091495,
+  "updatedAt": 1790719091495,
+  "frames": [
+    {
+      "id": "review-evite-anniversary-frame",
+      "kind": "BOARD",
+      "preset": "FREE",
+      "x": 0,
+      "y": 0,
+      "w": 600,
+      "h": 800,
+      "deviceIds": [
+        "review-evite-anniversary-vector"
+      ],
+      "label": "Still Us"
+    }
+  ],
+  "devices": {
+    "review-evite-anniversary-vector": {
+      "id": "review-evite-anniversary-vector",
+      "type": "VECTOR",
+      "name": "Still Us",
+      "width": 600,
+      "height": 800,
+      "objects": [
+        {
+          "id": "review-evite-anniversary-ground",
+          "kind": "RECT",
+          "x": 0,
+          "y": 0,
+          "w": 600,
+          "h": 800,
+          "fill": "#f2e6d5",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "templateRole": "GROUND"
+        },
+        {
+          "id": "review-evite-anniversary-portrait-panel",
+          "kind": "RECT",
+          "x": 170,
+          "y": 52,
+          "w": 260,
+          "h": 318,
+          "fill": "#c6a67c",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "rx": 125
+        },
+        {
+          "id": "review-evite-anniversary-ring-a",
+          "kind": "ELLIPSE",
+          "x": 160,
+          "y": 151,
+          "w": 172,
+          "h": 172,
+          "fill": "none",
+          "stroke": "#592d37",
+          "strokeWidth": 3,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-anniversary-ring-b",
+          "kind": "ELLIPSE",
+          "x": 268,
+          "y": 151,
+          "w": 172,
+          "h": 172,
+          "fill": "none",
+          "stroke": "#b86d72",
+          "strokeWidth": 3,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-anniversary-eyebrow",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 32,
+          "w": 496,
+          "h": 16.200000000000003,
+          "fill": "#592d37",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "YOU ARE INVITED",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-anniversary-divider",
+          "kind": "LINE",
+          "x": 52,
+          "y": 410,
+          "w": 496,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#c6a67c",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            52,
+            410,
+            548,
+            410
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-anniversary-title",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 446,
+          "w": 496,
+          "h": 55.35,
+          "fill": "#592d37",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Still us",
+          "fontSize": 41,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "HEADLINE"
+        },
+        {
+          "id": "review-evite-anniversary-subtitle",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 511,
+          "w": 492,
+          "h": 21.6,
+          "fill": "#592d37",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "A celebration of years together",
+          "fontSize": 16,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-anniversary-date",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 588,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#592d37",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "SATURDAY, 18 OCTOBER",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-anniversary-time",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 617,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#592d37",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "7:30 PM · THE STUDIO",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-anniversary-venue",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 646,
+          "w": 492,
+          "h": 16.200000000000003,
+          "fill": "#592d37",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "24 GARDEN LANE · SAMPLE CITY",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-anniversary-rsvp",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 704,
+          "w": 490,
+          "h": 24.3,
+          "fill": "#592d37",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Kindly RSVP by 10 October",
+          "fontSize": 18,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-anniversary-sample",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 765,
+          "w": 490,
+          "h": 13.5,
+          "fill": "#592d37",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "FICTIONAL EVENT · DESIGN PREVIEW",
+          "fontSize": 10,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        }
+      ]
+    }
+  },
+  "bindings": [],
+  "templatePreset": {
+    "schemaVersion": 1,
+    "templateId": "review-evite-anniversary",
+    "status": "review",
+    "motion": {
+      "duration": 6000,
+      "tracks": [
+        {
+          "objectId": "review-evite-anniversary-portrait-panel",
+          "property": "opacity",
+          "from": 1,
+          "to": 0.8,
+          "delay": 0,
+          "duration": 2800
+        },
+        {
+          "objectId": "review-evite-anniversary-ring-a",
+          "property": "opacity",
+          "from": 1,
+          "to": 0.8,
+          "delay": 140,
+          "duration": 3060
+        },
+        {
+          "objectId": "review-evite-anniversary-ring-b",
+          "property": "opacity",
+          "from": 1,
+          "to": 0.8,
+          "delay": 280,
+          "duration": 3320
+        }
+      ]
+    },
+    "audio": {
+      "notes": [
+        58,
+        65,
+        70,
+        72
+      ],
+      "tempo": 84
+    }
+  }
+}

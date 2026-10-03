@@ -1,0 +1,1450 @@
+{
+ "courseId": "med-global-health",
+ "label": "Global Health and Health Systems",
+ "lessons": [
+  {
+   "id": "med-global-health.l01",
+   "title": "Measuring the Global Burden of Disease",
+   "body": [
+    "Global health begins with a counting problem: how do you compare a death from malaria in a toddler with years of disabling depression in an adult? The standard answer is the disability-adjusted life year, or DALY. One DALY is one healthy year of life lost. It is the sum of years of life lost to premature death (YLL) and years lived with disability (YLD), where each year with a condition is weighted between 0 (full health) and 1 (equivalent to death) by a disability weight. A death at age 5 costs many years of life lost; a chronic, non-fatal condition such as low back pain or major depression costs few YLL but a great deal of YLD.",
+    "The Global Burden of Disease study, run by the Institute for Health Metrics and Evaluation and collaborators, estimates deaths, DALYs and risk-factor attributions for hundreds of conditions across countries and years. The World Health Organization publishes its own Global Health Estimates using a related but not identical methodology, so figures for the same year can differ. Learners should treat any single number as a modelled estimate with uncertainty, especially for countries with weak death registration, where deaths must be inferred from surveys and verbal autopsies.",
+    "Two patterns dominate the picture. First, over the past few decades life expectancy has risen in nearly every region and under-five mortality has fallen sharply, from roughly 12 million deaths a year around 1990 to under 5 million in recent estimates (approximate figures). Second, the leading causes of death have shifted. Noncommunicable diseases (ischaemic heart disease, stroke, cancers, chronic respiratory disease, diabetes) now account for roughly three quarters of deaths worldwide by WHO estimates. In low-income countries, however, infectious diseases, neonatal conditions, maternal conditions and malnutrition still make up a much larger share, so many low-income countries carry a double burden: the old problems have not gone away while the new ones arrive.",
+    "A ranking by deaths and a ranking by DALYs can differ. Depressive disorders, hearing loss and musculoskeletal conditions rank high in DALYs because they cause disability over many years, even though they cause few deaths directly. Neonatal conditions rank high in both because each death costs a whole lifetime. This is why policy debates about priorities depend on which metric is chosen, and why DALYs are used in cost-effectiveness analysis, usually expressed as cost per DALY averted.",
+    "Critics note that DALYs embed value judgements: disability weights are derived from surveys of the public and health professionals, early versions weighted years of life by age, and a single number can hide who bears the burden. Defenders reply that an explicit, transparent metric is better than implicit judgement, and that modern versions have dropped age weighting and discounting in the headline figures.",
+    "Worked example: a disease kills 1,000 people at an age where each would have had 20 more years, giving 20,000 YLL. A second condition leaves 10,000 people with a disability of weight 0.2 for one year, giving 2,000 YLD in that year. The first burden is larger in this snapshot, but if the second condition lasts ten years in each person the cumulative YLD reaches 20,000, which is why duration matters."
+   ]
+  },
+  {
+   "id": "med-global-health.l02",
+   "title": "Social Determinants of Health",
+   "body": [
+    "The social determinants of health are the conditions in which people are born, grow, work, live and age, and the wider systems that shape those conditions: income, education, employment, housing, neighbourhood, discrimination, and access to services. The central claim is that these factors explain much of the variation in health between and within countries, often more than medical care does. Medical care repairs damage; social conditions largely decide who is exposed to the damage in the first place.",
+    "The classic evidence is the social gradient. In the Whitehall studies of British civil servants, led by Michael Marmot, mortality rose steadily as employment grade fell, even though everyone had stable jobs and access to a national health service. The gradient was not limited to the poorest group; each step down the hierarchy carried worse health. This suggests that relative position, control over one's work and exposure to stress matter in addition to material deprivation. Cross-country comparisons point the same way: life expectancy is not simply tied to national income, and some middle-income countries outperform richer ones because of broad education, primary care and social protection.",
+    "The WHO Commission on Social Determinants of Health reported in 2008 under the title Closing the Gap in a Generation. Its three overarching recommendations were to improve daily living conditions, to tackle the inequitable distribution of power, money and resources, and to measure and understand the problem and assess the impact of action. The Dahlgren-Whitehead model is a common teaching diagram: individual lifestyle sits at the centre, wrapped in social and community networks, then living and working conditions, then general socioeconomic, cultural and environmental conditions.",
+    "A useful distinction is between downstream, midstream and upstream action. Downstream means treating illness (a clinic that prescribes insulin). Midstream addresses behaviours and exposures (a smoking cessation programme). Upstream changes the conditions that drive exposure (tobacco taxation, school meals, safe housing, minimum wage law). Upstream measures often have the largest population effect but are slow, political and hard to attribute. The Ottawa Charter of 1986 and the later Health in All Policies approach argue that sectors outside health, such as transport, education and finance, should assess the health impact of their decisions.",
+    "There are cautions. Association is not always causation: sick people may fall in income (reverse causation), and unmeasured factors can confound. Researchers address this with natural experiments and longitudinal designs, such as studies of conditional cash transfer programmes, which in several Latin American settings improved school attendance and some health outcomes. Another caution is that framing everything as a social determinant should not become an excuse for neglecting effective clinical services.",
+    "Worked example: two neighbouring districts have the same number of clinics but a twelve-year difference in life expectancy. Investigators find differences in housing quality, air pollution, job security and food access. The determinants framing predicts that adding clinics alone will narrow the gap only modestly, while action on housing and income would narrow it more."
+   ]
+  },
+  {
+   "id": "med-global-health.l03",
+   "title": "Transitions, Equity and Inequality Measurement",
+   "body": [
+    "Populations change in predictable ways as societies develop, and global health planning depends on knowing where a country sits on the path. The demographic transition describes a shift from high birth and death rates to low ones. Death rates fall first (better nutrition, sanitation, vaccines), producing rapid population growth; birth rates then fall (education, particularly of girls, contraception, urbanisation, lower child mortality), and growth slows and the population ages. The epidemiologic transition, described by Abdel Omran in 1971, is the matching shift in disease: from pandemics of infection and famine, to receding pandemics, to an age of degenerative and man-made diseases such as heart disease and cancer.",
+    "Countries move at different speeds and not in a single line. Many low- and middle-income countries are experiencing a polarised or protracted transition, with urban elites developing noncommunicable disease patterns while rural poor populations still face infection and undernutrition, and with the same household sometimes containing both stunted children and an overweight adult. This double burden of malnutrition, and the broader double burden of communicable plus noncommunicable disease, means that a health system built for acute infection must also learn chronic care.",
+    "Equity needs to be separated from equality. Equality means giving everyone the same. Health equity means that avoidable and unfair differences in health are reduced, which may require giving more to those with greater need. The word inequity is used for differences that are both avoidable and unjust; a difference in prostate cancer rates between men and women is a difference but not an inequity.",
+    "Inequality is measured with several tools. The simplest is a gap or ratio between two groups, such as under-five mortality in the richest versus poorest wealth quintile. The slope index of inequality and the relative index of inequality use all groups ranked by socioeconomic position. The concentration index, derived from the concentration curve, ranges from -1 to +1; a negative value means the health variable (such as ill-health) is concentrated among the poor. Data often come from household surveys such as the Demographic and Health Surveys, which also let analysts disaggregate by sex, residence, ethnicity and education.",
+    "Averages can hide inequality: a national under-five mortality rate can improve while the rate among the poorest quintile stagnates. This is the logic behind the Sustainable Development Goals' pledge to leave no one behind, and behind the idea of progressive universalism, in which a system expands coverage for all but sequences the expansion so that the worst-off gain first.",
+    "Worked example: a country's poorest quintile has under-five mortality falling from 140 to 100 per 1,000 while the richest falls from 60 to 20. The absolute gap is 80 before (140 minus 60) and 80 after (100 minus 20), so it is unchanged, while the ratio grew from about 2.3 to 5. Absolute and relative measures can tell different stories, so both should be reported."
+   ]
+  },
+  {
+   "id": "med-global-health.l04",
+   "title": "Maternal, Newborn and Child Health",
+   "body": [
+    "Maternal and child mortality are treated as sentinel indicators because they reflect the strength of an entire health system. The maternal mortality ratio is the number of maternal deaths per 100,000 live births. A maternal death is the death of a woman during pregnancy or within 42 days of its end from causes related to or aggravated by the pregnancy, excluding accidental causes. Sustainable Development Goal 3 sets a target of fewer than 70 maternal deaths per 100,000 live births by 2030, and for children an under-five mortality of at most 25 per 1,000 live births and neonatal mortality of at most 12 per 1,000.",
+    "The leading direct causes of maternal death are obstetric haemorrhage, hypertensive disorders of pregnancy (pre-eclampsia and eclampsia), sepsis, complications of unsafe abortion and obstructed labour; indirect causes include malaria, HIV and anaemia worsened by pregnancy. Most of these deaths occur around delivery and in the first day postpartum, and nearly all are preventable. The Three Delays model of Thaddeus and Maine explains why women die even when care exists: delay in deciding to seek care, delay in reaching a facility, and delay in receiving adequate care once there.",
+    "Effective interventions follow from the causes. Skilled attendance at birth and access to emergency obstetric care address obstructed labour and haemorrhage. Uterotonics, especially oxytocin given after delivery, and tranexamic acid reduce death from bleeding. Magnesium sulfate prevents seizures in severe pre-eclampsia and eclampsia. Antenatal care, tetanus vaccination, iron and folate supplementation, and family planning reduce risk before and between pregnancies; contraception averts deaths by averting high-risk pregnancies.",
+    "For children, the big killers outside the neonatal period are pneumonia, diarrhoeal disease, malaria and malnutrition, with a large share of under-five deaths occurring in the first 28 days of life from prematurity, birth asphyxia and neonatal infection. Low-cost, high-impact tools include oral rehydration salts with zinc for diarrhoea, antibiotics for pneumonia, immunisation, insecticide-treated nets and malaria treatment, exclusive breastfeeding for the first six months, and kangaroo mother care (prolonged skin-to-skin contact) for small babies. The WHO and UNICEF package called Integrated Management of Childhood Illness trains first-level health workers to assess a sick child for several conditions at once rather than treating a single complaint, so that a child with cough, fever and poor feeding is not sent home after one problem is addressed.",
+    "Community health workers are central: they can distribute oral rehydration, test and treat malaria with rapid tests, and counsel on breastfeeding and danger signs. Trials and programme evaluations of community case management have shown reductions in child mortality, though results depend on supervision, supply of medicines and referral.",
+    "Worked example: a rural woman bleeds after a home birth. Her family debates whether to go (delay one), the nearest facility is four hours by foot over a flooded road (delay two), and on arrival the clinic has no oxytocin or blood (delay three). Training a birth attendant alone would not have saved her; the solution is a package across all three delays: community awareness, transport and facility readiness."
+   ]
+  },
+  {
+   "id": "med-global-health.l05",
+   "title": "Vaccination Programmes and Eradication",
+   "body": [
+    "Vaccination is the most cost-effective tool in public health because protection extends beyond the individual. Herd immunity occurs when enough of a population is immune that an infection cannot sustain transmission. For a simple model, the threshold proportion immune is 1 minus 1 divided by R0, where R0 is the basic reproduction number, the average number of people one case infects in a fully susceptible population. Measles has an R0 commonly cited between about 12 and 18, so around 95 percent coverage with two doses is needed to prevent outbreaks. For an infection with R0 of 4, the threshold is 75 percent, and because no vaccine is perfect, coverage must exceed that: with a vaccine that is 90 percent effective the required coverage is about 0.75 divided by 0.9, or 83 percent.",
+    "Programmes organise delivery. The World Health Assembly launched the Expanded Programme on Immunization in 1974 to bring a core set of childhood vaccines to all children. Gavi, the Vaccine Alliance, created in 2000, pools donor funds and purchasing power so lower-income countries can introduce newer vaccines such as pneumococcal conjugate, rotavirus and HPV, usually with co-financing that rises as a country's income grows. Coverage is tracked by indicators such as the share of infants receiving a third dose of DTP-containing vaccine. Zero-dose children, who have received no routine vaccines, are concentrated in conflict zones, remote areas and urban slums, and are a priority group. The cold chain, a system of refrigerated storage and transport from manufacturer to health post, is a practical constraint: many vaccines degrade if heated or, for some, frozen.",
+    "Smallpox is the model success. Intensified campaigns using surveillance and ring vaccination, which vaccinates the contacts of cases and their contacts rather than whole populations, stopped transmission; the last natural case occurred in Somalia in 1977 and the World Health Assembly declared eradication in 1980. Smallpox was suited to eradication because it had no animal reservoir, visible disease, lasting immunity and an effective vaccine. Polio eradication has been harder. The Global Polio Eradication Initiative began in 1988; wild poliovirus types 2 and 3 have been certified eradicated, while type 1 remains endemic in Afghanistan and Pakistan as of this writing.",
+    "Polio also shows a trade-off in vaccine design. The oral polio vaccine uses live attenuated virus, is cheap, easy to give and induces gut immunity, but in rare cases in under-immunised communities the vaccine virus can circulate, mutate and regain neurovirulence, causing circulating vaccine-derived poliovirus. The inactivated vaccine, given by injection, cannot do this but is costlier and induces less intestinal immunity. The programme therefore combines both and is moving to newer oral formulations designed to be more genetically stable.",
+    "Vaccine acceptance is a policy issue as well as a technical one. WHO advisers describe confidence, complacency and convenience as factors that shape uptake. Strategies that work include trusted messengers, reducing wait times and cost, reminder systems and, in some places, school-entry requirements; the evidence on mandates is mixed and the ethics are debated, with some arguing that they protect vulnerable people and others that they risk eroding trust.",
+    "Worked example: a district has 82 percent measles coverage with first doses and recurring outbreaks. Reasoning from herd thresholds, coverage is well below roughly 95 percent, and pockets of unvaccinated children cluster geographically. The remedy is a catch-up campaign plus a second routine dose and outreach to the zero-dose pockets, not a change in vaccine type."
+   ]
+  },
+  {
+   "id": "med-global-health.l06",
+   "title": "Malaria: Biology and Control",
+   "body": [
+    "Malaria is caused by protozoan parasites of the genus Plasmodium, transmitted by the bite of infected female Anopheles mosquitoes. Five species infect humans: Plasmodium falciparum (the most lethal, and dominant in sub-Saharan Africa), P. vivax (widespread outside Africa), P. ovale, P. malariae and the zoonotic P. knowlesi. Sporozoites injected by the mosquito travel to the liver, multiply, and release merozoites that invade red blood cells, where cycles of replication and rupture cause fever, anaemia and, in falciparum, sequestration of infected cells in small vessels that produces cerebral malaria and organ failure. P. vivax and P. ovale can form dormant liver stages called hypnozoites, which cause relapse weeks or months later.",
+    "The burden falls heavily on sub-Saharan Africa, which carries the great majority of cases and deaths, and on young children and pregnant women. Children lose maternal antibody protection and have not yet acquired partial immunity, which develops only after repeated infection and wanes without exposure. Some genetic traits modify risk: sickle cell trait protects against severe falciparum malaria, and Duffy-negative red cells resist P. vivax, which uses the Duffy antigen to enter.",
+    "Control uses layered tools. Vector control relies on insecticide-treated bed nets, which kill or deter mosquitoes that bite at night, and indoor residual spraying of walls; resistance of mosquitoes to pyrethroids has driven development of nets that add a second active ingredient. Prevention in groups at high risk includes seasonal malaria chemoprevention, in which children in areas with strongly seasonal transmission, such as the Sahel, receive courses of antimalarials through the rainy season, and intermittent preventive treatment in pregnancy using sulfadoxine-pyrimethamine. Diagnosis in the field uses rapid diagnostic tests that detect parasite antigens, with microscopy as the reference method; treating on suspicion alone wastes drugs and misses other causes of fever.",
+    "Treatment of uncomplicated falciparum malaria uses artemisinin-based combination therapy, which pairs a fast-acting artemisinin derivative with a longer-acting partner drug, reducing resistance risk. Severe malaria is treated with intravenous artesunate. The discovery of artemisinin by Tu Youyou, drawing on classical Chinese medical texts, earned a Nobel Prize in 2015. For P. vivax and P. ovale, a drug active against hypnozoites, such as primaquine or tafenoquine, is needed to prevent relapse; because these can cause haemolysis in people with G6PD deficiency, testing or careful risk assessment is required.",
+    "Threats and advances: partial resistance to artemisinin, first found in Southeast Asia, has been confirmed in parts of East Africa, and monitoring and drug-combination strategies are priorities. Two vaccines for children, RTS,S/AS01 and R21/Matrix-M, have been recommended by WHO; both give partial protection and are added to, not replacing, other tools.",
+    "Worked example: a child in the Sahel presents in the rainy season with fever and a positive rapid test. Treatment is an artemisinin-based combination. The public-health response in the district includes net coverage, seasonal chemoprevention for eligible children and surveillance for drug resistance."
+   ]
+  },
+  {
+   "id": "med-global-health.l07",
+   "title": "Tuberculosis Control",
+   "body": [
+    "Tuberculosis is caused by Mycobacterium tuberculosis and spreads through the air when a person with active pulmonary disease coughs. Most people who are infected contain the bacteria in a latent state and never become ill; a minority progress to active disease, the risk being highest in the first years after infection and in people with HIV, malnutrition, diabetes, tobacco or silica exposure, or immunosuppressive treatment. Before COVID-19, tuberculosis was the world's leading cause of death from a single infectious agent, and it has regained that position in WHO reporting as of this writing. Most cases occur in a group of high-burden countries in Asia and Africa.",
+    "The core diagnostic and treatment challenge is that the organism grows slowly and is hard to kill. Standard drug-susceptible disease is treated for six months: two months of isoniazid, rifampicin (rifampin), pyrazinamide and ethambutol, followed by four months of isoniazid and rifampicin. Each drug has well-known adverse effects. Isoniazid can cause hepatitis and peripheral neuropathy, the latter reduced by giving pyridoxine (vitamin B6). Rifampicin is a strong inducer of liver enzymes and so interacts with many drugs, including some antiretrovirals and hormonal contraceptives, and turns body fluids orange. Pyrazinamide raises uric acid and can cause hepatitis. Ethambutol can cause optic neuritis, so visual acuity and colour vision matter.",
+    "Because treatment is long, adherence is a core problem. The WHO strategy called DOTS (directly observed treatment, short-course) combined political commitment, reliable microscopy, a secure drug supply, standardised regimens and observed therapy with monitoring. Later strategies, namely Stop TB and the End TB Strategy, broadened the approach to include patient support, social protection, and contact tracing. Digital reminders and community support are used alongside observation.",
+    "Drug resistance is the great threat. Multidrug-resistant tuberculosis is defined as resistance to at least isoniazid and rifampicin. Resistance arises from incomplete or poorly supervised treatment, poor drug quality, and direct transmission of resistant strains. A major advance was the Xpert MTB/RIF test, a cartridge-based nucleic acid amplification test endorsed by WHO in 2010, which detects the bacterium and the rpoB mutation that signals rifampicin resistance within hours. Newer all-oral regimens built on bedaquiline, pretomanid and linezolid, sometimes with moxifloxacin, shortened treatment of resistant disease to about six months and replaced older regimens with injectables that had severe toxicity.",
+    "BCG vaccine, given in infancy in many countries, reduces severe childhood forms such as meningitis and miliary disease but gives variable protection against adult pulmonary disease, so new vaccine candidates are under study. Preventive treatment of latent infection in high-risk groups, such as people with HIV and household contacts, is an important complementary strategy.",
+    "Worked example: a man with HIV has cough and weight loss and a positive Xpert result that also reports rifampicin resistance. This pattern indicates likely multidrug-resistant tuberculosis, so a rifampicin-based regimen would fail; the clinician moves to a resistant-disease regimen, tests for further resistance and coordinates antiretrovirals because of drug interactions."
+   ]
+  },
+  {
+   "id": "med-global-health.l08",
+   "title": "HIV: From Epidemic to Control",
+   "body": [
+    "HIV is a retrovirus that infects CD4-positive T cells and, left untreated, depletes them, leading to acquired immunodeficiency syndrome (AIDS) and opportunistic infections such as tuberculosis, Pneumocystis pneumonia and cryptococcal meningitis. It spreads through unprotected sex, blood (including shared injecting equipment and unscreened transfusion), and from mother to child during pregnancy, delivery and breastfeeding. Sub-Saharan Africa carries most people living with HIV, with young women and key populations, including men who have sex with men, sex workers, people who inject drugs and transgender people, at heightened risk in different settings. Stigma, criminalisation and gender inequality are structural drivers that keep people from testing and treatment.",
+    "The modern strategy rests on antiretroviral therapy. Combinations of antiretroviral drugs suppress viral replication to levels undetectable in blood. WHO now recommends a first-line regimen based on dolutegravir, an integrase strand transfer inhibitor, combined with two nucleoside reverse transcriptase inhibitors, typically including tenofovir. Dolutegravir has a high barrier to resistance and generic production has made it affordable in lower-income countries. Suppression has two benefits: the person's health is restored, and transmission is prevented. The HPTN 052 trial found that early treatment of the positive partner in serodiscordant couples sharply reduced sexual transmission, and later studies supported the principle summarised as undetectable equals untransmittable.",
+    "Programmatic targets shape policy. UNAIDS set the 95-95-95 targets for 2025: 95 percent of people living with HIV knowing their status, 95 percent of those diagnosed on treatment, and 95 percent of those on treatment with viral suppression. Many countries have approached or reached these in some groups, but gaps remain among men, adolescents and key populations. Funding is volatile and heavily donor-dependent, a point worth tracking: the Global Fund (created in 2002) and the United States President's Emergency Plan for AIDS Relief (launched in 2003) have been major financiers.",
+    "Prevention of mother-to-child transmission is one of the great successes. With antiretroviral therapy in pregnancy that suppresses the viral load, safe delivery practices and infant prophylaxis, transmission can fall to a few percent or lower; some countries have been validated as having eliminated mother-to-child transmission. Pre-exposure prophylaxis uses antiretroviral drugs taken by HIV-negative people at risk, originally daily oral tenofovir-based tablets; longer-acting injectable options, including cabotegravir and, as of this writing, the twice-yearly injectable lenacapavir, extend choices and may help people who struggle with daily pills. Post-exposure prophylaxis, given as soon as possible and within 72 hours of exposure, is another tool. Harm reduction for injecting drug use, including needle and syringe programmes and opioid agonist therapy, has strong evidence of reducing transmission.",
+    "Worked example: a pregnant woman is diagnosed in the second trimester. She starts dolutegravir-based therapy at once, achieving viral suppression before delivery; her infant gets prophylaxis and testing, and infant feeding is supported with continued maternal treatment. Without treatment her risk of transmission would be high; with it the risk is low."
+   ]
+  },
+  {
+   "id": "med-global-health.l09",
+   "title": "Outbreak Investigation and Response",
+   "body": [
+    "An outbreak is an occurrence of disease in excess of what is normally expected in a place and time. Responding to one follows a logic that field epidemiologists teach in a standard sequence: confirm that an outbreak exists and verify the diagnosis; define a case, usually with confirmed, probable and suspected categories; find cases actively; describe them by time, place and person; generate hypotheses about source and mode of transmission; test them with an analytic study; put control measures in place without waiting for certainty when risk is high; and communicate findings. The epidemic curve, a histogram of cases by date of onset, hints at the pattern: a sharp single peak suggests a common-source exposure, while successive waves separated by one incubation period suggest person-to-person spread.",
+    "Several measures guide response. The incubation period is the time from infection to symptoms; the serial interval is the time between symptom onset in a case and in the person they infect; the case fatality ratio is the proportion of confirmed cases who die. The effective reproduction number, Rt, is the average number of secondary infections at a given time given immunity and control measures; control aims to push it below 1. Surveillance systems, such as the Integrated Disease Surveillance and Response framework promoted in Africa, support early detection through case reporting and laboratory networks, and rumour monitoring can supplement official reports.",
+    "The 2014 to 2016 Ebola epidemic in West Africa, centred on Guinea, Liberia and Sierra Leone, illustrates both failure and success. Ebola virus, a filovirus with fruit bats as the likely reservoir, spreads through direct contact with the blood or body fluids of symptomatic people or of the dead; incubation is about 2 to 21 days. Early in the epidemic the signal was missed in a region with weak health systems and porous borders, and the disease reached capital cities. Roughly 28,000 cases and 11,000 deaths were reported (approximate), including large numbers of health workers. The turning point came with a layered response: isolation and treatment units, rigorous infection prevention and control, rapid contact tracing and follow-up for 21 days, safe and dignified burials (funeral practices were a major transmission route), and community engagement that took local leaders and customs seriously rather than treating them as obstacles.",
+    "Vaccines and drugs followed. A ring vaccination trial in Guinea in 2015 vaccinated contacts of cases and contacts of contacts with the rVSV-ZEBOV vaccine and gave strong evidence of protection; the vaccine was subsequently licensed. In a later outbreak in the Democratic Republic of the Congo, a randomised trial of treatments found that two monoclonal antibody products had lower mortality than the comparison therapies, and both were later approved. These products target the Zaire species of Ebola virus, not all filoviruses.",
+    "Response is not only technical. Trust is a determinant of success: communities that experienced abrupt quarantines, unexplained burials or distrust of foreign teams sometimes hid cases. Programmes that hired local workers, explained decisions and respected funerals fared better. Another lesson is the cost of delay: the earlier cases are detected and isolated, the smaller the outbreak, which is why investment in surveillance and local capacity is cheaper than late emergency response.",
+    "Worked example: cases appear in three villages with onsets clustering at 10 to 14 day intervals and all cases attended the same funeral. The pattern of successive generations and a common event suggests person-to-person spread seeded by a funeral exposure. Control: trace and monitor funeral attendees, offer safe burial teams, and vaccinate contacts and contacts of contacts if a vaccine exists."
+   ]
+  },
+  {
+   "id": "med-global-health.l10",
+   "title": "WHO and the International Health Regulations",
+   "body": [
+    "The World Health Organization is a specialised agency of the United Nations whose Constitution was adopted in 1946; it came into being in 1948. Its governing body is the World Health Assembly, in which every member state has one vote, and its executive is led by a Director-General elected by the Assembly on the nomination of the Executive Board. The Constitution defines health as a state of complete physical, mental and social well-being and not merely the absence of disease, and names the highest attainable standard of health as a fundamental right of every human being. Its work covers norm-setting (guidelines, the Essential Medicines List, classifications), technical support to countries, coordination of emergency response, and convening.",
+    "WHO is limited by design. It cannot compel states and has no police or enforcement arm. Most of its funding comes from voluntary contributions, largely earmarked by donors for specific programmes, rather than from assessed membership fees, which gives donors influence over priorities and makes budgets less predictable. As of this writing, funding stress and the announced withdrawal of at least one major member have prompted budget cuts and reform discussions.",
+    "The International Health Regulations (2005), in force since 2007 and legally binding on states parties, are the main legal instrument for managing cross-border health threats. They require countries to develop core capacities for surveillance and response, to assess events using a decision instrument and notify WHO within 24 hours of an assessment that an event may constitute a public health emergency of international concern, and to share information. The Director-General, after consulting an Emergency Committee, can determine that an event is a Public Health Emergency of International Concern (PHEIC) and issue temporary recommendations. Examples include the 2009 influenza H1N1 pandemic, polio (from 2014), Ebola in West Africa in 2014 and the Democratic Republic of the Congo in 2019, Zika in 2016, COVID-19 in 2020 and mpox in 2022 and again in 2024.",
+    "The IHR also cautions against unjustified travel and trade restrictions: measures that significantly interfere with international traffic should be based on scientific evidence and be no more restrictive than needed, and countries that exceed WHO advice must report their rationale. In practice many states have imposed restrictions anyway, and compliance, transparency and capacity gaps have been persistent criticisms. After COVID-19, states negotiated amendments to the IHR, adopted by the Assembly in 2024, which among other changes create a higher alert level called a pandemic emergency; as of this writing, the amendments are in force for most states, with some having rejected them. In 2025 the Assembly also adopted a separate WHO Pandemic Agreement, concerning prevention, preparedness, equitable access and benefit-sharing, whose annex on pathogen access and benefit sharing was still under negotiation, so its practical effect depends on that annex and on ratifications.",
+    "An honest assessment recognises two views. Supporters say that a binding framework with a trusted technical convenor gives smaller states access to expertise and a shared rulebook. Sceptics say that WHO has too little leverage over powerful states, can be slow to declare emergencies, and risks politicisation. Both points appear in the record, and the reform debate is about whether to strengthen financing and verification rather than whether coordination is needed.",
+    "Worked example: a state detects an unusual cluster of severe respiratory illness. Under the IHR it must assess the event using the decision instrument, notify WHO within 24 hours if it meets the criteria, and respond. The Director-General may convene the Emergency Committee, and if a PHEIC is declared, temporary recommendations are issued; they advise but do not command."
+   ]
+  },
+  {
+   "id": "med-global-health.l11",
+   "title": "Pandemic Preparedness",
+   "body": [
+    "Pandemic preparedness is the set of capacities that let a country or the world detect a new threat early, contain it quickly and limit harm if it spreads. A useful teaching frame has four parts: detect, respond, protect and pay. Detection means surveillance that can spot unusual events, laboratories that can identify pathogens, and genomic sequencing and data sharing that reveal how the pathogen changes. Response means trained workers, plans for contact tracing and isolation, and infection prevention and control in health facilities. Protection means medical countermeasures such as vaccines, diagnostics, therapeutics and protective equipment, together with community measures. Financing is what keeps the first three alive between emergencies, which is the hard part because the benefits are invisible when preparedness works.",
+    "Evaluating preparedness is itself difficult. WHO has promoted Joint External Evaluations, voluntary peer reviews of national capacities, and the Global Health Security Index scored countries in 2019. Experience with COVID-19 showed that high scores did not reliably predict performance, because outcomes also depended on trust in government, political leadership, communication, social cohesion and the ability to adapt. This is a good example of why composite indicators should be used with care.",
+    "Several issues dominate the post-COVID debate. First is speed and equity of countermeasures. Messenger RNA vaccines were developed and authorised in under a year, a scientific success, but early supply went largely to high-income countries. The COVAX Facility, a pooled purchasing and donation mechanism, delivered many doses to lower-income countries but fell short of its early goals, reflecting export restrictions, bilateral purchase deals and limited manufacturing capacity in low-income regions. Responses include regional manufacturing, technology transfer such as the mRNA hub in South Africa, and the Coalition for Epidemic Preparedness Innovations, whose stated aim is a vaccine within 100 days of a threat.",
+    "Second is data and sample sharing. Researchers need prompt access to pathogen sequences, while countries that provide samples want a fair share of the benefits, such as access to resulting products; these competing interests are at the heart of the pathogen access and benefit-sharing negotiations under the WHO Pandemic Agreement. Tension exists with the Nagoya Protocol on access to genetic resources under the Convention on Biological Diversity, which governs some biological resources by bilateral terms.",
+    "Third is finance. The Pandemic Fund, hosted by the World Bank and launched in 2022, provides grants to strengthen surveillance, laboratory capacity and workforce in lower-income countries, and demand has far exceeded available funds. Fourth is the role of non-pharmaceutical measures such as masks, ventilation, testing and travel measures, whose effects and costs, including harms to education and mental health, are still being studied, and where evidence quality varies by measure.",
+    "Fifth is the One Health perspective: since most emerging infections of humans originate in animals, surveillance at the animal-human-environment interface, through wildlife, farming and market monitoring, is part of preparedness.",
+    "Worked example: a country scores high on a preparedness index but suffers heavy early COVID-19 mortality. Analysis finds weak public trust and inconsistent messaging, low testing in the first weeks, and overwhelmed hospitals. The lesson is that capacity on paper does not equal capacity in practice, and that trust and communication are core components."
+   ]
+  },
+  {
+   "id": "med-global-health.l12",
+   "title": "Noncommunicable Disease in a Global Setting",
+   "body": [
+    "Noncommunicable diseases are chronic conditions that are not passed from person to person. WHO focuses on four groups: cardiovascular diseases, cancers, chronic respiratory diseases and diabetes, with mental health and injuries often considered alongside. They account for roughly three quarters of global deaths, and about three quarters of those deaths occur in low- and middle-income countries, where people also die earlier. Premature mortality in this setting is usually defined as death between ages 30 and 70, and the Sustainable Development Goals set a target of reducing premature noncommunicable disease mortality by one third by 2030.",
+    "Four shared behavioural risk factors drive much of the burden: tobacco use, harmful alcohol use, unhealthy diet and physical inactivity. Metabolic intermediates (raised blood pressure, glucose, lipids and body weight) link behaviour to disease, and environmental risk, notably air pollution, adds substantially. Because the same upstream causes feed several diseases, common risk factor approaches are efficient. The commercial determinants of health, meaning the influence of tobacco, alcohol, ultra-processed food and other industries on health, are an increasing focus of scholarship and policy.",
+    "The WHO Framework Convention on Tobacco Control, adopted in 2003 and in force from 2005, is the first treaty negotiated under the WHO Constitution and has been joined by most states. It commits parties to measures including tax and price increases, smoke-free public places, health warnings and plain packaging, advertising bans, and support for cessation. Tobacco taxation is the best-studied intervention: demand falls as price rises, particularly among the young and the poor, and revenue can fund health. WHO's lists of cost-effective measures, often called best buys, include reducing salt intake, controlling harmful alcohol use through tax and availability, and treating hypertension and diabetes in primary care with simple protocols.",
+    "Hypertension illustrates the care cascade. It is highly prevalent worldwide, but in many countries only a minority of those affected are aware, treated and controlled. Low-cost generic drug classes, such as thiazide-like diuretics, calcium-channel blockers and ACE inhibitors or angiotensin receptor blockers, are effective, so the problem is system delivery: detection, supply, adherence and follow-up. WHO's HEARTS technical package promotes standard protocols, team-based care and reliable medicine supply at primary care level. Diabetes has a similar profile, with insulin access and affordability a persistent problem in poorer settings, along with cost of test strips.",
+    "Cancer prevention in low-resource settings favours measures with high yield. Cervical cancer, caused by persistent infection with high-risk human papillomavirus types, is largely preventable. WHO's strategy to eliminate it as a public health problem sets targets by 2030 for 90 percent of girls vaccinated by age 15, 70 percent of women screened with a high-performance test by 35 and again by 45, and 90 percent of those with pre-cancer or cancer treated. Hepatitis B vaccination reduces liver cancer, and tobacco control reduces lung and many other cancers.",
+    "Concerns exist about health systems designed around acute infectious disease: chronic care needs continuity, drug supply, patient education and out-of-pocket costs that do not become catastrophic. Debate continues over how to weigh prevention investments against treatment for those already ill, and over regulation versus personal responsibility; both appear in the policy record, and the evidence base favours taxes and regulation for their population-level effect with attention to equity.",
+    "Worked example: a primary care programme screens adults for hypertension, finds many untreated, and gives a standard stepped protocol with a combined once-daily pill and regular drug supply. Over a year control rates rise. The change came from system design, not a new drug."
+   ]
+  },
+  {
+   "id": "med-global-health.l13",
+   "title": "Models of Health Systems",
+   "body": [
+    "A health system includes every organisation, person and action whose primary intent is to improve health. Textbooks describe a few ideal types by who pays and who provides, and then admit that nearly every real country is a hybrid. The value of the models is that they make trade-offs visible.",
+    "The Beveridge model, named after William Beveridge and embodied in the British National Health Service launched in 1948, finances care from general taxation and often provides it through publicly owned hospitals and employed clinicians. Care is free or nearly free at the point of use, and the government sets budgets and can control costs through global budgets and gatekeeping by general practitioners. Strengths are universality and cost control; weaknesses can include waiting lists when budgets are tight and exposure to political budget cycles. Spain, Nordic countries and New Zealand follow versions of it.",
+    "The Bismarck model, associated with the sickness insurance law introduced in Germany in the 1880s, finances care through compulsory contributions from employers and employees to multiple non-profit sickness funds, with providers often private. Insurers are heavily regulated, must accept all applicants, and cover a standard benefit package; fees are negotiated collectively. Germany, France in a variant, Belgium and Japan are examples. Strengths include choice and responsiveness; weaknesses include administrative complexity and the need for subsidy to cover people outside formal work.",
+    "The national health insurance model, or single-payer model, mixes the two: providers are largely private, but a single government-run insurer collects premiums or taxes and pays all claims. Canada's provincial plans, Taiwan's system and South Korea's are standard examples. A single payer holds strong bargaining power over prices and has low administrative costs, though it may ration through waiting times and may limit what the public plan covers, leaving a role for supplemental private insurance. In the out-of-pocket model, common in poorer countries, only those who can pay obtain care, and the result is the opposite of coverage: catastrophic costs for those who need it.",
+    "Most countries mix elements. The United States combines employer-sponsored private insurance, public programmes for older and low-income people, and a large uninsured group, and is described as a patchwork rather than a single model. The Netherlands and Switzerland use regulated competing private insurers with mandates and subsidies. Mixed systems add private supplementary or complementary insurance on top of public coverage, as in many Beveridge countries.",
+    "When comparing, analysts use outcomes (life expectancy, avoidable mortality), access, financial protection, quality, spending per person and satisfaction. A common error is to attribute differences in outcomes to the health system alone; income, behaviour and social conditions contribute, so results must be read with caution. Another is to treat the labels as strict, because a country's model changes over time.",
+    "Worked example: a country finances care by payroll contributions to competing non-profit funds, has private clinics and hospitals, and mandates that insurers accept all applicants. This is a Bismarck-type system. If the same country replaced the funds with one public insurer paying private providers, it would have moved to a single-payer national health insurance model."
+   ]
+  },
+  {
+   "id": "med-global-health.l14",
+   "title": "Health Financing and Universal Health Coverage",
+   "body": [
+    "Universal health coverage means that all people can obtain the health services they need, of sufficient quality to be effective, without suffering financial hardship. Target 3.8 of the Sustainable Development Goals adopts this aim. It has two measured dimensions: service coverage (an index of essential services across reproductive, maternal and child health, infectious disease, noncommunicable disease and service capacity) and financial protection.",
+    "Financing is analysed through three functions. Revenue raising collects funds from general taxes, social health insurance contributions, voluntary private insurance, out-of-pocket payments and external aid. Pooling combines funds so that financial risk is shared across healthy and sick people; larger, more diverse pools spread risk better, and fragmentation into many small schemes weakens it. Purchasing is how pooled funds are spent on services. Methods include fee-for-service, which pays per item and encourages volume; capitation, a fixed payment per enrolled person that encourages efficiency but risks under-provision; diagnosis-related groups, paying a fixed amount per case type; and global budgets for institutions. No payment method is neutral; each creates incentives that must be monitored.",
+    "Out-of-pocket payment is the worst form of financing for equity because it ties access to ability to pay at the moment of need. Two measures of its harm are common. Catastrophic health expenditure is spending above a threshold share of household resources, often 10 percent or 25 percent of total consumption or income. Impoverishment is when health spending pushes a household below the poverty line. The share of households facing these outcomes is the Sustainable Development Goals' financial protection indicator. User fees were promoted in the 1980s to raise revenue but lowered use among the poor; several countries, including Uganda in 2001, later abolished them in public facilities, with a large rise in attendance but also with pressure on supplies and staff.",
+    "Countries have extended coverage in different ways. Thailand's Universal Coverage Scheme, launched in 2002, covers people outside formal employment using tax funding and capitation-based payments to providers, with a small copayment initially. Rwanda built community-based health insurance schemes with subsidies. Brazil's constitution of 1988 made health a right and created a unified health system. Mexico's Seguro Popular was later restructured. These show that universal coverage has been achieved at various income levels, though sustainability depends on political commitment and fiscal space.",
+    "The Abuja Declaration of 2001 committed African Union members to allocate at least 15 percent of their national budgets to health, a target most have not met. Evidence also shows that prepayment and pooling matter more than the label on the system. Debate remains about how large a benefit package can be, how to prioritise using cost-effectiveness and equity, and how to cover informal workers, who are a large share of workforces in many countries. Moral hazard, the tendency of insured people to use more care, is a concern for insurers, but evidence suggests that the harm of uncovered need, which is not just unnecessary demand, is larger in low-income settings.",
+    "Worked example: a family in a country without insurance sells land to pay for a caesarean section that costs 40 percent of annual household income. This counts as catastrophic spending under both common thresholds and may push the household into poverty. A pooled tax-funded scheme with no fee at the point of use would prevent it."
+   ]
+  },
+  {
+   "id": "med-global-health.l15",
+   "title": "Essential Medicines and Access",
+   "body": [
+    "Essential medicines are those that satisfy the priority health care needs of a population, selected with regard to disease burden, evidence of efficacy and safety, and comparative cost-effectiveness. WHO published its first Model List of Essential Medicines in 1977 and updates it roughly every two years through an expert committee. National lists adapted from it guide procurement and reimbursement. The concept is a rational use tool: a short list of well-chosen drugs is easier to procure, store, prescribe and monitor than a long list of near duplicates.",
+    "Access has several barriers that must be separated. Availability is whether the medicine is in stock; affordability is whether people or the system can pay; quality means the product contains the right drug in the right dose; and rational use means it is prescribed and taken appropriately. Poor-quality medicines fall into substandard products, which fail specifications through error or poor manufacture, and falsified products, which deliberately misrepresent identity or source. Regulatory capacity and prequalification schemes, such as WHO prequalification used by procurers, help to assure quality. Many low-income countries also face stock-outs from poor forecasting and supply chain weaknesses, not only from high prices.",
+    "Intellectual property rules shape price. The WTO's Agreement on Trade-Related Aspects of Intellectual Property Rights (TRIPS), in force from 1995, requires member states to provide 20 years of patent protection, including for pharmaceuticals. Supporters argue that patents reward costly research and development. Critics argue that monopoly pricing denies life-saving drugs to poor people. TRIPS includes flexibilities: governments may grant compulsory licences allowing generic production without the patent holder's consent, subject to conditions, and may allow parallel importation. The Doha Declaration of 2001 affirmed that TRIPS should be interpreted in support of public health and each member's right to protect it.",
+    "The AIDS crisis was a turning point. In the late 1990s antiretroviral therapy cost in the order of ten thousand dollars per person per year, out of reach in Africa. South Africa's Medicines Act of 1997 and the legal challenge by pharmaceutical companies, which they dropped in 2001 under public pressure, became a symbol. In 2001 the Indian generic manufacturer Cipla offered triple therapy at a fraction of the prevailing price, and competition drove prices down by well over 90 percent in following years. A further problem was that countries lacking manufacturing capacity could not benefit from compulsory licences; a 2003 decision of the WTO General Council, later made a permanent amendment to TRIPS, allowed export of generics made under compulsory licence to such countries, though it has been used rarely because of procedural complexity.",
+    "Other mechanisms address gaps. The Medicines Patent Pool, set up in 2010 with UNITAID support, negotiates voluntary licences from patent holders for HIV, hepatitis C and other medicines. Pooled procurement through Gavi, the Global Fund and the Global Drug Facility lowers prices by aggregating demand. Product development partnerships such as the Drugs for Neglected Diseases initiative develop treatments for diseases that offer little market return. Tiered pricing can help but is limited by leakage and by middle-income countries not always qualifying.",
+    "Worked example: a middle-income country faces a patented hepatitis C drug at a price that would consume its treatment budget. Options include negotiating a voluntary licence through a patent pool, invoking a compulsory licence under TRIPS flexibilities, or tendering for generic versions where patents do not apply. Each carries trade-offs of diplomacy, time and quality assurance."
+   ]
+  },
+  {
+   "id": "med-global-health.l16",
+   "title": "Primary Health Care and the Health Workforce",
+   "body": [
+    "Primary health care is both a level of care and a philosophy. The Declaration of Alma-Ata, adopted at a WHO and UNICEF conference in 1978 in what was then the Soviet Union, defined primary health care as essential care made universally accessible, based on practical, scientifically sound and socially acceptable methods, at a cost the community and country can afford. It called for Health for All by the year 2000, emphasised community participation and action across sectors, and framed health as a human right. The target date was missed, but the framework endured.",
+    "There was an early debate about scope. Selective primary health care, proposed in 1979 by Julia Walsh and Kenneth Warren, argued that limited resources should go first to a few cost-effective interventions against the leading causes of child death, such as immunisation, oral rehydration, breastfeeding promotion and growth monitoring. Supporters of the comprehensive model argued that this approach neglected social determinants and community ownership. Both strands influenced later practice, and the choice is better seen as a question of sequencing and emphasis than a pure either-or. The 2018 Declaration of Astana renewed the commitment to primary health care as the route to universal coverage, with emphasis on integrated services, empowered people and communities, and supportive policy.",
+    "Evidence shows that health systems oriented to primary care tend to produce better population health and lower costs, mainly through continuity, prevention and appropriate referral. Examples include Brazil's Family Health Strategy, where teams including community agents are assigned to defined populations, and Ethiopia's Health Extension Programme, which trained and deployed female health extension workers to villages from 2003 to deliver a package of preventive and basic curative services. Evaluations suggest gains in service use, although quality and supervision remain challenges.",
+    "The workforce is the binding constraint in many places. WHO projects a shortfall of roughly ten million health workers by 2030, concentrated in low-income countries, particularly in Africa and parts of Asia. Reasons include limited training capacity, low pay, poor working conditions, maldistribution toward cities, and international migration, sometimes called brain drain, in which health workers move from poorer to richer countries. The WHO Global Code of Practice on the International Recruitment of Health Personnel, adopted in 2010, is a voluntary code that encourages ethical recruitment and calls on destination countries to avoid actively recruiting from countries with critical shortages. Because it is voluntary, enforcement is weak.",
+    "Responses to shortage include task shifting, in which tasks are moved to less specialised cadres such as clinical officers, nurses and community health workers, provided with training, supervision and referral; this approach is supported by trials in HIV treatment and maternal and child health. Community health workers can raise coverage of services, but programmes that underpay them, give no supplies or supervision, or rely on unpaid labour from women are fragile; this has led to calls for formal recognition and fair pay.",
+    "Worked example: a country needs more skilled birth coverage. It could train more doctors, a slow and costly step, or train more midwives, who can safely deliver most births when supported by referral for complications. The task-shifting evidence favours expanding midwifery in the short term while building referral capacity."
+   ]
+  },
+  {
+   "id": "med-global-health.l17",
+   "title": "Ethics of Global Health Research",
+   "body": [
+    "Modern research ethics grew out of abuses. The Nuremberg Code of 1947, written in the judgment of the trial of Nazi physicians, put voluntary informed consent first. The World Medical Association's Declaration of Helsinki, first issued in 1964 and revised many times, is the principal professional statement for medical research and requires ethics committee review, risk-benefit assessment, and special protection for vulnerable groups. In the United States the Belmont Report of 1979, produced after the Tuskegee syphilis study came to light, named three principles: respect for persons, beneficence, and justice. The Council for International Organizations of Medical Sciences issued guidelines that apply these principles to research in low-resource settings, including community engagement and the obligations of sponsors.",
+    "International research raises distinctive problems. Consent may involve low literacy, community or household decision-makers, and unequal relationships between researchers and participants; good practice uses translated materials, oral processes with witnesses, comprehension checks and engagement with community leaders, but individual consent should not be replaced by community permission. Vulnerability can arise from poverty, weak health care access and limited alternatives, which leads to concerns about undue inducement when participants receive payments or health services that they could not otherwise obtain. Review requires both the sponsor's and host country's ethics committees, since local committees understand local context and may have limited resources to review complex trials.",
+    "The best-known controversy involves the placebo-controlled trials of short-course zidovudine to prevent mother-to-child HIV transmission in the 1990s. After a 1994 trial showed that a long regimen reduced transmission, studies in developing countries tested cheaper shorter regimens against placebo. Critics, including Peter Lurie and Sidney Wolfe, argued that a placebo group was unethical when an effective regimen existed, because participants were denied a proven treatment. Defenders argued that the long regimen was not feasible or available in the host countries, that the local standard of care was no treatment, and that a placebo-controlled design gave faster, clearer answers useful to those populations. The dispute exposed the question of whether the control arm should be the best proven intervention worldwide or the local standard of care. Later revisions of the Declaration of Helsinki state that a new intervention should generally be tested against the best proven intervention, and permit placebo only when no proven intervention exists or when compelling and scientifically sound reasons exist and participants will not face added risk of serious harm.",
+    "Other concerns include post-trial access: whether participants and their communities should receive an effective product after the study. Helsinki says that sponsors, researchers and governments should plan for post-trial provisions. Related is the problem of exploitation, in which a trial uses low-income participants to produce a product that will be sold mainly in wealthy markets; the reasonable availability debate asks what benefits the community is owed. Critics also describe parachute or helicopter research, in which researchers from wealthy institutions collect data and samples and leave with the credit, and call for capacity-building, shared authorship, local leadership and fair governance of data and biological samples.",
+    "Another strand concerns open questions, where reasonable people disagree. Some hold that research on poor populations is justified when it addresses their health problems and treats them as partners; others emphasise vulnerability and insist on high protection. The more settled consensus is that responsiveness to local health needs, scientific validity, independent review and fair benefits are all required.",
+    "Worked example: a sponsor from a wealthy country proposes a vaccine trial in a low-income country with a placebo arm, although an effective vaccine exists but is unaffordable locally. The ethics committee should ask whether the placebo is justified, whether participants will face serious harm, whether the product would be available afterwards, and whether the local committee has had a full review."
+   ]
+  },
+  {
+   "id": "med-global-health.l18",
+   "title": "Humanitarian Medicine in Conflict and Disaster",
+   "body": [
+    "Humanitarian medicine delivers care to people affected by conflict, disaster, displacement and epidemics. It is guided by four humanitarian principles: humanity (alleviating suffering wherever found), impartiality (aid based on need alone, without discrimination), neutrality (not taking sides in hostilities or controversies) and independence (autonomy from political, military or economic objectives). They are not decorative; they are what lets aid workers negotiate access with armed parties. Debates exist about how far neutrality can be sustained when an organisation also speaks about abuses it witnesses.",
+    "The legal frame is international humanitarian law. The four Geneva Conventions of 1949 and their Additional Protocols of 1977 protect the wounded and sick, medical personnel, units and transport, which may not be attacked and must be respected, provided they are not used to commit acts harmful to the enemy. Attacks on hospitals are among the most serious violations, and monitoring systems record such attacks. The Convention relating to the Status of Refugees of 1951 defines a refugee and sets the principle of non-refoulement, which prohibits returning a person to a place where they face persecution. Internally displaced people, who have not crossed a border, are not covered by that convention but are covered by general human rights and humanitarian law.",
+    "Organisations differ in style. The International Committee of the Red Cross and Red Crescent movement works under mandates in the Geneva Conventions and traditionally favours confidential dialogue with parties to a conflict. Médecins Sans Frontières, founded in 1971 by French doctors, emphasises témoignage, or bearing witness, and will speak publicly about abuses. These are two ways of weighing access against advocacy, and neither is obviously correct; each has costs.",
+    "In the acute phase of a crisis, public health priorities are well described. A crude mortality rate above one death per 10,000 people per day is a standard emergency threshold, and child mortality thresholds are higher. The leading killers are measles, diarrhoeal diseases, acute respiratory infection, malaria where endemic and malnutrition, driven by crowding, poor water and sanitation, and disrupted services. Priorities include safe water and sanitation, shelter, food, vaccination against measles, oral rehydration, outbreak surveillance and treatment of severe acute malnutrition. Ready-to-use therapeutic food allows many children with severe malnutrition and an appetite to be treated at home. The Sphere Handbook sets minimum standards for water, shelter, food and health response. The cluster approach, led for health by WHO, coordinates agencies.",
+    "Mass casualty events require triage, which sorts patients by urgency and survivability to do the greatest good with limited resources, often using colour categories such as immediate, delayed, minimal and expectant. This is an application of utilitarian reasoning, different from ordinary practice, and it is justified by scarcity. Other ethical issues include whether aid prolongs conflict by feeding armed groups, how to avoid creating parallel systems that undermine local health services, and obligations to local staff, who carry most of the risk.",
+    "Worked example: a camp of 30,000 displaced people reports a crude mortality rate of 2 per 10,000 per day, mostly from diarrhoea and measles in children. This exceeds the emergency threshold. Priorities are clean water and latrines, measles vaccination, oral rehydration and treatment of malnourished children, together with surveillance for further outbreaks."
+   ]
+  },
+  {
+   "id": "med-global-health.l19",
+   "title": "Antimicrobial Resistance and One Health",
+   "body": [
+    "Antimicrobial resistance occurs when microbes evolve so that drugs that once killed them no longer work. The mechanism is natural selection: in a population of bacteria, a few carry resistance traits through mutation or through acquired genes; when an antibiotic is used, susceptible bacteria die and resistant ones survive and multiply. Resistance genes can also move between bacteria by horizontal gene transfer on plasmids, which allows resistance to spread across species. Every use of an antibiotic exerts selection pressure, so inappropriate use accelerates the problem, although even appropriate use contributes some.",
+    "Mechanisms of resistance include enzymes that destroy the drug (beta-lactamases that break the beta-lactam ring), changes in the drug target (the altered penicillin-binding protein of methicillin-resistant Staphylococcus aureus), efflux pumps that expel the drug, and reduced permeability. Important resistant groups include MRSA, extended-spectrum beta-lactamase producing Enterobacterales, and carbapenem-resistant Enterobacterales and Acinetobacter, for which few treatment options remain. The discovery in 2015 of the mcr-1 gene, conferring plasmid-borne resistance to colistin, a last-line antibiotic, in animals and humans in China, illustrated how resistance in one sector can reach another.",
+    "The One Health approach recognises that human, animal and environmental health are linked. Drivers include overprescribing in human medicine, antibiotics sold without prescription, incomplete courses, poor infection control in hospitals, inadequate sanitation that spreads resistant organisms, use of antibiotics in livestock for growth promotion or routine prevention, and pharmaceutical pollution in waterways. A widely cited modelling study in the Global Research on Antimicrobial Resistance project estimated about 1.27 million deaths in 2019 directly attributable to bacterial resistance and about 4.95 million deaths associated with it (approximate), with the highest burden in sub-Saharan Africa and South Asia. The 2024 United Nations General Assembly political declaration set targets that include reducing deaths associated with antimicrobial resistance by 10 percent by 2030 against the 2019 baseline.",
+    "Responses are layered. Infection prevention and control, hand hygiene, clean water and vaccination reduce the need for antibiotics; vaccines against pneumococcus and Haemophilus influenzae type b, for example, reduce both infections and prescriptions. Antimicrobial stewardship programmes promote right drug, dose, duration and route and use diagnostics to separate bacterial from viral infection. WHO's AWaRe classification groups antibiotics into Access (first- or second-choice antibiotics with a lower resistance potential), Watch (higher resistance potential, to be used for specific indications) and Reserve (last-resort drugs). Surveillance systems track resistance, and many countries restrict growth-promoter use in animals.",
+    "There is also an economic problem: new antibiotics are used sparingly to preserve effectiveness and are given for short courses, so sales are low and companies lack incentive to develop them. Proposed solutions include pull incentives, such as subscription-style payments that delink revenue from volume, and public funding of early research. Another tension is access: many deaths from bacterial infection occur because people cannot reach any effective antibiotic, so stewardship should not restrict use where access is poor. Both excess and access problems coexist, and policy must address both.",
+    "Worked example: a hospital sees a rise in carbapenem-resistant infections. Response includes screening and isolating colonised patients, reinforcing hand hygiene and environmental cleaning, reviewing carbapenem prescribing, and reporting to the national surveillance system. Giving more carbapenems would worsen the selection pressure."
+   ]
+  },
+  {
+   "id": "med-global-health.l20",
+   "title": "The Right to Health, Aid and Equity in Global Governance",
+   "body": [
+    "The right to health is set out in Article 12 of the International Covenant on Economic, Social and Cultural Rights of 1966, which recognises the right of everyone to the enjoyment of the highest attainable standard of physical and mental health. The Committee on Economic, Social and Cultural Rights, in General Comment 14 of 2000, interpreted it as a right to timely and appropriate health care and also to underlying determinants such as safe water, sanitation, food, housing and healthy working conditions. It identified four essential features: availability, accessibility (including non-discrimination, physical and economic access, and information access), acceptability (culturally appropriate and respectful of medical ethics) and quality. The Covenant provides for progressive realisation, meaning states must take steps to the maximum of available resources, but some core obligations, such as non-discrimination and essential medicines, are immediate. Critics question how enforceable such rights are; defenders point to national courts that have ordered treatment access, for example in HIV medicine cases.",
+    "Global health is financed through a mix. Development assistance for health flows from bilateral donors, multilateral agencies and philanthropic foundations, and sizeable programmes such as the Global Fund, Gavi and the United States President's Emergency Plan for AIDS Relief have been associated with major declines in AIDS and child deaths. Domestic public spending is the larger source in most countries as incomes grow, and the transition from aid dependence to self-financing is a recurring policy theme, along with questions on debt, fiscal space and who sets priorities. Aid is also volatile; abrupt reductions in funding by major donors, as occurred around 2025 in several programmes, can disrupt treatment supply and surveillance, so contingency planning is needed.",
+    "A long-running debate concerns vertical versus horizontal approaches. Vertical programmes target single diseases with dedicated funds, supply lines and targets, and can deliver measurable results quickly. Critics argue they fragment systems, draw skilled staff away from general services and reflect donor rather than national priorities. Defenders point to evidence that disease programmes have built laboratory, supply and data capacity, and that in some places they were the only route to scale. Many analysts now advocate integration and health system strengthening, with disease programmes designed to support the system rather than bypass it. The Paris Declaration on Aid Effectiveness of 2005 set principles of national ownership, alignment with country systems and harmonisation among donors.",
+    "Questions of power have become prominent. Scholars and practitioners describe the legacy of colonial medicine, the dominance of institutions in wealthy countries in agenda-setting, authorship and funding, and unequal partnerships in which local staff do the work while foreign partners hold the grants. The movement to decolonise global health calls for local leadership, shared decision-making, equitable authorship, direct funding of local institutions and, for some, a rethinking of the field's assumptions. Others caution that the term is used loosely and that the practical measures, funding flows and governance, should be specified and tested.",
+    "Climate change adds a further dimension: heat, floods, changing vector ranges, food insecurity and displacement fall hardest on populations that have contributed least to emissions, which links health equity to climate policy.",
+    "Worked example: a donor funds an HIV programme with its own parallel supply chain and data system. Ten years later the donor reduces funding. Where the programme was integrated into the national system, treatment continues with domestic financing; where it was a separate structure, services collapse. The case illustrates why alignment with country systems matters."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-global-health.l01.q1",
+   "lessonId": "med-global-health.l01",
+   "kind": "mcq",
+   "prompt": "The DALY is calculated as the sum of which two components?",
+   "choices": [
+    "Years of life lost to premature death plus years of healthy life expectancy",
+    "Years lived with disability plus years of treatment received by patients",
+    "Years of potential income lost plus years lived with disability",
+    "Years of life lost to premature death plus years lived with disability"
+   ]
+  },
+  {
+   "id": "med-global-health.l01.q2",
+   "lessonId": "med-global-health.l01",
+   "kind": "mcq",
+   "prompt": "A health ministry compares two programmes using cost per DALY averted. Why is this metric useful for priority-setting?",
+   "choices": [
+    "It measures only the number of lives saved, regardless of the age at death",
+    "It removes the need to estimate uncertainty because it relies on exact registry data",
+    "It combines deaths prevented and disability avoided into a single comparable unit across diseases",
+    "It guarantees the cheapest programme is also the one preferred by affected communities"
+   ]
+  },
+  {
+   "id": "med-global-health.l01.q3",
+   "lessonId": "med-global-health.l01",
+   "kind": "mcq",
+   "prompt": "Which condition is most likely to rank higher by DALYs than by number of deaths?",
+   "choices": [
+    "Neonatal sepsis in a hospital",
+    "Major depressive disorder",
+    "Acute myocardial infarction",
+    "Rabies after a dog bite"
+   ]
+  },
+  {
+   "id": "med-global-health.l01.q4",
+   "lessonId": "med-global-health.l01",
+   "kind": "mcq",
+   "prompt": "Country A has 500 deaths from a disease, each at an age with 30 years of remaining life expectancy. Country B has 4,000 people with a chronic condition of disability weight 0.25 lasting 5 years each. Which statement best compares total burden?",
+   "choices": [
+    "Country A has 15,000 DALYs and Country B has 5,000, so A has the larger burden",
+    "Country A has 15,000 DALYs and Country B has 20,000, so B has the larger burden",
+    "Country A has 500 DALYs and Country B has 4,000, so B has the larger burden",
+    "Country A has 15,000 DALYs and Country B has 1,000, so A has the larger burden"
+   ]
+  },
+  {
+   "id": "med-global-health.l01.q5",
+   "lessonId": "med-global-health.l01",
+   "kind": "mcq",
+   "prompt": "Between two years a low-income country reports a large rise in recorded noncommunicable-disease deaths, while infection deaths are unchanged. Which interpretation is most defensible before concluding the disease pattern has changed?",
+   "choices": [
+    "The disability weights must have been revised upward in that single country, which would raise the recorded number of noncommunicable-disease deaths in a single year",
+    "The country has completed the epidemiologic transition and no longer has a double burden, which is shown by a rise in recorded noncommunicable deaths",
+    "Infection deaths must be falling because deaths cannot rise in one category without falling in another, so the unchanged figure must be an error",
+    "Improved death registration and cause-of-death certification may be revealing deaths previously unrecorded or miscoded"
+   ]
+  },
+  {
+   "id": "med-global-health.l02.q1",
+   "lessonId": "med-global-health.l02",
+   "kind": "mcq",
+   "prompt": "Which finding from the Whitehall studies best illustrates the social gradient in health?",
+   "choices": [
+    "Mortality rose stepwise as civil service grade fell, even among people with stable jobs",
+    "Only the lowest-paid grade showed higher mortality, with no difference among the others",
+    "Mortality was the same across grades once smoking was recorded in the survey",
+    "Higher-grade civil servants had worse health because of greater work responsibility"
+   ]
+  },
+  {
+   "id": "med-global-health.l02.q2",
+   "lessonId": "med-global-health.l02",
+   "kind": "mcq",
+   "prompt": "A city taxes sugar-sweetened drinks and subsidises school meals. In the downstream-upstream framework, these are best described as which kind of action?",
+   "choices": [
+    "Midstream only, because they affect individual behaviour without any policy",
+    "Upstream, because they change the conditions that shape exposure across a population",
+    "Downstream, because they treat the illness after it develops in individuals",
+    "Downstream, because they depend on individual clinicians prescribing a change"
+   ]
+  },
+  {
+   "id": "med-global-health.l02.q3",
+   "lessonId": "med-global-health.l02",
+   "kind": "mcq",
+   "prompt": "Which of the WHO Commission on Social Determinants of Health (2008) overarching recommendations is correctly stated?",
+   "choices": [
+    "Prioritise hospital construction over community-level action everywhere",
+    "Limit health policy to the health ministry to avoid conflict with other sectors",
+    "Tackle the inequitable distribution of power, money and resources",
+    "Replace national health systems with a single global service provider"
+   ]
+  },
+  {
+   "id": "med-global-health.l02.q4",
+   "lessonId": "med-global-health.l02",
+   "kind": "mcq",
+   "prompt": "A study finds that people in poor health later earn less. A researcher claims low income therefore causes ill health. What is the most important weakness in that inference?",
+   "choices": [
+    "Selection of too many participants, which makes confidence intervals unreliable",
+    "Lack of a control for the number of clinics in the area, which is the true cause",
+    "The use of income rather than education, since only education affects health",
+    "Reverse causation: ill health may have caused the fall in income rather than the reverse"
+   ]
+  },
+  {
+   "id": "med-global-health.l02.q5",
+   "lessonId": "med-global-health.l02",
+   "kind": "mcq",
+   "prompt": "Two districts have equal clinic numbers but life expectancy differs by twelve years. Which proposed response is best aligned with the social determinants evidence?",
+   "choices": [
+    "Assess housing, air quality, employment and food access and act on the largest modifiable gaps alongside clinical services",
+    "Double the clinic staffing in the poorer district and expect the gap to close entirely, since the number of clinical contacts is the main determinant of life expectancy",
+    "Attribute the gap to individual lifestyle choices and fund a media campaign only, since social conditions have little influence on health once clinics are equally available",
+    "Conclude that no action is possible because the gap reflects fixed genetic differences between the populations, which public policy cannot change in a short period"
+   ]
+  },
+  {
+   "id": "med-global-health.l03.q1",
+   "lessonId": "med-global-health.l03",
+   "kind": "mcq",
+   "prompt": "In the demographic transition, which change typically comes first?",
+   "choices": [
+    "Migration replaces births as the main driver of growth",
+    "Death rates fall, producing rapid population growth",
+    "Birth rates fall, producing rapid population ageing",
+    "Birth rates rise as living standards improve"
+   ]
+  },
+  {
+   "id": "med-global-health.l03.q2",
+   "lessonId": "med-global-health.l03",
+   "kind": "mcq",
+   "prompt": "A household contains a stunted child and an overweight mother. This is a typical example of which concept?",
+   "choices": [
+    "The double burden of malnutrition",
+    "Concentration of health care in the richest quintile",
+    "Reverse causation between income and disease",
+    "A completed epidemiologic transition"
+   ]
+  },
+  {
+   "id": "med-global-health.l03.q3",
+   "lessonId": "med-global-health.l03",
+   "kind": "mcq",
+   "prompt": "Which statement correctly distinguishes equality from equity in health?",
+   "choices": [
+    "Equality means resources are allocated according to need, and equity means identical shares",
+    "Equity applies only between countries, and equality only within a single country",
+    "Equity is a statistical measure and equality is purely an ethical principle",
+    "Equity may require unequal resources so that avoidable, unfair differences in health are reduced"
+   ]
+  },
+  {
+   "id": "med-global-health.l03.q4",
+   "lessonId": "med-global-health.l03",
+   "kind": "mcq",
+   "prompt": "Under-five mortality in the poorest quintile falls from 120 to 90 per 1,000, and in the richest from 40 to 10. Which conclusion is correct?",
+   "choices": [
+    "The absolute gap widened to 110 while the ratio fell from 3 to 2",
+    "Both the absolute gap and the ratio were unchanged because both groups improved",
+    "The absolute gap is unchanged at 80 while the ratio rose from 3 to 9",
+    "The absolute gap narrowed from 80 to 30 and the ratio also narrowed"
+   ]
+  },
+  {
+   "id": "med-global-health.l03.q5",
+   "lessonId": "med-global-health.l03",
+   "kind": "mcq",
+   "prompt": "A concentration index for child stunting in a country is -0.15. What is the correct interpretation?",
+   "choices": [
+    "Stunting prevalence nationally is falling by 15 percent annually",
+    "Stunting is concentrated among poorer children, so the burden is pro-poor in distribution",
+    "Stunting is concentrated among richer children, which indicates favourable equity",
+    "Stunting is evenly distributed because the value is close to zero and negative"
+   ]
+  },
+  {
+   "id": "med-global-health.l04.q1",
+   "lessonId": "med-global-health.l04",
+   "kind": "mcq",
+   "prompt": "Which is the correct definition of the maternal mortality ratio?",
+   "choices": [
+    "Maternal deaths per 100,000 pregnancies ending in abortion",
+    "Maternal deaths per 1,000 infants in the first year of life",
+    "Maternal deaths per 100,000 live births",
+    "Maternal deaths per 1,000 women of reproductive age"
+   ]
+  },
+  {
+   "id": "med-global-health.l04.q2",
+   "lessonId": "med-global-health.l04",
+   "kind": "mcq",
+   "prompt": "A woman with severe pre-eclampsia is at risk of eclamptic seizures. Which drug is the standard prophylaxis in this setting?",
+   "choices": [
+    "Oral rehydration salts",
+    "Tranexamic acid",
+    "Oxytocin",
+    "Magnesium sulfate"
+   ]
+  },
+  {
+   "id": "med-global-health.l04.q3",
+   "lessonId": "med-global-health.l04",
+   "kind": "mcq",
+   "prompt": "In the Three Delays model, a family that waits two days before seeking care because they do not recognise a danger sign illustrates which delay?",
+   "choices": [
+    "Delay in deciding to seek care",
+    "Delay in reaching a facility",
+    "Delay in receiving adequate care at the facility",
+    "Delay in obtaining a death certificate"
+   ]
+  },
+  {
+   "id": "med-global-health.l04.q4",
+   "lessonId": "med-global-health.l04",
+   "kind": "mcq",
+   "prompt": "A district trains many birth attendants, yet maternal deaths from haemorrhage persist. An audit finds roads are impassable during rains and the health centre lacks oxytocin and blood. Which analysis best fits?",
+   "choices": [
+    "The deaths are unavoidable, so resources should shift to non-obstetric care",
+    "Delays two and three are unaddressed, so training alone cannot prevent the deaths",
+    "Delay one alone explains the deaths, so only community education is needed",
+    "The deaths are indirect causes, so malaria control is the priority"
+   ]
+  },
+  {
+   "id": "med-global-health.l04.q5",
+   "lessonId": "med-global-health.l04",
+   "kind": "mcq",
+   "prompt": "A 2-year-old has cough, fast breathing and diarrhoea with mild dehydration at a rural clinic. Which approach reflects Integrated Management of Childhood Illness reasoning?",
+   "choices": [
+    "Refer immediately to a hospital for intravenous fluids without further assessment, because a child with two complaints cannot safely be managed at the first-level clinic",
+    "Give an antimalarial first because fever is the most common cause of child death, and delay other treatment until the result of a malaria test is available",
+    "Assess for all danger signs and conditions together, then give an antibiotic for pneumonia plus oral rehydration salts and zinc",
+    "Treat only the presenting cough and ask the family to return if the diarrhoea persists, because focusing on one complaint at a time avoids confusion in a busy clinic"
+   ]
+  },
+  {
+   "id": "med-global-health.l05.q1",
+   "lessonId": "med-global-health.l05",
+   "kind": "mcq",
+   "prompt": "Herd immunity for an infection is best described as which situation?",
+   "choices": [
+    "Every individual in the population has been vaccinated at least once",
+    "The infection has been eliminated from every country in the world",
+    "The vaccine provides complete personal protection to each person given it",
+    "Enough of the population is immune that sustained transmission cannot occur"
+   ]
+  },
+  {
+   "id": "med-global-health.l05.q2",
+   "lessonId": "med-global-health.l05",
+   "kind": "mcq",
+   "prompt": "An infection has R0 of 5. Using the simple threshold formula, what proportion of the population must be immune to stop sustained spread?",
+   "choices": [
+    "50 percent",
+    "95 percent",
+    "80 percent",
+    "20 percent"
+   ]
+  },
+  {
+   "id": "med-global-health.l05.q3",
+   "lessonId": "med-global-health.l05",
+   "kind": "mcq",
+   "prompt": "Which feature of smallpox made eradication feasible?",
+   "choices": [
+    "Seasonal transmission restricted to tropical regions",
+    "No animal reservoir, visible disease, lasting immunity and an effective vaccine",
+    "A long asymptomatic carrier state that allowed screening of all contacts",
+    "A live vaccine that spread from vaccinated to unvaccinated people"
+   ]
+  },
+  {
+   "id": "med-global-health.l05.q4",
+   "lessonId": "med-global-health.l05",
+   "kind": "mcq",
+   "prompt": "A district reports a case of paralytic polio caused by a virus genetically related to the Sabin strain after a period of low routine coverage. Which explanation is most consistent?",
+   "choices": [
+    "A circulating vaccine-derived poliovirus emerging from the oral vaccine in an under-immunised community",
+    "Reinfection with wild poliovirus type 2, which remains endemic in most regions where routine coverage is low and which can be mistaken for a vaccine-related strain",
+    "A failure of the inactivated vaccine, which can revert to virulence in the gut and cause paralysis in children who have received it in under-immunised areas",
+    "Contamination of the cold chain with wild poliovirus type 3, which survives in vaccine vials stored at the wrong temperature and infects recipients"
+   ]
+  },
+  {
+   "id": "med-global-health.l05.q5",
+   "lessonId": "med-global-health.l05",
+   "kind": "mcq",
+   "prompt": "A district with 82 percent first-dose measles coverage has recurrent outbreaks concentrated in a few remote villages. Which plan is best justified?",
+   "choices": [
+    "Switch to a different measles vaccine brand because outbreaks show the current one fails",
+    "Stop routine immunisation and rely on natural infection to build immunity",
+    "Vaccinate only the contacts of each case because measles needs ring vaccination alone",
+    "Raise coverage with a second routine dose and targeted catch-up in the zero-dose pockets"
+   ]
+  },
+  {
+   "id": "med-global-health.l06.q1",
+   "lessonId": "med-global-health.l06",
+   "kind": "mcq",
+   "prompt": "Which malaria parasite species is responsible for most deaths and dominates in sub-Saharan Africa?",
+   "choices": [
+    "Plasmodium falciparum",
+    "Plasmodium vivax",
+    "Plasmodium malariae",
+    "Plasmodium ovale"
+   ]
+  },
+  {
+   "id": "med-global-health.l06.q2",
+   "lessonId": "med-global-health.l06",
+   "kind": "mcq",
+   "prompt": "Why must G6PD status be considered before giving primaquine for P. vivax?",
+   "choices": [
+    "The drug depletes glucose and causes hypoglycaemic seizures",
+    "The drug can cause haemolysis in G6PD-deficient patients",
+    "The drug is inactivated by G6PD enzyme in the liver",
+    "G6PD deficiency causes resistance to the drug"
+   ]
+  },
+  {
+   "id": "med-global-health.l06.q3",
+   "lessonId": "med-global-health.l06",
+   "kind": "mcq",
+   "prompt": "Seasonal malaria chemoprevention is best targeted at which group and setting?",
+   "choices": [
+    "Pregnant women in non-endemic areas with imported cases only",
+    "Hospitalised adults with severe malaria in perennial transmission zones",
+    "Young children in areas with strongly seasonal transmission such as the Sahel",
+    "All adults travelling to high-altitude regions during the dry season"
+   ]
+  },
+  {
+   "id": "med-global-health.l06.q4",
+   "lessonId": "med-global-health.l06",
+   "kind": "mcq",
+   "prompt": "A 4-year-old in East Africa is treated with an artemisinin-based combination for falciparum malaria; parasites clear slowly on day 3. Which interpretation is most appropriate?",
+   "choices": [
+    "The child has P. vivax with hypnozoites, which explains slow clearance",
+    "Resistance to bed nets has developed in the child, requiring a change of net type",
+    "Sickle cell trait protection has masked the response, so treatment should stop",
+    "Partial artemisinin resistance should be considered, and the case reported for surveillance"
+   ]
+  },
+  {
+   "id": "med-global-health.l06.q5",
+   "lessonId": "med-global-health.l06",
+   "kind": "mcq",
+   "prompt": "A pregnant woman in a high-transmission area attends antenatal care with no symptoms. Which preventive measure is supported for her?",
+   "choices": [
+    "Intermittent preventive treatment with sulfadoxine-pyrimethamine plus an insecticide-treated net",
+    "Seasonal chemoprevention using a monthly vaccine alone, because no antimalarial drug is considered safe for use at any stage of pregnancy",
+    "Indoor residual spraying replaced by presumptive treatment with primaquine, which prevents relapse and is the standard prophylaxis for pregnant women",
+    "Daily artesunate given orally throughout pregnancy, which is the standard prophylaxis because it is the most effective antimalarial in severe disease"
+   ]
+  },
+  {
+   "id": "med-global-health.l07.q1",
+   "lessonId": "med-global-health.l07",
+   "kind": "mcq",
+   "prompt": "What is the standard definition of multidrug-resistant tuberculosis?",
+   "choices": [
+    "Resistance to isoniazid and pyrazinamide",
+    "Resistance to at least isoniazid and rifampicin",
+    "Resistance to any two first-line drugs including ethambutol",
+    "Resistance to rifampicin and a fluoroquinolone only"
+   ]
+  },
+  {
+   "id": "med-global-health.l07.q2",
+   "lessonId": "med-global-health.l07",
+   "kind": "mcq",
+   "prompt": "A patient on isoniazid reports tingling in the feet. Which supplement is given to reduce this adverse effect?",
+   "choices": [
+    "Pyridoxine (vitamin B6)",
+    "Cyanocobalamin (vitamin B12)",
+    "Ascorbic acid (vitamin C)",
+    "Thiamine (vitamin B1)"
+   ]
+  },
+  {
+   "id": "med-global-health.l07.q3",
+   "lessonId": "med-global-health.l07",
+   "kind": "mcq",
+   "prompt": "What is the main advantage of the Xpert MTB/RIF assay in programmes?",
+   "choices": [
+    "It differentiates latent from active disease without a sputum sample",
+    "It replaces the need for chest imaging and drug susceptibility testing completely",
+    "It identifies resistance to all first-line and second-line drugs",
+    "It detects the bacterium and rifampicin resistance within hours"
+   ]
+  },
+  {
+   "id": "med-global-health.l07.q4",
+   "lessonId": "med-global-health.l07",
+   "kind": "mcq",
+   "prompt": "A 38-year-old man with HIV has cough, night sweats and weight loss. Sputum Xpert shows M. tuberculosis with rifampicin resistance. What is the most likely clinical conclusion?",
+   "choices": [
+    "Nontuberculous mycobacterial infection, requiring no antituberculosis drugs, since the rifampicin resistance result excludes Mycobacterium tuberculosis as the cause",
+    "Drug-susceptible disease, requiring the standard four-drug regimen for six months, since rifampicin resistance occurs without isoniazid resistance in most patients",
+    "Probable multidrug-resistant tuberculosis, requiring a resistant-disease regimen rather than standard first-line therapy",
+    "Latent tuberculosis, requiring only isoniazid preventive therapy, since a positive molecular test in a person with HIV indicates infection without active disease"
+   ]
+  },
+  {
+   "id": "med-global-health.l07.q5",
+   "lessonId": "med-global-health.l07",
+   "kind": "mcq",
+   "prompt": "A patient with tuberculosis and HIV needs antiretroviral therapy while on rifampicin. Which issue most affects regimen design?",
+   "choices": [
+    "Antiretrovirals inactivate rifampicin through immune reconstitution",
+    "Rifampicin induces liver enzymes and lowers levels of some antiretrovirals, so regimen or doses need adjusting",
+    "Rifampicin inhibits liver enzymes and raises antiretroviral levels dangerously, so therapy is withheld",
+    "Isoniazid chemically binds antiretrovirals in the gut and prevents absorption"
+   ]
+  },
+  {
+   "id": "med-global-health.l08.q1",
+   "lessonId": "med-global-health.l08",
+   "kind": "mcq",
+   "prompt": "What does the 95-95-95 target set for 2025 mean?",
+   "choices": [
+    "95 percent of infants protected, 95 percent of adults screened and 95 percent cured, each measured in the general population by 2025",
+    "95 percent of donors funding, 95 percent of clinics supplied and 95 percent of drugs generic, each measured among countries receiving international assistance",
+    "95 percent diagnosed, 95 percent of those on treatment, and 95 percent of those treated virally suppressed",
+    "95 percent tested, 95 percent condom use and 95 percent PrEP coverage among people at risk of acquiring the infection, each measured at national level"
+   ]
+  },
+  {
+   "id": "med-global-health.l08.q2",
+   "lessonId": "med-global-health.l08",
+   "kind": "mcq",
+   "prompt": "The principle that undetectable equals untransmittable rests on which finding?",
+   "choices": [
+    "Condom use removes all risk of transmission regardless of viral load",
+    "A negative rapid test result in the partner shows the virus has cleared",
+    "Antiretroviral therapy cures the infection after one year of treatment",
+    "Sustained viral suppression on antiretroviral therapy prevents sexual transmission"
+   ]
+  },
+  {
+   "id": "med-global-health.l08.q3",
+   "lessonId": "med-global-health.l08",
+   "kind": "mcq",
+   "prompt": "Which feature explains why dolutegravir-based regimens are preferred first-line?",
+   "choices": [
+    "A high barrier to resistance, good tolerability and low-cost generic availability",
+    "A single dose that cures infection in most patients, with no need for combination",
+    "Activity against the virus only when combined with isoniazid in a single tablet",
+    "Selective accumulation in the placenta that blocks the entry of all other drugs"
+   ]
+  },
+  {
+   "id": "med-global-health.l08.q4",
+   "lessonId": "med-global-health.l08",
+   "kind": "mcq",
+   "prompt": "A woman with HIV, virally suppressed on dolutegravir-based therapy for two years, is pregnant. What is the most appropriate counselling about mother-to-child transmission?",
+   "choices": [
+    "Breastfeeding is absolutely contraindicated in all settings despite suppression, since the virus is transmitted in milk at the same rate whatever the viral load",
+    "Continue therapy throughout pregnancy and delivery, as sustained suppression makes transmission very unlikely",
+    "Stop therapy during the first trimester to avoid fetal exposure and resume after birth, since viral suppression is not needed until delivery",
+    "Elective caesarean section is required regardless of viral load to prevent transmission, since suppression does not alter the risk at delivery"
+   ]
+  },
+  {
+   "id": "med-global-health.l08.q5",
+   "lessonId": "med-global-health.l08",
+   "kind": "mcq",
+   "prompt": "A health programme reaches 92 percent of people living with HIV diagnosed, 90 percent of those on treatment, and 78 percent of those treated suppressed. Which gap should the programme prioritise first against the 95-95-95 targets?",
+   "choices": [
+    "The second step, because treatment coverage affects only transmission and not health, so it matters less than the other two targets in the cascade",
+    "None, because all values above 75 percent meet the target, so the programme can move its resources to prevention without any change in the cascade",
+    "The third step, viral suppression among those on treatment, because it is furthest from its target",
+    "The first step, because earlier steps always limit later ones regardless of size, so closing the diagnosis gap must precede any work on treatment or suppression"
+   ]
+  },
+  {
+   "id": "med-global-health.l09.q1",
+   "lessonId": "med-global-health.l09",
+   "kind": "mcq",
+   "prompt": "An epidemic curve showing a single sharp peak of cases within one incubation period usually suggests which pattern?",
+   "choices": [
+    "Continuous person-to-person transmission through successive generations",
+    "A vector-borne disease with seasonal waves spaced months apart",
+    "A slowly spreading chronic condition with no identifiable source",
+    "A common-source exposure affecting many people at about the same time"
+   ]
+  },
+  {
+   "id": "med-global-health.l09.q2",
+   "lessonId": "med-global-health.l09",
+   "kind": "mcq",
+   "prompt": "What does the case fatality ratio measure?",
+   "choices": [
+    "The average number of people each case infects",
+    "The time between infection and the appearance of symptoms",
+    "The proportion of confirmed cases who die from the disease",
+    "The proportion of the whole population who die in a year"
+   ]
+  },
+  {
+   "id": "med-global-health.l09.q3",
+   "lessonId": "med-global-health.l09",
+   "kind": "mcq",
+   "prompt": "In Ebola response, why were safe and dignified burial teams a key control measure?",
+   "choices": [
+    "Funeral rites in West Africa had no connection to transmission but improved reporting, since burial teams recorded deaths that families would otherwise have concealed",
+    "Bodies of people who died of Ebola remain highly infectious and traditional funeral contact was a major route of spread",
+    "The virus survives only in buried bodies and is eliminated by cremation of living patients, so burial teams were needed to prevent the virus from surviving in the soil",
+    "Burial teams were required mainly to determine the cause of death in every household, so that deaths from other diseases could be separated from deaths from Ebola"
+   ]
+  },
+  {
+   "id": "med-global-health.l09.q4",
+   "lessonId": "med-global-health.l09",
+   "kind": "mcq",
+   "prompt": "Cases in three villages show onsets spaced about 10 to 14 days apart and all affected people attended one funeral of a person who died of a febrile illness with bleeding. Which first control step is most appropriate?",
+   "choices": [
+    "Trace and monitor funeral attendees and offer safe burial and isolation of symptomatic contacts",
+    "Close all markets in the country and delay the investigation until laboratory results arrive from abroad",
+    "Treat the cluster as foodborne and issue a general boil-water notice only",
+    "Begin mass vaccination of the entire national population before identifying contacts"
+   ]
+  },
+  {
+   "id": "med-global-health.l09.q5",
+   "lessonId": "med-global-health.l09",
+   "kind": "mcq",
+   "prompt": "Ring vaccination in the 2015 Guinea Ebola trial involved which approach?",
+   "choices": [
+    "Vaccinating every resident of the capital city regardless of exposure, in a ring around the central hospital where the first cases were treated, whether or not they had contact",
+    "Vaccinating only health workers who had already recovered from infection, because survivors form a ring of immune people around the unaffected population",
+    "Vaccinating domestic animals living near infected households, to create a ring of immune animals that prevents the virus from passing between species",
+    "Vaccinating contacts of confirmed cases and contacts of those contacts, with immediate or delayed timing"
+   ]
+  },
+  {
+   "id": "med-global-health.l10.q1",
+   "lessonId": "med-global-health.l10",
+   "kind": "mcq",
+   "prompt": "What is the legal status of the International Health Regulations (2005)?",
+   "choices": [
+    "A UN Security Council resolution requiring enforcement by force",
+    "A binding instrument for states parties, in force since 2007",
+    "A non-binding set of recommendations without any legal force",
+    "A regional agreement applying only to members of the African Union"
+   ]
+  },
+  {
+   "id": "med-global-health.l10.q2",
+   "lessonId": "med-global-health.l10",
+   "kind": "mcq",
+   "prompt": "Who determines that an event is a Public Health Emergency of International Concern?",
+   "choices": [
+    "The WHO Director-General, after consulting an Emergency Committee",
+    "The UN Security Council by majority vote of its permanent members",
+    "The affected country alone through its health ministry",
+    "The World Health Assembly through an annual plenary resolution"
+   ]
+  },
+  {
+   "id": "med-global-health.l10.q3",
+   "lessonId": "med-global-health.l10",
+   "kind": "mcq",
+   "prompt": "Which statement about WHO funding is accurate?",
+   "choices": [
+    "Funding comes entirely from assessed fees from member states with no donor influence",
+    "Funding is generated by fees charged on international travel and trade",
+    "Funding is provided automatically by the UN General Assembly budget",
+    "Most funding comes from voluntary, often earmarked contributions rather than assessed fees"
+   ]
+  },
+  {
+   "id": "med-global-health.l10.q4",
+   "lessonId": "med-global-health.l10",
+   "kind": "mcq",
+   "prompt": "State X imposes a ban on all arrivals from a country with an outbreak, going beyond WHO temporary recommendations, and cites no evidence. Which statement best reflects the IHR framework?",
+   "choices": [
+    "The IHR automatically invalidate the ban and authorise WHO to impose financial penalties on the state until it withdraws the measure and compensates the affected country",
+    "The IHR prohibit all travel measures under all circumstances, so the ban is a breach that the Security Council must address by resolution within thirty days",
+    "The IHR require measures that significantly interfere with traffic to be justified by public health rationale, and the state must report it",
+    "The IHR give any state unrestricted authority to impose any measure with no justification, and WHO must accept the measure without a report or a request for the rationale"
+   ]
+  },
+  {
+   "id": "med-global-health.l10.q5",
+   "lessonId": "med-global-health.l10",
+   "kind": "mcq",
+   "prompt": "Analysts disagree about WHO's effectiveness. Which observation best supports the argument that its binding rules have limited leverage?",
+   "choices": [
+    "The WHO Constitution defines health as complete physical, mental and social well-being, which shows that the organisation has a broad mandate in global health",
+    "WHO lacks enforcement tools, depends on voluntary funding, and states have exceeded advice on travel restrictions without penalty",
+    "WHO Directors-General are elected by the Assembly after nomination by the Executive Board, which shows that the organisation is governed by its member states",
+    "WHO publishes the Essential Medicines List, which many countries use in procurement, which shows that its technical guidance is widely used by governments"
+   ]
+  },
+  {
+   "id": "med-global-health.l11.q1",
+   "lessonId": "med-global-health.l11",
+   "kind": "mcq",
+   "prompt": "The Pandemic Fund, launched in 2022 and hosted by the World Bank, provides what?",
+   "choices": [
+    "Grants to strengthen surveillance, laboratories and workforce capacity in lower-income countries",
+    "Loans to pharmaceutical firms for patent purchases during emergencies, so that governments can obtain generic production rights for pandemic vaccines without negotiation",
+    "Insurance payouts to countries that close their borders, to compensate for the lost trade and tourism arising from measures taken in response to an outbreak",
+    "Direct salaries for WHO emergency committee members, so that the experts who advise the Director-General are paid from a dedicated pooled source of funds"
+   ]
+  },
+  {
+   "id": "med-global-health.l11.q2",
+   "lessonId": "med-global-health.l11",
+   "kind": "mcq",
+   "prompt": "Why did high scores on pre-pandemic preparedness indexes not reliably predict COVID-19 outcomes?",
+   "choices": [
+    "Preparedness indexes were designed to rank countries by wealth, so they predicted income rather than the capacity to detect and respond to a new pathogen",
+    "Outcomes also depended on trust, leadership, communication and adaptability that composite indexes capture poorly",
+    "The indexes measured only vaccine stockpiles, which were uniformly low, so the scores did not distinguish between countries that differed in their other capacities",
+    "High-scoring countries did not report deaths accurately, so their outcomes were worse than recorded and the indexes were in fact reliable predictors of performance"
+   ]
+  },
+  {
+   "id": "med-global-health.l11.q3",
+   "lessonId": "med-global-health.l11",
+   "kind": "mcq",
+   "prompt": "The central tension in negotiating pathogen access and benefit sharing is between which interests?",
+   "choices": [
+    "Hospitals wanting more beds and insurers wanting lower premiums, since the negotiations concern the financing of intensive care capacity during a pandemic",
+    "Vaccine makers wanting shorter trials and regulators wanting longer trials, because the negotiations concern the standards of evidence for emergency authorisation",
+    "Researchers wanting prompt sample and sequence access and providing countries wanting a fair share of resulting benefits",
+    "Airlines wanting open borders and health ministries wanting border closures, because travel restrictions are the main subject of the pathogen sharing negotiations"
+   ]
+  },
+  {
+   "id": "med-global-health.l11.q4",
+   "lessonId": "med-global-health.l11",
+   "kind": "mcq",
+   "prompt": "A country scores highly on a preparedness index but has high early COVID-19 mortality. A review finds inconsistent public messaging, low testing early on and overwhelmed hospitals. Which conclusion is best supported?",
+   "choices": [
+    "The index must be wrong about hospital capacity and no other factor matters, so the country should simply add beds and ventilators to improve its score on the next evaluation",
+    "The mortality shows that no country can prepare for a pandemic, so investment in surveillance, laboratories and workforce between emergencies is unlikely to change outcomes",
+    "Early testing is irrelevant to outcomes because spread is unavoidable, so the review should focus only on the supply of vaccines once they become available",
+    "Formal capacity does not guarantee performance; communication, trust and operational surge capacity are core components of preparedness"
+   ]
+  },
+  {
+   "id": "med-global-health.l11.q5",
+   "lessonId": "med-global-health.l11",
+   "kind": "mcq",
+   "prompt": "Early in a pandemic, high-income countries secure most vaccine doses through bilateral contracts while a pooled facility struggles to deliver. What is the most important structural lesson commonly drawn?",
+   "choices": [
+    "Pooled mechanisms need binding supply commitments and regional manufacturing capacity before the next emergency",
+    "Pooled purchasing is inherently impossible and should be abandoned, since bilateral contracts will always secure the supply of vaccines before any pooled facility can do so",
+    "Only low-income countries should be allowed to hold advance purchase contracts, so that high-income countries cannot secure supply before the pooled facility",
+    "Manufacturing location is irrelevant to access if prices are low, because supply from distant factories can always be delivered when export restrictions are imposed"
+   ]
+  },
+  {
+   "id": "med-global-health.l12.q1",
+   "lessonId": "med-global-health.l12",
+   "kind": "mcq",
+   "prompt": "Which set lists the four main behavioural risk factors shared by major noncommunicable diseases?",
+   "choices": [
+    "Air pollution, occupational dust, lead exposure and unsafe water",
+    "Poverty, illiteracy, unemployment and housing density",
+    "Hypertension, diabetes, obesity and high cholesterol",
+    "Tobacco use, harmful alcohol use, unhealthy diet and physical inactivity"
+   ]
+  },
+  {
+   "id": "med-global-health.l12.q2",
+   "lessonId": "med-global-health.l12",
+   "kind": "mcq",
+   "prompt": "Which intervention has the strongest evidence as a population-level tobacco control measure?",
+   "choices": [
+    "Banning the sale of nicotine patches in pharmacies, which reduces consumption by making it harder for smokers to obtain products that help them to quit",
+    "Public awareness campaigns without any change to price or law, which have produced the largest and most durable reductions in tobacco use in every country studied",
+    "Raising tobacco taxes and prices, which reduces consumption especially among young and low-income people",
+    "Voluntary industry labelling with no legal requirement, which reduces consumption most among young people because manufacturers choose the warnings that are most effective"
+   ]
+  },
+  {
+   "id": "med-global-health.l12.q3",
+   "lessonId": "med-global-health.l12",
+   "kind": "mcq",
+   "prompt": "According to the WHO cervical cancer elimination strategy, what is the 2030 vaccination target?",
+   "choices": [
+    "100 percent of adults vaccinated against HPV by the year 2030, regardless of age",
+    "90 percent of girls fully vaccinated against HPV by age 15",
+    "50 percent of women vaccinated by age 45, in addition to screening",
+    "70 percent of boys vaccinated by age 5, as a first step toward elimination"
+   ]
+  },
+  {
+   "id": "med-global-health.l12.q4",
+   "lessonId": "med-global-health.l12",
+   "kind": "mcq",
+   "prompt": "A primary care programme finds that most adults with hypertension are undiagnosed or untreated even though cheap drugs exist. Which diagnosis of the problem best fits the evidence?",
+   "choices": [
+    "A care-cascade failure in detection, drug supply, adherence and follow-up rather than lack of effective medicines",
+    "A failure of pharmaceutical innovation, because no effective low-cost drug for hypertension exists and the problem can only be solved by developing new medicines",
+    "Genetic resistance to all antihypertensive drug classes in the population, which explains why treated patients do not reach control despite regular follow-up",
+    "An overestimate of prevalence, because blood pressure cannot be reliably measured in clinics and the reported untreated numbers therefore cannot be trusted"
+   ]
+  },
+  {
+   "id": "med-global-health.l12.q5",
+   "lessonId": "med-global-health.l12",
+   "kind": "mcq",
+   "prompt": "A government considers a sugar-sweetened beverage tax versus an education campaign alone. Which statement best reflects the evidence-based reasoning?",
+   "choices": [
+    "Education alone is more effective than a tax because individuals respond rationally to information, so a campaign changes consumption more durably and with fewer equity concerns than price measures",
+    "Taxes have no effect on purchases because demand for these drinks is perfectly inelastic, so only a ban on sale in schools and shops could change consumption at population level",
+    "Neither option matters because beverage consumption is unrelated to disease risk, so a government should spend its prevention budget only on screening and treatment of established disease",
+    "Taxes change relative prices and shift consumption at population level, whereas education alone usually produces smaller and less durable effects, so equity impacts should still be assessed"
+   ]
+  },
+  {
+   "id": "med-global-health.l13.q1",
+   "lessonId": "med-global-health.l13",
+   "kind": "mcq",
+   "prompt": "Which description matches the Beveridge model of health care?",
+   "choices": [
+    "A single government insurer pays private providers from premiums collected from households, and care is delivered mainly by independent clinics and hospitals",
+    "Patients pay for each service directly, and only those who can afford it receive care, with no pooling of risk through taxes or contributions",
+    "General taxation funds care that is often delivered by publicly employed providers and is free at the point of use",
+    "Compulsory payroll contributions fund competing sickness funds that contract with private providers, and insurers must accept all applicants in the scheme"
+   ]
+  },
+  {
+   "id": "med-global-health.l13.q2",
+   "lessonId": "med-global-health.l13",
+   "kind": "mcq",
+   "prompt": "Which feature distinguishes a single-payer national health insurance model from a Beveridge model?",
+   "choices": [
+    "Funding comes only from out-of-pocket payments by patients",
+    "Care is delivered entirely in government-owned hospitals",
+    "Multiple competing insurers set their own benefit packages",
+    "Providers are largely private while one public insurer pays the bills"
+   ]
+  },
+  {
+   "id": "med-global-health.l13.q3",
+   "lessonId": "med-global-health.l13",
+   "kind": "mcq",
+   "prompt": "A country finances care through compulsory employer and employee contributions to several regulated non-profit funds, and insurers must accept all applicants. This is best classed as which model?",
+   "choices": [
+    "Bismarck",
+    "Beveridge",
+    "Out-of-pocket",
+    "Single-payer"
+   ]
+  },
+  {
+   "id": "med-global-health.l13.q4",
+   "lessonId": "med-global-health.l13",
+   "kind": "mcq",
+   "prompt": "Country P ranks higher than Country Q on life expectancy, and a commentator concludes that P's financing model is superior. Which objection is strongest?",
+   "choices": [
+    "Differences between countries are always due to differences in drug prices, so the commentator should have compared pharmaceutical regulation rather than the financing model of each system",
+    "Life expectancy reflects income, behaviour, education and social conditions as well as the health system, so the comparison does not isolate the system",
+    "Life expectancy can be measured only in countries that use a Beveridge system, so the comparison with Country Q is invalid for reasons of measurement rather than confounding by other factors",
+    "Financing models have no effect on outcomes in any country, so no comparison of systems could ever be informative and the commentator should have compared hospital buildings instead"
+   ]
+  },
+  {
+   "id": "med-global-health.l13.q5",
+   "lessonId": "med-global-health.l13",
+   "kind": "mcq",
+   "prompt": "A country replaces its many competing sickness funds with one public insurer that pays the same private clinics and hospitals as before. What is the most accurate description of the change?",
+   "choices": [
+    "A shift from a single-payer model to a Bismarck model, because several financing bodies have been merged into one and private providers continue to operate",
+    "No change in model because providers remain private, since a model is defined only by who delivers care and not by the way in which it is financed",
+    "A shift from a Bismarck-type model to a single-payer national health insurance model",
+    "A shift from a Beveridge model to an out-of-pocket model, because the state no longer owns the insurer and patients must therefore pay providers directly"
+   ]
+  },
+  {
+   "id": "med-global-health.l14.q1",
+   "lessonId": "med-global-health.l14",
+   "kind": "mcq",
+   "prompt": "Which definition best matches universal health coverage?",
+   "choices": [
+    "Every country spends at least 15 percent of its government budget on health, and all spending is directed to hospital services",
+    "All people can obtain needed quality health services without suffering financial hardship",
+    "Every person is covered by a private insurance policy, whether or not the policy covers the services that the person needs or can afford to use",
+    "All health services are free of charge to everyone for any condition, whether or not there is evidence that the service improves health"
+   ]
+  },
+  {
+   "id": "med-global-health.l14.q2",
+   "lessonId": "med-global-health.l14",
+   "kind": "mcq",
+   "prompt": "A payment system gives providers a fixed amount per enrolled person regardless of how many services each uses. This is called what, and what incentive risk does it carry?",
+   "choices": [
+    "Capitation, which risks under-provision of services",
+    "Fee-for-service, which risks over-provision of services",
+    "Global budgeting, which risks unlimited demand for services",
+    "Diagnosis-related grouping, which risks delaying every admission"
+   ]
+  },
+  {
+   "id": "med-global-health.l14.q3",
+   "lessonId": "med-global-health.l14",
+   "kind": "mcq",
+   "prompt": "A household spends 30 percent of its annual income on one hospital stay. Under a common threshold definition of catastrophic health expenditure, which statement is correct?",
+   "choices": [
+    "It exceeds the 10 percent threshold but not the 25 percent threshold",
+    "It meets neither threshold because only drug spending counts",
+    "It counts only if the household falls below the poverty line",
+    "It exceeds both the 10 percent and 25 percent thresholds"
+   ]
+  },
+  {
+   "id": "med-global-health.l14.q4",
+   "lessonId": "med-global-health.l14",
+   "kind": "mcq",
+   "prompt": "A government abolishes user fees at public clinics. Attendance rises sharply, but stock-outs and staff overload follow. Which analysis is most reasonable?",
+   "choices": [
+    "Stock-outs prove that universal access is financially impossible in any country, so the government should restore charges and limit entry to those who can pay",
+    "Staff overload is caused by patients seeking unnecessary care, so entry to public clinics should be restricted and the fee abolition reversed within a year",
+    "Removing fees improved access but must be paired with increased financing for supplies and staff to preserve quality",
+    "The attendance rise shows fees were never a barrier, so they should be reintroduced, since services were used by people who could have paid at the point of care"
+   ]
+  },
+  {
+   "id": "med-global-health.l14.q5",
+   "lessonId": "med-global-health.l14",
+   "kind": "mcq",
+   "prompt": "A country wants to cover informal workers who cannot pay payroll contributions. Which approach is most consistent with the financing evidence?",
+   "choices": [
+    "Replace pooling with individual savings accounts only, since each person should finance personal care from earlier deposits without sharing risk with others",
+    "Use tax funding to subsidise or pool coverage for people outside formal employment, as Thailand did in 2002",
+    "Require informal workers to pay full premiums directly at the time of illness, since a price at the point of use keeps demand for services at an efficient level",
+    "Exclude informal workers from coverage and rely on charity clinics, since pooling is feasible only among people who make regular payroll contributions"
+   ]
+  },
+  {
+   "id": "med-global-health.l15.q1",
+   "lessonId": "med-global-health.l15",
+   "kind": "mcq",
+   "prompt": "The WHO Model List of Essential Medicines first appeared in which year?",
+   "choices": [
+    "1977",
+    "1948",
+    "1994",
+    "2001"
+   ]
+  },
+  {
+   "id": "med-global-health.l15.q2",
+   "lessonId": "med-global-health.l15",
+   "kind": "mcq",
+   "prompt": "What is a compulsory licence under TRIPS flexibilities?",
+   "choices": [
+    "A voluntary agreement negotiated by the Medicines Patent Pool, in which a patent holder allows generic producers to make a medicine in return for royalties",
+    "Government authorisation to produce or import a patented product without the patent holder's consent, under conditions",
+    "A licence requiring patent holders to disclose clinical trial data publicly, so that generic manufacturers can copy the product after the data are released to regulators",
+    "A licence requiring all manufacturers to meet WHO quality standards before they may sell a medicine in any country that has joined the World Trade Organization"
+   ]
+  },
+  {
+   "id": "med-global-health.l15.q3",
+   "lessonId": "med-global-health.l15",
+   "kind": "mcq",
+   "prompt": "What did the Doha Declaration of 2001 affirm?",
+   "choices": [
+    "Governments may not use compulsory licensing under any circumstances, because TRIPS protects patents without exception for reasons of public health",
+    "WHO may issue patents on essential medicines, and member states must respect them in the same way as patents granted by national offices",
+    "TRIPS should be interpreted and implemented to support public health and access to medicines",
+    "Patents on medicines are invalid in low-income countries, and governments may therefore produce any patented medicine without authorisation or conditions"
+   ]
+  },
+  {
+   "id": "med-global-health.l15.q4",
+   "lessonId": "med-global-health.l15",
+   "kind": "mcq",
+   "prompt": "A country has the legal right to issue compulsory licences but has no domestic pharmaceutical manufacturers. What was the 2003 WTO General Council decision designed to address?",
+   "choices": [
+    "Banning exports of generic medicines in all circumstances, so that each country must manufacture its own supply under a compulsory licence or else go without the product",
+    "Requiring importing countries to build pharmaceutical factories within five years, as a condition of using any compulsory licence granted by an exporting government",
+    "Cancelling all patents on antiretroviral drugs worldwide, so that any manufacturer could produce them freely without any licence or authorisation from the patent holder",
+    "Allowing generics made under compulsory licence in one country to be exported to countries without manufacturing capacity"
+   ]
+  },
+  {
+   "id": "med-global-health.l15.q5",
+   "lessonId": "med-global-health.l15",
+   "kind": "mcq",
+   "prompt": "A national tender finds that a cheap generic antimalarial is available but a laboratory test shows it contains a fraction of the stated active ingredient. What is the most accurate classification and implication?",
+   "choices": [
+    "It is a substandard or falsified product, and low price does not guarantee quality, so procurement should use quality-assured sources",
+    "It is a rational-use problem only, so prescribers need retraining in dosing and the product can remain in the tender once clinicians have been educated about its correct use",
+    "It is an affordability problem only, so a subsidy for the manufacturer would raise the content of active ingredient and the tender can safely proceed at the same price",
+    "It is an availability problem only, so a larger stockpile of the product would solve the shortage and the laboratory result can be disregarded for procurement purposes"
+   ]
+  },
+  {
+   "id": "med-global-health.l16.q1",
+   "lessonId": "med-global-health.l16",
+   "kind": "mcq",
+   "prompt": "The Declaration of Alma-Ata (1978) called for what goal?",
+   "choices": [
+    "Universal vaccination against smallpox by 1980",
+    "Free private insurance for every adult by 2010",
+    "A single global health system under WHO control",
+    "Health for All by the year 2000 through primary health care"
+   ]
+  },
+  {
+   "id": "med-global-health.l16.q2",
+   "lessonId": "med-global-health.l16",
+   "kind": "mcq",
+   "prompt": "What was the main argument of the selective primary health care proposal of 1979?",
+   "choices": [
+    "Social determinants should be addressed before any clinical services are offered, because selective programmes cannot succeed until incomes and housing have improved",
+    "Immunisation should be postponed until sanitation is complete, because vaccines are ineffective in populations that lack clean water and basic hygiene",
+    "Limited resources should go first to a few cost-effective interventions against leading causes of child death",
+    "Primary health care should be delivered only by physicians in hospitals, since a limited number of specialist-led interventions would give the largest gains for the cost"
+   ]
+  },
+  {
+   "id": "med-global-health.l16.q3",
+   "lessonId": "med-global-health.l16",
+   "kind": "mcq",
+   "prompt": "What does the WHO Global Code of Practice on the International Recruitment of Health Personnel (2010) do?",
+   "choices": [
+    "It requires destination countries to pay compensation to origin countries for each recruited worker, and establishes a tribunal to enforce payment of those amounts",
+    "It encourages ethical recruitment and discourages active recruitment from countries with critical shortages, on a voluntary basis",
+    "It forbids health workers from emigrating from low-income countries, and sets legally binding penalties for destination countries that employ them in public hospitals",
+    "It sets legally binding quotas for the number of workers each country must train, and requires each destination country to pay a fee for every worker recruited"
+   ]
+  },
+  {
+   "id": "med-global-health.l16.q4",
+   "lessonId": "med-global-health.l16",
+   "kind": "mcq",
+   "prompt": "A country needs to expand skilled birth coverage quickly in rural districts with few doctors. Which strategy is best supported by the task-shifting evidence?",
+   "choices": [
+    "Expand midwifery and community-level cadres with training, supervision and a reliable referral pathway for complications",
+    "Wait to train enough obstetricians before expanding any rural service, since only a specialist can safely attend a birth and delegation to other cadres would increase deaths",
+    "Restrict births to the capital city hospital, where specialists are concentrated, and require all rural women to travel there in late pregnancy to deliver",
+    "Replace skilled attendants with untrained volunteers, since the number of people present at a birth matters more than their training or the availability of referral"
+   ]
+  },
+  {
+   "id": "med-global-health.l16.q5",
+   "lessonId": "med-global-health.l16",
+   "kind": "mcq",
+   "prompt": "A community health worker programme collapses after workers, mostly women, go months unpaid with no supplies or supervision. What is the most likely lesson?",
+   "choices": [
+    "Community health workers cannot deliver effective services in any setting, so the collapse shows that programmes should rely only on physicians and nurses based in facilities",
+    "Training is unnecessary because motivation alone sustains workers, so the programme failed only because the workers lacked commitment to the community they served",
+    "The collapse was caused by excessive patient demand for vaccines, which shows that community programmes should limit the number of services they offer to households",
+    "Programmes relying on unpaid labour without supervision and supplies are fragile, which supports formal recognition and fair pay"
+   ]
+  },
+  {
+   "id": "med-global-health.l17.q1",
+   "lessonId": "med-global-health.l17",
+   "kind": "mcq",
+   "prompt": "Which three principles were named in the Belmont Report of 1979?",
+   "choices": [
+    "Consent, confidentiality and compensation",
+    "Beneficence, fidelity and utility",
+    "Respect for persons, beneficence and justice",
+    "Autonomy, nonmaleficence and veracity"
+   ]
+  },
+  {
+   "id": "med-global-health.l17.q2",
+   "lessonId": "med-global-health.l17",
+   "kind": "mcq",
+   "prompt": "What did the Nuremberg Code of 1947 place first among its requirements?",
+   "choices": [
+    "Review by an institutional ethics committee",
+    "Provision of post-trial access to the product",
+    "Publication of results in open-access journals",
+    "The voluntary consent of the human subject"
+   ]
+  },
+  {
+   "id": "med-global-health.l17.q3",
+   "lessonId": "med-global-health.l17",
+   "kind": "mcq",
+   "prompt": "In the 1990s zidovudine controversy, what was the central objection to placebo-controlled trials?",
+   "choices": [
+    "An effective regimen existed, so withholding it from the control group was said to be unethical",
+    "Zidovudine was not effective at all, so a placebo arm was pointless, and the trials produced no information about the shorter regimens that were being tested",
+    "Participants were not told they were taking part in a trial of any kind, so the objection concerned consent rather than the choice of the control group",
+    "The trials were conducted without any ethics review in any country, so the objection concerned oversight rather than whether the placebo arm denied proven treatment"
+   ]
+  },
+  {
+   "id": "med-global-health.l17.q4",
+   "lessonId": "med-global-health.l17",
+   "kind": "mcq",
+   "prompt": "A sponsor proposes a vaccine trial in a low-income country with a placebo arm, although an effective vaccine exists but is unaffordable locally. Which committee response best reflects current Helsinki principles?",
+   "choices": [
+    "Approve if the participants sign a waiver releasing the sponsor from liability, since a signed waiver replaces the need for justification of the placebo and for post-trial provisions",
+    "Require justification that placebo is warranted and that participants will not face added risk of serious harm, and plan for post-trial access",
+    "Approve automatically because the local standard of care is no vaccine, so a placebo arm is acceptable without further justification or any plan for what participants receive after the trial",
+    "Reject automatically because any placebo use is forbidden in all settings, whatever the risk to participants and whether or not a proven intervention is available locally"
+   ]
+  },
+  {
+   "id": "med-global-health.l17.q5",
+   "lessonId": "med-global-health.l17",
+   "kind": "mcq",
+   "prompt": "Researchers from a wealthy university collect blood samples in a village, publish without local authors and leave no capacity. Which term and criticism apply?",
+   "choices": [
+    "Equipoise research, criticised for an even balance of uncertainty between arms and for enrolling participants without a clear expectation of benefit",
+    "Intention-to-treat analysis, criticised for including participants who dropped out of the study and for diluting the measured effect of the intervention",
+    "Parachute research, criticised for lacking local leadership, benefit sharing and capacity building",
+    "Placebo bias, criticised for improper blinding of participants and for outcomes that reflect expectation rather than the effect of the intervention being tested"
+   ]
+  },
+  {
+   "id": "med-global-health.l18.q1",
+   "lessonId": "med-global-health.l18",
+   "kind": "mcq",
+   "prompt": "Which list contains the four humanitarian principles?",
+   "choices": [
+    "Impartiality, charity, proportionality and secrecy",
+    "Humanity, neutrality, impartiality and independence",
+    "Humanity, sovereignty, equality and reciprocity",
+    "Neutrality, legality, solidarity and consent"
+   ]
+  },
+  {
+   "id": "med-global-health.l18.q2",
+   "lessonId": "med-global-health.l18",
+   "kind": "mcq",
+   "prompt": "What does the principle of non-refoulement prohibit?",
+   "choices": [
+    "Returning a person to a place where they face persecution or serious harm",
+    "Admitting more refugees than a state has housing for, so that states cannot be required to receive more people than they can accommodate",
+    "Giving food aid to people who have not registered, so that assistance may be given only to those whose status has been verified by the host state",
+    "Treating wounded combatants of the opposing side, so that medical staff may care only for casualties of the party that has authority over the area"
+   ]
+  },
+  {
+   "id": "med-global-health.l18.q3",
+   "lessonId": "med-global-health.l18",
+   "kind": "mcq",
+   "prompt": "A crude mortality rate above what level is conventionally used as an emergency threshold in humanitarian settings?",
+   "choices": [
+    "One death per 1,000 people per year",
+    "Ten deaths per 100,000 people per month",
+    "Five deaths per 1,000 people per week",
+    "One death per 10,000 people per day"
+   ]
+  },
+  {
+   "id": "med-global-health.l18.q4",
+   "lessonId": "med-global-health.l18",
+   "kind": "mcq",
+   "prompt": "A displaced camp reports a crude mortality rate of 2 per 10,000 per day, with most deaths from diarrhoea, measles and malnutrition in children. Which set of priorities is best?",
+   "choices": [
+    "Building a tertiary referral hospital before any other service, since specialist surgery is the intervention that most reduces deaths from diarrhoea and measles in camps",
+    "Registration of all residents and issuing of identity documents before any medical intervention, because services cannot be provided until population numbers are verified",
+    "Safe water and sanitation, measles vaccination, oral rehydration and malnutrition treatment, with outbreak surveillance",
+    "Long-term cancer screening, chronic disease clinics and elective surgery, because these have the largest effect on mortality in the acute phase of a displacement emergency"
+   ]
+  },
+  {
+   "id": "med-global-health.l18.q5",
+   "lessonId": "med-global-health.l18",
+   "kind": "mcq",
+   "prompt": "One agency keeps its observations of abuses confidential to preserve access to detainees. Another publicly denounces abuses even if it risks expulsion. How should this difference be understood?",
+   "choices": [
+    "Public denunciation is required of all agencies under the Geneva Conventions",
+    "Two defensible strategies weighing access against advocacy, each with costs",
+    "One approach violates humanitarian law and the other complies with it",
+    "Only confidential approaches are compatible with neutrality"
+   ]
+  },
+  {
+   "id": "med-global-health.l19.q1",
+   "lessonId": "med-global-health.l19",
+   "kind": "mcq",
+   "prompt": "Which process best explains how antibiotic resistance becomes common in a bacterial population?",
+   "choices": [
+    "Selection: the drug kills susceptible bacteria and resistant ones survive and multiply",
+    "Adaptation: bacteria deliberately change in response to a drug they detect",
+    "Immunity: patients who take antibiotics become resistant themselves",
+    "Mutation only: resistance appears in every cell after drug exposure"
+   ]
+  },
+  {
+   "id": "med-global-health.l19.q2",
+   "lessonId": "med-global-health.l19",
+   "kind": "mcq",
+   "prompt": "In WHO's AWaRe classification, what does the Reserve group contain?",
+   "choices": [
+    "Antiviral drugs reserved for epidemic use",
+    "Last-resort antibiotics to be saved for infections caused by multidrug-resistant organisms",
+    "First-choice antibiotics with low resistance potential used for common infections",
+    "Antibiotics with higher resistance potential used only for specific indications"
+   ]
+  },
+  {
+   "id": "med-global-health.l19.q3",
+   "lessonId": "med-global-health.l19",
+   "kind": "mcq",
+   "prompt": "Why is the discovery of the plasmid-borne mcr-1 gene considered significant?",
+   "choices": [
+    "It allows bacteria to survive without a cell wall in all environments, and it has been found only in laboratory strains that have no relevance to clinical infection",
+    "It is found only in laboratory strains and has no clinical relevance, because plasmids cannot move between bacteria outside of a controlled experimental environment",
+    "It confers transferable resistance to colistin, a last-line antibiotic, and spreads between bacteria and across species",
+    "It makes bacteria immune to all vaccines, and it has been found in every hospital pathogen, which makes infection control and immunisation ineffective in all settings"
+   ]
+  },
+  {
+   "id": "med-global-health.l19.q4",
+   "lessonId": "med-global-health.l19",
+   "kind": "mcq",
+   "prompt": "A hospital sees a rise in carbapenem-resistant Enterobacterales infections. Which response is most likely to reduce spread?",
+   "choices": [
+    "Increasing empirical carbapenem use for all febrile patients to cover resistant organisms, because broader coverage reduces the number of patients who go untreated on admission",
+    "Stopping surveillance to avoid alarming staff and patients, because reporting of resistant organisms reduces confidence in the hospital without changing transmission",
+    "Relying on a single new antibiotic without changes to infection control, because a new drug makes screening and isolation unnecessary for colonised patients",
+    "Screening and isolating colonised patients, reinforcing hand hygiene and cleaning, and reviewing carbapenem prescribing"
+   ]
+  },
+  {
+   "id": "med-global-health.l19.q5",
+   "lessonId": "med-global-health.l19",
+   "kind": "mcq",
+   "prompt": "A minister proposes banning antibiotic sales without prescription in a rural region where no clinic is within a day's travel. What is the most balanced analysis?",
+   "choices": [
+    "The measure may reduce misuse but could block access to life-saving treatment, so it should be paired with improved access to prescribers and diagnostics",
+    "The measure is certain to eliminate resistance within a year, since non-prescription sales are the only driver of resistance, and access to clinics is therefore irrelevant to the policy decision",
+    "The measure is mistaken because resistance comes only from agriculture, so restrictions on human sales have no effect and the minister should regulate livestock use alone",
+    "Access is irrelevant to resistance policy, so the ban should be enforced at once and any resulting untreated infections should be accepted as the price of stewardship"
+   ]
+  },
+  {
+   "id": "med-global-health.l20.q1",
+   "lessonId": "med-global-health.l20",
+   "kind": "mcq",
+   "prompt": "Which treaty article sets out the right to the highest attainable standard of physical and mental health?",
+   "choices": [
+    "Article 12 of the International Covenant on Economic, Social and Cultural Rights",
+    "Article 2 of the Geneva Convention on Refugees",
+    "Article 19 of the International Covenant on Civil and Political Rights",
+    "Article 7 of the Declaration of Alma-Ata"
+   ]
+  },
+  {
+   "id": "med-global-health.l20.q2",
+   "lessonId": "med-global-health.l20",
+   "kind": "mcq",
+   "prompt": "According to General Comment 14, which set lists the essential features of the right to health?",
+   "choices": [
+    "Sovereignty, solidarity, subsidiarity and sustainability",
+    "Availability, accessibility, acceptability and quality",
+    "Affordability, efficiency, equity and ethics",
+    "Prevention, treatment, rehabilitation and palliation"
+   ]
+  },
+  {
+   "id": "med-global-health.l20.q3",
+   "lessonId": "med-global-health.l20",
+   "kind": "mcq",
+   "prompt": "What is the main criticism of vertical disease programmes?",
+   "choices": [
+    "They prevent any domestic financing of health, because donors forbid governments from spending their own money on the targeted disease or on any related service",
+    "They are legally prohibited by the Paris Declaration, which bans earmarked funding and requires donors to give all assistance as general budget support",
+    "They can fragment health systems and draw staff away from general services while reflecting donor priorities",
+    "They never produce measurable results, so donors have abandoned them, and national governments now fund every disease entirely from domestic revenue without any external programmes"
+   ]
+  },
+  {
+   "id": "med-global-health.l20.q4",
+   "lessonId": "med-global-health.l20",
+   "kind": "mcq",
+   "prompt": "A donor ends funding for an HIV programme run with its own parallel supply chain. In a neighbouring country, a similar programme was integrated into national systems. What outcome does the integration argument predict?",
+   "choices": [
+    "Both programmes collapse equally because HIV services need donor funds, and the way a programme is organised has no effect on whether services survive a funding reduction",
+    "The parallel programme survives because donors build stronger systems than governments, so the separate supply chain is likelier to continue after external funding ends",
+    "Neither is affected because treatment does not require supply chains, so a reduction in donor funding has no effect on the availability of medicines or testing",
+    "The integrated programme is likelier to continue with domestic financing, while the parallel structure is likelier to collapse"
+   ]
+  },
+  {
+   "id": "med-global-health.l20.q5",
+   "lessonId": "med-global-health.l20",
+   "kind": "mcq",
+   "prompt": "Which statement best captures the debate about decolonising global health?",
+   "choices": [
+    "Advocates call for local leadership, equitable authorship and direct funding, while some caution that the practical measures need to be specified and tested",
+    "All commentators agree that colonial history has no relevance to current global health, and the movement concerns only the choice of language used in conference presentations and publications",
+    "The movement argues that all global health funding should be stopped, while critics argue that funding should continue unchanged with no change in governance or authorship practices",
+    "The movement argues that only institutions in wealthy countries should hold grants, while critics argue that local institutions should receive funds directly without any partnership"
+   ]
+  }
+ ]
+}

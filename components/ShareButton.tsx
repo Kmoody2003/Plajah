@@ -26,9 +26,24 @@ interface ShareButtonProps {
    *  (e.g. createPost). The button then always opens the menu so it's reachable. */
   onPostToPlajah?: () => void | Promise<void>;
   plajahLabel?: string;
+  contentType?: 'poll' | 'post' | 'video' | 'album' | 'music' | 'channel' | 'movie' | 'book';
+  pollData?: {
+    question: string;
+    options: string[];
+    votes?: Record<string, string[]>;
+    totalVotes?: number;
+  };
+  postText?: string;
+  authorName?: string;
+  authorPhoto?: string;
+  ctaText?: string;
+  children?: React.ReactNode;
 }
 
-const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, artist, className, style, label, iconSize = 18, onPostToPlajah, plajahLabel }) => {
+const ShareButton: React.FC<ShareButtonProps> = ({
+  title, text, url, imageUrl, artist, className, style, label, iconSize = 18,
+  onPostToPlajah, plajahLabel, contentType, pollData, postText, authorName, authorPhoto, ctaText, children
+}) => {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [posting, setPosting] = useState(false);
@@ -45,13 +60,23 @@ const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, a
     if (isOpen && isEmbedLink && !_embedGuideShown) { _embedGuideShown = true; setShowGuide(true); }
   }, [isOpen, isEmbedLink]);
 
-  // Paint the gorgeous share card (cover + caption) when the menu opens.
+  // Paint the gorgeous share card (cover + caption + live poll/post preview + CTA) when the menu opens.
   useEffect(() => {
     if (!isOpen || card) return;
     let alive = true;
-    generateShareCard({ coverUrl: imageUrl, title, artist }).then(c => { if (alive) setCard(c); });
+    generateShareCard({
+      coverUrl: imageUrl,
+      title,
+      artist,
+      contentType,
+      pollData,
+      postText,
+      authorName,
+      authorPhoto,
+      ctaText
+    }).then(c => { if (alive) setCard(c); });
     return () => { alive = false; };
-  }, [isOpen, imageUrl, title, artist]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isOpen, imageUrl, title, artist, contentType, pollData, postText, authorName, authorPhoto, ctaText]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const downloadCard = () => {
     if (!card) return;
@@ -73,14 +98,36 @@ const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, a
   // by the native share sheet); otherwise prefer the OS share sheet.
   const handleButtonClick = () => { if (onPostToPlajah) setIsOpen(true); else handleNativeShare(); };
 
+  // Ensure share text never contains .com or duplicate URLs, so social preview scrapers only see the single deep link.
+  const cleanText = (text || '')
+    .replace(/https?:\/\/[^\s]+/gi, '')
+    .replace(/www\.plajah\.com/gi, 'Plajah')
+    .replace(/plajah\.com/gi, 'Plajah')
+    .trim();
+  const cleanTitle = (title || '')
+    .replace(/https?:\/\/[^\s]+/gi, '')
+    .replace(/www\.plajah\.com/gi, 'Plajah')
+    .replace(/plajah\.com/gi, 'Plajah')
+    .trim();
+
   async function handleNativeShare() {
     if (navigator.share) {
       try {
-        const shareData: ShareData = { title, text, url: shareUrl };
+        const shareData: ShareData = { title: cleanTitle, text: cleanText, url: shareUrl };
         // Prefer the gorgeous generated card; else the raw cover.
         if (navigator.canShare) {
           try {
-            const c = card || await generateShareCard({ coverUrl: imageUrl, title, artist });
+            const c = card || await generateShareCard({
+              coverUrl: imageUrl,
+              title: cleanTitle,
+              artist,
+              contentType,
+              pollData,
+              postText,
+              authorName,
+              authorPhoto,
+              ctaText,
+            });
             let blob = c?.blob || null;
             if (!blob && imageUrl) { blob = await (await fetch(imageUrl)).blob(); }
             if (blob) {
@@ -109,7 +156,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, a
 
   const shareToX = () => {
     window.open(
-      `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`,
+      `https://twitter.com/intent/tweet?text=${encodeURIComponent(cleanText)}&url=${encodeURIComponent(shareUrl)}`,
       '_blank'
     );
   };
@@ -122,8 +169,9 @@ const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, a
   };
 
   const shareToWhatsApp = () => {
+    const payload = cleanText ? `${cleanText}\n\n${shareUrl}` : shareUrl;
     window.open(
-      `https://wa.me/?text=${encodeURIComponent(text + '\n\n' + shareUrl)}`,
+      `https://wa.me/?text=${encodeURIComponent(payload)}`,
       '_blank'
     );
   };
@@ -135,7 +183,8 @@ const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, a
   };
 
   const shareViaEmail = () => {
-    window.location.href = `mailto:?subject=${encodeURIComponent(title)}&body=${encodeURIComponent(text + '\n\n' + shareUrl)}`;
+    const body = cleanText ? `${cleanText}\n\n${shareUrl}` : shareUrl;
+    window.location.href = `mailto:?subject=${encodeURIComponent(cleanTitle)}&body=${encodeURIComponent(body)}`;
   };
 
   const SHARE_OPTIONS = [
@@ -184,8 +233,12 @@ const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, a
         className={className || 'p-2 text-white/40 hover:text-white transition-all'}
         style={style}
       >
-        <Share2 size={iconSize} />
-        {label && <span>{label}</span>}
+        {children ? children : (
+          <>
+            <Share2 size={iconSize} />
+            {label && <span>{label}</span>}
+          </>
+        )}
       </button>
 
       <Portal>
@@ -208,24 +261,31 @@ const ShareButton: React.FC<ShareButtonProps> = ({ title, text, url, imageUrl, a
                 <button onClick={() => setIsOpen(false)} className="text-white/20 hover:text-white"><X size={14} /></button>
               </div>
 
-              {/* Auto-generated share card — cover art + caption over the bottom */}
-              {(card?.dataUrl || imageUrl) && (
-                <div className="mb-4">
-                  <div className="relative rounded-2xl overflow-hidden w-full aspect-square max-w-[260px] mx-auto bg-white/5 ring-1 ring-white/10">
-                    <img src={card?.dataUrl || imageUrl} alt="" className="w-full h-full object-cover" />
-                    {!card && imageUrl && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                        <Loader2 size={18} className="animate-spin text-white/50" />
-                      </div>
-                    )}
-                  </div>
-                  {card && (
-                    <button onClick={downloadCard} className="mt-2 w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white/60 text-[9px] font-black uppercase tracking-widest transition-all">
-                      <Download size={12} /> Save share card
-                    </button>
+              {/* Auto-generated share card — cover art + caption with feathered dissolve */}
+              <div className="mb-4">
+                <div className="relative rounded-2xl overflow-hidden w-full aspect-square max-w-[260px] mx-auto bg-white/5 ring-1 ring-white/10 shadow-2xl">
+                  {card?.dataUrl ? (
+                    <img src={card.dataUrl} alt="Share card" className="w-full h-full object-cover" />
+                  ) : imageUrl ? (
+                    <img src={imageUrl} alt="" className="w-full h-full object-cover opacity-60" />
+                  ) : (
+                    <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-b from-white/10 to-transparent p-4 text-center">
+                      <Sparkles size={22} className="text-orange-400 animate-pulse mb-2" />
+                      <span className="text-[9px] font-black uppercase tracking-widest text-white/50">Generating Card…</span>
+                    </div>
+                  )}
+                  {!card && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-[2px]">
+                      <Loader2 size={20} className="animate-spin text-orange-400" />
+                    </div>
                   )}
                 </div>
-              )}
+                {card && (
+                  <button onClick={downloadCard} className="mt-2.5 w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-white/70 hover:text-white text-[9px] font-black uppercase tracking-widest transition-all">
+                    <Download size={13} /> Save share card (1080×1080)
+                  </button>
+                )}
+              </div>
 
               {/* Embed links render a playable mini-player when shared — quick guide. */}
               {isEmbedLink && (

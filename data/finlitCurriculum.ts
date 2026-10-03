@@ -161,7 +161,14 @@ Try it on one category this week. Write the true floor, write what you actually 
 
 Budgets usually fail for three reasons. First, they forget irregular expenses — the annual insurance, the car repair, the birthday season — so a "normal" month looks affordable and the real year does not. The fix is to total those yearly costs, divide by twelve, and treat that figure as a monthly line even though the bill is not monthly. Second, they are too detailed to maintain: nineteen categories is a system nobody keeps for six months. Five or six is a system people actually keep. Third, they leave no slack, so the first unplanned expense feels like failure and the whole thing gets abandoned.
 
-A durable structure is simple: income at the top; fixed commitments; the twelfth-of-a-year sinking fund for irregulars; saving treated as a bill rather than a leftover; then a single flexible pool for everything else. When the flexible pool runs out, spending stops until the next period. That is the entire mechanism, and it works because it requires one decision a month instead of a hundred.
+A durable structure is simple:
+- income at the top
+- fixed commitments
+- the twelfth-of-a-year sinking fund for irregulars
+- saving treated as a bill rather than a leftover
+- then a single flexible pool for everything else.
+
+When the flexible pool runs out, spending stops until the next period. That is the entire mechanism, and it works because it requires one decision a month instead of a hundred.
 
 The last idea is the one that matters most: pay saving first, before the flexible pool, not after. Money that survives to the end of the month is not saved by anyone. Money moved on payday is.`,
           resources: [SRC.moneySmart, SRC.cfpbGoals],
@@ -308,7 +315,13 @@ Two structural facts are worth memorising. On long loans, early payments are mos
 
 The file contains your accounts, balances and limits, whether payments arrived on time, public records like bankruptcies, and a list of who has enquired. It does not contain your income, your savings or your character, which is why a high earner can have a poor score and a modest earner can have an excellent one.
 
-What moves the number, in rough order of weight: paying on time, which dominates everything else; how much of your available credit you are using, where lower is better; how long your accounts have existed; and how recently you have applied for new credit. Notice that the two biggest levers are behavioural and free — pay on time, keep balances low relative to limits.
+What moves the number, in rough order of weight:
+1. paying on time, which dominates everything else
+2. how much of your available credit you are using, where lower is better
+3. how long your accounts have existed
+4. and how recently you have applied for new credit.
+
+Notice that the two biggest levers are behavioural and free — pay on time, keep balances low relative to limits.
 
 Two practical duties. Check your reports regularly, because errors are common and every study finds them; you are entitled to them at no cost. And if something is wrong, dispute it in writing with the agency — the process exists and it works, but only for people who use it.`,
           resources: [SRC.cfpbCredit, { label: 'AnnualCreditReport.gov — your free reports', url: 'https://www.annualcreditreport.com/' }],

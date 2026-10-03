@@ -4,8 +4,10 @@
 //
 // Optional `results` (fieldId → correct|null) colors each field after grading; `readOnly` locks inputs.
 
-import React from 'react';
+import React, { useRef, useState, useEffect } from 'react';
+import { Pen, Eraser, Trash2, Highlighter } from 'lucide-react';
 import type { DigitalWorksheet } from '../services/worksheetDigitizer';
+import { useWindowsInk, type InkPoint } from '../hooks/useWindowsInk';
 
 const INK = '#fff';
 
@@ -32,6 +34,87 @@ const WorksheetFillable: React.FC<WorksheetFillableProps> = ({ sheet, preview, a
     }
     return accent;
   };
+
+  // ── Inking overlay state ──
+  const [inkEnabled, setInkEnabled] = useState(false);
+  const [inkTool, setInkTool] = useState<'pen' | 'highlighter' | 'eraser'>('pen');
+  const [inkColor, setInkColor] = useState('#2563eb');
+  const inkCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const inkLastRef = useRef<{ x: number; y: number } | null>(null);
+  const inkDrawingRef = useRef(false);
+
+  // Resize ink canvas to match container
+  useEffect(() => {
+    const cvs = inkCanvasRef.current;
+    if (!cvs) return;
+    const parent = cvs.parentElement;
+    if (!parent) return;
+    const rect = parent.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    cvs.width = rect.width * dpr;
+    cvs.height = rect.height * dpr;
+    const ctx = cvs.getContext('2d');
+    if (ctx) ctx.scale(dpr, dpr);
+  }, [preview, mode]);
+
+  const clearInk = () => {
+    const cvs = inkCanvasRef.current;
+    if (!cvs) return;
+    const ctx = cvs.getContext('2d');
+    if (!ctx) return;
+    ctx.clearRect(0, 0, cvs.width, cvs.height);
+  };
+
+  const drawInk = (pt: InkPoint) => {
+    const cvs = inkCanvasRef.current;
+    if (!cvs) return;
+    const ctx = cvs.getContext('2d');
+    if (!ctx) return;
+
+    const isErase = inkTool === 'eraser' || pt.isEraser;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.globalCompositeOperation = isErase ? 'destination-out' : 'source-over';
+
+    if (inkTool === 'highlighter' && !isErase) {
+      ctx.globalAlpha = 0.35;
+      ctx.strokeStyle = '#facc15';
+      ctx.lineWidth = 18;
+    } else {
+      ctx.globalAlpha = 1;
+      ctx.strokeStyle = isErase ? '#000' : inkColor;
+      const baseWidth = isErase ? 24 : 3;
+      ctx.lineWidth = Math.max(1, baseWidth * (0.4 + pt.pressure * 0.8));
+    }
+
+    const lp = inkLastRef.current || { x: pt.x, y: pt.y };
+    ctx.beginPath();
+    ctx.moveTo(lp.x, lp.y);
+    ctx.lineTo(pt.x, pt.y);
+    ctx.stroke();
+    inkLastRef.current = { x: pt.x, y: pt.y };
+  };
+
+  const { pointerEvents: inkPointerEvents } = useWindowsInk({
+    enablePalmRejection: true,
+    transformPoint: ({ x, y }) => ({ x, y }),
+    onStrokeStart: (point) => {
+      if (!inkEnabled) return;
+      inkDrawingRef.current = true;
+      inkLastRef.current = { x: point.x, y: point.y };
+      drawInk(point);
+    },
+    onStrokeMove: (points) => {
+      if (!inkDrawingRef.current || !inkEnabled) return;
+      for (const pt of points) {
+        drawInk(pt);
+      }
+    },
+    onStrokeEnd: () => {
+      inkDrawingRef.current = false;
+      inkLastRef.current = null;
+    },
+  });
 
   const faithfulSource = preview || sheet.originalImageUrl || sheet.sourceImageUrl;
   if (mode === 'rebuilt' && faithfulSource) return (
@@ -76,9 +159,78 @@ const WorksheetFillable: React.FC<WorksheetFillableProps> = ({ sheet, preview, a
 
   return (
     <div style={{ position: 'relative', width: '100%', borderRadius: 10, overflow: 'hidden', border: '1px solid #20202c', background: '#000' }}>
+      {/* Stylus Inking Controls */}
+      <div className="absolute top-2 right-2 z-20 flex items-center gap-1.5 p-1 rounded-xl bg-black/80 backdrop-blur border border-white/10 shadow-lg text-white text-xs">
+        <button
+          type="button"
+          onClick={() => setInkEnabled(v => !v)}
+          className={`p-1.5 rounded-lg transition-colors ${inkEnabled ? 'bg-orange-500 text-white font-bold' : 'text-white/60 hover:text-white'}`}
+          title={inkEnabled ? 'Inking Active (Stylus/Pen)' : 'Enable Stylus Inking'}
+        >
+          <Pen size={14} />
+        </button>
+        {inkEnabled && (
+          <>
+            <div className="w-px h-3.5 bg-white/15 mx-0.5" />
+            <button
+              type="button"
+              onClick={() => setInkTool('pen')}
+              className={`p-1.5 rounded-lg ${inkTool === 'pen' ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white'}`}
+              title="Pen"
+            >
+              <Pen size={12} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setInkTool('highlighter')}
+              className={`p-1.5 rounded-lg ${inkTool === 'highlighter' ? 'bg-yellow-500/30 text-yellow-300' : 'text-white/40 hover:text-white'}`}
+              title="Highlighter"
+            >
+              <Highlighter size={12} />
+            </button>
+            <button
+              type="button"
+              onClick={() => setInkTool('eraser')}
+              className={`p-1.5 rounded-lg ${inkTool === 'eraser' ? 'bg-white/20 text-white' : 'text-white/40 hover:text-white'}`}
+              title="Eraser"
+            >
+              <Eraser size={12} />
+            </button>
+            <div className="w-px h-3.5 bg-white/15 mx-0.5" />
+            {['#2563eb', '#111111', '#dc2626'].map(c => (
+              <button
+                key={c}
+                type="button"
+                onClick={() => { setInkColor(c); setInkTool('pen'); }}
+                className={`w-3.5 h-3.5 rounded-full border ${inkColor === c && inkTool === 'pen' ? 'border-white scale-110 ring-1 ring-white' : 'border-black/30'}`}
+                style={{ background: c }}
+                title={`Color ${c}`}
+              />
+            ))}
+            <div className="w-px h-3.5 bg-white/15 mx-0.5" />
+            <button
+              type="button"
+              onClick={clearInk}
+              className="p-1.5 rounded-lg text-white/40 hover:text-rose-400"
+              title="Clear all ink annotations"
+            >
+              <Trash2 size={12} />
+            </button>
+          </>
+        )}
+      </div>
+
       {preview
         ? <img src={preview} alt="worksheet scan" style={{ width: '100%', display: 'block', opacity: 0.9 }} />
         : <div style={{ paddingTop: '130%' }} />}
+
+      {/* Stylus Inking Overlay Canvas */}
+      <canvas
+        ref={inkCanvasRef}
+        {...inkPointerEvents}
+        className={`absolute inset-0 z-10 w-full h-full touch-none ${inkEnabled ? 'pointer-events-auto cursor-crosshair' : 'pointer-events-none'}`}
+      />
+
       {sheet.fields.map(f => {
         const style: React.CSSProperties = {
           position: 'absolute', left: `${f.box.x}%`, top: `${f.box.y}%`,

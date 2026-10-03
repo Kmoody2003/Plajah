@@ -38,6 +38,8 @@ export interface ComposerPoll {
   options: string[];
   multiSelect: boolean;
   durationHours: 24 | 48 | 72 | 168; // 1d / 2d / 3d / 7d
+  vizKind?: string;
+  vizStyle?: string;
 }
 
 export interface ComposerDataViz {
@@ -283,6 +285,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
   };
 
   const handleMentionKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    e.stopPropagation();
     if (mentionQuery === null || mentionResults.length === 0) return;
     if (e.key === 'ArrowDown') { e.preventDefault(); setMentionIndex(i => Math.min(i + 1, mentionResults.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setMentionIndex(i => Math.max(i - 1, 0)); }
@@ -307,20 +310,31 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
 
   const processFiles = useCallback((files: FileList | File[]) => {
     Array.from(files).forEach(async file => {
-      const url = URL.createObjectURL(file);
+      let activeFile = file;
+      const isImg = file.type.startsWith('image/') && !file.type.includes('gif') && !file.type.includes('svg');
+      if (isImg) {
+        try {
+          const { compressSocialImage } = await import('../services/socialImageOptimizer');
+          const opt = await compressSocialImage(file);
+          if (opt.file && opt.compressedSize < file.size) {
+            activeFile = opt.file;
+          }
+        } catch { /* compression is best-effort fallback */ }
+      }
+      const url = URL.createObjectURL(activeFile);
       const type: ComposerAttachment['type'] = file.type.startsWith('video/')
         ? 'VIDEO'
         : file.type.startsWith('audio/')
         ? 'AUDIO'
         : 'PHOTO';
-      setAttachments(prev => [...prev, { type, url, title: file.name, file }]);
+      setAttachments(prev => [...prev, { type, url, title: file.name, file: activeFile }]);
       // Is this file already in the user's library? If so, flag it so we reuse instead of
       // uploading a duplicate — the user can still choose a fresh copy per attachment.
       const uid = (currentUser as any)?.uid;
       if (uid && (type === 'PHOTO' || type === 'VIDEO')) {
         try {
           const { fingerprintFile, lookupMedia } = await import('../services/mediaDedup');
-          const fp = await fingerprintFile(file);
+          const fp = await fingerprintFile(activeFile);
           if (fp) {
             const hit = await lookupMedia(uid, fp);
             if (hit) setAttachments(prev => prev.map(a => a.url === url ? { ...a, reused: true } : a));
@@ -483,12 +497,18 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob(blob => {
+    canvas.toBlob(async blob => {
       if (!blob) return;
-      const url = URL.createObjectURL(blob);
-      setAttachments(prev => [...prev, { type: 'PHOTO', url, title: 'Photo', file: new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' }) }]);
+      let finalFile = new File([blob], `photo_${Date.now()}.jpg`, { type: 'image/jpeg' });
+      try {
+        const { compressSocialImage } = await import('../services/socialImageOptimizer');
+        const opt = await compressSocialImage(finalFile);
+        if (opt.file) finalFile = opt.file;
+      } catch { /* fallback */ }
+      const url = URL.createObjectURL(finalFile);
+      setAttachments(prev => [...prev, { type: 'PHOTO', url, title: 'Photo', file: finalFile }]);
       closeCameraCapture();
-    }, 'image/jpeg', 0.9);
+    }, 'image/jpeg', 0.85);
   };
 
   // ── Post ─────────────────────────────────────────────────────────────────────
@@ -539,7 +559,16 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
       }
 
       const pollData = poll && poll.question.trim() && poll.options.filter(o => o.trim()).length >= 2
-        ? { ...poll, options: poll.options.filter(o => o.trim()) }
+        ? {
+            question: poll.question.trim(),
+            options: poll.options.filter(o => o.trim()),
+            multiSelect: !!poll.multiSelect,
+            durationHours: poll.durationHours || 24,
+            createdAt: Date.now(),
+            votes: {},
+            vizKind: poll.vizKind || 'BAR',
+            vizStyle: poll.vizStyle || 'PLAJAH',
+          }
         : undefined;
       const isLong = text.length > CHUNK_SIZE;
       const threadChunks = isLong ? splitIntoChunks(text) : undefined;
@@ -634,6 +663,7 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
             value={text}
             onChange={handleTextChange}
             onKeyDown={handleMentionKeyDown}
+            onKeyUp={e => e.stopPropagation()}
             placeholder={placeholder}
             rows={2}
             className="w-full bg-transparent text-base sm:text-sm font-medium resize-none outline-none placeholder:opacity-30 min-h-[56px] max-h-[320px] overflow-y-auto leading-relaxed"
@@ -866,6 +896,55 @@ const UniversalPostComposer: React.FC<UniversalPostComposerProps> = ({
             >
               {DURATION_OPTIONS.map(d => <option key={d.value} value={d.value}>{d.label}</option>)}
             </select>
+          </div>
+
+          {/* Visualizer Template Gallery for Poll */}
+          <div className="pt-2.5 border-t border-white/5 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[9px] font-black uppercase tracking-widest text-purple-400 flex items-center gap-1.5">
+                <BarChart2 size={11} />
+                Visualizer Template
+              </span>
+              <span className="text-[8px] font-bold uppercase tracking-wider text-white/30">Tela & Fabula Gallery</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <div>
+                <label className="text-[8px] font-black uppercase tracking-wider text-white/40 block mb-1">Chart Type</label>
+                <select
+                  value={poll?.vizKind || 'BAR'}
+                  onChange={e => setPoll(p => p ? { ...p, vizKind: e.target.value } : p)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 text-[10px] font-bold text-white outline-none focus:border-purple-400"
+                >
+                  <option value="BAR">Bar Chart</option>
+                  <option value="DONUT">Donut / Ring</option>
+                  <option value="RADAR">Radar Matrix</option>
+                  <option value="GAUGE">Radial Gauge</option>
+                  <option value="FUNNEL">Funnel Pipeline</option>
+                  <option value="WATERFALL">Waterfall</option>
+                  <option value="AREA">Area Signal</option>
+                  <option value="BAR_3D">3D Isometric Bar</option>
+                </select>
+              </div>
+              <div>
+                <label className="text-[8px] font-black uppercase tracking-wider text-white/40 block mb-1">Art Direction</label>
+                <select
+                  value={poll?.vizStyle || 'PLAJAH'}
+                  onChange={e => setPoll(p => p ? { ...p, vizStyle: e.target.value } : p)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-2.5 py-1.5 text-[10px] font-bold text-white outline-none focus:border-purple-400"
+                >
+                  <option value="PLAJAH">Signal Bloom (Plajah)</option>
+                  <option value="NEON">Night Current (Neon)</option>
+                  <option value="SWISS">Index / 01 (Swiss)</option>
+                  <option value="BAUHAUS">Primary Orbit (Bauhaus)</option>
+                  <option value="EDITORIAL">Measured Poise (Editorial)</option>
+                  <option value="GLASS">Refractive Field (Glass)</option>
+                  <option value="SPORTS">Velocity Readout (Sports)</option>
+                  <option value="BROADCAST">Live Decision (Broadcast)</option>
+                  <option value="MONO">Absolute Contrast (Mono)</option>
+                  <option value="FUTURIST">Predictive Lattice (Futurist)</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
       )}

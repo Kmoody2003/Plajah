@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
+import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 import { checkPostRateLimit, recordPost, detectSpam } from '../src/lib/spamCheck';
 import { motion, AnimatePresence } from 'motion/react';
@@ -672,7 +672,15 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                       data.attachments.map(async (att) => {
                         if (att.file && att.url.startsWith('blob:')) {
                           try {
-                            const stored = await uploadFile(`club_posts/${club.id}/${Date.now()}_${att.file.name}`, att.file);
+                            let uploadPayload = att.file;
+                            if (att.type === 'PHOTO' || att.file.type.startsWith('image/')) {
+                              try {
+                                const { compressSocialImage } = await import('../services/socialImageOptimizer');
+                                const opt = await compressSocialImage(att.file);
+                                if (opt.file) uploadPayload = opt.file;
+                              } catch { /* fallback */ }
+                            }
+                            const stored = await uploadFile(`club_posts/${club.id}/${Date.now()}_${uploadPayload.name}`, uploadPayload);
                             return { type: att.type, url: stored, title: att.title };
                           } catch { /* fall back to blob if upload fails */ }
                         }

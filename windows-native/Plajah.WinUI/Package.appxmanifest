@@ -4,9 +4,10 @@
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
   xmlns:desktop4="http://schemas.microsoft.com/appx/manifest/desktop/windows10/4"
-  IgnorableNamespaces="uap rescap desktop4">
+  xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
+  IgnorableNamespaces="uap rescap desktop4 uap10">
 
-  <Identity Name="Plajah.Platform" Publisher="CN=Plajah" Version="1.0.40.0" />
+  <Identity Name="Plajah.Platform" Publisher="CN=Plajah" Version="1.0.52.0" />
 
   <Properties>
     <DisplayName>Plajah</DisplayName>
@@ -101,6 +102,65 @@
         Square44x44Logo="Assets\Square44x44Logo.png">
         <uap:DefaultTile Wide310x150Logo="Assets\Wide310x150Logo.png" />
       </uap:VisualElements>
+    </Application>
+    <!-- Experience launchers: same exe, opened straight into one experience. Each shows as its own
+         entry in Start / All apps. MainWindow.ParseExperience reads the slug and the web layer maps
+         it (src/lib/launchTarget.ts). Icons: node scripts/generate-experience-icons.mjs -->
+    <Application Id="Chora" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true" uap10:Parameters="--experience=chora">
+      <uap:VisualElements
+        DisplayName="Chora"
+        Description="Chora — stream music, albums, mixes and your local library."
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Experiences\Chora.Square150x150Logo.png"
+        Square44x44Logo="Assets\Experiences\Chora.Square44x44Logo.png" />
+    </Application>
+    <Application Id="Reello" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true" uap10:Parameters="--experience=reello">
+      <uap:VisualElements
+        DisplayName="Reello"
+        Description="Reello — creator video, shorts and live."
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Experiences\Reello.Square150x150Logo.png"
+        Square44x44Logo="Assets\Experiences\Reello.Square44x44Logo.png" />
+    </Application>
+    <Application Id="Taleo" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true" uap10:Parameters="--experience=taleo">
+      <uap:VisualElements
+        DisplayName="Taleo"
+        Description="Taleo — films, series and TV."
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Experiences\Taleo.Square150x150Logo.png"
+        Square44x44Logo="Assets\Experiences\Taleo.Square44x44Logo.png" />
+    </Application>
+    <Application Id="Fabula" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true" uap10:Parameters="--experience=fabula">
+      <uap:VisualElements
+        DisplayName="Fabula"
+        Description="Fabula — the AI film editor."
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Experiences\Fabula.Square150x150Logo.png"
+        Square44x44Logo="Assets\Experiences\Fabula.Square44x44Logo.png" />
+    </Application>
+    <Application Id="Pixels" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true" uap10:Parameters="--experience=pixels">
+      <uap:VisualElements
+        DisplayName="Plajah Pixels"
+        Description="Plajah Pixels — live visuals and VJ performance."
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Experiences\Pixels.Square150x150Logo.png"
+        Square44x44Logo="Assets\Experiences\Pixels.Square44x44Logo.png" />
+    </Application>
+    <Application Id="ChoraStudio" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true" uap10:Parameters="--experience=chora_studio">
+      <uap:VisualElements
+        DisplayName="Chora Studio"
+        Description="Chora Studio — music production, powered by Melos."
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Experiences\ChoraStudio.Square150x150Logo.png"
+        Square44x44Logo="Assets\Experiences\ChoraStudio.Square44x44Logo.png" />
+    </Application>
+    <Application Id="Academia" Executable="$targetnametoken$.exe" EntryPoint="$targetentrypoint$" desktop4:SupportsMultipleInstances="true" uap10:Parameters="--experience=academia">
+      <uap:VisualElements
+        DisplayName="Academia"
+        Description="Plajah Academia — classes, assignments and learning."
+        BackgroundColor="transparent"
+        Square150x150Logo="Assets\Experiences\Academia.Square150x150Logo.png"
+        Square44x44Logo="Assets\Experiences\Academia.Square44x44Logo.png" />
     </Application>
   </Applications>
 

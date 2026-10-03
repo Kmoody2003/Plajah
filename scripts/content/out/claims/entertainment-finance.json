@@ -1,0 +1,1628 @@
+{
+ "courseId": "entertainment-finance",
+ "label": "Entertainment Finance",
+ "lessons": [
+  {
+   "id": "entertainment-finance.l01",
+   "title": "Why Entertainment Needs a Financing Plan",
+   "body": [
+    "Making a movie, an album, a tour or a video game has a strange money shape: almost all the costs come first, and the income, if any, arrives later and is uncertain. A film crew must be paid before a single ticket is sold. A band pays for a studio before anyone streams a song. The money used to cover those early costs is called financing, and the job of assembling it is called a financing plan.",
+    "Every dollar of financing comes with a cost and a risk. Some money is cheap but must be paid back no matter what. Some money asks for no repayment but wants a share of the profits, if there are any. Some comes from customers or partners who pay early in exchange for a promise. Smart producers mix several sources so that no single source carries all the risk.",
+    "Here is an illustrative plan for a small film with a $2,000,000 budget. Equity investors supply $800,000. Presales to distributors supply $600,000. A government tax incentive is expected to return $300,000. A bank loan supplies the final $300,000. Add them up: 800,000 + 600,000 + 300,000 + 300,000 = 2,000,000. The plan is fully funded on paper.",
+    "Notice what could go wrong. If the incentive arrives late, the project has a cash gap. If the loan has strict repayment terms, it must be repaid before the investors see a penny. Understanding who gets paid first, and who gets nothing if things go badly, is the heart of entertainment finance, and the rest of this course unpacks it. All numbers here are examples only; real terms vary and change."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l02",
+   "title": "Equity and Debt",
+   "body": [
+    "There are two basic kinds of money. Debt is borrowed money. The lender expects the loan back plus interest, whether the project succeeds or not. Equity is invested money. The investor owns a share of the project or its profits, and is paid only if there are profits to share.",
+    "Consider a producer who needs $400,000. Option A is a loan at 10% simple interest for one year. At the end of the year the producer owes 400,000 + (400,000 x 0.10) = $440,000. Option B is an equity investment of $400,000 in exchange for 40% of the project's net profit.",
+    "Now imagine two outcomes. If the project earns a net profit of $1,000,000, the equity investor receives 40% of 1,000,000 = $400,000, a return of their original money, while the lender received just $40,000 in interest on top of principal. Equity paid more in the good case. If the project earns nothing, the lender is still owed $440,000, while the equity investor receives $0 and loses the original $400,000. Debt is safer for the one who provides it; equity has more upside and more risk.",
+    "Because debt must be repaid first, lenders are said to be senior and equity junior in the order of payment. Many projects use both: a senior loan secured against something solid, and equity taking the remaining risk. Producers prefer to borrow only what the project can plausibly repay. Interest rates, security and legal terms vary widely and change over time."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l03",
+   "title": "Presales, Distribution Advances and Tax Incentives",
+   "body": [
+    "A presale is a contract in which a distributor in a territory agrees, before the film is made, to pay a fee for the right to release it there. The fee is often called a minimum guarantee. Typically, only a small part is paid on signing, with the balance due when the finished film is delivered. A bank may lend against the presale contract, because a signed deal from a reputable buyer is something it can rely on. The distributor's decision usually rests on the cast, the director, the script and past sales of similar projects.",
+    "Suppose a producer signs three presales of $300,000 each. That is 3 x 300,000 = $900,000 of contracted income. If 10% is paid on signing, each deal pays $30,000 up front and $270,000 on delivery. Delivery has conditions: the film must match the agreed specifications, and a late or non-conforming delivery can delay or reduce payment.",
+    "Tax incentives are programs where a government gives a credit, rebate or similar benefit for spending in its territory. Many places offer them to attract production, but rules, rates and caps differ widely and change. As an illustration, a 25% incentive on $1,200,000 of qualifying spending is 0.25 x 1,200,000 = $300,000. Only qualifying spending counts, often local labor and services, so the full budget is rarely eligible. Incentives frequently arrive after an audit of costs, which is why producers often borrow against them while waiting. Ask a specialist about the current rules of any place you plan to film."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l04",
+   "title": "Gap Loans, Bridge Loans and Completion Bonds",
+   "body": [
+    "Two loan types are common. A bridge loan covers timing: money that is promised but has not arrived yet, such as a tax incentive paid after production wraps. A gap loan covers a shortfall: the part of the budget not covered by presales, equity or incentives. Gap lenders take more risk, because they are repaid from sales that have not happened yet, so they charge more and are cautious about how much they lend.",
+    "Take a $5,000,000 film. Presales provide $2,000,000, equity $1,500,000 and a tax incentive $1,000,000. Those total 2,000,000 + 1,500,000 + 1,000,000 = $4,500,000. The gap is 5,000,000 - 4,500,000 = $500,000. A gap lender might finance that, secured against unsold territories.",
+    "A bridge example: the $1,000,000 incentive will arrive in about six months, but a bridge lender will lend only 80% of it: 0.8 x 1,000,000 = $800,000. At 12% annual interest for half a year, interest is 800,000 x 0.12 x 0.5 = $48,000.",
+    "A completion bond is an insurance-like guarantee, issued by a specialist company, that the film will be finished and delivered as promised. If costs run over, the bond company can step in, and may take control. Lenders and distributors often require one. The fee is typically a small percentage of the budget; at an illustrative 2% on $5,000,000, it would cost $100,000. Terms vary and change, and a bond does not guarantee that the film will be good or profitable."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l05",
+   "title": "Grants, Crowdfunding and Slate Financing",
+   "body": [
+    "A grant is money given without an expectation of repayment, usually by governments, arts councils or foundations, for work meeting stated aims. Grants are competitive, have application windows and reporting duties, and often cover only part of the cost. They are especially common for documentaries, experimental work and community projects.",
+    "Crowdfunding collects many small contributions online, usually in exchange for rewards such as copies or credits, though some regulated forms offer investment shares. Platforms and payment processors keep fees. Illustratively, if a campaign raises $50,000 and total fees are 8%, the creator receives 50,000 - (0.08 x 50,000) = 50,000 - 4,000 = $46,000, and must still pay for making and shipping the rewards. Many platforms release funds only if the goal is met. Crowdfunding also proves demand and builds an audience, which can help in later fundraising.",
+    "Slate financing pools money across several projects instead of betting on one. Imagine an investor funds four films with $2,000,000 each, a total of $8,000,000. The films return $1,000,000, $2,000,000, $3,000,000 and $6,000,000, for 12,000,000 in all. The overall gain is 12,000,000 - 8,000,000 = $4,000,000, or 50%, even though one film lost money. One big hit paid for the others. The tradeoff is that slates reduce the risk of a single failure but not the risk that the whole slate underperforms. Figures here are made up for teaching."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l06",
+   "title": "Budgets Versus Forecasts",
+   "body": [
+    "A budget is a plan for what a project will cost, set before spending begins and approved by the people providing money. A forecast is an updated estimate, made during the project, of what the total will actually be. The difference matters: the budget rarely changes, but the forecast changes often. Comparing them tells you early whether you are on track.",
+    "A forecast has three parts. Actual costs are what has already been spent. The estimate to complete is what you expect to spend from now on. Together they give the forecast total, sometimes called the estimate at completion. The variance is the forecast minus the budget; a positive variance means over budget.",
+    "Example: a film is budgeted at $900,000 of base costs plus a $100,000 contingency, for a $1,000,000 total. Contingency is a reserve for unexpected costs, commonly around a tenth of the other costs, though this varies. A few weeks in, $300,000 has been spent and the producer expects $650,000 more. The forecast of base costs is 300,000 + 650,000 = $950,000. The variance is 950,000 - 900,000 = $50,000 over. That overage comes out of contingency, leaving 100,000 - 50,000 = $50,000 of reserve.",
+    "If the forecast kept climbing past the whole contingency, the producer would need to cut costs or find more money. Funders and bond companies often watch the forecast closely, which is why a candid, regularly updated forecast builds trust."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l07",
+   "title": "Cash Flow: Why Profitable Projects Still Run Out of Money",
+   "body": [
+    "Profit is what is left after all costs over the life of a project. Cash flow is the movement of money in and out month by month. A project can be profitable overall yet run out of cash in the middle, because costs come early and income comes late. Businesses fail from cash shortages even when the long-run math looks fine.",
+    "A cash flow forecast lists expected money coming in and going out in each period and tracks the running balance. Example: a production starts with $400,000 in the bank. Payroll and other costs are $250,000 per month. A $300,000 tax incentive is expected in month six, but nothing else arrives before then.",
+    "After month one: 400,000 - 250,000 = $150,000. After month two: 150,000 - 250,000 = -$100,000. The account is short by $100,000 before the incentive arrives, and the shortfall keeps growing each month until it does. The project must find bridge financing, delay costs, or negotiate payment terms. The incentive is real, but it comes too late.",
+    "Practical habits follow from this. Update cash forecasts weekly during production. Match big payments to the dates income is actually due. Keep a reserve. Ask lenders for a facility before you need it, because borrowing is easier when you are not already in trouble. A cash crunch is solved by timing, not by hope."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l08",
+   "title": "Waterfalls and the Order of Recoupment",
+   "body": [
+    "When money comes in, it does not go to everyone at once. A waterfall is a contractual list showing the order in which revenue is paid out, each tier filling up before the next receives anything. Being earlier in the waterfall means being paid sooner and with more certainty. Recoupment means earning back an amount owed, such as a loan or an investment.",
+    "A typical but not universal order is: distributor fees and expenses first, then senior lenders, then equity investors' capital (often with a premium), and only then the remaining profit split. Real contracts differ, so always read the actual agreement.",
+    "Example, with made-up figures. A film receives $1,500,000 in revenue.\n1. Distribution fee of 20%: 0.20 x 1,500,000 = 300,000. Remaining: $1,200,000.\n2. Distribution expenses: 100,000. Remaining: $1,100,000.\n3. Senior loan of 300,000 plus 30,000 interest: 330,000. Remaining: $770,000.\n4. Equity investors recoup 500,000 plus a 20% premium of 100,000: 600,000. Remaining: $170,000.\n5. The profit is split 50/50 between the investor pool and the producer: 85,000 each.",
+    "Investors in total receive 600,000 + 85,000 = $685,000 on a $500,000 investment. If revenue had been only $1,000,000, the same steps would leave 1,000,000 - 200,000 - 100,000 - 330,000 = $370,000 for the equity tier, less than the 600,000 owed, and the producer would receive nothing from profit. Position in the waterfall decides who bears the shortfall."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l09",
+   "title": "Gross Versus Net Profit and Definitions of Net Points",
+   "body": [
+    "People who work on a project are sometimes paid a percentage of the revenue. The key question is: percent of what? Gross receipts are the money coming in, before most deductions. Net profit is what remains after deductions defined in the contract, which can include distribution fees, distribution expenses, production costs and interest. The word \"net\" has no single meaning; each agreement defines it. A participant's share is often described in points, where one point is one percent, applied to the defined profit pool.",
+    "Consider a film that collects $10,000,000 in gross receipts. Under an illustrative definition of net profit, subtract a 25% distribution fee (2,500,000), distribution expenses of 3,000,000, production cost of 4,000,000 and financing interest of 500,000. That is 2,500,000 + 3,000,000 + 4,000,000 + 500,000 = 10,000,000. The net profit is 10,000,000 - 10,000,000 = $0. A participant with 5% of net profit receives nothing, though 5% of gross would have been $500,000.",
+    "If the same film earned $12,000,000, the deductions would be 3,000,000 (25% fee) + 3,000,000 + 4,000,000 + 500,000 = 10,500,000, leaving net profit of $1,500,000, and 5 points would pay 0.05 x 1,500,000 = $75,000.",
+    "Because definitions can be so consequential, creators and their advisers negotiate them carefully, ask for caps on fees and overhead, and look for clear reporting. Some share the gross after a threshold instead. This debate over fairness is long-running and is revisited in the ethics lesson."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l10",
+   "title": "Residuals and Guild Payments at a Glance",
+   "body": [
+    "Many performers, writers and directors belong to guilds or unions. A guild negotiates a collective bargaining agreement (CBA) with employers, setting minimum pay, working conditions, credits and payments for reuse of the work. Those reuse payments are called residuals. When a program is rebroadcast, streamed, sold to other markets or released on other formats, covered members may receive additional payments under formulas in the CBA. Producers must budget for these obligations, and distributors often sign agreements to assume them so the guild can be confident they will be paid.",
+    "Residual formulas vary by guild, medium and market, and change at each negotiation, so this lesson is an overview with a purely hypothetical rate. Suppose a CBA required a residual pool equal to 2% of $3,000,000 in reuse revenue. That pool is 0.02 x 3,000,000 = $60,000. If it is shared in proportion to original pay, and Actor A earned $30,000 while Actor B earned $10,000, A's share is 30,000 / 40,000 = 75% of the pool, which is $45,000, and B's is 25%, or $15,000.",
+    "Guild contracts also require contributions to pension and health plans, typically calculated as a percentage on top of pay. These fringes are real costs that belong in the budget. A common mistake is treating guild pay as only the weekly rate. Consult the current agreement or a payroll company for real figures."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l11",
+   "title": "Music Advances and Recoupment",
+   "body": [
+    "In a traditional record deal, a label pays the artist an advance, money paid up front that is later deducted from the royalties the artist earns. Recoupment is the label earning back that advance. The artist does not usually pay it back out of pocket if the record underperforms, but they also receive no royalty checks until the advance is recouped. Contracts differ, and many modern deals use different structures, so read the agreement.",
+    "An advance often includes a recording fund, which covers the cost of making the record. Suppose a label gives a $150,000 advance. The artist's royalty is 20% of the label's net receipts. If the label's net receipts are $1,000,000, the artist earns 0.20 x 1,000,000 = $200,000 in royalties. Subtract the advance: 200,000 - 150,000 = $50,000 paid to the artist.",
+    "If receipts were only $600,000, the artist earns 0.20 x 600,000 = $120,000. That is less than the advance, so the artist is unrecouped by 150,000 - 120,000 = $30,000 and receives nothing yet. Future earnings go first to the $30,000.",
+    "Cross-collateralization means a shortfall on one record can be recouped from earnings on another. Some deals allow recoupment of other costs, such as video or marketing support, which lengthens the road to payment. Negotiating the royalty base, rate, recoupable items and cross-collateralization matters as much as the size of the advance."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l12",
+   "title": "Publishing Deals and Songwriter Income",
+   "body": [
+    "A song has two kinds of rights: the recording (the master) and the composition (the words and music). Music publishing handles the composition. Publishers collect income from performances, mechanical licenses, synchronization in film and television, and print, and typically pay songwriters their share.",
+    "Income is commonly pictured as a pie in two halves. The writer's share is usually half of performance income and is paid directly to the writer by a performing rights organization. The publisher's share is the other half, paid to whoever publishes the song.",
+    "Different deals divide the publisher's half in different ways. A traditional publishing deal usually gives the publisher ownership or part-ownership of the copyright in return for an advance and active promotion. An administration deal lets the writer keep ownership, and the administrator collects income for a fee, typically somewhere around 10% to 25% depending on services.",
+    "Example, illustrative: a song earns $200,000, making the writer's share $100,000 and the publisher's share $100,000. A self-publishing writer using an administrator at a 15% fee pays 0.15 x 100,000 = $15,000 and keeps 100,000 - 15,000 = $85,000 of the publisher's share. Total to the writer: 100,000 + 85,000 = $185,000.",
+    "Under a traditional deal, the publisher might keep a larger part of that publisher's share but offer an advance and pitching of songs. Which is better depends on the writer's leverage and need for services."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l13",
+   "title": "The Touring Profit and Loss Statement",
+   "body": [
+    "A profit and loss statement, or P&L, lists revenue and expenses for a period or project, ending in the profit. For a tour, a P&L answers the question every artist should ask before going on the road: after everyone is paid, what is left?",
+    "Revenue includes the artist's share of ticket income, merchandise sales, sponsorship and other income. Costs include crew wages, travel, hotels, trucking, equipment hire, insurance and production. Advisers are usually paid as a percentage of income: agents commonly take around 10% and managers around 15% to 20%, though agreements vary.",
+    "Illustrative example. A tour plays 20 shows to 1,500 paying people each at $50 per ticket. Gross ticket sales are 20 x 1,500 x 50 = $1,500,000. Suppose after venue costs and the promoter's share, the artist's side receives $1,200,000. Tour costs are $600,000. Before commissions, that leaves 1,200,000 - 600,000 = $600,000. The agent at 10% of 1,200,000 receives $120,000; the manager at 15% receives $180,000. Net to the artist is 600,000 - 120,000 - 180,000 = $300,000, a margin of 25% of the artist's income.",
+    "Notice that costs are mostly fixed, so selling fewer tickets shrinks profit quickly, while selling out helps a lot. Merchandise often matters because it can carry a high profit margin. A cautious P&L tests a bad-case scenario before the tour is booked."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l14",
+   "title": "Ticketing, Promoters and Settlement",
+   "body": [
+    "A promoter books the artist, secures the venue, markets the show and takes the financial risk of the night. Tickets are sold through ticketing systems that charge service fees, and taxes and facility charges may be added. After the show, the artist's team and the promoter prepare a settlement, a written accounting of revenue, expenses and the resulting payment.",
+    "A very common structure is a guarantee versus a percentage: the artist is paid the greater of a fixed guarantee or a percentage of net box office, where net box office means ticket revenue after agreed show expenses. Exact terms, such as which fees count as expenses, are negotiated in advance, and unclear definitions are a common source of disputes.",
+    "Example, illustrative. The artist has a $50,000 guarantee versus 85% of net. The venue sells 2,000 tickets at $60, so gross is 2,000 x 60 = $120,000. Agreed show expenses (rent, production, marketing, staffing) total $50,000, so net is 120,000 - 50,000 = $70,000. 85% of 70,000 is $59,500, which exceeds the guarantee, so the artist receives $59,500. The promoter keeps 70,000 - 59,500 = $10,500.",
+    "If only half the tickets sold, gross would be $60,000 and net $10,000; 85% would be only $8,500, so the guarantee of $50,000 would apply, and the promoter would lose money on the night. That downside is why promoters analyze demand carefully and why artists with proven demand can ask for large guarantees. Always check a settlement line by line."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l15",
+   "title": "Games and Interactive Finance at a Glance",
+   "body": [
+    "Games are expensive to make and can take years, so funding often comes from a publisher, investors, platform programs, crowdfunding or the studio's own earlier hits. A publisher typically advances money toward development and in return takes distribution rights and a revenue share. As in music, the advance is recouped from the developer's earnings before the developer sees further payments, though structures vary.",
+    "Revenue arrives through several routes: sales of the game, subscriptions, in-game purchases and advertising. Digital stores keep a platform fee, and a figure of 30% has long been a common headline rate, though lower rates exist in some programs and the rules change.",
+    "Illustrative example. A publisher advances $5,000,000. The game earns $10,000,000 in gross sales. A platform fee of 30% removes 0.30 x 10,000,000 = $3,000,000, leaving $7,000,000. The publisher first recoups its $5,000,000 advance, leaving 7,000,000 - 5,000,000 = $2,000,000. If the remainder is then split 50/50, the developer receives $1,000,000 and the publisher $1,000,000 more.",
+    "Live-service games, which keep updating and selling content after launch, make revenue more continuous but need ongoing spending and careful forecasting. Milestones, in which the publisher pays in stages after the developer delivers agreed builds, reduce risk for both sides. Questions of who owns the underlying intellectual property and what happens if a project is cancelled are crucial terms to negotiate."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l16",
+   "title": "Valuing Catalogs and Libraries",
+   "body": [
+    "A catalog is a collection of rights that keep earning, such as a group of songs, a set of master recordings or a library of films and shows. Buyers and sellers need a way to put a price on that stream of future income.",
+    "One common shortcut is the multiple: price equals a multiple of average annual earnings. Many catalogs are valued on an average of the last few years of net income. The multiple depends on how stable the income is, how fast it is growing, how long the rights last, the genre, and prevailing interest rates. Multiples of several times earnings up to well above ten times have been discussed in various markets and eras, so treat any number as typical for a moment, not a rule.",
+    "Example, illustrative. A song catalog earned $100,000, $120,000 and $140,000 over three years. The average is (100,000 + 120,000 + 140,000) / 3 = $120,000. At a multiple of 12, the value is 12 x 120,000 = $1,440,000. At 10 times it would be $1,200,000; at 15 times, $1,800,000.",
+    "A second method discounts future cash. Money later is worth less than money now. At an 8% discount rate, $108,000 received in a year is worth 108,000 / 1.08 = $100,000 today. Adding up discounted payments across years gives a present value. Careful buyers also check whether ownership of the rights is clean, whether income is one-off spikes, and how royalties are actually paid."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l17",
+   "title": "Accounting, Statements and Contract Audit Rights",
+   "body": [
+    "Creators and investors who are paid a share of income usually rely on statements prepared by the party that collects the money, such as a label, distributor or publisher. A statement summarizes income, deductions and the amount payable. Errors happen through honest mistakes, unclear contracts or, occasionally, deliberate underreporting.",
+    "An audit right is a clause giving the payee the power to have an independent accountant inspect the payer's relevant books and records. Typical limits include notice requirements, a limit on how often an audit can be done, a time window after each statement, and rules about who pays the cost. Windows of a year or two are common but vary, and statements may become binding if the deadline is missed. Check dates in your own contract.",
+    "Illustrative example. A label paid royalties based on $800,000 of receipts, but an audit finds the true figure was $900,000. The artist's rate is 20%. The unpaid amount is 0.20 x (900,000 - 800,000) = 0.20 x 100,000 = $20,000. If the audit cost $15,000, the net benefit is 20,000 - 15,000 = $5,000, and the contract might shift cost to the payer if the underpayment exceeds a set percentage.",
+    "Audits are worthwhile when potential recovery is large compared with cost, and they also deter errors. Even without an audit, read statements, keep copies of contracts and ask questions early. Good records on your own side make any future dispute easier."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l18",
+   "title": "Risk Management and Insurance",
+   "body": [
+    "Risk is the chance that something goes wrong. Entertainment has many kinds: accidents, equipment damage, illness, bad weather, legal claims, late delivery, disputes, and market failure. Good finance work lists risks, estimates how likely and how costly they are, and decides whether to avoid, reduce, insure or accept each one.",
+    "Insurance transfers certain risks to an insurer in exchange for a premium. Common policies for productions include general liability, for injury or property damage claims; equipment coverage; workers' compensation, which is legally required in many places; errors and omissions, which protects against claims such as infringement or defamation in the finished work; and coverage when a key person, such as the lead performer, cannot work. Live events may buy event cancellation cover. Which policies are required depends on contracts, lenders and local law.",
+    "A deductible is the amount you bear before the insurer pays. Example, illustrative: a camera is damaged, and the covered loss is $80,000 with a $10,000 deductible. The insurer pays 80,000 - 10,000 = $70,000, and the production bears $10,000.",
+    "Insurance has limits. Policies have exclusions, require truthful disclosure, and do not protect against the audience not showing up or a film being weak. Read the policy, work with a specialist broker, and tell the insurer everything relevant. Planning, such as backup locations and safety procedures, often reduces risk more cheaply than insurance alone."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l19",
+   "title": "Taxes at a High Level, and Choosing an Entity",
+   "body": [
+    "This lesson is a broad introduction to U.S. ideas; tax law is detailed, changes often and depends on your situation, so a qualified accountant is essential. Creators typically receive income as an individual (self-employed), through a business entity, or both.",
+    "A sole proprietorship has no separate legal existence; income flows to the owner's return and the owner is personally responsible for debts. A limited liability company (LLC) is a legal entity that can separate personal assets from many business liabilities, and by default is taxed as a pass-through, meaning profit is taxed on the owners' returns. An S corporation is a tax election with pass-through treatment under conditions. A C corporation is taxed itself on profits, and shareholders are taxed again when profits are paid as dividends, often called double taxation.",
+    "Illustrative example. A C corporation earns $100,000. At the U.S. federal corporate rate of 21% (as of this writing; check the current rate), tax is $21,000, leaving $79,000. If all of it is paid out as dividends taxed at an assumed 15%, the shareholder owes 0.15 x 79,000 = $11,850 and keeps 79,000 - 11,850 = $67,150. A pass-through entity would instead report the $100,000 to the owner's return, and the result depends on the owner's own rates and deductions.",
+    "Other points to ask about: self-employment tax, deductions for business expenses, how advances are taxed, sales tax on merchandise, and state rules. Choice of entity also affects investors, who often prefer particular structures."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l20",
+   "title": "International Income, Withholding and Currency",
+   "body": [
+    "Entertainment income often crosses borders: a song streams abroad, a film sells to foreign distributors, an artist performs overseas. Two issues arise.",
+    "First, withholding tax. Some countries require the payer to deduct tax from certain payments to foreign recipients, such as royalties or performance fees, and send it to the tax authority before paying the rest. Rates differ by country and type of payment, and tax treaties between countries can reduce them if paperwork is filed. Your home country may allow a foreign tax credit, which offsets the home tax by what you paid abroad, within limits. Without planning, the same income can be taxed twice.",
+    "Illustrative example. A U.S. artist is due a $100,000 royalty from a country with a 15% withholding rate. The payer withholds 0.15 x 100,000 = $15,000 and pays $85,000. If the artist can claim a credit for the $15,000, the effect on U.S. tax may be reduced, but they must keep the withholding certificate or receipt.",
+    "Second, currency risk. Contracts priced in a foreign currency change in value as exchange rates move. A deal worth 1,000,000 euros at an exchange rate of 1.10 dollars per euro equals $1,100,000. If the rate falls to 1.00, the same payment equals $1,000,000, a loss of $100,000 with no change to the contract. Producers may agree to price in their own currency or hedge the exposure. International co-productions combine funding from several countries and require careful agreements on ownership and territories. Seek local specialist advice."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l21",
+   "title": "Pitching Investors",
+   "body": [
+    "Investors give money in return for potential reward and need to believe in three things: the project, the people and the plan. A pitch package commonly includes a short deck, a script or demo, a budget, a financing plan, comparable projects, a schedule, a distribution or release strategy, and an explanation of how and when investors could be repaid.",
+    "Comparables, or comps, are similar past projects that show what the market has paid. Choose them honestly: a handful of recent, relevant titles is more persuasive than one blockbuster that no one could replicate. Show how your team has delivered before, or explain how you reduce the risk of inexperience, for example by attaching experienced partners.",
+    "Present a range of outcomes rather than a single promise. A common method is scenario analysis with an expected value, the probability-weighted average. Suppose an investor puts in $1,000,000. In your illustrative scenarios there is a 50% chance of getting back $500,000, 30% of $1,200,000 and 20% of $3,000,000. Expected return is 0.50 x 500,000 + 0.30 x 1,200,000 + 0.20 x 3,000,000 = 250,000 + 360,000 + 600,000 = $1,210,000. The probabilities are judgments, not facts, and you should say so.",
+    "Never guarantee returns. Offering shares in a project to investors can be regulated as a securities offering in many places, with rules on who may invest and what must be disclosed, so involve a lawyer before you solicit money. Honesty protects both the investor and your reputation."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l22",
+   "title": "Reading a Term Sheet",
+   "body": [
+    "A term sheet is a short document summarizing the main terms of a proposed deal. Most of it is typically non-binding, meaning the parties are not yet obliged to close, though some clauses, such as confidentiality or exclusivity (a period when you agree not to shop the deal elsewhere), can be binding. Always check which parts bind. Detailed contracts follow, and the final contract controls.",
+    "Key items include the amount invested, the valuation or return, the form of security (equity, loan, profit share), the position in the waterfall, any premium, fees and expenses, approval rights, credit, reporting duties, timelines, conditions that must be satisfied before funding, and what happens if the project is abandoned.",
+    "Valuation terms matter. Pre-money value is what the company is valued at before the investment; post-money adds the new cash. Example, illustrative: an investor puts in $200,000 at a pre-money valuation of $800,000. Post-money value is 800,000 + 200,000 = $1,000,000, and the investor owns 200,000 / 1,000,000 = 20%.",
+    "Dilution occurs when new investors come in later. If a later investor puts in $500,000 at a pre-money value of $1,500,000, post-money is $2,000,000 and the new investor owns 500,000 / 2,000,000 = 25%. The first investor's 20% shrinks to 20% x 0.75 = 15%, because everyone else now owns 75% of the larger company.",
+    "Read every clause, ask what each one would do in a bad scenario, and have a lawyer review before signing. Pressure to sign quickly is a reason to slow down."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l23",
+   "title": "Red Flags and Fraud",
+   "body": [
+    "Most producers and investors are honest, but entertainment attracts fraud because projects are hard to value and glamour lowers people's guard. Learning the warning signs protects both investors and creators.",
+    "Common red flags include guaranteed or unusually high returns; pressure to invest immediately; reluctance to provide written contracts, budgets or bank details; vague descriptions of where money goes; claims of famous attachments or distribution deals that cannot be verified; mixing project money with personal spending; unlicensed sellers of investments; and requests for upfront fees before promised financing arrives. A Ponzi-style scheme pays earlier investors with money from later ones rather than from real income, and collapses when new money stops.",
+    "Arithmetic can reveal problems too. Suppose a producer offers 40% of a film's profits to each of three investors. 3 x 40% = 120%, which is impossible, because only 100% exists. The producer has oversold the project, and someone will lose out. Similarly, a promise of a 30% return in six months equals roughly 60% a year, far above what most legitimate investments reliably earn.",
+    "Protect yourself: verify identities and past credits independently; ask to see signed distribution agreements and confirm them with the other party using contact details you found yourself; pay into escrow or a lawyer's trust account rather than a personal account; get everything in writing; and consult a lawyer or accountant. If you suspect fraud, stop paying and report it to the appropriate authorities."
+   ]
+  },
+  {
+   "id": "entertainment-finance.l24",
+   "title": "Ethics in Entertainment Finance",
+   "body": [
+    "Entertainment finance depends on trust, because one side often holds the books and the other must rely on them. Ethical practice goes beyond what a contract technically allows.",
+    "Core principles include honest forecasting, with no inflated projections to win funding; accurate reporting, with statements that follow the agreed definitions; disclosure of conflicts of interest; fair treatment of creators, crew and smaller participants; and respect for the intent as well as the letter of agreements.",
+    "A conflict of interest arises when someone has a personal interest that could affect their duty to others. Example: a production company charges its own film a 10% overhead fee on a $500,000 budget, which is 0.10 x 500,000 = $50,000 paid to itself. That may be perfectly acceptable when clearly agreed and disclosed. It becomes a problem when it is hidden, or when the investors believed the full $500,000 would go on the screen.",
+    "There are real, contested debates. Net-profit definitions in the industry have been criticized by some creators as opaque and weighted toward the party that keeps the accounts; studios and distributors respond that their deductions reflect genuine costs and risks they bear. Both sides have a point, and the best response is clearer contracts, reasonable caps and transparent reporting rather than assuming bad faith. Fair pay for artists in the streaming era is similarly debated.",
+    "Practical habits: write down agreements, explain waterfalls plainly, share statements on time, correct mistakes promptly, and refuse requests to disguise numbers. Reputation lasts longer than any single deal."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "entertainment-finance.l01.q1",
+   "lessonId": "entertainment-finance.l01",
+   "kind": "tf",
+   "prompt": "In most entertainment projects, the costs arrive before the income does.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l01.q2",
+   "lessonId": "entertainment-finance.l01",
+   "kind": "mcq",
+   "prompt": "A film has a $2,000,000 budget. Equity gives $800,000, presales $600,000 and a tax incentive $300,000. How much must a loan supply to fully fund it?",
+   "choices": [
+    "$800,000",
+    "$300,000",
+    "$400,000",
+    "$500,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l01.q3",
+   "lessonId": "entertainment-finance.l01",
+   "kind": "mcq",
+   "prompt": "Why do producers usually combine several funding sources?",
+   "choices": [
+    "Because mixing sources removes all risk",
+    "Because lenders refuse to lend to funded projects",
+    "So that no single source carries all of the risk",
+    "Because only one source is ever legal"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l01.q4",
+   "lessonId": "entertainment-finance.l01",
+   "kind": "tf",
+   "prompt": "A tax incentive that arrives late can leave a project short of cash even if the budget looks fully funded on paper.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l01.q5",
+   "lessonId": "entertainment-finance.l01",
+   "kind": "mcq",
+   "prompt": "Which description best fits a financing plan?",
+   "choices": [
+    "A schedule of how the budget will be paid for, from several sources",
+    "A list of every actor in the film",
+    "A prediction of how many tickets will be sold",
+    "A promise to investors that they will profit"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l02.q1",
+   "lessonId": "entertainment-finance.l02",
+   "kind": "mcq",
+   "prompt": "Which statement describes debt?",
+   "choices": [
+    "Money invested in return for a share of any profit",
+    "A gift that never needs repaying",
+    "A payment from a customer before delivery",
+    "Borrowed money that must be repaid, usually with interest"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l02.q2",
+   "lessonId": "entertainment-finance.l02",
+   "kind": "mcq",
+   "prompt": "A producer borrows $400,000 at 10% simple interest for one year. How much is owed at the end?",
+   "choices": [
+    "$440,000",
+    "$410,000",
+    "$404,000",
+    "$500,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l02.q3",
+   "lessonId": "entertainment-finance.l02",
+   "kind": "mcq",
+   "prompt": "An investor puts in $400,000 for 40% of net profit. The project earns net profit of $1,000,000. What does the investor receive as their profit share?",
+   "choices": [
+    "$1,000,000",
+    "$400,000",
+    "$40,000",
+    "$440,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l02.q4",
+   "lessonId": "entertainment-finance.l02",
+   "kind": "tf",
+   "prompt": "If a project earns nothing, an equity investor is still owed their money back with interest.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l02.q5",
+   "lessonId": "entertainment-finance.l02",
+   "kind": "mcq",
+   "prompt": "Why are lenders described as senior to equity investors?",
+   "choices": [
+    "They own more of the project",
+    "They approve the creative choices",
+    "They always earn higher returns",
+    "They are repaid first when money comes in"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l03.q1",
+   "lessonId": "entertainment-finance.l03",
+   "kind": "mcq",
+   "prompt": "What is a presale?",
+   "choices": [
+    "A sale of the finished script",
+    "A tax refund for filming locally",
+    "A contract to pay for distribution rights before the film is made",
+    "A discount on tickets before opening night"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l03.q2",
+   "lessonId": "entertainment-finance.l03",
+   "kind": "mcq",
+   "prompt": "A producer signs three presales of $300,000 each, with 10% paid on signing. How much is paid on signing across all three?",
+   "choices": [
+    "$30,000",
+    "$270,000",
+    "$900,000",
+    "$90,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l03.q3",
+   "lessonId": "entertainment-finance.l03",
+   "kind": "tf",
+   "prompt": "A late or non-conforming delivery can delay or reduce the balance paid under a presale.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l03.q4",
+   "lessonId": "entertainment-finance.l03",
+   "kind": "mcq",
+   "prompt": "A 25% incentive applies to $1,200,000 of qualifying spending. What is the incentive?",
+   "choices": [
+    "$25,000",
+    "$300,000",
+    "$120,000",
+    "$480,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l03.q5",
+   "lessonId": "entertainment-finance.l03",
+   "kind": "mcq",
+   "prompt": "Why might a producer borrow against an expected tax incentive?",
+   "choices": [
+    "Because borrowing eliminates interest",
+    "Because the law requires a loan for every incentive",
+    "Because the incentive often arrives after costs are audited, leaving a timing gap",
+    "Because incentives are paid before filming starts"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l04.q1",
+   "lessonId": "entertainment-finance.l04",
+   "kind": "mcq",
+   "prompt": "Which loan covers money that is promised but has not arrived yet?",
+   "choices": [
+    "A completion bond",
+    "A bridge loan",
+    "A gap loan",
+    "A mortgage"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l04.q2",
+   "lessonId": "entertainment-finance.l04",
+   "kind": "mcq",
+   "prompt": "A $5,000,000 film has $2,000,000 in presales, $1,500,000 equity and $1,000,000 incentive. What is the gap?",
+   "choices": [
+    "$4,500,000",
+    "$250,000",
+    "$500,000",
+    "$1,000,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l04.q3",
+   "lessonId": "entertainment-finance.l04",
+   "kind": "mcq",
+   "prompt": "A bridge lender lends 80% of a $1,000,000 incentive at 12% annual interest for half a year. How much interest accrues?",
+   "choices": [
+    "$96,000",
+    "$60,000",
+    "$120,000",
+    "$48,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l04.q4",
+   "lessonId": "entertainment-finance.l04",
+   "kind": "tf",
+   "prompt": "A completion bond guarantees that a film will be profitable.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l04.q5",
+   "lessonId": "entertainment-finance.l04",
+   "kind": "mcq",
+   "prompt": "At an illustrative 2% fee, what would a completion bond cost on a $5,000,000 budget?",
+   "choices": [
+    "$1,000,000",
+    "$100,000",
+    "$10,000",
+    "$250,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l05.q1",
+   "lessonId": "entertainment-finance.l05",
+   "kind": "tf",
+   "prompt": "A grant is generally money given without an expectation of repayment.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l05.q2",
+   "lessonId": "entertainment-finance.l05",
+   "kind": "mcq",
+   "prompt": "A crowdfunding campaign raises $50,000 and fees total 8%. How much does the creator receive before fulfillment costs?",
+   "choices": [
+    "$54,000",
+    "$46,000",
+    "$4,000",
+    "$42,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l05.q3",
+   "lessonId": "entertainment-finance.l05",
+   "kind": "mcq",
+   "prompt": "What is the main idea of slate financing?",
+   "choices": [
+    "Paying all actors the same fee",
+    "Selling a film before it is written",
+    "Funding several projects together so one hit can offset losses",
+    "Funding one project with a single large loan"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l05.q4",
+   "lessonId": "entertainment-finance.l05",
+   "kind": "mcq",
+   "prompt": "An investor funds four films totaling $8,000,000 that return $12,000,000 in all. What is the overall percentage gain?",
+   "choices": [
+    "33%",
+    "150%",
+    "25%",
+    "50%"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l05.q5",
+   "lessonId": "entertainment-finance.l05",
+   "kind": "tf",
+   "prompt": "Slate financing removes the risk that the whole slate underperforms.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l06.q1",
+   "lessonId": "entertainment-finance.l06",
+   "kind": "tf",
+   "prompt": "A forecast is an updated estimate of final cost made during the project.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l06.q2",
+   "lessonId": "entertainment-finance.l06",
+   "kind": "mcq",
+   "prompt": "A film has $900,000 of base costs budgeted. $300,000 has been spent and $650,000 is expected to be spent. What is the variance?",
+   "choices": [
+    "$50,000 over",
+    "$50,000 under",
+    "$150,000 over",
+    "$350,000 over"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l06.q3",
+   "lessonId": "entertainment-finance.l06",
+   "kind": "mcq",
+   "prompt": "With a $100,000 contingency and a $50,000 overage absorbed, how much contingency remains?",
+   "choices": [
+    "$0",
+    "$50,000",
+    "$100,000",
+    "$150,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l06.q4",
+   "lessonId": "entertainment-finance.l06",
+   "kind": "mcq",
+   "prompt": "What is contingency?",
+   "choices": [
+    "Money earned from sales",
+    "A type of tax credit",
+    "A reserve in the budget for unexpected costs",
+    "A fee paid to the director"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l06.q5",
+   "lessonId": "entertainment-finance.l06",
+   "kind": "tf",
+   "prompt": "The estimate to complete plus actual costs to date gives the forecast total.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l07.q1",
+   "lessonId": "entertainment-finance.l07",
+   "kind": "mcq",
+   "prompt": "What is cash flow?",
+   "choices": [
+    "A kind of loan",
+    "A tax on income",
+    "The movement of money in and out over time",
+    "The total profit at the end of a project"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l07.q2",
+   "lessonId": "entertainment-finance.l07",
+   "kind": "mcq",
+   "prompt": "A production has $400,000 and spends $250,000 per month with no income. What is the balance after month one?",
+   "choices": [
+    "$250,000",
+    "-$100,000",
+    "$650,000",
+    "$150,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l07.q3",
+   "lessonId": "entertainment-finance.l07",
+   "kind": "mcq",
+   "prompt": "Continuing that production with no income, what is the balance after month two?",
+   "choices": [
+    "-$100,000",
+    "$150,000",
+    "$100,000",
+    "-$250,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l07.q4",
+   "lessonId": "entertainment-finance.l07",
+   "kind": "tf",
+   "prompt": "A project can be profitable overall and still run out of cash partway through.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l07.q5",
+   "lessonId": "entertainment-finance.l07",
+   "kind": "mcq",
+   "prompt": "Which habit best reduces the risk of a cash crunch?",
+   "choices": [
+    "Ignoring incoming payments until they arrive",
+    "Paying all costs at once at the start",
+    "Updating the cash forecast often and arranging a credit facility early",
+    "Waiting until the account is empty to seek a loan"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l08.q1",
+   "lessonId": "entertainment-finance.l08",
+   "kind": "mcq",
+   "prompt": "What is a waterfall in entertainment finance?",
+   "choices": [
+    "A budget line for contingency",
+    "The contractual order in which revenue is paid out",
+    "A style of lighting",
+    "A type of tax credit"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l08.q2",
+   "lessonId": "entertainment-finance.l08",
+   "kind": "mcq",
+   "prompt": "In the lesson example, $1,500,000 arrives. After a 20% distribution fee, how much remains?",
+   "choices": [
+    "$300,000",
+    "$1,480,000",
+    "$1,200,000",
+    "$1,300,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l08.q3",
+   "lessonId": "entertainment-finance.l08",
+   "kind": "mcq",
+   "prompt": "After a fee of 300,000, expenses of 100,000 and loan repayment of 330,000, then equity recoupment of 600,000 from $1,500,000, how much profit remains to split?",
+   "choices": [
+    "$770,000",
+    "$600,000",
+    "$270,000",
+    "$170,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l08.q4",
+   "lessonId": "entertainment-finance.l08",
+   "kind": "mcq",
+   "prompt": "If the remaining $170,000 is split 50/50, how much does each side receive?",
+   "choices": [
+    "$85,000",
+    "$170,000",
+    "$50,000",
+    "$100,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l08.q5",
+   "lessonId": "entertainment-finance.l08",
+   "kind": "tf",
+   "prompt": "Being earlier in the waterfall generally means being paid sooner and with more certainty.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l09.q1",
+   "lessonId": "entertainment-finance.l09",
+   "kind": "mcq",
+   "prompt": "Which phrase best describes gross receipts?",
+   "choices": [
+    "Money coming in, before most deductions",
+    "Profit after all deductions",
+    "A type of fee",
+    "The production budget"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l09.q2",
+   "lessonId": "entertainment-finance.l09",
+   "kind": "tf",
+   "prompt": "The word net has the same meaning in every contract.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l09.q3",
+   "lessonId": "entertainment-finance.l09",
+   "kind": "mcq",
+   "prompt": "A film grosses $10,000,000. Deductions are a 25% distribution fee, $3,000,000 expenses, $4,000,000 production cost and $500,000 interest. What is net profit?",
+   "choices": [
+    "$2,500,000",
+    "$10,000,000",
+    "$0",
+    "$500,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l09.q4",
+   "lessonId": "entertainment-finance.l09",
+   "kind": "mcq",
+   "prompt": "In that same example, what would 5% of gross have paid?",
+   "choices": [
+    "$50,000",
+    "$0",
+    "$5,000,000",
+    "$500,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l09.q5",
+   "lessonId": "entertainment-finance.l09",
+   "kind": "mcq",
+   "prompt": "At $12,000,000 gross with the same costs (fee now 25% of gross), net profit is $1,500,000. What do 5 points of net pay?",
+   "choices": [
+    "$75,000",
+    "$60,000",
+    "$600,000",
+    "$7,500"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l10.q1",
+   "lessonId": "entertainment-finance.l10",
+   "kind": "tf",
+   "prompt": "Residuals are payments for reuse of a work, set by agreements such as guild contracts.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l10.q2",
+   "lessonId": "entertainment-finance.l10",
+   "kind": "mcq",
+   "prompt": "What does a collective bargaining agreement set?",
+   "choices": [
+    "Minimum pay, conditions and certain reuse payments for guild members",
+    "The ticket price of a movie",
+    "The tax rate on royalties",
+    "The film's budget"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l10.q3",
+   "lessonId": "entertainment-finance.l10",
+   "kind": "mcq",
+   "prompt": "With a hypothetical rate, a residual pool is 2% of $3,000,000. What is the pool?",
+   "choices": [
+    "$30,000",
+    "$60,000",
+    "$6,000",
+    "$600,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l10.q4",
+   "lessonId": "entertainment-finance.l10",
+   "kind": "mcq",
+   "prompt": "Actor A earned $30,000 and Actor B $10,000. The $60,000 pool is shared in proportion to original pay. What does A receive?",
+   "choices": [
+    "$15,000",
+    "$20,000",
+    "$45,000",
+    "$30,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l10.q5",
+   "lessonId": "entertainment-finance.l10",
+   "kind": "tf",
+   "prompt": "Pension and health contributions are real costs that belong in a budget alongside weekly pay.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l11.q1",
+   "lessonId": "entertainment-finance.l11",
+   "kind": "mcq",
+   "prompt": "What is an advance in a record deal?",
+   "choices": [
+    "A fee paid by fans",
+    "A tax refund",
+    "Money paid up front and later deducted from royalties earned",
+    "A gift that is never accounted for"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l11.q2",
+   "lessonId": "entertainment-finance.l11",
+   "kind": "mcq",
+   "prompt": "An artist has a $150,000 advance and a 20% royalty on $1,000,000 of net receipts. What is paid after recoupment?",
+   "choices": [
+    "$200,000",
+    "$150,000",
+    "$350,000",
+    "$50,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l11.q3",
+   "lessonId": "entertainment-finance.l11",
+   "kind": "mcq",
+   "prompt": "With net receipts of only $600,000 at 20%, how much remains unrecouped on a $150,000 advance?",
+   "choices": [
+    "$30,000",
+    "$120,000",
+    "$0",
+    "$150,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l11.q4",
+   "lessonId": "entertainment-finance.l11",
+   "kind": "tf",
+   "prompt": "Cross-collateralization lets a shortfall on one record be recouped from earnings on another.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l11.q5",
+   "lessonId": "entertainment-finance.l11",
+   "kind": "mcq",
+   "prompt": "Why might recoupable extras like video costs hurt an artist?",
+   "choices": [
+    "They cancel the advance",
+    "They are paid by the label with no effect",
+    "They extend the time before royalties are actually paid",
+    "They increase the royalty rate"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l12.q1",
+   "lessonId": "entertainment-finance.l12",
+   "kind": "mcq",
+   "prompt": "Which right does music publishing mainly handle?",
+   "choices": [
+    "Merchandise",
+    "The composition: words and music",
+    "The recording only",
+    "Concert tickets"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l12.q2",
+   "lessonId": "entertainment-finance.l12",
+   "kind": "tf",
+   "prompt": "The writer's share is commonly about half of performance income and is paid directly to the writer.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l12.q3",
+   "lessonId": "entertainment-finance.l12",
+   "kind": "mcq",
+   "prompt": "In an administration deal, who usually keeps ownership of the copyright?",
+   "choices": [
+    "The administrator",
+    "The performing rights organization",
+    "The venue",
+    "The writer"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l12.q4",
+   "lessonId": "entertainment-finance.l12",
+   "kind": "mcq",
+   "prompt": "A song earns $200,000 total. The writer self-publishes with a 15% administration fee on the publisher's $100,000 share. What does the writer receive in all?",
+   "choices": [
+    "$185,000",
+    "$85,000",
+    "$170,000",
+    "$200,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l12.q5",
+   "lessonId": "entertainment-finance.l12",
+   "kind": "mcq",
+   "prompt": "What does a traditional publishing deal typically give the publisher?",
+   "choices": [
+    "A share of ticket sales",
+    "Ownership or part-ownership of the copyright in return for an advance and promotion",
+    "Control of the writer's live performances",
+    "Ownership of the recording"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l13.q1",
+   "lessonId": "entertainment-finance.l13",
+   "kind": "mcq",
+   "prompt": "What does a profit and loss statement show?",
+   "choices": [
+    "Revenue, expenses and resulting profit",
+    "Only the budget",
+    "The ticket prices",
+    "The number of fans"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l13.q2",
+   "lessonId": "entertainment-finance.l13",
+   "kind": "mcq",
+   "prompt": "A tour plays 20 shows to 1,500 people each at $50. What is gross ticket sales?",
+   "choices": [
+    "$15,000,000",
+    "$1,500,000",
+    "$150,000",
+    "$75,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l13.q3",
+   "lessonId": "entertainment-finance.l13",
+   "kind": "mcq",
+   "prompt": "The artist side receives $1,200,000, with costs of $600,000, a 10% agent and a 15% manager on the $1,200,000. What is net to the artist?",
+   "choices": [
+    "$450,000",
+    "$420,000",
+    "$300,000",
+    "$600,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l13.q4",
+   "lessonId": "entertainment-finance.l13",
+   "kind": "tf",
+   "prompt": "Because tour costs are largely fixed, selling fewer tickets can shrink profit quickly.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l13.q5",
+   "lessonId": "entertainment-finance.l13",
+   "kind": "mcq",
+   "prompt": "The artist's $300,000 net on $1,200,000 of artist income is what margin?",
+   "choices": [
+    "25%",
+    "30%",
+    "20%",
+    "50%"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l14.q1",
+   "lessonId": "entertainment-finance.l14",
+   "kind": "mcq",
+   "prompt": "What is a settlement in live events?",
+   "choices": [
+    "A court ruling",
+    "A ticket refund",
+    "A contract for the next tour",
+    "A written accounting of the night's revenue, expenses and payments"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l14.q2",
+   "lessonId": "entertainment-finance.l14",
+   "kind": "mcq",
+   "prompt": "A show sells 2,000 tickets at $60. What is gross?",
+   "choices": [
+    "$120,000",
+    "$12,000",
+    "$62,000",
+    "$1,200,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l14.q3",
+   "lessonId": "entertainment-finance.l14",
+   "kind": "mcq",
+   "prompt": "Gross $120,000, expenses $50,000, artist gets 85% of net versus a $50,000 guarantee. What does the artist receive?",
+   "choices": [
+    "$70,000",
+    "$59,500",
+    "$50,000",
+    "$102,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l14.q4",
+   "lessonId": "entertainment-finance.l14",
+   "kind": "mcq",
+   "prompt": "Using that same night, what does the promoter keep after paying the artist?",
+   "choices": [
+    "$20,000",
+    "$70,000",
+    "$10,500",
+    "$59,500"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l14.q5",
+   "lessonId": "entertainment-finance.l14",
+   "kind": "tf",
+   "prompt": "If a show sells poorly, a guarantee can mean the promoter loses money while the artist is still paid.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l15.q1",
+   "lessonId": "entertainment-finance.l15",
+   "kind": "mcq",
+   "prompt": "What is a milestone payment in game development?",
+   "choices": [
+    "A tax on sales",
+    "A fee for store listing",
+    "A payment made after the developer delivers an agreed build",
+    "A bonus paid to players"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l15.q2",
+   "lessonId": "entertainment-finance.l15",
+   "kind": "mcq",
+   "prompt": "A game earns $10,000,000 and a 30% platform fee applies. How much remains?",
+   "choices": [
+    "$3,000,000",
+    "$9,700,000",
+    "$6,000,000",
+    "$7,000,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l15.q3",
+   "lessonId": "entertainment-finance.l15",
+   "kind": "mcq",
+   "prompt": "With $7,000,000 remaining, a $5,000,000 advance recouped first, and the rest split 50/50, what does the developer receive?",
+   "choices": [
+    "$1,000,000",
+    "$2,000,000",
+    "$3,500,000",
+    "$0"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l15.q4",
+   "lessonId": "entertainment-finance.l15",
+   "kind": "tf",
+   "prompt": "A 30% platform fee has long been a common headline figure, though rates and rules vary and change.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l15.q5",
+   "lessonId": "entertainment-finance.l15",
+   "kind": "mcq",
+   "prompt": "What makes live-service games different financially?",
+   "choices": [
+    "They have no platform fees",
+    "They are free of risk",
+    "They earn and spend continuously after launch",
+    "They never need a budget"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l16.q1",
+   "lessonId": "entertainment-finance.l16",
+   "kind": "mcq",
+   "prompt": "What is a catalog in this context?",
+   "choices": [
+    "A film crew roster",
+    "A collection of rights that keep earning, like songs or films",
+    "A printed list of products",
+    "A type of loan"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l16.q2",
+   "lessonId": "entertainment-finance.l16",
+   "kind": "mcq",
+   "prompt": "A catalog earned $100,000, $120,000 and $140,000 in three years. What is the average?",
+   "choices": [
+    "$360,000",
+    "$140,000",
+    "$120,000",
+    "$100,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l16.q3",
+   "lessonId": "entertainment-finance.l16",
+   "kind": "mcq",
+   "prompt": "At an illustrative multiple of 12 on $120,000, what is the value?",
+   "choices": [
+    "$1,200,000",
+    "$120,012",
+    "$1,800,000",
+    "$1,440,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l16.q4",
+   "lessonId": "entertainment-finance.l16",
+   "kind": "mcq",
+   "prompt": "At an 8% discount rate, what is $108,000 received in a year worth today?",
+   "choices": [
+    "$100,000",
+    "$116,640",
+    "$99,360",
+    "$108,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l16.q5",
+   "lessonId": "entertainment-finance.l16",
+   "kind": "tf",
+   "prompt": "A valuation multiple is a fixed rule that applies to every catalog.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l17.q1",
+   "lessonId": "entertainment-finance.l17",
+   "kind": "mcq",
+   "prompt": "What does a contract audit right allow?",
+   "choices": [
+    "An independent check of the payer's relevant records",
+    "Changing the royalty rate",
+    "Canceling the contract",
+    "Publishing the payer's accounts"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l17.q2",
+   "lessonId": "entertainment-finance.l17",
+   "kind": "tf",
+   "prompt": "Audit rights often have time limits after each statement, so deadlines matter.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l17.q3",
+   "lessonId": "entertainment-finance.l17",
+   "kind": "mcq",
+   "prompt": "An audit shows receipts were $900,000, not $800,000, with a 20% rate. What is the underpayment?",
+   "choices": [
+    "$180,000",
+    "$2,000",
+    "$20,000",
+    "$100,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l17.q4",
+   "lessonId": "entertainment-finance.l17",
+   "kind": "mcq",
+   "prompt": "If that audit cost $15,000 and recovered $20,000, what is the net benefit?",
+   "choices": [
+    "$35,000",
+    "$15,000",
+    "$20,000",
+    "$5,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l17.q5",
+   "lessonId": "entertainment-finance.l17",
+   "kind": "mcq",
+   "prompt": "When is an audit most worthwhile?",
+   "choices": [
+    "When the potential recovery is large compared with its cost",
+    "When statements are always perfect",
+    "Only after a contract ends",
+    "Whenever the artist is unhappy"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l18.q1",
+   "lessonId": "entertainment-finance.l18",
+   "kind": "mcq",
+   "prompt": "What is a deductible?",
+   "choices": [
+    "The insurer's profit",
+    "A tax refund",
+    "The policy's expiry date",
+    "The amount you bear before the insurer pays"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l18.q2",
+   "lessonId": "entertainment-finance.l18",
+   "kind": "mcq",
+   "prompt": "A covered loss is $80,000 with a $10,000 deductible. What does the insurer pay?",
+   "choices": [
+    "$70,000",
+    "$80,000",
+    "$90,000",
+    "$10,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l18.q3",
+   "lessonId": "entertainment-finance.l18",
+   "kind": "tf",
+   "prompt": "Production insurance typically protects against an audience not showing up.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l18.q4",
+   "lessonId": "entertainment-finance.l18",
+   "kind": "mcq",
+   "prompt": "Which coverage protects against claims such as infringement or defamation in a finished work?",
+   "choices": [
+    "Workers' compensation",
+    "Event cancellation",
+    "Errors and omissions",
+    "Equipment coverage"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l18.q5",
+   "lessonId": "entertainment-finance.l18",
+   "kind": "mcq",
+   "prompt": "Which approach to a risk lowers its likelihood rather than transferring it?",
+   "choices": [
+    "Buying a policy",
+    "Ignoring it",
+    "Increasing the deductible",
+    "Safety procedures and backup locations"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l19.q1",
+   "lessonId": "entertainment-finance.l19",
+   "kind": "mcq",
+   "prompt": "Which entity type is taxed itself on profits and again on dividends?",
+   "choices": [
+    "Default LLC",
+    "Partnership",
+    "C corporation",
+    "Sole proprietorship"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l19.q2",
+   "lessonId": "entertainment-finance.l19",
+   "kind": "tf",
+   "prompt": "A pass-through entity reports profit on the owners' own tax returns.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l19.q3",
+   "lessonId": "entertainment-finance.l19",
+   "kind": "mcq",
+   "prompt": "A C corporation earns $100,000 and pays 21% tax. What remains?",
+   "choices": [
+    "$79,000",
+    "$21,000",
+    "$100,000",
+    "$89,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l19.q4",
+   "lessonId": "entertainment-finance.l19",
+   "kind": "mcq",
+   "prompt": "Paying the remaining $79,000 as a dividend taxed at an assumed 15%, what does the shareholder keep?",
+   "choices": [
+    "$64,150",
+    "$67,150",
+    "$11,850",
+    "$79,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l19.q5",
+   "lessonId": "entertainment-finance.l19",
+   "kind": "mcq",
+   "prompt": "Why consult an accountant?",
+   "choices": [
+    "Because all entities are taxed identically",
+    "Because accountants set the tax rates",
+    "Tax rules are detailed, change, and depend on your situation",
+    "Because tax rules never change"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l20.q1",
+   "lessonId": "entertainment-finance.l20",
+   "kind": "mcq",
+   "prompt": "What is withholding tax?",
+   "choices": [
+    "A type of insurance",
+    "Tax deducted by the payer before paying the recipient",
+    "A fee paid to a manager",
+    "A refund from a government"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l20.q2",
+   "lessonId": "entertainment-finance.l20",
+   "kind": "mcq",
+   "prompt": "A $100,000 royalty faces 15% withholding. How much does the artist receive?",
+   "choices": [
+    "$100,000",
+    "$115,000",
+    "$85,000",
+    "$15,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l20.q3",
+   "lessonId": "entertainment-finance.l20",
+   "kind": "tf",
+   "prompt": "A foreign tax credit can help offset home-country tax by what was paid abroad, within limits.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l20.q4",
+   "lessonId": "entertainment-finance.l20",
+   "kind": "mcq",
+   "prompt": "A contract is for 1,000,000 euros. At 1.10 dollars per euro, what is it worth in dollars?",
+   "choices": [
+    "$1,100,000",
+    "$1,000,000",
+    "$909,091",
+    "$110,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l20.q5",
+   "lessonId": "entertainment-finance.l20",
+   "kind": "mcq",
+   "prompt": "If the rate falls to 1.00, how much value in dollars is lost on that 1,000,000 euro payment?",
+   "choices": [
+    "$0",
+    "$100,000",
+    "$10,000",
+    "$1,000,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l21.q1",
+   "lessonId": "entertainment-finance.l21",
+   "kind": "mcq",
+   "prompt": "What are comparables, or comps?",
+   "choices": [
+    "Similar past projects that show what the market has paid",
+    "The cast list",
+    "A type of loan",
+    "Free tickets"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l21.q2",
+   "lessonId": "entertainment-finance.l21",
+   "kind": "mcq",
+   "prompt": "An investor puts in $1,000,000. Scenarios: 50% chance of $500,000, 30% of $1,200,000, 20% of $3,000,000. What is the expected return?",
+   "choices": [
+    "$4,700,000",
+    "$1,210,000",
+    "$1,000,000",
+    "$1,566,667"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l21.q3",
+   "lessonId": "entertainment-finance.l21",
+   "kind": "tf",
+   "prompt": "A good pitch should guarantee investors a profit.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l21.q4",
+   "lessonId": "entertainment-finance.l21",
+   "kind": "mcq",
+   "prompt": "Why involve a lawyer before soliciting investors?",
+   "choices": [
+    "Lawyers set the film budget",
+    "It is required to write a script",
+    "Investors prefer lawyers to producers",
+    "Offers of shares may be regulated as securities"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l21.q5",
+   "lessonId": "entertainment-finance.l21",
+   "kind": "tf",
+   "prompt": "Scenario probabilities in a pitch are judgments, and should be presented as such.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l22.q1",
+   "lessonId": "entertainment-finance.l22",
+   "kind": "mcq",
+   "prompt": "Is a term sheet usually binding?",
+   "choices": [
+    "Always entirely binding",
+    "Never has any binding clause",
+    "Binding only on the lawyers",
+    "Mostly not, though some clauses like confidentiality may be"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l22.q2",
+   "lessonId": "entertainment-finance.l22",
+   "kind": "mcq",
+   "prompt": "An investor puts in $200,000 at an $800,000 pre-money valuation. What is the post-money value?",
+   "choices": [
+    "$1,000,000",
+    "$600,000",
+    "$800,000",
+    "$160,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l22.q3",
+   "lessonId": "entertainment-finance.l22",
+   "kind": "mcq",
+   "prompt": "What percentage does that investor own?",
+   "choices": [
+    "80%",
+    "20%",
+    "25%",
+    "200%"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l22.q4",
+   "lessonId": "entertainment-finance.l22",
+   "kind": "mcq",
+   "prompt": "A later investor puts in $500,000 at $1,500,000 pre-money. What does the first investor's 20% become?",
+   "choices": [
+    "10%",
+    "25%",
+    "15%",
+    "20%"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l22.q5",
+   "lessonId": "entertainment-finance.l22",
+   "kind": "tf",
+   "prompt": "Pressure to sign a term sheet quickly is a reason to slow down and review.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l23.q1",
+   "lessonId": "entertainment-finance.l23",
+   "kind": "mcq",
+   "prompt": "Which is a common red flag?",
+   "choices": [
+    "A clear budget",
+    "A lawyer's trust account",
+    "Guaranteed or unusually high returns",
+    "Written contracts"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l23.q2",
+   "lessonId": "entertainment-finance.l23",
+   "kind": "mcq",
+   "prompt": "A producer offers 40% of profits to each of three investors. What total is promised?",
+   "choices": [
+    "100%",
+    "40%",
+    "80%",
+    "120%"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l23.q3",
+   "lessonId": "entertainment-finance.l23",
+   "kind": "tf",
+   "prompt": "A Ponzi-style scheme pays earlier investors using money from later investors.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l23.q4",
+   "lessonId": "entertainment-finance.l23",
+   "kind": "mcq",
+   "prompt": "How should you confirm a claimed distribution deal?",
+   "choices": [
+    "Ask the producer to vouch for it",
+    "Contact the other party using details you found yourself",
+    "Trust the producer's email",
+    "Pay a deposit first"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l23.q5",
+   "lessonId": "entertainment-finance.l23",
+   "kind": "mcq",
+   "prompt": "A promise of 30% in six months is roughly what annual rate if simple?",
+   "choices": [
+    "15%",
+    "180%",
+    "60%",
+    "30%"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l24.q1",
+   "lessonId": "entertainment-finance.l24",
+   "kind": "mcq",
+   "prompt": "What is a conflict of interest?",
+   "choices": [
+    "A type of insurance",
+    "A personal interest that could affect duties to others",
+    "A disagreement about a script",
+    "A late payment"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l24.q2",
+   "lessonId": "entertainment-finance.l24",
+   "kind": "mcq",
+   "prompt": "A company charges its own $500,000 film a 10% overhead fee. How much is that?",
+   "choices": [
+    "$500,000",
+    "$55,000",
+    "$50,000",
+    "$5,000"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l24.q3",
+   "lessonId": "entertainment-finance.l24",
+   "kind": "tf",
+   "prompt": "A related-party fee that is clearly agreed and disclosed can be acceptable.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l24.q4",
+   "lessonId": "entertainment-finance.l24",
+   "kind": "mcq",
+   "prompt": "Which response to the net-profit debate does the lesson favor?",
+   "choices": [
+    "Clearer contracts, reasonable caps and transparent reporting",
+    "Assuming bad faith in all cases",
+    "Eliminating all profit shares",
+    "Keeping definitions confidential"
+   ]
+  },
+  {
+   "id": "entertainment-finance.l24.q5",
+   "lessonId": "entertainment-finance.l24",
+   "kind": "tf",
+   "prompt": "Ethical practice means following the intent of agreements, not only the letter.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  }
+ ]
+}

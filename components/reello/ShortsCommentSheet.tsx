@@ -10,12 +10,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { X, MessageCircle, Send, Loader2 } from 'lucide-react';
+import { X, MessageCircle, Send, Loader2, Sparkles } from 'lucide-react';
 import { Video, VideoComment } from '../../types';
 import { listenToVideoComments, postVideoComment } from '../../services/backendService';
+import GifStickerPicker from '../GifStickerPicker';
 
 /** Share of the viewport height the sheet occupies. The caller scales the video into 100-this. */
-export const SHEET_VH = 52;
+export const SHEET_VH = 56;
 
 function timeAgo(ts?: number) {
   if (!ts) return '';
@@ -40,6 +41,8 @@ interface Props {
 const ShortsCommentSheet: React.FC<Props> = ({ video, open, onClose, currentUser, onCountChange }) => {
   const [comments, setComments] = useState<VideoComment[]>([]);
   const [text, setText] = useState('');
+  const [pendingGif, setPendingGif] = useState<string | null>(null);
+  const [showGifPicker, setShowGifPicker] = useState(false);
   const [posting, setPosting] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -61,17 +64,18 @@ const ShortsCommentSheet: React.FC<Props> = ({ video, open, onClose, currentUser
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, video?.id]);
 
-  useEffect(() => { setText(''); }, [video?.id]);
+  useEffect(() => { setText(''); setPendingGif(null); }, [video?.id]);
 
   const submit = async () => {
     const body = text.trim();
-    if (!body || posting || !currentUser?.uid) return;
+    if ((!body && !pendingGif) || posting || !currentUser?.uid) return;
     setPosting(true);
     try {
-      await postVideoComment(video.id, body);
+      await postVideoComment(video.id, body, undefined, pendingGif || undefined);
       setText('');
+      setPendingGif(null);
     } catch {
-      /* the listener is the source of truth; a failed post just leaves the draft */
+      /* the listener is the source of truth; a failed post leaves the draft */
     } finally {
       setPosting(false);
     }
@@ -87,54 +91,68 @@ const ShortsCommentSheet: React.FC<Props> = ({ video, open, onClose, currentUser
           transition={{ type: 'spring', stiffness: 320, damping: 34 }}
           style={{ height: `${SHEET_VH}vh` }}
           onClick={e => e.stopPropagation()}
-          className="absolute inset-x-0 bottom-0 z-40 flex flex-col bg-[#0a0a0a]/97 backdrop-blur-2xl border-t border-white/10 rounded-t-[1.75rem] shadow-[0_-20px_60px_rgba(0,0,0,0.8)]"
+          className="absolute inset-x-0 bottom-0 z-40 flex flex-col bg-[#0d0c12]/98 backdrop-blur-3xl border-t border-white/10 rounded-t-[2rem] shadow-[0_-24px_80px_rgba(0,0,0,0.9)]"
         >
           {/* Grab handle + header */}
-          <div className="shrink-0 pt-2.5 pb-3 px-5 border-b border-white/5">
-            <div className="w-10 h-1 rounded-full bg-white/15 mx-auto mb-3" />
+          <div className="shrink-0 pt-3 pb-3 px-6 border-b border-white/8 bg-white/[0.02]">
+            <div className="w-12 h-1.5 rounded-full bg-white/20 mx-auto mb-3" />
             <div className="flex items-center justify-between">
-              <h3 className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-white">
-                <MessageCircle size={13} className="text-white/35" />
-                Comments
-                <span className="text-white/25">{comments.length}</span>
-              </h3>
+              <div className="flex items-center gap-2.5">
+                <div className="w-2 h-2 rounded-full bg-orange-400"></div>
+                <h3 className="text-xs font-black uppercase tracking-widest text-white flex items-center gap-2">
+                  <MessageCircle size={14} className="text-white/40" />
+                  Comments
+                  <span className="text-white/30 font-bold ml-1">({comments.length})</span>
+                </h3>
+              </div>
               <button
                 onClick={onClose}
-                className="w-8 h-8 rounded-full bg-white/8 border border-white/10 flex items-center justify-center text-white/50 hover:text-white transition-colors"
+                className="w-8 h-8 rounded-full bg-white/8 border border-white/10 flex items-center justify-center text-white/60 hover:text-white transition-colors active:scale-95"
               >
-                <X size={14} />
+                <X size={15} />
               </button>
             </div>
           </div>
 
           {/* List */}
-          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5 custom-scrollbar">
             {loading ? (
-              <div className="flex items-center justify-center py-10 text-white/30">
-                <Loader2 size={18} className="animate-spin" />
+              <div className="flex items-center justify-center py-12 text-white/30">
+                <Loader2 size={20} className="animate-spin text-orange-400" />
               </div>
             ) : comments.length === 0 ? (
-              <p className="text-center py-10 text-[9px] font-black uppercase tracking-widest text-white/25">
-                No comments yet — say the first thing.
-              </p>
+              <div className="text-center py-14 select-none">
+                <p className="text-[11px] font-black uppercase tracking-widest text-white/30">
+                  No comments yet — say the first thing.
+                </p>
+              </div>
             ) : (
               comments.map(c => {
                 const author = c.userName || 'Someone';
                 const photo  = c.userPhoto;
                 const body   = c.text || '';
                 return (
-                  <div key={c.id} className="flex gap-3">
-                    <div className="w-8 h-8 rounded-full overflow-hidden bg-white/10 shrink-0">
+                  <div key={c.id} className="flex gap-3.5 items-start">
+                    <div className="w-9 h-9 rounded-2xl overflow-hidden bg-white/10 shrink-0 ring-1 ring-white/10">
                       {photo
                         ? <img src={photo} alt="" className="w-full h-full object-cover" loading="lazy" decoding="async" />
-                        : <div className="w-full h-full flex items-center justify-center text-[10px] font-black text-white/40">{author[0]}</div>}
+                        : <div className="w-full h-full flex items-center justify-center text-xs font-black text-white/50 bg-gradient-to-tr from-purple-500/30 to-orange-500/30">{author[0]}</div>}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-2 leading-none">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-white/70 truncate">{author}</span>
-                        <span className="text-[8px] font-bold text-white/25 shrink-0">{timeAgo(c.timestamp)}</span>
-                      </p>
-                      <p className="mt-1.5 text-[12px] text-white/70 leading-relaxed break-words">{body}</p>
+                      <div className="bg-white/[0.05] hover:bg-white/[0.08] transition-colors rounded-2xl rounded-tl-sm px-4 py-3 border border-white/5">
+                        <div className="flex items-baseline justify-between gap-2 mb-1">
+                          <span className="text-xs font-black text-orange-400 uppercase tracking-wider truncate">{author}</span>
+                          <span className="text-[10px] font-bold text-white/30 shrink-0">{timeAgo(c.timestamp)}</span>
+                        </div>
+                        {body && (
+                          <p className="text-[13.5px] text-white/90 leading-relaxed break-words font-medium">{body}</p>
+                        )}
+                        {c.gifUrl && (
+                          <div className="mt-2.5 rounded-xl overflow-hidden border border-white/10 max-w-[240px] shadow-lg">
+                            <img src={c.gifUrl} alt="GIF" className="w-full h-auto object-cover" loading="lazy" />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
@@ -142,27 +160,78 @@ const ShortsCommentSheet: React.FC<Props> = ({ video, open, onClose, currentUser
             )}
           </div>
 
-          {/* Composer */}
-          <div className="shrink-0 px-4 py-3 border-t border-white/5">
-            {currentUser?.uid ? (
+          {/* Pending GIF Attachment pill */}
+          {pendingGif && (
+            <div className="px-6 py-2 border-t border-white/5 bg-white/[0.02] flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <input
-                  value={text}
-                  onChange={e => setText(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); } }}
-                  placeholder="Add a comment…"
-                  className="flex-1 bg-white/5 border border-white/10 focus:border-white/30 rounded-full px-4 py-2.5 text-[12px] outline-none transition-all placeholder:text-white/20"
-                />
+                <img src={pendingGif} alt="Selected GIF" className="w-10 h-10 rounded-lg object-cover border border-white/20" />
+                <span className="text-[10px] font-black uppercase tracking-wider text-purple-300">GIF attached</span>
+              </div>
+              <button onClick={() => setPendingGif(null)} className="text-white/40 hover:text-red-400 p-1">
+                <X size={14} />
+              </button>
+            </div>
+          )}
+
+          {/* Composer */}
+          <div className="shrink-0 px-5 py-4 border-t border-white/8 bg-black/40 relative">
+            {currentUser?.uid ? (
+              <div className="flex items-center gap-2.5">
+                <div className="flex-1 relative flex items-center">
+                  <input
+                    value={text}
+                    onChange={e => setText(e.target.value)}
+                    onKeyDown={e => {
+                      e.stopPropagation();
+                      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submit(); }
+                    }}
+                    onKeyUp={e => e.stopPropagation()}
+                    placeholder="Add a comment…"
+                    className="w-full bg-white/[0.07] border border-white/15 focus:border-orange-500/60 focus:bg-white/[0.1] rounded-full pl-5 pr-20 py-3 text-[13.5px] text-white placeholder-white/30 outline-none transition-all"
+                  />
+                  <div className="absolute right-2.5 flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowGifPicker(v => !v)}
+                      title="Add GIF"
+                      className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all ${
+                        showGifPicker || pendingGif
+                          ? 'bg-purple-500 text-white border-purple-400'
+                          : 'bg-purple-500/20 hover:bg-purple-500/30 text-purple-300 border-purple-400/30'
+                      }`}
+                    >
+                      GIF
+                    </button>
+                  </div>
+                </div>
+
                 <button
                   onClick={submit}
-                  disabled={!text.trim() || posting}
-                  className="w-10 h-10 rounded-full bg-white text-black hover:bg-[#FF8C00] hover:text-white flex items-center justify-center transition-all disabled:opacity-30 shrink-0"
+                  disabled={(!text.trim() && !pendingGif) || posting}
+                  className="w-11 h-11 rounded-full bg-white text-black hover:bg-orange-500 hover:text-white flex items-center justify-center transition-all disabled:opacity-30 shrink-0 shadow-lg active:scale-95"
                 >
-                  {posting ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />}
+                  {posting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
                 </button>
+
+                {/* GIF Sticker Picker Modal */}
+                <AnimatePresence>
+                  {showGifPicker && (
+                    <>
+                      <div className="fixed inset-0 z-[190]" onClick={() => setShowGifPicker(false)} />
+                      <GifStickerPicker
+                        onClose={() => setShowGifPicker(false)}
+                        anchorClass="bottom-full mb-3 right-4 sm:right-6"
+                        onSelect={async (url) => {
+                          setShowGifPicker(false);
+                          setPendingGif(url);
+                        }}
+                      />
+                    </>
+                  )}
+                </AnimatePresence>
               </div>
             ) : (
-              <p className="text-center py-2 text-[9px] font-black uppercase tracking-widest text-white/30">
+              <p className="text-center py-2 text-[10px] font-black uppercase tracking-widest text-white/40">
                 Sign in to join the conversation
               </p>
             )}

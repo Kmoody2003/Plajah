@@ -1,0 +1,22 @@
+[workspace]
+resolver = "2"
+members = [
+    "plajah-audio",
+    "fabula-ofx",
+    "plajah-vst3-host",
+    "plajah-math",
+    "plajah-color",
+    "plajah-core",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "UNLICENSED"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true

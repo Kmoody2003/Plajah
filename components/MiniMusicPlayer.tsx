@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Play, Pause, SkipBack, SkipForward, Volume2, Music, Disc, Waves } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Volume2, Music, Disc, Waves, Cast } from 'lucide-react';
 import { Album, Track } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
@@ -161,6 +161,14 @@ const MiniMusicPlayer: React.FC<MiniMusicPlayerProps> = ({ album, autoPlay = fal
             className="tap p-2 text-white/25 hover:text-orange-400 transition-all"
           >
             <Waves size={15} />
+          </button>
+          {/* Google Cast / Wireless Speakers */}
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('plajah:open-cast'))}
+            title="Cast to Device / Speakers"
+            className="tap p-2 text-white/25 hover:text-cyan-400 transition-all"
+          >
+            <Cast size={15} />
           </button>
         </div>
       </div>

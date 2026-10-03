@@ -1,0 +1,849 @@
+{
+ "courseId": "law-profresp",
+ "verifier": "A",
+ "questions": [
+  {
+   "id": "law-profresp.l01.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l01.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l01.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l01.q4",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Rule 8.5(b)(2) choice-of-law: place of conduct unless predominant effect elsewhere; option wording is dense.",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l01.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l02.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l02.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l02.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l03.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l03.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l03.q4",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Prong-two prejudice standard and presumption of reasonable performance are Strickland-specific; other options are civil elements.",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l03.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l04.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l04.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l04.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l05.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l05.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l05.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l05.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l05.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l06.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l06.q2",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Presence of a non-essential third party generally defeats confidentiality, though some jurisdictions are more lenient.",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l06.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l06.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l07.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l07.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l07.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l07.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l08.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l08.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l08.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l09.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l09.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l09.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l09.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l09.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l10.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l10.q3",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Playbook knowledge is generally not substantially related (cmt 3 to 1.9), but fact-specific.",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l10.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l10.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l11.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l11.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l11.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l11.q5",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Rule 1.8(j) exempts pre-existing consensual relationships; none here so violation; option 1 phrasing is slightly odd.",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l12.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l12.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l12.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l12.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l12.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l13.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l13.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l13.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l13.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l13.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l14.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l14.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l14.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l14.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l15.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l15.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l15.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l15.q5",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Cannabis advice rules are state-specific and time-sensitive; Rule 1.2(d) comment varies by state.",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l16.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l16.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l16.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l16.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l16.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l17.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l17.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l17.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l17.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l17.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l18.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l18.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l18.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l18.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l19.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l19.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l19.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l19.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l20.q2",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Fried is the special-purpose friend theorist.",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l20.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l20.q5",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Freedman three hardest questions concern zealous advocacy limits; options otherwise unrelated.",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l21.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l21.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l21.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l21.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  },
+  {
+   "id": "law-profresp.l21.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "",
+   "sources": []
+  }
+ ],
+ "claims": [],
+ "note": "Questions-only mode, answered from knowledge without browsing.",
+ "fetched": 0
+}

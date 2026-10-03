@@ -1,0 +1,63 @@
+{
+  "actions": [
+    {
+      "description": "Default Welcome Intent",
+      "name": "MAIN",
+      "fulfillment": {
+        "conversationName": "choraFulfillment"
+      },
+      "intent": {
+        "name": "actions.intent.MAIN",
+        "trigger": {
+          "queryPatterns": [
+            "talk to Chora",
+            "open Chora",
+            "start Chora"
+          ]
+        }
+      }
+    },
+    {
+      "description": "Play music on Chora",
+      "name": "PlayMusic",
+      "fulfillment": {
+        "conversationName": "choraFulfillment"
+      },
+      "intent": {
+        "name": "PlayMusic",
+        "parameters": [
+          {
+            "name": "song",
+            "type": "SchemaOrg_MusicRecording"
+          },
+          {
+            "name": "artist",
+            "type": "SchemaOrg_MusicGroup"
+          },
+          {
+            "name": "album",
+            "type": "SchemaOrg_MusicAlbum"
+          }
+        ],
+        "trigger": {
+          "queryPatterns": [
+            "play $SchemaOrg_MusicRecording:song",
+            "play $SchemaOrg_MusicRecording:song by $SchemaOrg_MusicGroup:artist",
+            "play music by $SchemaOrg_MusicGroup:artist",
+            "play songs by $SchemaOrg_MusicGroup:artist",
+            "play the album $SchemaOrg_MusicAlbum:album",
+            "play a mix",
+            "play a dj mix"
+          ]
+        }
+      }
+    }
+  ],
+  "conversations": {
+    "choraFulfillment": {
+      "name": "choraFulfillment",
+      "url": "https://plajah.com/api/google-action",
+      "fulfillmentApiVersion": 2
+    }
+  }
+}

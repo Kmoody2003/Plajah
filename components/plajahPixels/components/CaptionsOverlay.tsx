@@ -85,6 +85,35 @@ const CaptionsOverlay: React.FC<CaptionsOverlayProps> = ({ config, analyser, isP
         }
     }, [config.captionsText, config.enableLiveCaptions, config.captionsSyncMode]);
 
+    const boundsRef = useRef<{ width: number; height: number; dpr: number }>({ width: 0, height: 0, dpr: 1 });
+    const audioDataRef = useRef<Uint8Array | null>(null);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const updateSize = (w: number, h: number) => {
+            const dpr = Math.min(window.devicePixelRatio || 1, 2);
+            boundsRef.current = { width: w, height: h, dpr };
+            const dw = Math.round(w * dpr);
+            const dh = Math.round(h * dpr);
+            if (canvas.width !== dw || canvas.height !== dh) {
+                canvas.width = dw;
+                canvas.height = dh;
+            }
+        };
+        const ro = new ResizeObserver(entries => {
+            for (const entry of entries) {
+                if (entry.contentRect.width > 0 && entry.contentRect.height > 0) {
+                    updateSize(entry.contentRect.width, entry.contentRect.height);
+                }
+            }
+        });
+        ro.observe(canvas);
+        const rect = canvas.getBoundingClientRect();
+        if (rect.width > 0 && rect.height > 0) updateSize(rect.width, rect.height);
+        return () => ro.disconnect();
+    }, []);
+
     useEffect(() => {
         const animate = (time: number) => {
              // Throttling logic
@@ -102,20 +131,14 @@ const CaptionsOverlay: React.FC<CaptionsOverlayProps> = ({ config, analyser, isP
             const ctx = canvas.getContext('2d');
             if (!ctx) return;
 
-            // Handle resize
-            const dpr = window.devicePixelRatio || 1;
-            const rect = canvas.getBoundingClientRect();
-            const desiredWidth = rect.width * dpr;
-            const desiredHeight = rect.height * dpr;
-            
-            if (canvas.width !== desiredWidth || canvas.height !== desiredHeight) {
-                canvas.width = desiredWidth;
-                canvas.height = desiredHeight;
-                ctx.scale(dpr, dpr);
+            const { width, height, dpr } = boundsRef.current;
+            if (width <= 0 || height <= 0) {
+                requestRef.current = requestAnimationFrame(animate);
+                return;
             }
 
-            // Clear
-            ctx.clearRect(0, 0, rect.width, rect.height);
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, width, height);
 
             // Audio Analysis
             let bassLevel = 0;
@@ -125,7 +148,10 @@ const CaptionsOverlay: React.FC<CaptionsOverlayProps> = ({ config, analyser, isP
 
             if (analyser && isPlaying) {
                 const bufferLength = analyser.frequencyBinCount;
-                const dataArray = new Uint8Array(bufferLength);
+                if (!audioDataRef.current || audioDataRef.current.length !== bufferLength) {
+                    audioDataRef.current = new Uint8Array(bufferLength);
+                }
+                const dataArray = audioDataRef.current;
                 analyser.getByteFrequencyData(dataArray);
 
                 // Bass (Vowels/Kick)
@@ -252,8 +278,8 @@ const CaptionsOverlay: React.FC<CaptionsOverlayProps> = ({ config, analyser, isP
                  return;
             }
 
-            const cx = rect.width / 2;
-            const cy = rect.height - (config.captionsSize * 1.5) - 40; // Bottom positioning
+            const cx = width / 2;
+            const cy = height - (config.captionsSize * 1.5) - 40; // Bottom positioning
 
             ctx.font = `700 ${config.captionsSize}px 'Orbitron', sans-serif`;
             ctx.textAlign = 'center';

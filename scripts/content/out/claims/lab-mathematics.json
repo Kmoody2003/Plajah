@@ -1,0 +1,767 @@
+{
+ "courseId": "lab-mathematics",
+ "label": "Mathematics",
+ "lessons": [
+  {
+   "id": "lab-mathematics.l01",
+   "title": "What Is a Proof?",
+   "body": [
+    "A mathematical proof is a chain of deductions, each step following from axioms, definitions or earlier results, that establishes a statement beyond doubt. This is what separates mathematics from other sciences. A physicist can only fail to find a counterexample; a mathematician can show that none can exist.",
+    "The template comes from Euclid's Elements, written around 300 BCE. Euclid started from a short list of postulates and common notions and derived hundreds of geometric facts from them. For two thousand years it was the model of rigorous reasoning. Modern logic later formalised exactly what counts as a valid proof.",
+    "Examples are not proofs. To show that the sum of two even numbers is even, checking 2 + 4, 6 + 8 and a million other pairs would still leave a doubt about the next pair. A proof works for all cases at once: write the two even numbers as 2a and 2b, where a and b are whole numbers. Their sum is 2a + 2b = 2(a + b), which is twice a whole number and so even. That argument covers every pair.",
+    "Proof is not static. In 1976 the four-colour theorem became the first major result whose proof needed a computer to check thousands of cases, forcing mathematicians to ask what it means to verify an argument."
+   ]
+  },
+  {
+   "id": "lab-mathematics.l02",
+   "title": "Infinitely Many Primes",
+   "body": [
+    "A prime is a whole number greater than 1 whose only divisors are 1 and itself. The primes 2, 3, 5, 7, 11 and so on seem to thin out. Do they ever stop? Around 300 BCE Euclid proved they never do, using a proof by contradiction.",
+    "Assume, for contradiction, that there are only finitely many primes, listed as p1, p2, ... pn. Form the number N = p1 x p2 x ... x pn + 1. Dividing N by any prime on the list leaves remainder 1, because the product part is divisible by each of them. So no prime on the list divides N. But every number greater than 1 has at least one prime factor. That factor must be a prime that is not on our list, contradicting the assumption that the list was complete. So the primes are infinite.",
+    "A small example: for the primes 2, 3, 5 the construction gives N = 30 + 1 = 31, which happens to be prime and is new. N need not be prime itself, though. Using 2, 3, 5, 7, 11, 13 gives 30031, which equals 59 x 509. It is composite, but both of its prime factors are absent from the list, which is all the proof requires.",
+    "Euclid's argument is a model of mathematical beauty: short, surprising and airtight."
+   ]
+  },
+  {
+   "id": "lab-mathematics.l03",
+   "title": "Cantor and the Sizes of Infinity",
+   "body": [
+    "Georg Cantor, who founded set theory in the 1870s, asked a startling question: do all infinite sets have the same size? Two sets have the same size if their members can be paired off one-to-one. By that test the whole numbers and the even numbers are equally numerous, which surprises many beginners. Cantor then showed that the real numbers are strictly more numerous than the whole numbers, using his diagonal argument of 1891.",
+    "Suppose someone claims to list every infinite binary sequence. Build a new sequence by going down the diagonal: take the first digit of the first sequence, the second digit of the second, and so on, and flip each digit. The new sequence differs from the first listed one in position 1, from the second in position 2, and so on, so it appears nowhere in the list. The list was incomplete, and no list can ever be complete. The real numbers are uncountable.",
+    "Naive set theory soon ran into trouble. Russell's paradox of 1901 asks about the set of all sets that do not contain themselves, which contradicts itself, forcing mathematicians to axiomatise set theory (ZFC).",
+    "Cantor also conjectured the continuum hypothesis, that no infinity lies between the whole numbers and the reals. Gödel in 1940 and Cohen in 1963 showed that this can be neither proved nor disproved from ZFC."
+   ]
+  },
+  {
+   "id": "lab-mathematics.l04",
+   "title": "Gödel and the Limits of Proof",
+   "body": [
+    "At the start of the twentieth century David Hilbert proposed a programme: put all of mathematics on a formal footing of axioms and rules, and prove that this system is consistent and can prove every true statement. He also posed 23 problems in 1900 that steered a century of research.",
+    "In 1931 Kurt Gödel showed that the dream cannot be fully realised. His first incompleteness theorem says that any consistent formal system rich enough to express arithmetic contains true statements that it cannot prove. His method was to build a statement that, in effect, says of itself that it is unprovable in the system. If the system proves it, the system is inconsistent; if the system is consistent, it cannot prove it, and so the statement is true but unprovable.",
+    "This does not mean that mathematics is unreliable or that proofs can be doubted. Every proof in a given system remains valid. It means that no single formal system can capture all mathematical truth, and a stronger system can prove more but will always have its own blind spots.",
+    "Alan Turing's work on computation in 1936 echoed the same theme, proving that no algorithm can decide whether an arbitrary program halts. Together, the results of Gödel, Turing and Cohen revealed deep limits built into formal reasoning itself."
+   ]
+  },
+  {
+   "id": "lab-mathematics.l05",
+   "title": "The Prime Number Theorem",
+   "body": [
+    "Euclid proved that the primes never end, but how thickly do they appear? Counting primes up to x, written pi(x), shows a clear pattern. They become rarer, but slowly. Gauss and Legendre conjectured how they thin out, and in 1896 Hadamard and de la Vallee Poussin independently proved the prime number theorem: pi(x) is approximately x / ln x, where ln is the natural logarithm.",
+    "Put another way, the density of primes near a large number x is about 1 / ln x. Near e^10, which is about 22,026, roughly one number in ln(e^10) = 10 is prime. Near 1,000,000, where ln x is about 13.8, about one number in 14 is prime.",
+    "The approximation is good rather than exact. For x = 1,000,000 the formula gives 1,000,000 / 13.8155, about 72,382. The true count is 78,498, so the estimate is within about 8 percent, and the relative error shrinks as x grows.",
+    "The theorem reveals order inside what looks like randomness. Individual primes are hard to predict, but their overall density follows a smooth law. The proof relied on complex analysis and the zeta function that Riemann introduced in 1859, linking number theory to a seemingly unrelated area of mathematics.",
+    "Everyday example: modern encryption searches for huge primes by testing random numbers, and this theorem tells how many tries to expect."
+   ]
+  },
+  {
+   "id": "lab-mathematics.l06",
+   "title": "Euler's Product and the Zeta Function",
+   "body": [
+    "Euler discovered a bridge between addition and multiplication. Define the zeta function by the sum zeta(s) = 1 + 1/2^s + 1/3^s + 1/4^s + ... Euler showed that this equals a product over the primes: zeta(s) is the product, over every prime p, of 1 / (1 - p^(-s)).",
+    "The reason is that every whole number factors uniquely into primes. Expanding the product of geometric series, one for each prime, produces each term 1/n^s exactly once, because each n arises from exactly one combination of prime powers. So a statement about all integers becomes a statement about primes alone.",
+    "You can watch it work at s = 2. The prime 2 alone gives 1 / (1 - 1/4) = 4/3. Adding the prime 3 multiplies by 1 / (1 - 1/9) = 9/8, giving 4/3 x 9/8 = 3/2. Including more primes pushes the product up toward pi^2 / 6, which is about 1.645.",
+    "In 1859 Bernhard Riemann extended the zeta function to complex numbers and linked the counting of primes to its zeros. His Riemann hypothesis, which says that all the interesting zeros lie on a single line, remains the greatest open question in number theory.",
+    "It shows how a function from analysis can control the discrete world of the primes."
+   ]
+  },
+  {
+   "id": "lab-mathematics.l07",
+   "title": "Algebra and the Quadratic Formula",
+   "body": [
+    "Around 820 the Persian mathematician Al-Khwarizmi wrote The Compendious Book on Calculation by Completion and Balancing. Its Arabic title contains the word al-jabr, the origin of the word algebra. He turned equation-solving into a systematic art. His Latinised name gave us the word algorithm.",
+    "The quadratic formula solves any equation ax^2 + bx + c = 0 where a is not zero: x = (-b plus or minus the square root of (b^2 - 4ac)) / 2a. The quantity under the square root, b^2 - 4ac, is the discriminant. If it is positive there are two real roots, if it is zero there is one repeated root, and if it is negative there are no real roots, only a pair of complex ones.",
+    "For x^2 - 5x + 6 = 0 we have a = 1, b = -5 and c = 6. The discriminant is 25 - 24 = 1, so x = (5 plus or minus 1) / 2, giving x = 3 or x = 2.",
+    "For x^2 + 2x + 5 = 0 the discriminant is 4 - 20 = -16. It is negative, so the parabola never crosses the x-axis and there are no real solutions."
+   ]
+  },
+  {
+   "id": "lab-mathematics.l08",
+   "title": "Roots of Polynomials and Galois",
+   "body": [
+    "The Fundamental Theorem of Algebra says that every non-constant polynomial with complex coefficients has exactly n complex roots, counted with multiplicity, where n is its degree. Equivalently, it factors completely: p(z) = a(z - z1)(z - z2)...(z - zn). Gauss gave a proof in 1799.",
+    "For example, (x - 1)^2 (x + 2)(x^2 + 1) has degree 5. Its roots are 1 (twice), -2, i and -i, five in all. Multiplicity matters: the root 1 is counted twice.",
+    "Existence of roots is not the same as a formula for them. The quadratic formula was known in antiquity and medieval times. In 1545 Cardano published general solutions to the cubic and quartic equations in Ars Magna. The natural next question was the quintic, an equation of degree five. In the 1820s Abel and Ruffini proved that no general formula using only arithmetic operations and roots exists for the quintic. Galois then showed why: the symmetries of the roots form a group, and the structure of that group determines whether the equation can be solved by radicals. This insight launched group theory and abstract algebra.",
+    "So the quintic still has five roots, as Gauss guarantees. We just cannot write them all down with a single radical formula.",
+    "The story shows mathematics changing its question from how to solve an equation to what structure makes solving possible."
+   ]
+  },
+  {
+   "id": "lab-mathematics.l09",
+   "title": "Geometry: Parallel Lines and Polyhedra",
+   "body": [
+    "Euclid built plane geometry from five postulates. The fifth, the parallel postulate, is less obvious than the others, and for two thousand years mathematicians tried to prove it from the rest. In the 1820s and 1830s Gauss, Bolyai and Lobachevsky found that consistent geometries exist in which it fails. Parallel lines behave differently there. So the postulate cannot be proved from the other four, and geometry is not unique.",
+    "Gauss's Theorema Egregium of 1827 showed that the curvature of a surface is intrinsic, measurable by beings living on the surface without reference to the space around it. Riemann then generalised geometry to curved spaces of any dimension. This was the language Einstein later needed for general relativity.",
+    "A very different geometric fact belongs to topology. For any convex polyhedron, the number of vertices minus edges plus faces equals 2: V - E + F = 2. A cube has 8 vertices, 12 edges and 6 faces, and 8 - 12 + 6 = 2. A dodecahedron has 20 vertices and 12 faces, so its edges must satisfy 20 - E + 12 = 2, giving E = 30.",
+    "Euler's relation depends only on how the surface is connected, not on exact lengths or angles, which is the spirit of topology, the study of properties preserved under continuous deformation."
+   ]
+  },
+  {
+   "id": "lab-mathematics.l10",
+   "title": "Calculus and Its Foundations",
+   "body": [
+    "Calculus is the mathematics of continuous change. Newton and Leibniz forged it independently in the late seventeenth century. The derivative measures instantaneous rate of change. It is defined as a limit: f'(x) is the limit, as h approaches zero, of (f(x + h) - f(x)) / h. For f(x) = x^2 the quotient is ((x + h)^2 - x^2) / h = 2x + h, which approaches 2x.",
+    "The integral accumulates quantities, such as area under a curve. The fundamental theorem of calculus says the two are inverse operations: the definite integral of f from a to b equals F(b) - F(a), where F is any antiderivative of f. For f(x) = x^2, an antiderivative is x^3 / 3, so the integral from 0 to 3 is 27/3 - 0 = 9.",
+    "The early calculus leaned on infinitesimals, quantities smaller than any number yet not zero. In 1734 Bishop Berkeley's The Analyst attacked them as ghosts of departed quantities. The criticism was fair, and it stimulated nineteenth-century mathematicians to rebuild the subject on firm ground. Cauchy and Weierstrass replaced infinitesimals with the precise epsilon-delta definition of a limit.",
+    "Archimedes had anticipated integration with his method of exhaustion, but only calculus made these tools systematic. Everyday example: a car's speedometer shows a derivative of position, and the odometer is the integral of speed."
+   ]
+  },
+  {
+   "id": "lab-mathematics.l11",
+   "title": "Infinite Series: Harmonic and Basel",
+   "body": [
+    "An infinite series adds infinitely many terms. Does the total settle on a finite number? Analysis gives careful answers, and intuition can mislead. A first guess is that if the terms shrink to zero, the sum must be finite. The harmonic series 1 + 1/2 + 1/3 + 1/4 + ... shows that this is false.",
+    "The harmonic series diverges. Here is the classic grouping argument. The terms 1/3 + 1/4 are each at least 1/4, so together they exceed 1/2. The next four, 1/5 + 1/6 + 1/7 + 1/8, are each at least 1/8, so together they also exceed 1/2. The next eight exceed 1/2 again, and so on forever. Infinitely many blocks each worth at least 1/2 add up without bound.",
+    "Compare the series 1 + 1/4 + 1/9 + 1/16 + ... of reciprocal squares. Its terms shrink much faster, and the sum is finite. In 1735 Euler solved the Basel problem by finding its exact value: pi^2 / 6, about 1.645. It was a triumph of early analysis, since pi appears in a sum that contains no circles.",
+    "Euler's daring manipulations of infinite series later gave way to the careful foundations of Cauchy and Weierstrass, whose work even produced the Weierstrass function, continuous everywhere yet differentiable nowhere.",
+    "The lesson: decide convergence by rigorous argument, not by whether the terms look small."
+   ]
+  },
+  {
+   "id": "lab-mathematics.l12",
+   "title": "Euler's Formula and Identity",
+   "body": [
+    "Euler's formula says that e^(i theta) = cos(theta) + i sin(theta), where i is the imaginary unit, the square root of -1, and theta is an angle in radians. It connects the exponential function with trigonometry and is foundational to complex analysis and signal processing.",
+    "Geometrically, cos(theta) + i sin(theta) is a point on the unit circle in the complex plane, at angle theta from the positive real axis. As theta increases, e^(i theta) circles around at constant distance 1 from the origin. That is why complex exponentials describe rotations and waves so naturally.",
+    "Try some angles. At theta = pi/2 the formula gives cos(pi/2) + i sin(pi/2) = 0 + i x 1 = i. At theta = pi it gives cos(pi) + i sin(pi) = -1 + 0 = -1. So e^(i pi) = -1, which rearranges to Euler's identity: e^(i pi) + 1 = 0.",
+    "This single equation links five fundamental constants: e, i, pi, 1 and 0. It is often called the most beautiful equation in mathematics, not because it is a rare coincidence, but because it is a special case of a general structure.",
+    "Engineers use the same formula to describe alternating currents and radio waves as rotating points on that circle."
+   ]
+  },
+  {
+   "id": "lab-mathematics.l13",
+   "title": "Modern Mathematics and Computer Proof",
+   "body": [
+    "After 1900 mathematics became more abstract, more interconnected and more collaborative. Hilbert's 23 problems of 1900 set an agenda. Emmy Noether transformed algebra with the theory of rings and ideals and, in physics, linked symmetries to conservation laws. Gödel's incompleteness theorems arrived in 1931 and Turing's theory of computation in 1936.",
+    "Then came a run of landmark proofs. In 1976 the four-colour theorem, which says that any map can be coloured with four colours so that neighbouring regions differ, was proved with the help of a computer that checked thousands of cases. In 1994 Andrew Wiles proved Fermat's Last Theorem, a problem posed centuries earlier. In 2003 Grigori Perelman proved the Poincare conjecture. Maryam Mirzakhani, working on the geometry of curved surfaces, became in 2014 the first woman to win the Fields Medal. Fermat's theorem and the conjecture needed deep links between number theory, geometry and physics that earlier mathematicians could not have imagined.",
+    "Computers now play two roles: as tools for calculation and as assistants in proof. A proof too large for a person to check by hand raises new questions about what it means to be certain, since we must trust the program as well as the argument. Interactive proof assistants such as Lean make every step machine-checkable.",
+    "Mathematics remains a living, growing subject, with each answer opening new questions."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "lab-mathematics.l01.q1",
+   "lessonId": "lab-mathematics.l01",
+   "kind": "mcq",
+   "prompt": "What is a mathematical proof?",
+   "choices": [
+    "A chain of deductions from axioms and definitions that establishes a statement beyond doubt",
+    "An experiment repeated many times",
+    "A statement accepted by experts",
+    "A large number of confirming examples"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l01.q2",
+   "lessonId": "lab-mathematics.l01",
+   "kind": "mcq",
+   "prompt": "Which ancient work set the template for axiomatic proof?",
+   "choices": [
+    "Gödel's theorems",
+    "Euclid's Elements",
+    "Newton's Principia",
+    "Cantor's set theory"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l01.q3",
+   "lessonId": "lab-mathematics.l01",
+   "kind": "mcq",
+   "prompt": "Which argument actually proves that the sum of any two even numbers is even?",
+   "choices": [
+    "Noting that most sums seem even",
+    "Checking 2 + 4, 6 + 8 and 10 + 12",
+    "Writing them as 2a and 2b, so the sum is 2(a + b), which is even",
+    "Checking a million pairs on a computer"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l01.q4",
+   "lessonId": "lab-mathematics.l01",
+   "kind": "mcq",
+   "prompt": "Why is checking a million examples not a proof that a statement is always true?",
+   "choices": [
+    "Because computers make arithmetic mistakes",
+    "Because examples are always wrong",
+    "Because a million is too small a number to matter",
+    "Because a counterexample could still exist beyond those checked"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l02.q1",
+   "lessonId": "lab-mathematics.l02",
+   "kind": "mcq",
+   "prompt": "What proof technique does Euclid use to show that the primes are infinite?",
+   "choices": [
+    "Proof by computer search",
+    "Proof by example",
+    "Proof by diagram only",
+    "Proof by contradiction"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l02.q2",
+   "lessonId": "lab-mathematics.l02",
+   "kind": "mcq",
+   "prompt": "In Euclid's construction N = p1 x p2 x ... x pn + 1, what remainder does N leave when divided by any listed prime?",
+   "choices": [
+    "1",
+    "The prime itself",
+    "It depends on the prime",
+    "0"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l02.q3",
+   "lessonId": "lab-mathematics.l02",
+   "kind": "mcq",
+   "prompt": "For the primes 2, 3 and 5, what is Euclid's number N?",
+   "choices": [
+    "30",
+    "31",
+    "32",
+    "10"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l02.q4",
+   "lessonId": "lab-mathematics.l02",
+   "kind": "mcq",
+   "prompt": "For the first six primes (2, 3, 5, 7, 11, 13) the number N = 30031 equals 59 x 509, so it is not prime. Does this break Euclid's proof?",
+   "choices": [
+    "No, because 30031 is even",
+    "Yes, the construction always has to give a prime",
+    "No, N only needs a prime factor that is not on the list, and 59 and 509 are not",
+    "Yes, because 59 is on the list"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l03.q1",
+   "lessonId": "lab-mathematics.l03",
+   "kind": "mcq",
+   "prompt": "What did Cantor's diagonal argument show?",
+   "choices": [
+    "Infinity does not exist",
+    "The whole numbers are uncountable",
+    "The real numbers cannot be listed, so they form a strictly larger infinity",
+    "All infinite sets are the same size"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l03.q2",
+   "lessonId": "lab-mathematics.l03",
+   "kind": "mcq",
+   "prompt": "Russell's paradox of 1901 exposed a flaw in",
+   "choices": [
+    "Calculus",
+    "Number theory",
+    "Euclidean geometry",
+    "Naive set theory"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l03.q3",
+   "lessonId": "lab-mathematics.l03",
+   "kind": "mcq",
+   "prompt": "A list begins with the sequences 0110, 1010, 1111, 0001 (first four digits). Cantor's diagonal method flips the 1st digit of the first, the 2nd of the second, the 3rd of the third and the 4th of the fourth. What four digits does it produce?",
+   "choices": [
+    "1100",
+    "0011",
+    "0110",
+    "1111"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l03.q4",
+   "lessonId": "lab-mathematics.l03",
+   "kind": "mcq",
+   "prompt": "What does it mean that the continuum hypothesis is independent of ZFC?",
+   "choices": [
+    "It has been proved false",
+    "It can be neither proved nor disproved from the ZFC axioms",
+    "It has not yet been stated precisely",
+    "It has been proved true"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l04.q1",
+   "lessonId": "lab-mathematics.l04",
+   "kind": "mcq",
+   "prompt": "Gödel's first incompleteness theorem says that a consistent formal system rich enough for arithmetic",
+   "choices": [
+    "Can prove every true statement",
+    "Contains true statements it cannot prove",
+    "Must be inconsistent",
+    "Cannot express addition"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l04.q2",
+   "lessonId": "lab-mathematics.l04",
+   "kind": "mcq",
+   "prompt": "What was Hilbert's programme trying to achieve?",
+   "choices": [
+    "To prove the Riemann hypothesis",
+    "To disprove Euclid",
+    "To put all of mathematics on a complete, consistent formal footing",
+    "To build the first computer"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l04.q3",
+   "lessonId": "lab-mathematics.l04",
+   "kind": "mcq",
+   "prompt": "A mathematician announces a consistent set of axioms for arithmetic that proves every true arithmetical statement. What does Gödel's theorem say about this claim?",
+   "choices": [
+    "It is only possible in geometry",
+    "It is correct for finite systems only by accident",
+    "It is possible if the axioms are numerous enough",
+    "It is impossible for a consistent system rich enough to express arithmetic"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l04.q4",
+   "lessonId": "lab-mathematics.l04",
+   "kind": "mcq",
+   "prompt": "Which reading of Gödel's theorem is correct?",
+   "choices": [
+    "Proofs within a system remain valid, but no single system captures all mathematical truth",
+    "Mathematical statements cannot be true or false",
+    "Ordinary proofs cannot be trusted",
+    "Mathematics is mostly false"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l05.q1",
+   "lessonId": "lab-mathematics.l05",
+   "kind": "mcq",
+   "prompt": "The prime number theorem states that the number of primes up to x, pi(x), is approximately",
+   "choices": [
+    "x / ln x",
+    "ln x",
+    "x / 2",
+    "x squared"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l05.q2",
+   "lessonId": "lab-mathematics.l05",
+   "kind": "mcq",
+   "prompt": "Who proved the prime number theorem, and when?",
+   "choices": [
+    "Cantor, 1891",
+    "Hadamard and de la Vallee Poussin, 1896",
+    "Euclid, 300 BCE",
+    "Wiles, 1994"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l05.q3",
+   "lessonId": "lab-mathematics.l05",
+   "kind": "mcq",
+   "prompt": "Near the number e^10 (about 22,026), roughly what fraction of numbers are prime, using the density 1 / ln x?",
+   "choices": [
+    "1 in 22,026",
+    "1 in 5",
+    "1 in 10",
+    "1 in 100"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l05.q4",
+   "lessonId": "lab-mathematics.l05",
+   "kind": "mcq",
+   "prompt": "The primes thin out, with density 1 / ln x tending to zero. How does this fit with there being infinitely many primes?",
+   "choices": [
+    "Primes stop at some very large number",
+    "Density has no relation to counting",
+    "It contradicts Euclid's theorem",
+    "The density falls slowly enough that x / ln x still grows without bound"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l06.q1",
+   "lessonId": "lab-mathematics.l06",
+   "kind": "mcq",
+   "prompt": "Euler's product formula expresses the zeta function as",
+   "choices": [
+    "An integral of a polynomial",
+    "A finite sum of logarithms",
+    "A sum of squares",
+    "An infinite product over the prime numbers"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l06.q2",
+   "lessonId": "lab-mathematics.l06",
+   "kind": "mcq",
+   "prompt": "Riemann's 1859 paper On the Number of Primes connected the distribution of primes to",
+   "choices": [
+    "The zeros of the zeta function",
+    "The Pythagorean theorem",
+    "Cantor's diagonal argument",
+    "Euclidean parallels"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l06.q3",
+   "lessonId": "lab-mathematics.l06",
+   "kind": "mcq",
+   "prompt": "At s = 2, what is the product of the Euler factors 1 / (1 - p^(-2)) for the primes 2 and 3 only?",
+   "choices": [
+    "1.75",
+    "1.5",
+    "1.25",
+    "2.0"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l06.q4",
+   "lessonId": "lab-mathematics.l06",
+   "kind": "mcq",
+   "prompt": "Which fact about the integers is the key reason the Euler product equals the sum for zeta(s)?",
+   "choices": [
+    "Every integer is a perfect square",
+    "Every integer is even or odd",
+    "Every integer factors uniquely into primes",
+    "There are infinitely many integers"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l07.q1",
+   "lessonId": "lab-mathematics.l07",
+   "kind": "mcq",
+   "prompt": "The word algebra comes from",
+   "choices": [
+    "Descartes' La Geometrie",
+    "Euclid's Elements",
+    "The title of Al-Khwarizmi's book containing al-jabr",
+    "Cardano's Ars Magna"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l07.q2",
+   "lessonId": "lab-mathematics.l07",
+   "kind": "mcq",
+   "prompt": "In the quadratic formula, the expression b^2 - 4ac is called the",
+   "choices": [
+    "Hypotenuse",
+    "Remainder",
+    "Numerator",
+    "Discriminant"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l07.q3",
+   "lessonId": "lab-mathematics.l07",
+   "kind": "mcq",
+   "prompt": "What are the solutions of x^2 - 5x + 6 = 0?",
+   "choices": [
+    "x = 2 and x = 3",
+    "x = 5 and x = 6",
+    "x = 1 and x = 6",
+    "x = -2 and x = -3"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l07.q4",
+   "lessonId": "lab-mathematics.l07",
+   "kind": "mcq",
+   "prompt": "The equation x^2 + 2x + 5 = 0 has discriminant -16. What does that imply?",
+   "choices": [
+    "One repeated real root",
+    "No real roots; the parabola never crosses the x-axis",
+    "Infinitely many roots",
+    "Two distinct real roots"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l08.q1",
+   "lessonId": "lab-mathematics.l08",
+   "kind": "mcq",
+   "prompt": "The fundamental theorem of algebra says a polynomial of degree n has",
+   "choices": [
+    "At most n real roots only",
+    "Exactly n complex roots, counted with multiplicity",
+    "Exactly n real roots",
+    "At least n + 1 roots"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l08.q2",
+   "lessonId": "lab-mathematics.l08",
+   "kind": "mcq",
+   "prompt": "What did Abel and Ruffini prove in the 1820s?",
+   "choices": [
+    "Every cubic is unsolvable",
+    "The quadratic formula is wrong",
+    "There is no general formula in radicals for the quintic",
+    "The quintic has no roots"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l08.q3",
+   "lessonId": "lab-mathematics.l08",
+   "kind": "mcq",
+   "prompt": "How many complex roots, counted with multiplicity, does (x - 1)^2 (x + 2)(x^2 + 1) have?",
+   "choices": [
+    "6",
+    "3",
+    "4",
+    "5"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l08.q4",
+   "lessonId": "lab-mathematics.l08",
+   "kind": "mcq",
+   "prompt": "Does the Abel-Ruffini theorem mean that a quintic has no roots?",
+   "choices": [
+    "No, a quintic still has five complex roots; there is just no general radical formula for them",
+    "Yes, only quartics have roots",
+    "No, because every quintic has exactly one root",
+    "Yes, quintics have no solutions at all"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l09.q1",
+   "lessonId": "lab-mathematics.l09",
+   "kind": "mcq",
+   "prompt": "Which Euclidean postulate resisted proof for about two thousand years?",
+   "choices": [
+    "The parallel postulate",
+    "The third postulate",
+    "The Pythagorean theorem",
+    "The first postulate"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l09.q2",
+   "lessonId": "lab-mathematics.l09",
+   "kind": "mcq",
+   "prompt": "What did Riemann contribute to geometry?",
+   "choices": [
+    "He measured the Earth",
+    "He generalised geometry to curved spaces of any dimension",
+    "He proved the parallel postulate",
+    "He invented the Cartesian plane"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l09.q3",
+   "lessonId": "lab-mathematics.l09",
+   "kind": "mcq",
+   "prompt": "A dodecahedron has 20 vertices and 12 faces. Using V - E + F = 2, how many edges does it have?",
+   "choices": [
+    "60",
+    "20",
+    "30",
+    "34"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l09.q4",
+   "lessonId": "lab-mathematics.l09",
+   "kind": "mcq",
+   "prompt": "What did the discovery of non-Euclidean geometries by Gauss, Bolyai and Lobachevsky show?",
+   "choices": [
+    "Geometry is only about triangles",
+    "Parallel lines do not exist in any space",
+    "Euclid made a mistake in the Elements",
+    "Consistent geometries exist where the parallel postulate fails, so it cannot be proved from the other postulates"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l10.q1",
+   "lessonId": "lab-mathematics.l10",
+   "kind": "mcq",
+   "prompt": "The derivative of a function at a point measures",
+   "choices": [
+    "The average value over an interval",
+    "The largest value of the function",
+    "The area under the curve",
+    "The instantaneous rate of change"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l10.q2",
+   "lessonId": "lab-mathematics.l10",
+   "kind": "mcq",
+   "prompt": "The fundamental theorem of calculus states that",
+   "choices": [
+    "Integration and differentiation are inverse operations",
+    "All functions have derivatives",
+    "Integrals are always positive",
+    "Limits do not exist"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l10.q3",
+   "lessonId": "lab-mathematics.l10",
+   "kind": "mcq",
+   "prompt": "What is the definite integral of x^2 from 0 to 3?",
+   "choices": [
+    "27",
+    "9",
+    "3",
+    "6"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l10.q4",
+   "lessonId": "lab-mathematics.l10",
+   "kind": "mcq",
+   "prompt": "Why did Berkeley attack early calculus in The Analyst (1734)?",
+   "choices": [
+    "It ignored geometry",
+    "It gave wrong answers in every case",
+    "It relied on infinitesimals that were treated as both zero and non-zero, lacking rigorous foundation",
+    "It used too many symbols"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l11.q1",
+   "lessonId": "lab-mathematics.l11",
+   "kind": "mcq",
+   "prompt": "What is true about the harmonic series 1 + 1/2 + 1/3 + 1/4 + ...?",
+   "choices": [
+    "It converges to 2",
+    "It converges to pi^2 / 6",
+    "It diverges to infinity",
+    "It oscillates between two values"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l11.q2",
+   "lessonId": "lab-mathematics.l11",
+   "kind": "mcq",
+   "prompt": "The sum of the reciprocals of the squares, 1 + 1/4 + 1/9 + ..., equals",
+   "choices": [
+    "pi / 2",
+    "infinity",
+    "e",
+    "pi^2 / 6"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l11.q3",
+   "lessonId": "lab-mathematics.l11",
+   "kind": "mcq",
+   "prompt": "In the grouping proof of divergence, the four terms 1/5 + 1/6 + 1/7 + 1/8 add up to",
+   "choices": [
+    "More than 1/2",
+    "Exactly 1",
+    "Less than 1/4",
+    "Exactly 1/2"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l11.q4",
+   "lessonId": "lab-mathematics.l11",
+   "kind": "mcq",
+   "prompt": "Both 1/n and 1/n^2 have terms that tend to zero, yet only one series converges. What explains the difference?",
+   "choices": [
+    "Squares are always smaller than ordinary numbers",
+    "The terms 1/n^2 shrink fast enough for the total to stay finite, while 1/n shrinks too slowly",
+    "The harmonic series has negative terms",
+    "There is no difference"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l12.q1",
+   "lessonId": "lab-mathematics.l12",
+   "kind": "mcq",
+   "prompt": "Which five constants appear in Euler's identity e^(i pi) + 1 = 0?",
+   "choices": [
+    "e, phi, i, 1 and 0",
+    "e, i, pi, 1 and 0",
+    "e, pi, 2, 3 and 0",
+    "i, pi, 1, 2 and 10"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l12.q2",
+   "lessonId": "lab-mathematics.l12",
+   "kind": "mcq",
+   "prompt": "Euler's formula e^(i theta) = cos theta + i sin theta connects the exponential function to",
+   "choices": [
+    "Factorials",
+    "Logarithms",
+    "Trigonometry",
+    "Primes"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l12.q3",
+   "lessonId": "lab-mathematics.l12",
+   "kind": "mcq",
+   "prompt": "Using Euler's formula, what is e^(i pi / 2)?",
+   "choices": [
+    "1",
+    "-1",
+    "-i",
+    "i"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l12.q4",
+   "lessonId": "lab-mathematics.l12",
+   "kind": "mcq",
+   "prompt": "As theta varies over real numbers, where do the points e^(i theta) lie in the complex plane?",
+   "choices": [
+    "On the unit circle",
+    "On a parabola",
+    "Only on the real axis",
+    "On a straight line"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l13.q1",
+   "lessonId": "lab-mathematics.l13",
+   "kind": "mcq",
+   "prompt": "Which major theorem was the first whose proof required a computer to check thousands of cases?",
+   "choices": [
+    "The four-colour theorem",
+    "Fermat's Last Theorem",
+    "The prime number theorem",
+    "The Basel problem"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l13.q2",
+   "lessonId": "lab-mathematics.l13",
+   "kind": "mcq",
+   "prompt": "Who proved Fermat's Last Theorem, and when?",
+   "choices": [
+    "Gödel, 1931",
+    "Wiles, 1994",
+    "Perelman, 2003",
+    "Euler, 1748"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l13.q3",
+   "lessonId": "lab-mathematics.l13",
+   "kind": "mcq",
+   "prompt": "Which of these events happened between Gödel's incompleteness theorems (1931) and the four-colour proof (1976)?",
+   "choices": [
+    "Hilbert's 23 problems",
+    "Cantor founding set theory",
+    "Turing's definition of computation (1936)",
+    "Wiles proving Fermat's Last Theorem"
+   ]
+  },
+  {
+   "id": "lab-mathematics.l13.q4",
+   "lessonId": "lab-mathematics.l13",
+   "kind": "mcq",
+   "prompt": "What new question do very large computer-assisted proofs raise?",
+   "choices": [
+    "Whether theorems are no longer true",
+    "Whether proofs are needed at all",
+    "Whether mathematics can use numbers",
+    "Whether we can be certain of a result when no human can check every step and we must trust the software too"
+   ]
+  }
+ ]
+}

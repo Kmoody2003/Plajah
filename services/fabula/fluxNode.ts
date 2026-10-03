@@ -21,7 +21,7 @@ export interface FluxAudio {
 }
 export const SILENT_AUDIO: FluxAudio = { bass: 0, mid: 0, treble: 0, level: 0, beat: 0 };
 
-export type FluxSceneId = 'field' | 'tapestry' | 'tapestry-ii' | 'lattice' | 'tunnel' | 'aurora' | 'sanctum' | 'porcelain-tide' | 'velvet-bloom' | 'prism-archive';
+export type FluxSceneId = 'field' | 'tapestry' | 'tapestry-ii' | 'lattice' | 'tunnel' | 'aurora' | 'sanctum' | 'porcelain-tide' | 'velvet-bloom' | 'prism-archive' | 'deco-morph' | 'egypt-temple' | 'venetian-maiolica' | 'hellenic-marble' | 'japanese-ink' | 'african-bogolan';
 
 export interface FluxSceneInfo {
   id: FluxSceneId;
@@ -40,6 +40,18 @@ export const FLUX_SCENES: FluxSceneInfo[] = [
     line: 'An embroidered Art Deco tapestry on a marble gallery wall whose gilt motifs shape-shift, kaleidoscope and brighten to the music. A static shot.' },
   { id: 'tapestry-ii', name: 'Deco Tapestry II', cat: 'Deco', built: true,
     line: 'Twenty-four brass-and-enamel Deco arrangements. Quiet music drifts through fine ornament; energy jumps accelerate radical morphs, reorientation and intricate woven patterns.' },
+  { id: 'deco-morph', name: 'Deco Geometry Morph', cat: 'Deco', built: true,
+    line: 'Volumetric 3D geometric morph matrix across authentic Art Deco pattern motifs. Music directly conducts physical vertex extrusion, origami folds, vortex torque, and seamless clip-to-clip geometry transitions.' },
+  { id: 'venetian-maiolica', name: 'Venetian Maiolica', cat: 'Culture', built: true,
+    line: 'A cobalt maiolica plate under studio light. Liquid gold swirls, bursts into spokes, webs into kintsugi veins and scrolls into filigree; on the drop the plate shatters and reassembles.' },
+  { id: 'hellenic-marble', name: 'Hellenic Marble', cat: 'Culture', built: true,
+    line: 'A veined marble wall where gold Greek-key meanders draw themselves outward, laurel wreaths sweep round, a gold inlay network spreads, a medallion rises and a temple front of ionic columns lifts into place.' },
+  { id: 'japanese-ink', name: 'Japanese Ink', cat: 'Culture', built: true,
+    line: 'Sumi ink blooms across washi paper: brush strokes sweep, seigaiha waves and asanoha stars bleed up through the fibres, ink drops ripple and swirl like ink in water.' },
+  { id: 'african-bogolan', name: 'African Bogolan', cat: 'Culture', built: true,
+    line: 'Mud-cloth in rust, ochre, black and cream: woven panels slide like a loom, mandalas assemble, stripes scroll against each other, triangles shatter and the cloth bursts radially on the drop.' },
+  { id: 'egypt-temple', name: 'Egyptian Temple', cat: 'Culture', built: true,
+    line: 'A carved sandstone wall of hieroglyphs under a raking light. Kicks push the blocks out, voices trace the glyphs in gold, snares ring out light, obelisks rise and the Eye of Horus ignites.' },
   { id: 'lattice', name: 'Flux Lattice', cat: 'Form', built: true,
     line: 'A suspended porcelain-and-copper orbital instrument. Interlaced meridians turn around a dark pearl; sound illuminates their intersections.' },
   { id: 'tunnel', name: 'Flux Tunnel', cat: 'Mir', built: true,
@@ -78,6 +90,8 @@ export interface FluxSpec {
   hue: number;          // 0..1 palette rotation
   sensitivity: number;  // audio drive multiplier
   background: string;    // solid colour behind the scene
+  /** Render tier. 'ultra' opts into the expensive photoreal variants (Deco: PBR gold, soft shadows, AO, 2× rays). */
+  quality?: 'standard' | 'ultra';
 }
 
 export const FLUX_DEFAULT: FluxSpec = {

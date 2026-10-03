@@ -23,8 +23,13 @@ const OVERLAP = Math.round(SEGMENT * 0.25);          // 25% overlap, linear cros
 // htdemucs source order in the model output.
 const SOURCE_ORDER = ['drums', 'bass', 'other', 'vocals'] as const;
 
+import { isWindowsApp, invokeNativeStemSeparation } from './windowsBridgeService';
+
 /** Is on-device separation appropriate here? Blocks TVs; warns on mobile / low-end. */
 export function demucsCapability(): { tier: DemucsTier; reason: string } {
+  if (isWindowsApp()) {
+    return { tier: 'good', reason: 'Accelerated on-device by NVIDIA RTX / Windows AI engine.' };
+  }
   if (typeof navigator === 'undefined') return { tier: 'blocked', reason: 'Unavailable.' };
   const ua = navigator.userAgent || '';
   if (/\b(SmartTV|Smart-TV|GoogleTV|Google TV|AndroidTV|Android TV|Tizen|Web0S|WebOS|BRAVIA|AppleTV|Apple TV|CrKey|Chromecast|AFT[A-Za-z]|Roku|HbbTV|NetCast|VIDAA)\b/i.test(ua))
@@ -101,6 +106,33 @@ function toWav(L: Float32Array, R: Float32Array): Blob {
  * (stereo waveform), output [1,4,2,length] (drums,bass,other,vocals × stereo).
  */
 export async function separateStemsLocal(url: string, onProgress?: (p: number) => void): Promise<LocalStemsResult> {
+  if (isWindowsApp()) {
+    try {
+      const nativeRes = await invokeNativeStemSeparation(url, onProgress);
+      if (nativeRes.success) {
+        const fetchBlob = async (path: string) => {
+          try {
+            const r = await fetch(path);
+            return await r.blob();
+          } catch {
+            return new Blob([], { type: 'audio/wav' });
+          }
+        };
+        const [vocals, drums, bass, other] = await Promise.all([
+          fetchBlob(nativeRes.vocalsPath),
+          fetchBlob(nativeRes.drumsPath),
+          fetchBlob(nativeRes.bassPath),
+          fetchBlob(nativeRes.otherPath),
+        ]);
+        if (vocals.size > 0 || drums.size > 0) {
+          return { vocals, drums, bass, other };
+        }
+      }
+    } catch (e) {
+      console.warn('[Demucs] Native separation fallback to WebGPU/ORT:', e);
+    }
+  }
+
   const ort: any = await import('onnxruntime-web');
   const session = await getSession();
   const inputName = session.inputNames?.[0] || 'mix';

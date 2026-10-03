@@ -1,0 +1,1113 @@
+{
+ "courseId": "med-skills",
+ "verifier": "A",
+ "note": "WebSearch worked; WebFetch used once (2025 BP guideline). Most sources are search-result pages whose snippets supported the claims; claims with no page are marked unverifiable. Course has no CURB-65, GCS, qSOFA or Centor content; Wells only appears briefly in l13.",
+ "fetched": 28,
+ "questions": [
+  {
+   "id": "med-skills.l01.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l01.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l01.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l01.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l01.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l02.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l02.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l02.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l02.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l02.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l03.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l03.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l03.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l03.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l03.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l04.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l04.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l04.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l04.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l04.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l05.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC8109470/"
+   ]
+  },
+  {
+   "id": "med-skills.l05.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l05.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/8037391/"
+   ]
+  },
+  {
+   "id": "med-skills.l05.q4",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [
+    "https://www.aafp.org/pubs/afp/issues/2011/0901/p527.html"
+   ],
+   "note": "SBP fall of 30 meets criteria; HR rise of 4 on a beta-blocker is blunted."
+  },
+  {
+   "id": "med-skills.l05.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l06.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l06.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l06.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l06.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l06.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l07.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l07.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l07.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK525958/"
+   ]
+  },
+  {
+   "id": "med-skills.l07.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l07.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l08.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l08.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l08.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l08.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l08.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l09.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l09.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l09.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://litfl.com/courvoisiers-sign/"
+   ]
+  },
+  {
+   "id": "med-skills.l09.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l10.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l10.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://litfl.com/seventh-cranial-nerve-lesions/"
+   ]
+  },
+  {
+   "id": "med-skills.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l10.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK554415/"
+   ]
+  },
+  {
+   "id": "med-skills.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l11.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l12.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://coreem.net/journal-reviews/wells-score-d-dimer/"
+   ]
+  },
+  {
+   "id": "med-skills.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l14.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://litfl.com/cognitive-dispositions-to-respond/"
+   ]
+  },
+  {
+   "id": "med-skills.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l14.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l14.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l16.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l17.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.nejm.org/doi/full/10.1056/NEJMsa1405556"
+   ]
+  },
+  {
+   "id": "med-skills.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l18.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l18.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.merckmanuals.com/professional/pulmonary-disorders/how-to-do-pulmonary-procedures/how-to-do-thoracentesis"
+   ]
+  },
+  {
+   "id": "med-skills.l18.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-skills.l18.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-skills.l01",
+   "claim": "History alone yields the final diagnosis most of the time (series about 76-82%)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK534249/",
+    "https://www.clinicalcorrelations.org/2022/01/26/a-history-of-patient-history-taking-a-brief-review-of-the-origins-of-the-aphorism-that-80-of-diagnoses-can-be-made-by-history-alone/"
+   ],
+   "note": "Search summaries: Hampton 82.5%, Peterson 76%."
+  },
+  {
+   "lessonId": "med-skills.l01",
+   "claim": "Physicians interrupt the patient's opening statement within seconds; most patients finish quickly when allowed",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC1783704/",
+    "https://pubmed.ncbi.nlm.nih.gov/14988186/"
+   ],
+   "note": "Marvel: mean 23 s to redirect; Langewitz: mean monologue 92 s."
+  },
+  {
+   "lessonId": "med-skills.l01",
+   "claim": "OLDCARTS mnemonic elements",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; mnemonic variants differ."
+  },
+  {
+   "lessonId": "med-skills.l02",
+   "claim": "Medication reconciliation is a patient-safety measure at transitions of care",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l02",
+   "claim": "Pack-years = packs per day x years smoked",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l02",
+   "claim": "CAGE questions (cut down, annoyed, guilty, eye-opener); AUDIT-C screens risky alcohol use",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l03",
+   "claim": "NURSE statements = naming, understanding, respecting, supporting, exploring",
+   "verdict": "supported",
+   "sources": [
+    "https://comagine.org/sites/default/files/resources/DC_MCOL_NURSE_Statements_for_Articulating_Empathy.pdf",
+    "https://vitaltalk.org/responding-to-emotion-respecting/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l03",
+   "claim": "Title VI and ACA Section 1557 are bases for language-access obligations; family/children ad hoc interpreters discouraged",
+   "verdict": "supported",
+   "sources": [
+    "https://healthlaw.org/wp-content/uploads/2024/05/T-VI-and-Sec-1557-explainer-2024.pdf"
+   ],
+   "note": "US; rules were updated (2024 rule, 2025 explainer update) and enforcement may change."
+  },
+  {
+   "lessonId": "med-skills.l03",
+   "claim": "Teach-back and universal precautions for health literacy",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l04",
+   "claim": "SPIKES six steps: Setting, Perception, Invitation, Knowledge, Emotions, Strategy and Summary",
+   "verdict": "supported",
+   "sources": [
+    "https://academic.oup.com/oncolo/article/5/4/302/6386019",
+    "https://comagine.org/sites/default/files/resources/dc-mcol-spikes-protocol.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l04",
+   "claim": "DNR order applies to CPR only, not other treatments",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l04",
+   "claim": "Capacity is decision-specific clinical judgment; competence is a legal determination",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l05",
+   "claim": "2017 ACC/AHA BP categories (normal <120/80; elevated 120-129/<80; stage 1 130-139 or 80-89; stage 2 >=140/90)",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC12425457/"
+   ],
+   "note": "Opened: the 2025 AHA/ACC guideline keeps the same categories and the 130/80 threshold, so the numbers are current. The lesson cites only 2017 and should now cite the 2025 guideline (PREVENT equations replace pooled cohort equations)."
+  },
+  {
+   "lessonId": "med-skills.l05",
+   "claim": "Orthostatic hypotension: fall of at least 20 systolic or 10 diastolic within 3 min of standing",
+   "verdict": "supported",
+   "sources": [
+    "https://www.aafp.org/pubs/afp/issues/2011/0901/p527.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l05",
+   "claim": "Too-small cuff reads falsely high, too-large falsely low; CO poisoning gives falsely normal oximetry; darker skin can overestimate SpO2",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC8109470/",
+    "https://pubmed.ncbi.nlm.nih.gov/8037391/",
+    "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC10879215/"
+   ],
+   "note": "Skin-pigment bias magnitude is still debated (a Jan 2026 report on an FDA-funded study was inconclusive); lesson wording 'can overestimate' is fair."
+  },
+  {
+   "lessonId": "med-skills.l06",
+   "claim": "Scleral icterus appears at bilirubin about 2-3 mg/dL",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK544252/",
+    "https://www.merckmanuals.com/professional/hepatic-and-biliary-disorders/approach-to-the-patient-with-liver-disease/jaundice"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l06",
+   "claim": "Left supraclavicular (Virchow) node is associated with abdominal malignancy",
+   "verdict": "supported",
+   "sources": [
+    "https://gpnotebook.com/en-GB/pages/gastroenterology/virchows-node"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l06",
+   "claim": "ABCDE melanoma criteria; clubbing associations; RAPD meaning",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l07",
+   "claim": "Paradoxical S2 split (heard in expiration, narrows on inspiration) with LBBB/AS; fixed split with ASD",
+   "verdict": "supported",
+   "sources": [
+    "https://www.healio.com/cardiology/learn-the-heart/cardiology-review/topic-reviews/paradoxically-split-s2-heart-sound",
+    "https://www.healio.com/cardiology/learn-the-heart/cardiology-review/topic-reviews/fixed-split-s2-heart-sound"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l07",
+   "claim": "HCM murmur increases with Valsalva/standing, decreases with squatting; AS murmur decreases with Valsalva",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK525958/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l07",
+   "claim": "Beck triad = hypotension, JVD, muffled heart sounds in tamponade",
+   "verdict": "supported",
+   "sources": [
+    "https://www.merckmanuals.com/professional/injuries-poisoning/thoracic-trauma/cardiac-tamponade"
+   ],
+   "note": "Triad is insensitive in practice."
+  },
+  {
+   "lessonId": "med-skills.l08",
+   "claim": "Tension pneumothorax: hyperresonance, tracheal deviation away, distended neck veins, hypotension",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l08",
+   "claim": "Fremitus increased over consolidation, decreased over effusion/pneumothorax; effusion stony dull",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l08",
+   "claim": "Egophony and whispered pectoriloquy over consolidation; stridor inspiratory",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l09",
+   "claim": "Courvoisier sign: palpable nontender gallbladder with jaundice suggests malignant biliary obstruction",
+   "verdict": "supported",
+   "sources": [
+    "https://litfl.com/courvoisiers-sign/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l09",
+   "claim": "McBurney point one third from ASIS to umbilicus; Rovsing, psoas, obturator signs",
+   "verdict": "supported",
+   "sources": [
+    "https://www.osmosis.org/answers/mcburneys-point",
+    "https://emedicine.medscape.com/article/773895-clinical"
+   ],
+   "note": "Search summary phrased it as two-thirds from the umbilicus, which is equivalent."
+  },
+  {
+   "lessonId": "med-skills.l09",
+   "claim": "Normal liver span about 6-12 cm in mid-clavicular line",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l10",
+   "claim": "UMN facial palsy spares forehead; LMN (Bell palsy) involves forehead",
+   "verdict": "supported",
+   "sources": [
+    "https://litfl.com/seventh-cranial-nerve-lesions/",
+    "https://litfl.com/bells-palsy/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l10",
+   "claim": "Brown-Sequard: ipsilateral weakness and vibration/proprioception loss, contralateral pain/temperature loss",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l10",
+   "claim": "Romberg positive indicates proprioceptive (sensory) ataxia; reflex root levels",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l11",
+   "claim": "Gout: negatively birefringent needles; pseudogout: positively birefringent rhomboids",
+   "verdict": "supported",
+   "sources": [
+    "https://wikem.org/wiki/Gout_and_Pseudogout",
+    "https://journals.sagepub.com/doi/10.1177/1759720X11432559"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l11",
+   "claim": "RA: morning stiffness over 1 h, MCP/PIP involvement sparing DIP; OA: Heberden (DIP), Bouchard (PIP) nodes",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uptodate.com/contents/diagnosis-and-differential-diagnosis-of-rheumatoid-arthritis/print",
+    "https://www.ama-assn.org/medical-students/usmle-step-1-2/usmle-step-2-which-diagnosis-hand-pain-stiffness"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l11",
+   "claim": "Lachman more sensitive than anterior drawer for ACL",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK554415/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l12",
+   "claim": "System 1/System 2 and illness scripts framework",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l12",
+   "claim": "Hickam dictum vs Occam razor",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l12",
+   "claim": "Cannot-miss list for acute chest pain",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l13",
+   "claim": "LR+ = sens/(1-spec); LR- = (1-sens)/spec; odds conversion",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Arithmetic checked by me; no page opened."
+  },
+  {
+   "lessonId": "med-skills.l13",
+   "claim": "Wells criteria give pretest probability; low Wells plus negative D-dimer rules out PE",
+   "verdict": "supported",
+   "sources": [
+    "https://coreem.net/journal-reviews/wells-score-d-dimer/",
+    "https://wikem.org/wiki/Wells_criteria"
+   ],
+   "note": "Lesson names Wells for DVT; both DVT and PE rules pair with D-dimer."
+  },
+  {
+   "lessonId": "med-skills.l13",
+   "claim": "Worked example: sens 90/spec 90, LR+ 9; 1% pretest gives about 8% posttest",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Arithmetic verified (0.01 x 9 = 0.09 odds = 8.3%); no page opened."
+  },
+  {
+   "lessonId": "med-skills.l14",
+   "claim": "Croskerry terms: anchoring, premature closure, search satisficing, representativeness restraint, psych-out error",
+   "verdict": "supported",
+   "sources": [
+    "https://litfl.com/cognitive-dispositions-to-respond/",
+    "https://www.researchgate.net/publication/10616956_The_Importance_of_Cognitive_Errors_in_Diagnosis_and_Strategies_to_Minimize_Them"
+   ],
+   "note": "Definitions match; the 'found it error' label for premature closure plus satisficing not confirmed."
+  },
+  {
+   "lessonId": "med-skills.l14",
+   "claim": "Premature closure is described as the most common cognitive error in diagnosis",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Sources call it a major contributor; 'most common' not confirmed."
+  },
+  {
+   "lessonId": "med-skills.l14",
+   "claim": "Cognitive factors contribute to most diagnostic errors, usually with system factors",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l15",
+   "claim": "Reference ranges = central 95% of healthy population; 20 independent tests give about 64% chance of at least one abnormal",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC1861755/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l15",
+   "claim": "Troponin elevation indicates myocardial injury, not necessarily infarction (sepsis, PE, renal failure)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.acc.org/Latest-in-Cardiology/ten-points-to-remember/2018/08/24/00/09/Fourth-Universal-Definition-of-MI-ESC-2018"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l15",
+   "claim": "Choosing Wisely: no routine imaging for uncomplicated low back pain",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l16",
+   "claim": "SOAP structure and placement of findings",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l16",
+   "claim": "Corrections via dated signed addenda; avoid 'noncompliant'",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l16",
+   "claim": "HIPAA minimum necessary principle",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l17",
+   "claim": "I-PASS components: Illness severity, Patient summary, Action list, Situation awareness/contingency, Synthesis by receiver",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nejm.org/doi/full/10.1056/NEJMsa1405556"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l17",
+   "claim": "Structured handoffs associated with fewer preventable adverse events",
+   "verdict": "supported",
+   "sources": [
+    "https://www.nejm.org/doi/full/10.1056/NEJMsa1405556"
+   ],
+   "note": "NEJM 2014: 30% relative reduction in preventable adverse events, 23% in medical errors."
+  },
+  {
+   "lessonId": "med-skills.l17",
+   "claim": "A one-liner opens an oral presentation",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "med-skills.l18",
+   "claim": "Universal Protocol three parts: preprocedure verification, site marking, time-out",
+   "verdict": "supported",
+   "sources": [
+    "https://www.jointcommission.org/en-us/standards/national-performance-goals/right-patient-right-care",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC3351519/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l18",
+   "claim": "Thoracentesis above the rib to avoid the neurovascular bundle on the lower rib edge",
+   "verdict": "supported",
+   "sources": [
+    "https://www.merckmanuals.com/professional/pulmonary-disorders/how-to-do-pulmonary-procedures/how-to-do-thoracentesis"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-skills.l18",
+   "claim": "WHO five moments of hand hygiene; LP contraindicated with mass lesion/raised ICP",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/pmc/articles/PMC11504106/",
+    "https://elentra.healthsci.queensu.ca/assets/modules/lumbar_puncture/contraindications.html"
+   ],
+   "note": "LP level L3-L4/L4-L5 not confirmed from pages."
+  }
+ ]
+}

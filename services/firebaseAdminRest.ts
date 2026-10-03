@@ -7,7 +7,7 @@
 // Firebase ID-token verification, and scrypt password hashing. Requires GOOGLE_SERVICE_ACCOUNT_JSON
 // (full SA key JSON) and FIREBASE_API_KEY in the environment, exactly like server.ts.
 
-import nodeCrypto from 'node:crypto';
+import * as nodeCrypto from 'node:crypto';
 
 const PROJECT_ID = process.env.FIREBASE_PROJECT_ID || 'gen-lang-client-0665118474';
 const DB_ID = process.env.FIREBASE_DB_ID || 'plajah-prod';
@@ -128,7 +128,12 @@ async function secureTokenCerts(): Promise<Record<string, string>> {
   _certs = { keys, exp: Date.now() + (m ? parseInt(m[1], 10) : 3600) * 1000 };
   return keys;
 }
-export async function verifyIdToken(idToken: string): Promise<string | null> {
+export interface DecodedAuthToken {
+  uid: string;
+  isAnonymous: boolean;
+}
+
+export async function verifyIdTokenDetailed(idToken: string): Promise<DecodedAuthToken | null> {
   if (!idToken) return null;
   const apiKey = process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY;
   if (apiKey) {
@@ -136,7 +141,14 @@ export async function verifyIdToken(idToken: string): Promise<string | null> {
       const res = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${apiKey}`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ idToken }),
       });
-      if (res.ok) { const data = await res.json() as any; if (data.users?.[0]?.localId) return data.users[0].localId; }
+      if (res.ok) {
+        const data = await res.json() as any;
+        const user = data.users?.[0];
+        if (user?.localId) {
+          const isAnonymous = !user.providerUserInfo || user.providerUserInfo.length === 0;
+          return { uid: user.localId, isAnonymous };
+        }
+      }
     } catch { /* fall through to cert verification */ }
   }
   // Cert-based verification (no API key needed) — validates signature + standard claims.
@@ -154,8 +166,15 @@ export async function verifyIdToken(idToken: string): Promise<string | null> {
     const cert = (await secureTokenCerts())[header.kid];
     if (!cert) return null;
     const ok = nodeCrypto.verify('RSA-SHA256', Buffer.from(`${parts[0]}.${parts[1]}`), cert, Buffer.from(parts[2], 'base64url'));
-    return ok ? payload.sub : null;
+    if (!ok) return null;
+    const isAnonymous = payload.firebase?.sign_in_provider === 'anonymous';
+    return { uid: payload.sub, isAnonymous };
   } catch { return null; }
+}
+
+export async function verifyIdToken(idToken: string): Promise<string | null> {
+  const result = await verifyIdTokenDetailed(idToken);
+  return result ? result.uid : null;
 }
 
 // ── Firestore REST value (de)serialization ───────────────────────────────────────

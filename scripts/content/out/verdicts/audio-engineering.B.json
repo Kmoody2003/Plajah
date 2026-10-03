@@ -1,0 +1,1520 @@
+{
+ "courseId": "audio-engineering",
+ "verifier": "B",
+ "note": "Wikipedia pages opened via WebFetch; NIOSH 3 dB rule and ATSC -24 LKFS confirmed only via WebSearch snippets. Several fetches 404/redirected/returned metadata only. Remaining claims marked unverifiable per source discipline; all arithmetic recomputed by me.",
+ "fetched": 26,
+ "questions": [
+  {
+   "id": "audio-engineering.l01.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l01.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l02.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l04.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l04.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l05.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l07.q1",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Only true for the cardioid: least sensitive directly behind (180 deg); the choice 'at 90 degrees on one side only' is wrong."
+  },
+  {
+   "id": "audio-engineering.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l10.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l11.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l11.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l12.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l13.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l14.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l14.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l15.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l18.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l19.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l19.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l19.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l19.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l20.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l20.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l21.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l21.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l21.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l21.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l21.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l22.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l22.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l22.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l22.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l22.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l23.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l23.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l23.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l23.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l23.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l24.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l24.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l24.q3",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Question wording is odd: the null is at the cardioid rear, so the wedge should sit at the null (aim the null at the wedge); the choice 'At the wedge' fits."
+  },
+  {
+   "id": "audio-engineering.l24.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l24.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l25.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l25.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l25.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l25.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l25.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l26.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l26.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l26.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l26.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "audio-engineering.l26.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "audio-engineering.l01",
+   "claim": "Speed of sound in air at 20 C is about 343 m/s",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Speed_of_sound"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "audio-engineering.l01",
+   "claim": "Wavelength = speed / frequency (0.343 m at 1 kHz, 3.43 m at 100 Hz)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Arithmetic recomputed, correct; no page opened for the formula."
+  },
+  {
+   "lessonId": "audio-engineering.l01",
+   "claim": "Sound cannot travel through a vacuum",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard physics; no page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l02",
+   "claim": "0 dB SPL reference is 20 micropascals",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Sound_pressure"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "audio-engineering.l02",
+   "claim": "NIOSH 85 dBA over 8 hours, halving per 3 dB (88 dBA = 4 h, 91 dBA = 2 h)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/niosh/noise/about/index.html"
+   ],
+   "note": "Page confirms 85 dBA/8 h; the 3 dB exchange rate was confirmed via WebSearch results (NIOSH 2019-155), not an opened page."
+  },
+  {
+   "lessonId": "audio-engineering.l02",
+   "claim": "Doubling voltage ~6 dB, x10 = 20 dB, doubling power ~3 dB",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Decibel"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "audio-engineering.l03",
+   "claim": "Harmonics are whole-number multiples (220 -> 440, 660)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Arithmetic correct; no page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l03",
+   "claim": "A440 concert pitch; octave = doubling",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l03",
+   "claim": "Square wave = odd harmonics only; sawtooth = all",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; standard."
+  },
+  {
+   "lessonId": "audio-engineering.l04",
+   "claim": "Nyquist frequency is half the sample rate (22,050 Hz at 44.1 kHz, 24,000 Hz at 48 kHz)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Nyquist%E2%80%93Shannon_sampling_theorem"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "audio-engineering.l04",
+   "claim": "30 kHz at 44.1 kHz aliases to 14.1 kHz",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Recomputed 44.1-30=14.1, correct."
+  },
+  {
+   "lessonId": "audio-engineering.l04",
+   "claim": "Anti-aliasing filter removes content above Nyquist before sampling",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Nyquist%E2%80%93Shannon_sampling_theorem"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "audio-engineering.l05",
+   "claim": "Each added bit ~6 dB; 16-bit ~96 dB",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Quantization_(signal_processing)"
+   ],
+   "note": "24-bit 144 dB follows from 6.02 x 24."
+  },
+  {
+   "lessonId": "audio-engineering.l05",
+   "claim": "CD bit rate 44100x16x2 = 1,411,200 bps; 10,584,000 bytes/min",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Recomputed, correct."
+  },
+  {
+   "lessonId": "audio-engineering.l05",
+   "claim": "48 kHz/24-bit stereo = 2,304,000 bps",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Recomputed, correct."
+  },
+  {
+   "lessonId": "audio-engineering.l06",
+   "claim": "Standard phantom power is 48 V",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Phantom_power"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "audio-engineering.l06",
+   "claim": "Phantom power can damage some ribbon mics depending on design/wiring",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Phantom_power"
+   ],
+   "note": "Page says damage needs faults/unbalanced/hot-plug conditions; lesson hedged appropriately."
+  },
+  {
+   "lessonId": "audio-engineering.l06",
+   "claim": "Dynamic = coil in magnetic field; condenser needs power; ribbon = thin metal ribbon",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Microphone"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "audio-engineering.l07",
+   "claim": "Omnidirectional responds equally from all directions; cardioid heart-shaped",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Microphone"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "audio-engineering.l07",
+   "claim": "Figure-8 is bidirectional, null at the sides (90 deg)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Microphone"
+   ],
+   "note": "Bi-directional pattern confirmed; side null is standard."
+  },
+  {
+   "lessonId": "audio-engineering.l07",
+   "claim": "Pressure-type omni has no proximity effect",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l08",
+   "claim": "ORTF: cardioids 110 deg apart, 17 cm spacing",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Stereophonic_sound"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "audio-engineering.l08",
+   "claim": "Inverse square law: -6 dB per doubling of distance",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened for this context."
+  },
+  {
+   "lessonId": "audio-engineering.l08",
+   "claim": "3:1 rule (60 cm for 20 cm mic distance)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page did not mention the rule; arithmetic correct."
+  },
+  {
+   "lessonId": "audio-engineering.l09",
+   "claim": "+4 dBu is about 1.228 V RMS; -10 dBV about 0.316 V",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/DBu"
+   ],
+   "note": "Page gives 1.23 V and 0.316 V."
+  },
+  {
+   "lessonId": "audio-engineering.l09",
+   "claim": "Balanced lines cancel common-mode noise",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l09",
+   "claim": "DI box converts high-impedance to low-impedance balanced",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l10",
+   "claim": "0 dBFS is the digital ceiling; fixed-point clips above",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l10",
+   "claim": "-18 dBFS often aligned to 0 VU (convention)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; lesson hedged."
+  },
+  {
+   "lessonId": "audio-engineering.l10",
+   "claim": "Gain arithmetic -18 + 9 = -9 dBFS",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Recomputed, correct."
+  },
+  {
+   "lessonId": "audio-engineering.l11",
+   "claim": "Lowest axial mode = c/(2L); 4 m gives 42.9 Hz",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Room acoustics page confirmed axial modes between parallel walls but not the formula; 343/8=42.875 recomputed."
+  },
+  {
+   "lessonId": "audio-engineering.l11",
+   "claim": "Thin foam does little for bass; bass traps in corners",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l11",
+   "claim": "Acoustic treatment differs from soundproofing",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l12",
+   "claim": "Buffer delay 128/48000 = 2.67 ms",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Recomputed, correct."
+  },
+  {
+   "lessonId": "audio-engineering.l12",
+   "claim": "3-2-1 backup rule: three copies, two media, one off-site",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Backup"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "audio-engineering.l12",
+   "claim": "48 kHz/24-bit common for modern projects",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l13",
+   "claim": "Non-destructive editing keeps original files untouched",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l13",
+   "claim": "Comping = compiling best takes",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l13",
+   "claim": "Room tone fills dialogue gaps",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l14",
+   "claim": "Mains is 60 Hz in the US and 50 Hz in many other countries",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mains_electricity_by_country"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "audio-engineering.l14",
+   "claim": "SNR of -10 dBFS vs -70 dBFS = 60 dB",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Recomputed, correct."
+  },
+  {
+   "lessonId": "audio-engineering.l14",
+   "claim": "Never remove the ground pin; ground loops cause hum",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l15",
+   "claim": "WAV is limited to about 4 GB; RF64/BWF address it",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/WAV"
+   ],
+   "note": "Page confirms 4 GiB limit and EBU RF64."
+  },
+  {
+   "lessonId": "audio-engineering.l15",
+   "claim": "CD stereo 1,411.2 kbps; 180 s = 31,752,000 bytes; 128 kbps = 2,880,000 bytes",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Recomputed, correct."
+  },
+  {
+   "lessonId": "audio-engineering.l15",
+   "claim": "MP3/AAC/Vorbis/Opus lossy; FLAC/ALAC lossless",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l16",
+   "claim": "Pan law often -3 dB at centre",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; settings vary (lesson hedged)."
+  },
+  {
+   "lessonId": "audio-engineering.l16",
+   "claim": "Check mixes in mono for cancellation",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l16",
+   "claim": "Kick and bass typically centred",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l17",
+   "claim": "Higher Q = narrower band",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l17",
+   "claim": "Frequency region ranges (mud 250-500 Hz, presence 2-5 kHz)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Approximate conventions; lesson hedged."
+  },
+  {
+   "lessonId": "audio-engineering.l17",
+   "claim": "HPF around 80 Hz on vocals",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Practice advice, singer-dependent."
+  },
+  {
+   "lessonId": "audio-engineering.l18",
+   "claim": "-20 thr, 4:1, -8 in gives -17 out, 9 dB GR",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Recomputed: 12/4=3 over, correct."
+  },
+  {
+   "lessonId": "audio-engineering.l18",
+   "claim": "-10 thr, 2:1, -2 in gives -6 out, 4 dB GR",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Recomputed, correct."
+  },
+  {
+   "lessonId": "audio-engineering.l18",
+   "claim": "Limiter = very high ratio compressor",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l19",
+   "claim": "RT60 = time to decay 60 dB",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l19",
+   "claim": "Delay ms = 60000/BPM (500/250/375 at 120; 600 at 100)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Recomputed, correct."
+  },
+  {
+   "lessonId": "audio-engineering.l19",
+   "claim": "Delays under ~30 ms blend with original",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Approximate; no page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l20",
+   "claim": "Automation modes Read/Write/Touch/Latch",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l20",
+   "claim": "VCA faders control levels without summing audio",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l20",
+   "claim": "Stem definition",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l21",
+   "claim": "EBU R128 integrated loudness -23 LUFS",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/EBU_R_128"
+   ],
+   "note": "Page also gives -1 dBTP max true peak."
+  },
+  {
+   "lessonId": "audio-engineering.l21",
+   "claim": "US ATSC A/85 / CALM Act target -24 LKFS",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Confirmed in WebSearch snippets (FCC DA-13-1002, ATSC); no page opened so no URL listed."
+  },
+  {
+   "lessonId": "audio-engineering.l21",
+   "claim": "Streaming normalisation targets differ (Spotify -14 LUFS)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Loudness_war"
+   ],
+   "note": "Page lists Spotify -14, Apple Music -16; values change over time."
+  },
+  {
+   "lessonId": "audio-engineering.l22",
+   "claim": "ISRC identifies an individual recording",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/International_Standard_Recording_Code"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "audio-engineering.l22",
+   "claim": "Red Book CD is 44.1 kHz, 16-bit stereo",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Red_Book_(audio_CD_standard)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "audio-engineering.l22",
+   "claim": "DDP image used for disc manufacturing",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l23",
+   "claim": "5.1 has six channels incl. LFE",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Surround_sound"
+   ],
+   "note": "Page notes LFE is not strictly a subwoofer; lesson wording fine."
+  },
+  {
+   "lessonId": "audio-engineering.l23",
+   "claim": "Dolby Atmos is an immersive object-based format",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Surround_sound"
+   ],
+   "note": "Page confirms Atmos as immersive format; object metadata not stated explicitly."
+  },
+  {
+   "lessonId": "audio-engineering.l23",
+   "claim": "Mid=(L+R)/2, Side=(L-R)/2 convention",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l24",
+   "claim": "Speed of sound 343 m/s; 34.3 m needs 100 ms delay",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Speed_of_sound"
+   ],
+   "note": "343 m/s confirmed; delay arithmetic recomputed, correct."
+  },
+  {
+   "lessonId": "audio-engineering.l24",
+   "claim": "-6 dB per doubling of distance",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened for this context."
+  },
+  {
+   "lessonId": "audio-engineering.l24",
+   "claim": "Feedback loop when loop gain >= 1",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l25",
+   "claim": "Foley named after Jack Foley of Universal Studios",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Foley_(filmmaking)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "audio-engineering.l25",
+   "claim": "24 fps film standard; one frame = 41.7 ms",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Frame_rate"
+   ],
+   "note": "Page confirms 24 fps; 1000/24=41.67 recomputed."
+  },
+  {
+   "lessonId": "audio-engineering.l25",
+   "claim": "Half-speed playback drops pitch one octave, doubles duration",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; physics correct."
+  },
+  {
+   "lessonId": "audio-engineering.l26",
+   "claim": "US song recordings have two copyrights: sound recording and musical composition",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Copyright Office circular fetch returned only metadata; no confirmation obtained. Well-known US rule."
+  },
+  {
+   "lessonId": "audio-engineering.l26",
+   "claim": "Recording-consent laws vary; some jurisdictions need all parties",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "audio-engineering.l26",
+   "claim": "Sampling generally requires permission from rights holders",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  }
+ ]
+}

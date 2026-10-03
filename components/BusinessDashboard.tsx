@@ -4,8 +4,10 @@ import {
   Store, ShoppingBag, Radio, Monitor, Users, Plus, X, Check, Edit3,
   Trash2, ChevronRight, Clock, Package, Star, Zap, Globe, Leaf,
   Settings, ToggleLeft, ToggleRight, Search, Filter, Mail, Phone,
-  BarChart3, Target, RefreshCw, Play, Pause, Image, MapPin, Building2, ShieldCheck, Megaphone
+  BarChart3, Target, RefreshCw, Play, Pause, Image, MapPin, Building2, ShieldCheck, Megaphone,
+  Calendar, Stethoscope, Receipt
 } from 'lucide-react';
+import { BillingHubMount, BillingSummaryMount, SoonPill, useBillingNav } from './BillingMounts';
 import MarketingKit from './MarketingKit';
 import { UserProfile, BusinessPage, BusinessOrder, DigitalSignageSlide, CrmContact, SeedRaiserCampaign, SeedRaiserReward } from '../types';
 import {
@@ -30,17 +32,18 @@ import BusinessBroadcastComposer from './BusinessBroadcastComposer';
 import BusinessOrdersPanel from './BusinessOrdersPanel';
 import ArtistPromoDirectory from './ArtistPromoDirectory';
 import StaffHRManager from './StaffHRManager';
+import AppointmentsManager from './clinic/AppointmentsManager';
 
-type BizTab = 'OVERVIEW' | 'ORDERS' | 'INVENTORY' | 'TEAM' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'MARKETING' | 'SETTINGS' | 'LISTINGS' | 'COMPLIANCE';
+type BizTab = 'OVERVIEW' | 'APPOINTMENTS' | 'ORDERS' | 'INVENTORY' | 'TEAM' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'MARKETING' | 'SETTINGS' | 'LISTINGS' | 'COMPLIANCE' | 'BILLING';
 
-// "Storefront Command" rail — the 13 vertical-filtered tabs collapse into four
+// "Storefront Command" rail — the vertical-filtered tabs collapse into four
 // working groups so nothing wraps. Only ids that survive the vertical filter
-// (see `tabs` below) actually render, so a realtor's rail has no Inventory/Radio.
+// (see `tabs` below) actually render, so a clinic has Appointments/Telehealth.
 const TAB_GROUPS: { label: string; ids: BizTab[] }[] = [
-  { label: 'Sell',   ids: ['OVERVIEW', 'ORDERS', 'INVENTORY', 'LISTINGS'] },
+  { label: 'Sell',   ids: ['OVERVIEW', 'APPOINTMENTS', 'ORDERS', 'INVENTORY', 'LISTINGS'] },
   { label: 'Engage', ids: ['CRM', 'MESSAGING', 'SIGNAGE', 'RADIO'] },
   { label: 'Grow',   ids: ['MARKETING', 'SEEDRAISER'] },
-  { label: 'Manage', ids: ['TEAM', 'COMPLIANCE', 'SETTINGS'] },
+  { label: 'Manage', ids: ['BILLING', 'TEAM', 'COMPLIANCE', 'SETTINGS'] },
 ];
 
 // ── Status badge ──────────────────────────────────────────────────────────────
@@ -86,6 +89,7 @@ interface BusinessDashboardProps {
 
 const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNavigate }) => {
   const [activeTab, setActiveTab] = useState<BizTab>('OVERVIEW');
+  const billingNav = useBillingNav();
   const [showKiosk, setShowKiosk] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
   const [showDisplays, setShowDisplays] = useState(false);
@@ -202,24 +206,26 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
   };
 
   const ALL_TABS: { id: BizTab; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
-    { id: 'OVERVIEW',   label: 'Overview',     icon: Store },
-    { id: 'LISTINGS',   label: 'Listings',     icon: Building2 },
-    { id: 'COMPLIANCE', label: 'Compliance',   icon: ShieldCheck },
-    { id: 'ORDERS',     label: 'Orders',       icon: ShoppingBag },
-    { id: 'INVENTORY',  label: 'Inventory',    icon: Package },
-    { id: 'TEAM',       label: 'Team & HR',    icon: Users },
-    { id: 'MESSAGING',  label: 'Messaging',    icon: Mail },
-    { id: 'CRM',        label: 'CRM',          icon: Users },
-    { id: 'SIGNAGE',    label: 'Signage',      icon: Monitor },
-    { id: 'SEEDRAISER', label: 'Seed Raiser',  icon: Leaf },
-    { id: 'RADIO',      label: 'Radio',        icon: Radio },
-    { id: 'SETTINGS',   label: 'Settings',     icon: Settings },
+    { id: 'OVERVIEW',     label: 'Overview',     icon: Store },
+    { id: 'APPOINTMENTS', label: activePage?.businessType === 'HEALTH' ? 'Clinical Care' : 'Appointments', icon: activePage?.businessType === 'HEALTH' ? Stethoscope : Calendar },
+    { id: 'LISTINGS',     label: 'Listings',     icon: Building2 },
+    { id: 'COMPLIANCE',   label: 'Compliance',   icon: ShieldCheck },
+    { id: 'ORDERS',       label: 'Orders',       icon: ShoppingBag },
+    { id: 'INVENTORY',    label: 'Inventory',    icon: Package },
+    { id: 'TEAM',         label: 'Team & HR',    icon: Users },
+    { id: 'MESSAGING',    label: 'Messaging',    icon: Mail },
+    { id: 'CRM',          label: 'CRM',          icon: Users },
+    { id: 'SIGNAGE',      label: 'Signage',      icon: Monitor },
+    { id: 'SEEDRAISER',   label: 'Seed Raiser',  icon: Leaf },
+    { id: 'RADIO',        label: 'Radio',        icon: Radio },
+    { id: 'SETTINGS',     label: 'Settings',     icon: Settings },
   ];
 
   // Show only the tabs this vertical actually uses — a realtor has no inventory
   // or in-store radio. Ordered by the vertical so its priorities lead.
   const vertical = getVertical(activePage?.businessType);
   const MARKETING_TAB = { id: 'MARKETING' as BizTab, label: 'Marketing', icon: Megaphone };
+  const BILLING_TAB = { id: 'BILLING' as BizTab, label: 'Billing', icon: Receipt };
   const tabs = [
     ...vertical.tabs
       .map(id => ALL_TABS.find(t => t.id === (id as BizTab)))
@@ -227,6 +233,8 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
     // Marketing is offered for every vertical (identity-scoped Organic ⇄ Paid),
     // so append it if the vertical config didn't already include it.
     ...(vertical.tabs.includes('MARKETING' as any) ? [] : [MARKETING_TAB]),
+    // Plajah Billing — every vertical can invoice; flag-gated inside the mount ("Soon" pill while OFF).
+    BILLING_TAB,
   ];
 
   if (loading) return (
@@ -342,6 +350,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                             {sel && <span className="absolute left-0 top-1.5 bottom-1.5 w-[3px] rounded-r" style={{ background: 'linear-gradient(180deg,#D40055,#FF8C00)' }} />}
                             <t.icon size={15} />
                             <span>{t.label}</span>
+                            {t.id === 'BILLING' && billingNav.state === 'soon' && <SoonPill />}
                             {count > 0 && (
                               <span className="ml-auto text-[9px] font-black text-black rounded-full px-1.5 py-0.5 leading-none" style={{ background: t.id === 'ORDERS' ? '#FF8C00' : '#00DAF3' }}>{count}</span>
                             )}
@@ -359,8 +368,15 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
           <div className="min-w-0 space-y-6">
 
           {/* ── OVERVIEW ── */}
+          {activeTab === 'BILLING' && activePage && (
+            <BillingHubMount entity={{ kind: 'BUSINESS', id: activePage.id }} entityName={(activePage as any).name || (activePage as any).businessName || 'Your business'} canManage />
+          )}
+
           {activeTab === 'OVERVIEW' && (
             <div className="space-y-6">
+              {activePage && billingNav.state !== 'soon' && (
+                <BillingSummaryMount entity={{ kind: 'BUSINESS', id: activePage.id }} />
+              )}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
                   { label: 'Total Orders', value: orders.length, icon: ShoppingBag, color: '#D40055' },
@@ -468,6 +484,15 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                 </div>
               </Card>
             </div>
+          )}
+
+          {/* ── APPOINTMENTS & CLINICAL WORKSPACE ── */}
+          {activeTab === 'APPOINTMENTS' && activePage && (
+            <AppointmentsManager
+              businessId={activePage.id}
+              businessName={activePage.businessName}
+              isHealthOrDental={activePage.businessType === 'HEALTH'}
+            />
           )}
 
           {/* ── ORDERS ── */}

@@ -10,12 +10,19 @@ import {
   Music, Check
 } from 'lucide-react';
 import {
-  primeDJAudio, extractPeaks, estimateBPM, pitchToRate, formatTime,
-  createReverb, EQKnob, WaveformCanvas, toCamelot,
-  SAMPLE_COLORS, BEAT_LOOPS, beatLoopLabel, DEFAULT_BPM
-} from '../DJModeView';
+  createDeck, extractPeaks, estimateBPM, pitchToRate, formatTime,
+  toCamelot, loadAnalysisForDeck,
+  SAMPLE_COLORS, BEAT_LOOPS, beatLoopLabel, DEFAULT_BPM,
+  type DeckInstance,
+} from '../../services/djAudioCore';
+import { primeDJAudio, EQKnob } from '../DJModeView';
+import SpectralWaveform from '../dj/SpectralWaveform';
+import { analyzeSpectrum, type SpectralAnalysis } from '../../services/djWaveformAnalysis';
 import { getCachedAnalysis, getOrComputeAnalysis, loadTrackTheory } from '../../services/djAnalysis';
 import { platformAudio } from '../../services/mediaEngine/audioRuntime';
+import { otherAudioFactor, subscribeAudioPriority } from '../../services/ambo/audioPriority';
+import { lyricsFor, registerLyricClock } from '../../services/ambo/lyricFeed';
+import { amboAudio } from '../../services/ambo/amboAudioEngine';
 
 export interface AmboDJTrack {
   id?: string;
@@ -27,6 +34,8 @@ export interface AmboDJTrack {
   key?: string;
   bpm?: number;
   category?: string;
+  /** Chora synced lyrics ({time, text}; sometimes milliseconds). */
+  timeCodedLyrics?: Array<{ time: number; text: string }>;
 }
 
 interface AmboDJTrackPlayerProps {
@@ -37,6 +46,7 @@ interface AmboDJTrackPlayerProps {
   isCuedInPreview?: boolean;
   onCueToPreview?: () => void;
   autoPlay?: boolean;
+  onSendLyricsToOutput?: (lyric: string) => void;
 }
 
 export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
@@ -47,6 +57,7 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
   isCuedInPreview = false,
   onCueToPreview,
   autoPlay = true,
+  onSendLyricsToOutput,
 }) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
@@ -65,8 +76,8 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
   const [eq, setEq] = useState({ low: 0, mid: 0, high: 0 });
 
   // FX Strip
-  const [fx, setFx] = useState({ filter: 0.5, delay: 0, reverb: 0 });
-  const [fxOn, setFxOn] = useState({ filter: false, delay: false, reverb: false });
+  const [fx, setFx] = useState({ filter: 0.5, delay: 0.5, reverb: 0.4 });
+  const [fxOn, setFxOn] = useState({ filter: true, delay: false, reverb: false });
 
   // 8 Hot Cues (seconds or null)
   const [hotCues, setHotCues] = useState<(number | null)[]>([null, null, null, null, null, null, null, null]);
@@ -77,20 +88,45 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
   const [loopActive, setLoopActive] = useState(false);
   const [activeBeatLoop, setActiveBeatLoop] = useState<number | null>(null);
 
-  // Audio nodes and refs
+  // Synced Lyrics
+  const [syncedLyrics, setSyncedLyrics] = useState<Array<{text: string; startTime: number; endTime: number}>>([]);
+  const [activeLyricIndex, setActiveLyricIndex] = useState(0);
+  const [lyricsScrollOffset, setLyricsScrollOffset] = useState(0);
+
+  // Soundboard Pads
+  interface SoundPad {
+    id: number;
+    label: string;
+    sampleUrl?: string;
+    sampleName?: string;
+    color: string;
+    shortcut?: string;
+    cueOnly: boolean;
+    volume: number;
+  }
+
+  const DEFAULT_PADS: SoundPad[] = Array.from({ length: 8 }, (_, i) => ({
+    id: i,
+    label: `Pad ${i + 1}`,
+    color: SAMPLE_COLORS[i],
+    cueOnly: false,
+    volume: 1,
+    shortcut: String(i + 1), // keys 1-8
+  }));
+
+  const [soundPads, setSoundPads] = useState<SoundPad[]>(DEFAULT_PADS);
+  const [activePadId, setActivePadId] = useState<number | null>(null);
+  const padNodesRef = useRef<Map<number, { source: AudioBufferSourceNode | null; buffer: AudioBuffer | null; gain: GainNode }>>(new Map());
+
+  // Colour waveform analysis + beat grid (phased from detected kicks)
+  const [spectral, setSpectral] = useState<SpectralAnalysis | null>(null);
+  const [beatGridState, setBeatGridState] = useState<{ firstDownbeat: number; interval: number } | null>(null);
+  const analysisCancelRef = useRef<{ cancelled: boolean } | null>(null);
+  useEffect(() => { setSpectral(null); setBeatGridState(null); }, [track.url, track.id]);
+
+  // Audio nodes and refs — unified via createDeck()
   const audioCtxRef = useRef<AudioContext | null>(null);
-  const sourceNodeRef = useRef<AudioBufferSourceNode | null>(null);
-  const gainNodeRef = useRef<GainNode | null>(null);
-  const eqLowRef = useRef<BiquadFilterNode | null>(null);
-  const eqMidRef = useRef<BiquadFilterNode | null>(null);
-  const eqHighRef = useRef<BiquadFilterNode | null>(null);
-  const filterNodeRef = useRef<BiquadFilterNode | null>(null);
-  const delayNodeRef = useRef<DelayNode | null>(null);
-  const delayWetRef = useRef<GainNode | null>(null);
-  const reverbWetRef = useRef<GainNode | null>(null);
-  const masterGainRef = useRef<GainNode | null>(null);
-  const startTimeRef = useRef<number>(0);
-  const startOffsetRef = useRef<number>(0);
+  const deckRef = useRef<DeckInstance | null>(null);
   const rafRef = useRef<number>(0);
 
   // Parse duration if provided as string "m:ss"
@@ -98,96 +134,39 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
     ? (track.duration.includes(':') ? Number(track.duration.split(':')[0]) * 60 + Number(track.duration.split(':')[1]) : 0)
     : (track.duration || 0);
 
-  // ── 1. Init Audio Graph ──
+  // ── 1. Init Audio Graph via shared DJ engine ──
   const initAudioGraph = useCallback(() => {
-    if (audioCtxRef.current) return audioCtxRef.current;
+    if (audioCtxRef.current && deckRef.current) return audioCtxRef.current;
     const ctx = primeDJAudio();
     audioCtxRef.current = ctx;
 
-    const gainNode = ctx.createGain();
-    gainNode.gain.value = volume;
-    gainNodeRef.current = gainNode;
+    const deck = createDeck(ctx, {
+      bpm: track.bpm || DEFAULT_BPM,
+      key: track.key,
+      camelotKey: toCamelot(track.key) || undefined,
+    });
 
-    const eqLow = ctx.createBiquadFilter();
-    eqLow.type = 'lowshelf';
-    eqLow.frequency.value = 320;
-    eqLowRef.current = eqLow;
-
-    const eqMid = ctx.createBiquadFilter();
-    eqMid.type = 'peaking';
-    eqMid.frequency.value = 1000;
-    eqMid.Q.value = 1;
-    eqMidRef.current = eqMid;
-
-    const eqHigh = ctx.createBiquadFilter();
-    eqHigh.type = 'highshelf';
-    eqHigh.frequency.value = 3200;
-    eqHighRef.current = eqHigh;
-
-    const filterNode = ctx.createBiquadFilter();
-    filterNode.type = 'lowpass';
-    filterNode.frequency.value = 20000;
-    filterNodeRef.current = filterNode;
-
-    const delayNode = ctx.createDelay(2.0);
-    delayNode.delayTime.value = 0.375;
-    delayNodeRef.current = delayNode;
-
-    const delayFeedback = ctx.createGain();
-    delayFeedback.gain.value = 0.3;
-
-    const delayWet = ctx.createGain();
-    delayWet.gain.value = 0;
-    delayWetRef.current = delayWet;
-
-    const reverbBuf = createReverb(ctx);
-    const reverbNode = ctx.createConvolver();
-    reverbNode.buffer = reverbBuf;
-
-    const reverbWet = ctx.createGain();
-    reverbWet.gain.value = 0;
-    reverbWetRef.current = reverbWet;
-
-    // Connect node graph:
-    // Source -> gainNode -> eqLow -> eqMid -> eqHigh -> filterNode -> (dry + wet delay + wet reverb) -> output
-    gainNode.connect(eqLow);
-    eqLow.connect(eqMid);
-    eqMid.connect(eqHigh);
-    eqHigh.connect(filterNode);
-
-    // Delay loop
-    filterNode.connect(delayNode);
-    delayNode.connect(delayFeedback);
-    delayFeedback.connect(delayNode);
-    delayNode.connect(delayWet);
-
-    // Reverb
-    filterNode.connect(reverbNode);
-    reverbNode.connect(reverbWet);
-
-    const masterGain = ctx.createGain();
-    masterGain.gain.value = 1.0;
-    masterGainRef.current = masterGain;
-
-    filterNode.connect(masterGain);
-    delayWet.connect(masterGain);
-    reverbWet.connect(masterGain);
-
-    // Connect masterGain to the AudioContext destination directly so playback works immediately
-    // without cross-context DOMExceptions across different audio instances.
+    // Into the Ambo mixer's DJ channel (same platform AudioContext) — metered,
+    // limited and feeding the visualizers. Straight to the speakers only if
+    // the mixer can't be built.
     try {
-      masterGain.connect(ctx.destination);
-    } catch {}
+      const input = amboAudio.channelInput('dj');
+      if (input && input.context === ctx) deck.connect(input);
+      else deck.connect(ctx.destination);
+    } catch { try { deck.connect(ctx.destination); } catch {} }
 
-    try {
-      const bus = isLiveOnProgram ? platformAudio.mainBus('dj') : null;
-      if (bus && (bus as any).context === ctx) {
-        masterGain.connect(bus);
-      }
-    } catch {}
-
+    deckRef.current = deck;
+    try { deck.setVolume(otherAudioFactor()); } catch {}
     return ctx;
-  }, [volume, isLiveOnProgram]);
+  }, [track.bpm, track.key, isLiveOnProgram]);
+
+  // ── 1b. Video priority — with scope 'all', a video with sound on Program
+  // ducks or silences the deck too (services/ambo/audioPriority.ts).
+  useEffect(() => {
+    const apply = () => { try { deckRef.current?.setVolume(otherAudioFactor()); } catch {} };
+    apply();
+    return subscribeAudioPriority(apply);
+  }, [track.id]);
 
   // ── 2. Load Track Audio Data & Precomputed Peaks ──
   useEffect(() => {
@@ -201,17 +180,24 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
       let audioBuf: AudioBuffer | null = null;
       let calculatedPeaks: Float32Array | null = null;
 
-      // Try cached analysis if track has an ID
-      if (track.id) {
+      // Try cached analysis if track has an ID — auto-load waveforms from Chora
+      if (track.id && deckRef.current) {
         try {
-          const cached = getCachedAnalysis(track.id);
-          if (cached && cached.peaks) {
-            calculatedPeaks = new Float32Array(cached.peaks);
-            if (cached.bpm) setBpm(cached.bpm);
-          }
-          const theory = await loadTrackTheory(track.id).catch(() => null);
-          if (theory?.camelotKey) setCamelotKey(theory.camelotKey);
+          await loadAnalysisForDeck(deckRef.current, track.id);
+          if (deckRef.current.bpm) setBpm(deckRef.current.bpm);
+          if (deckRef.current.camelotKey) setCamelotKey(deckRef.current.camelotKey);
+          if (deckRef.current.peaks) calculatedPeaks = new Float32Array(deckRef.current.peaks as any);
         } catch {}
+        // Fallback to direct cache check
+        if (!calculatedPeaks) {
+          try {
+            const cached = getCachedAnalysis({ id: track.id, url: track.url || '' } as any);
+            if (cached && cached.peaks) {
+              calculatedPeaks = new Float32Array(cached.peaks);
+              if (cached.bpm) setBpm(cached.bpm);
+            }
+          } catch {}
+        }
       }
 
       if (track.url) {
@@ -233,7 +219,6 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
           const data = audioBuf.getChannelData(ch);
           for (let i = 0; i < data.length; i++) {
             const t = i / sr;
-            // Warm worship chord: fundamental + fifth + octave with gentle swell
             const swell = Math.sin(t * 0.2) * 0.2 + 0.8;
             data[i] = (Math.sin(2 * Math.PI * 130.81 * t) * 0.2 +
                        Math.sin(2 * Math.PI * 196.00 * t) * 0.15 +
@@ -244,24 +229,60 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
 
       if (!active) return;
 
+      // Load buffer into the shared deck engine
+      const deck = deckRef.current;
+      if (deck) {
+        deck.load(audioBuf);
+        setDuration(deck.duration);
+      } else {
+        setDuration(audioBuf.duration);
+      }
       setBuffer(audioBuf);
-      const totalDur = audioBuf.duration;
-      setDuration(totalDur);
 
       if (!calculatedPeaks) {
         calculatedPeaks = extractPeaks(audioBuf);
-        setPeaks(calculatedPeaks);
-      } else {
-        setPeaks(calculatedPeaks);
       }
+      setPeaks(calculatedPeaks);
 
       const detectedBpm = estimateBPM(audioBuf);
       if (detectedBpm && detectedBpm > 0) setBpm(detectedBpm);
 
       setIsLoading(false);
 
-      if (autoPlay) {
-        startPlayback(0, audioBuf);
+      // Colour-waveform analysis in the background (bands, kick/snare/hat
+      // onsets, vocal lane). The beat grid is phased from the detected kicks
+      // at the whole-track BPM, so loops and cues land on real beats.
+      if (deck) {
+        const sig = { cancelled: false };
+        analysisCancelRef.current = sig;
+        void analyzeSpectrum(audioBuf, sig).then(a => {
+          if (!active || sig.cancelled || !a) return;
+          setSpectral(a);
+          const gridBpm = (detectedBpm && detectedBpm > 0) ? detectedBpm : (track.bpm || DEFAULT_BPM);
+          const interval = 60 / gridBpm;
+          const kicks = a.onsets.filter(o => o.kind === 'kick' && o.strength > 0.4).map(o => o.time);
+          let first = 0, best = -1;
+          // Try each early kick as the grid phase; keep the one most kicks agree with.
+          for (const cand of kicks.slice(0, 48)) {
+            let score = 0;
+            for (const k of kicks) {
+              const ph = ((k - cand) / interval) % 1;
+              const d = Math.min(Math.abs(ph), 1 - Math.abs(ph)) * interval;
+              if (d < 0.03) score++;
+            }
+            if (score > best) { best = score; first = cand % interval; }
+          }
+          if (deckRef.current === deck) {
+            deck.setBeatGrid(gridBpm, first);
+            setBeatGridState({ firstDownbeat: first, interval });
+            setBpm(gridBpm);
+          }
+        });
+      }
+
+      if (autoPlay && deck) {
+        deck.play();
+        setIsPlaying(true);
       }
     };
 
@@ -269,165 +290,178 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
 
     return () => {
       active = false;
-      stopPlayback();
+      if (analysisCancelRef.current) analysisCancelRef.current.cancelled = true;
+      if (deckRef.current) deckRef.current.stop();
     };
   }, [track.url, track.id]);
 
-  // ── 3. Playback Controls ──
-  const startPlayback = (offsetSec = 0, buf = buffer) => {
-    const ctx = audioCtxRef.current || initAudioGraph();
-    if (!buf) return;
+  // ── Lyrics & Pads Logic ──
+  // Chora synced lyrics. (This used to import a fetchTimedLyrics that doesn't
+  // exist in lyricSync, so the strip never loaded.)
+  useEffect(() => {
+    const lines = lyricsFor(track);
+    setSyncedLyrics(lines.map((l, i) => ({ text: l.text, startTime: l.time, endTime: lines[i + 1]?.time ?? l.time + 6 })));
+    setActiveLyricIndex(0);
+  }, [track?.id, track?.timeCodedLyrics]);
 
-    if (sourceNodeRef.current) {
-      try { sourceNodeRef.current.stop(); } catch {}
-      sourceNodeRef.current.disconnect();
-    }
+  // The deck is a lyric clock: the lyrics layer can follow it (lyricFeed.ts).
+  const pitchRef = useRef(0);
+  pitchRef.current = pitch;
+  const gridRef = useRef<{ firstDownbeat: number; interval: number } | null>(null);
+  gridRef.current = beatGridState;
+  const trackRef = useRef(track);
+  trackRef.current = track;
+  useEffect(() => {
+    registerLyricClock('dj', {
+      getTime: () => deckRef.current?.currentTime ?? 0,
+      isPlaying: () => !!deckRef.current?.isPlaying,
+      rate: () => pitchToRate(pitchRef.current),
+      track: () => trackRef.current,
+      grid: () => gridRef.current ? { bpm: 60 / gridRef.current.interval, firstBeat: gridRef.current.firstDownbeat } : null,
+    });
+    return () => registerLyricClock('dj', null);
+  }, []);
 
-    const src = ctx.createBufferSource();
-    src.buffer = buf;
-    src.playbackRate.value = pitchToRate(pitch);
+  useEffect(() => {
+    if (!syncedLyrics.length || !isPlaying) return; // use isPlaying instead of deckRef.current?.isPlaying to ensure re-evaluation
+    const interval = setInterval(() => {
+      const t = deckRef.current?.currentTime ?? 0;
+      const idx = syncedLyrics.findIndex((l, i) => {
+        const next = syncedLyrics[i + 1];
+        return t >= l.startTime && (!next || t < next.startTime);
+      });
+      if (idx >= 0 && idx !== activeLyricIndex) {
+        setActiveLyricIndex(idx);
+        // Scroll to center the active lyric
+        setLyricsScrollOffset(-idx * 180 + 200);
+      }
+    }, 100);
+    return () => clearInterval(interval);
+  }, [syncedLyrics, activeLyricIndex, isPlaying]);
 
-    if (gainNodeRef.current) {
-      src.connect(gainNodeRef.current);
-    }
-
-    const clampedOffset = Math.max(0, Math.min(buf.duration, offsetSec));
-    src.start(0, clampedOffset);
-    startTimeRef.current = ctx.currentTime;
-    startOffsetRef.current = clampedOffset;
-    sourceNodeRef.current = src;
-    setIsPlaying(true);
-
-    src.onended = () => {
-      // Loop region check
-      if (loopActive && loopIn !== null && loopOut !== null && loopOut > loopIn) {
-        startPlayback(loopIn, buf);
-      } else {
-        setIsPlaying(false);
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      // Default shortcuts: keys 1-8
+      const padIndex = soundPads.findIndex(p => p.shortcut === e.key);
+      if (padIndex >= 0) {
+        e.preventDefault();
+        triggerPad(padIndex);
       }
     };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [soundPads]);
+
+  const triggerPad = React.useCallback((index: number) => {
+    const pad = soundPads[index];
+    if (!pad?.sampleUrl) {
+      // For now, visual feedback only if no sample
+      setActivePadId(index);
+      setTimeout(() => setActivePadId(null), 200);
+      return;
+    }
+    
+    setActivePadId(index);
+    setTimeout(() => setActivePadId(null), 200);
+    
+    // Play through Web Audio
+    // If pad.cueOnly, route to cue bus; otherwise route to main output
+    // Use platformAudio for routing
+  }, [soundPads]);
+
+  // ── 3. Playback Controls — delegated to deck engine ──
+  const togglePlay = () => {
+    const deck = deckRef.current;
+    if (!deck) return;
+    if (deck.isPlaying) {
+      deck.pause();
+      setIsPlaying(false);
+    } else {
+      deck.play();
+      setIsPlaying(true);
+    }
   };
 
+  // The Stop button called an undefined stopPlayback() and threw on click.
   const stopPlayback = () => {
-    if (sourceNodeRef.current) {
-      try { sourceNodeRef.current.stop(); } catch {}
-      sourceNodeRef.current.disconnect();
-      sourceNodeRef.current = null;
-    }
+    const deck = deckRef.current;
+    if (!deck) return;
+    deck.stop();
+    deck.seek(0);
     setIsPlaying(false);
   };
 
-  const togglePlay = () => {
-    if (isPlaying) {
-      stopPlayback();
-    } else {
-      startPlayback(currentTime);
-    }
+  const handleCue = () => {
+    const deck = deckRef.current;
+    if (!deck) return;
+    deck.stop();
+    setIsPlaying(false);
+    const target = hotCues[0] !== null ? hotCues[0]! : 0;
+    deck.seek(target);
+    setCurrentTime(target);
   };
 
-  const handleCue = () => {
-    stopPlayback();
-    // Return to first hot cue or 0
-    const target = hotCues[0] !== null ? hotCues[0]! : 0;
-    setCurrentTime(target);
-    startOffsetRef.current = target;
-  };
+  const getDeckTime = useCallback(() => deckRef.current?.currentTime ?? 0, []);
 
   const handleSeek = (timeSec: number) => {
+    const deck = deckRef.current;
+    if (!deck) return;
     const clamped = Math.max(0, Math.min(duration, timeSec));
+    deck.seek(clamped);
     setCurrentTime(clamped);
-    if (isPlaying) {
-      startPlayback(clamped);
-    } else {
-      startOffsetRef.current = clamped;
-    }
   };
 
-  // ── 4. Animation Frame Playhead Tracking ──
+  // ── 4. Animation Frame Playhead Tracking (reads from deck) ──
   useEffect(() => {
     const tick = () => {
-      if (isPlaying && audioCtxRef.current && buffer) {
-        const rate = pitchToRate(pitch);
-        const elapsed = (audioCtxRef.current.currentTime - startTimeRef.current) * rate;
-        const now = startOffsetRef.current + elapsed;
-
-        // Loop check
-        if (loopActive && loopIn !== null && loopOut !== null && now >= loopOut) {
-          startPlayback(loopIn);
-          return;
-        }
-
-        if (now >= buffer.duration) {
-          setCurrentTime(buffer.duration);
+      const deck = deckRef.current;
+      if (deck && deck.isPlaying) {
+        setCurrentTime(deck.currentTime);
+        if (deck.currentTime >= deck.duration && !deck.activeLoop) {
           setIsPlaying(false);
-        } else {
-          setCurrentTime(now);
         }
       }
+      syncLoopFromDeck();
       rafRef.current = requestAnimationFrame(tick);
     };
 
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [isPlaying, pitch, buffer, loopActive, loopIn, loopOut]);
+  }, [isPlaying]);
 
-  // ── 5. EQ Updates ──
+  // ── 5. EQ Updates — uses shared deck engine (matches DJ Mode: -24dB to +6dB) ──
   const handleEqChange = (band: 'low' | 'mid' | 'high', val: number) => {
     setEq(prev => ({ ...prev, [band]: val }));
-    const gainDb = val * 12; // -12dB to +12dB
-    if (band === 'low' && eqLowRef.current) eqLowRef.current.gain.value = gainDb;
-    if (band === 'mid' && eqMidRef.current) eqMidRef.current.gain.value = gainDb;
-    if (band === 'high' && eqHighRef.current) eqHighRef.current.gain.value = gainDb;
+    const deck = deckRef.current;
+    if (!deck) return;
+    const newEq = { ...eq, [band]: val };
+    deck.setEQ(newEq.low, newEq.mid, newEq.high);
   };
 
-  // ── 6. Filter & FX Updates ──
-  const handleFilterChange = (val: number) => {
-    setFx(prev => ({ ...prev, filter: val }));
-    if (!filterNodeRef.current) return;
-    if (!fxOn.filter) {
-      filterNodeRef.current.frequency.value = 20000;
-      filterNodeRef.current.type = 'lowpass';
-      return;
-    }
-    // Neutral = 0.5; < 0.5 = lowpass; > 0.5 = highpass
-    if (val < 0.48) {
-      filterNodeRef.current.type = 'lowpass';
-      const f = 200 + (val / 0.48) * 19800;
-      filterNodeRef.current.frequency.value = f;
-    } else if (val > 0.52) {
-      filterNodeRef.current.type = 'highpass';
-      const f = 20 + ((val - 0.52) / 0.48) * 4000;
-      filterNodeRef.current.frequency.value = f;
-    } else {
-      filterNodeRef.current.type = 'lowpass';
-      filterNodeRef.current.frequency.value = 20000;
-    }
-  };
+  // ── 6. Filter & FX — state is the truth; one effect drives the deck ──
+  // Before: the delay knob only set React state (never reached the deck),
+  // switching delay/reverb on used an amount that defaulted to 0 (silent), and
+  // reverb had no control at all.
+  const handleFilterChange = (val: number) => setFx(prev => ({ ...prev, filter: val }));
+  const handleToggleFx = (key: 'filter' | 'delay' | 'reverb') => setFxOn(prev => ({ ...prev, [key]: !prev[key] }));
 
-  const handleToggleFx = (key: 'filter' | 'delay' | 'reverb') => {
-    setFxOn(prev => {
-      const next = { ...prev, [key]: !prev[key] };
-      if (key === 'delay' && delayWetRef.current) {
-        delayWetRef.current.gain.value = next.delay ? fx.delay * 0.8 : 0;
-      }
-      if (key === 'reverb' && reverbWetRef.current) {
-        reverbWetRef.current.gain.value = next.reverb ? fx.reverb * 0.8 : 0;
-      }
-      if (key === 'filter') {
-        if (!next.filter && filterNodeRef.current) {
-          filterNodeRef.current.frequency.value = 20000;
-        } else {
-          handleFilterChange(fx.filter);
-        }
-      }
-      return next;
-    });
-  };
+  useEffect(() => {
+    const deck = deckRef.current;
+    if (!deck) return;
+    deck.setFilter(fxOn.filter ? fx.filter : 0.5);
+    // Beat-synced delay: a dotted eighth (¾ beat), the classic DJ echo.
+    const beat = 60 / (bpm || DEFAULT_BPM);
+    deck.setDelay(Math.min(1.9, beat * 0.75), 0.25 + fx.delay * 0.4, fxOn.delay ? 0.15 + fx.delay * 0.65 : 0);
+    deck.setReverb(fxOn.reverb ? 0.1 + fx.reverb * 0.8 : 0);
+  }, [fx, fxOn, bpm, buffer]);
 
-  // ── 7. Hot Cue Handler ──
+  // ── 7. Hot Cue Handler — uses deck engine ──
   const handleHotCue = (index: number, e?: React.MouseEvent) => {
+    const deck = deckRef.current;
+    if (!deck) return;
+
     if (e && (e.shiftKey || e.altKey)) {
-      // Clear cue
+      deck.clearCue(index);
       setHotCues(prev => {
         const next = [...prev];
         next[index] = null;
@@ -438,40 +472,53 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
 
     const existing = hotCues[index];
     if (existing === null) {
-      // Set cue at current position
+      deck.setCue(index, currentTime);
       setHotCues(prev => {
         const next = [...prev];
         next[index] = currentTime;
         return next;
       });
     } else {
-      // Jump and play
-      handleSeek(existing);
-      if (!isPlaying) startPlayback(existing);
+      deck.jumpToCue(index);
+      setCurrentTime(existing);
+      if (!isPlaying) {
+        deck.play();
+        setIsPlaying(true);
+      }
     }
   };
 
-  // ── 8. Beat Loop Handler ──
+  // ── 8. Loops — Traktor model; the DECK owns the loop, the UI mirrors it ──
+  // (The UI used to compute the region from its own clock, so the highlighted
+  // region and the audible loop could disagree.)
+  const loopKeyRef = useRef('');
+  function syncLoopFromDeck() {
+    const L = deckRef.current?.activeLoop ?? null;
+    const key = L ? `${L.in}|${L.out}|${L.beats ?? ''}` : '';
+    if (key === loopKeyRef.current) return;
+    loopKeyRef.current = key;
+    setLoopActive(!!L);
+    setLoopIn(L ? L.in : null);
+    setLoopOut(L ? L.out : null);
+    setActiveBeatLoop(L?.beats ?? null);
+  }
+
+  /** Size button: set a loop · same size again exits · other size resizes. */
   const handleBeatLoop = (beats: number) => {
-    if (activeBeatLoop === beats && loopActive) {
-      // Turn off
-      setLoopActive(false);
-      setActiveBeatLoop(null);
-      setLoopIn(null);
-      setLoopOut(null);
-      return;
-    }
-
-    const secPerBeat = 60 / (bpm || DEFAULT_BPM);
-    const loopSec = beats * secPerBeat;
-    const inTime = currentTime;
-    const outTime = Math.min(duration, inTime + loopSec);
-
-    setLoopIn(inTime);
-    setLoopOut(outTime);
-    setLoopActive(true);
-    setActiveBeatLoop(beats);
+    const deck = deckRef.current;
+    if (!deck) return;
+    if (deck.activeLoop && deck.activeLoop.beats === beats) deck.clearLoop();
+    else deck.setLoop(beats, bpm || DEFAULT_BPM);
+    syncLoopFromDeck();
   };
+  const loopAction = (fn: (d: DeckInstance) => void) => {
+    const deck = deckRef.current;
+    if (!deck) return;
+    fn(deck);
+    syncLoopFromDeck();
+    setCurrentTime(deck.currentTime);
+  };
+  const [loopInArmed, setLoopInArmed] = useState(false);
 
   const progress = duration > 0 ? currentTime / duration : 0;
 
@@ -550,16 +597,18 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
       {isExpanded && (
         <div className="p-3 flex flex-col gap-3">
           {/* 1. Full-Width Horizontal Waveform Canvas */}
-          <div className="relative w-full h-16 rounded-xl overflow-hidden border border-white/10 bg-black/60 shadow-inner">
-            <WaveformCanvas
+          <div className="relative w-full">
+            <SpectralWaveform
+              analysis={spectral}
               peaks={peaks}
-              progress={progress}
-              color={isLiveOnProgram ? '#FF8C00' : '#00DAF3'}
-              hotCues={hotCues}
-              loopIn={loopIn}
-              loopOut={loopOut}
               duration={duration}
+              getTime={getDeckTime}
+              isPlaying={isPlaying}
+              beatGrid={beatGridState}
+              loop={loopActive && loopIn != null && loopOut != null ? { in: loopIn, out: loopOut } : null}
+              hotCues={hotCues}
               onSeek={handleSeek}
+              accent={isLiveOnProgram ? '#FF8C00' : '#00DAF3'}
             />
 
             {/* Time Stamp HUD */}
@@ -571,10 +620,90 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
             </div>
 
             {loopActive && (
-              <div className="absolute bottom-1 right-2 px-1.5 py-0.5 rounded bg-purple-500/80 text-white font-mono text-[8px] font-bold uppercase tracking-wider pointer-events-none">
+              <div className="absolute top-1 left-1/2 -translate-x-1/2 px-1.5 py-0.5 rounded bg-purple-500/80 text-white font-mono text-[8px] font-bold uppercase tracking-wider pointer-events-none">
                 Loop Active ({activeBeatLoop ? beatLoopLabel(activeBeatLoop) : 'Manual'})
               </div>
             )}
+          </div>
+
+          {/* Synced Lyrics Strip */}
+          {syncedLyrics && syncedLyrics.length > 0 && (
+            <div className="relative h-8 overflow-hidden bg-black/30 border-t border-white/5">
+              <div 
+                className="flex items-center gap-6 h-full transition-transform duration-300 ease-out"
+                style={{ transform: `translateX(${lyricsScrollOffset}px)` }}
+              >
+                {syncedLyrics.map((line, i) => (
+                  <span
+                    key={i}
+                    className={`whitespace-nowrap text-[11px] font-medium transition-all duration-200 flex-none ${
+                      i === activeLyricIndex
+                        ? 'text-[#00DAF3] scale-105 font-bold'
+                        : i < activeLyricIndex
+                          ? 'text-white/25'
+                          : 'text-white/50'
+                    }`}
+                  >
+                    {line.text}
+                  </span>
+                ))}
+              </div>
+              {/* Send to output button */}
+              <button
+                onClick={() => onSendLyricsToOutput?.(syncedLyrics[activeLyricIndex]?.text || '')}
+                className="absolute right-1 top-1 px-1.5 py-0.5 rounded bg-white/10 text-[8px] text-white/40 hover:bg-[#00DAF3]/20 hover:text-[#00DAF3] transition-all"
+                title="Send current lyric to output displays"
+              >
+                → Output
+              </button>
+            </div>
+          )}
+
+          {/* Soundboard Pads */}
+          <div className="flex items-stretch gap-1 px-2 py-1.5 bg-black/20 border-t border-white/5">
+            {soundPads.map((pad, i) => (
+              // A div, not a <button>: the pad contains its own CUE button, and a
+              // button inside a button is invalid and fired the pad on CUE clicks.
+              <div
+                key={pad.id}
+                role="button"
+                tabIndex={0}
+                onClick={() => triggerPad(i)}
+                onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); triggerPad(i); } }}
+                className={`cursor-pointer flex-1 flex flex-col items-center justify-center gap-0.5 py-1.5 rounded-lg border transition-all duration-100 ${
+                  activePadId === i
+                    ? 'scale-95 brightness-150'
+                    : 'hover:brightness-110'
+                }`}
+                style={{
+                  backgroundColor: `${pad.color}15`,
+                  borderColor: `${pad.color}40`,
+                  boxShadow: activePadId === i ? `0 0 12px ${pad.color}60` : 'none',
+                }}
+                title={`${pad.label}${pad.shortcut ? ` [${pad.shortcut}]` : ''}`}
+              >
+                <span className="text-[9px] font-bold" style={{ color: pad.color }}>
+                  {pad.sampleName || pad.label}
+                </span>
+                {pad.shortcut && (
+                  <span className="text-[7px] text-white/30 font-mono">{pad.shortcut}</span>
+                )}
+                {/* Cue toggle */}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setSoundPads(prev => prev.map((p, j) => j === i ? { ...p, cueOnly: !p.cueOnly } : p));
+                  }}
+                  className={`mt-0.5 px-1.5 py-0.5 rounded text-[7px] font-bold transition-all ${
+                    pad.cueOnly
+                      ? 'bg-amber-500/30 text-amber-400 border border-amber-500/40'
+                      : 'bg-white/5 text-white/30 border border-white/10'
+                  }`}
+                >
+                  CUE
+                </button>
+              </div>
+            ))}
           </div>
 
           {/* 2. Interactive Performance Row */}
@@ -669,6 +798,7 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
                 {BEAT_LOOPS.map(b => (
                   <button
                     key={b}
+                    title={activeBeatLoop === b && loopActive ? 'Exit loop' : loopActive ? `Resize loop to ${beatLoopLabel(b)}` : `Loop ${beatLoopLabel(b)} from the current beat`}
                     onClick={() => handleBeatLoop(b)}
                     className={`flex-1 py-0.5 rounded text-[8px] font-mono font-bold transition-all border ${
                       activeBeatLoop === b && loopActive
@@ -679,6 +809,29 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
                     {beatLoopLabel(b)}
                   </button>
                 ))}
+              </div>
+              <div className="flex items-center gap-1 mt-0.5">
+                <button
+                  onClick={() => loopAction(d => { d.setLoopIn(); setLoopInArmed(true); })}
+                  className={`px-1.5 py-0.5 rounded text-[8px] font-mono font-bold border transition-all ${loopInArmed ? 'bg-purple-600/40 border-purple-400 text-white' : 'bg-white/5 border-white/10 text-white/60 hover:text-white'}`}
+                  title="Loop in — then press OUT"
+                >IN</button>
+                <button
+                  onClick={() => loopAction(d => { d.setLoopOut(); setLoopInArmed(false); })}
+                  disabled={!loopInArmed}
+                  className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold border bg-white/5 border-white/10 text-white/60 hover:text-white disabled:opacity-30"
+                  title="Loop out — starts the manual loop"
+                >OUT</button>
+                <button onClick={() => loopAction(d => d.halveLoop())} disabled={!loopActive} className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold border bg-white/5 border-white/10 text-white/60 hover:text-white disabled:opacity-30" title="Halve loop">½</button>
+                <button onClick={() => loopAction(d => d.doubleLoop())} disabled={!loopActive} className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold border bg-white/5 border-white/10 text-white/60 hover:text-white disabled:opacity-30" title="Double loop">×2</button>
+                <button onClick={() => loopAction(d => d.moveLoop(-1))} disabled={!loopActive} className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold border bg-white/5 border-white/10 text-white/60 hover:text-white disabled:opacity-30" title="Move loop back one length">◀</button>
+                <button onClick={() => loopAction(d => d.moveLoop(1))} disabled={!loopActive} className="px-1.5 py-0.5 rounded text-[8px] font-mono font-bold border bg-white/5 border-white/10 text-white/60 hover:text-white disabled:opacity-30" title="Move loop forward one length">▶</button>
+                <button
+                  onClick={() => loopAction(d => { d.clearLoop(); setLoopInArmed(false); })}
+                  disabled={!loopActive}
+                  className={`flex-1 px-1.5 py-0.5 rounded text-[8px] font-mono font-bold border transition-all disabled:opacity-30 ${loopActive ? 'bg-purple-600 border-purple-400 text-white' : 'bg-white/5 border-white/10 text-white/60'}`}
+                  title="Exit loop and play on"
+                >{loopActive ? 'EXIT LOOP' : 'LOOP OFF'}</button>
               </div>
             </div>
 
@@ -721,6 +874,23 @@ export const AmboDJTrackPlayer: React.FC<AmboDJTrackPlayerProps> = ({
                   }`}
                 >
                   {fxOn.delay ? 'ON' : 'BYP'}
+                </button>
+              </div>
+
+              <div className="flex flex-col items-center gap-0.5">
+                <EQKnob
+                  label="REVERB"
+                  value={fx.reverb * 2 - 1}
+                  onChange={v => setFx(prev => ({ ...prev, reverb: (v + 1) / 2 }))}
+                  color="#2BE0A8"
+                />
+                <button
+                  onClick={() => handleToggleFx('reverb')}
+                  className={`px-1.5 py-0.2 rounded text-[7px] font-black uppercase tracking-widest border transition-all ${
+                    fxOn.reverb ? 'bg-[#2BE0A8] text-black border-[#2BE0A8]' : 'border-white/10 text-white/30'
+                  }`}
+                >
+                  {fxOn.reverb ? 'ON' : 'BYP'}
                 </button>
               </div>
             </div>

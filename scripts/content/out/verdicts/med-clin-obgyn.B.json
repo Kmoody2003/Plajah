@@ -1,0 +1,1161 @@
+{
+ "courseId": "med-clin-obgyn",
+ "verifier": "B",
+ "fetched": 43,
+ "note": "Web fetches hit a session limit partway through, so claims for l08, l09 and a few others are unverifiable. ACOG, NEJM, AJOG and LWW pages were paywalled (402/403), so hosted copies or secondary sources were used where opened.",
+ "questions": [
+  {
+   "id": "med-clin-obgyn.l01.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l01.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/low-dose-aspirin-use-for-the-prevention-of-morbidity-and-mortality-from-preeclampsia-preventive-medication"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l01.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.cdc.gov/vaccines/pregnancy/hcp-toolkit/guidelines.html"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l01.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l02.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l02.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l02.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l03.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://portaldeboaspraticas.iff.fiocruz.br/wp-content/uploads/2018/03/oc001.pdf"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l03.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l03.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l03.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l04.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l04.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l04.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l04.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.ontariomidwives.ca/sites/default/files/Clinical%20Topics/Impacts%20of%20the%20ARRIVE%20trial-PUB.pdf"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l05.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l05.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l05.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l05.q5",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Prior sPTB before 34 wk with CL under 25 mm before 24 wk is a cerclage indication; vaginal progesterone is an option after the 2023 17-OHPC withdrawal."
+  },
+  {
+   "id": "med-clin-obgyn.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l06.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l06.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l06.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://tjodistanbul.org/uploads/postpartum-hemorrhage-number-183-october-2017.pdf"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l07.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l07.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l07.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l07.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.obgproject.com/2018/12/27/acog-preeclampsia-guidelines-antenatal-management-and-timing-of-delivery/"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l08.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l08.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l08.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l08.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l09.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l09.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l09.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l09.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l10.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l10.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l10.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l11.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.cdc.gov/contraception/hcp/usspr/emergency-contraception.html"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l11.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l11.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l12.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.supremecourt.gov/opinions/21pdf/19-1392_6j37.pdf"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l12.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.supremecourt.gov/opinions/23pdf/23-235_n7ip.pdf"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l12.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l13.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l13.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://academic.oup.com/jcem/article/108/10/2447/7242360"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l13.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l13.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l14.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.asrm.org/practice-guidance/practice-committee-documents/fertility-evaluation-of-infertile-women-a-committee-opinion-2021/"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l14.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l14.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l15.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.cdc.gov/std/treatment-guidelines/pid.htm"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l15.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l15.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l15.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l16.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l16.q2",
+   "answer": 2,
+   "confidence": "low",
+   "ambiguous": true,
+   "sources": [],
+   "note": "At age 24, ASCCP 2019 (patients under 25) prefers repeat cytology in 1 year for ASC-US/LSIL, not colposcopy. No choice matches, and colposcopy is only the closest intended answer."
+  },
+  {
+   "id": "med-clin-obgyn.l16.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/cervical-cancer-screening"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/cervical-cancer-screening"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l16.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l17.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l17.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l17.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/ovarian-cancer-screening"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l17.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l17.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l18.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/breast-cancer-screening"
+   ]
+  },
+  {
+   "id": "med-clin-obgyn.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l18.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-obgyn.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/intimate-partner-violence-and-abuse-of-elderly-and-vulnerable-adults-screening"
+   ],
+   "note": "USPSTF reaffirmed this in a June 24, 2025 update; the 2018 date in the stem is outdated but the answer is unchanged."
+  },
+  {
+   "id": "med-clin-obgyn.l18.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-clin-obgyn.l01",
+   "claim": "USPSTF 2021: low-dose aspirin after 12 weeks for those at high risk of preeclampsia (prior preeclampsia, multifetal, chronic HTN, diabetes, renal, autoimmune).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/low-dose-aspirin-use-for-the-prevention-of-morbidity-and-mortality-from-preeclampsia-preventive-medication"
+   ],
+   "note": "USPSTF Sept 28, 2021, 81 mg after 12 weeks. The 12-28 wk, ideally before 16 wk, window is ACOG wording."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l01",
+   "claim": "Tdap in each pregnancy at 27-36 weeks; RSV vaccine at 32-36 weeks in season.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/vaccines/pregnancy/hcp-toolkit/guidelines.html"
+   ],
+   "note": "CDC: Abrysvo only, 32 0/7-36 6/7 wk, Sept-Jan."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l01",
+   "claim": "Live vaccines (MMR, varicella) are contraindicated in pregnancy.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/vaccines/pregnancy/hcp-toolkit/guidelines.html"
+   ],
+   "note": "Separately, COVID-19 vaccination in pregnancy is attributed to ACOG (correct). Federal HHS/CDC guidance on it changed in 2025; not verified here."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l02",
+   "claim": "ACOG 2020: aneuploidy screening and diagnostic testing should be offered to all patients regardless of maternal age.",
+   "verdict": "supported",
+   "sources": [
+    "https://harmonytest.roche.com/content/dam/diagnostics_microsites/harmony-test/master-blueprint/en/nipt-resources/document/guideline-ACOG-practice-bulletin-screening-for-fetal-chromosomal-abnormalities-ref-26008.pdf"
+   ],
+   "note": "Practice Bulletin 226, Oct 2020."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l02",
+   "claim": "Cell-free DNA is the most sensitive and specific screen for trisomies 21, 18 and 13 and can be done from 9-10 weeks.",
+   "verdict": "supported",
+   "sources": [
+    "https://harmonytest.roche.com/content/dam/diagnostics_microsites/harmony-test/master-blueprint/en/nipt-resources/document/guideline-ACOG-practice-bulletin-screening-for-fetal-chromosomal-abnormalities-ref-26008.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-obgyn.l02",
+   "claim": "Detailed anatomy ultrasound at 18-22 weeks.",
+   "verdict": "supported",
+   "sources": [
+    "https://harmonytest.roche.com/content/dam/diagnostics_microsites/harmony-test/master-blueprint/en/nipt-resources/document/guideline-ACOG-practice-bulletin-screening-for-fetal-chromosomal-abnormalities-ref-26008.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-obgyn.l03",
+   "claim": "ACOG/SMFM 2014: active phase begins at about 6 cm.",
+   "verdict": "supported",
+   "sources": [
+    "https://portaldeboaspraticas.iff.fiocruz.br/wp-content/uploads/2018/03/oc001.pdf"
+   ],
+   "note": "Obstetric Care Consensus No. 1 (2014)."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l03",
+   "claim": "Earlier Friedman-based standards overdiagnosed arrest; contemporary (Consortium on Safe Labor) data should guide management.",
+   "verdict": "supported",
+   "sources": [
+    "https://portaldeboaspraticas.iff.fiocruz.br/wp-content/uploads/2018/03/oc001.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-obgyn.l03",
+   "claim": "Normal FHR baseline 110-160 bpm; moderate variability 6-25 bpm.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Matches NICHD 2008 definitions from memory, but not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l04",
+   "claim": "Second-stage arrest after at least 3 h pushing (nulliparas) and 2 h (multiparas), longer individualised with epidural.",
+   "verdict": "supported",
+   "sources": [
+    "https://portaldeboaspraticas.iff.fiocruz.br/wp-content/uploads/2018/03/oc001.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-obgyn.l04",
+   "claim": "Cesarean for suspected macrosomia considered at EFW of 5,000 g or more without diabetes and 4,500 g or more with diabetes.",
+   "verdict": "supported",
+   "sources": [
+    "https://portaldeboaspraticas.iff.fiocruz.br/wp-content/uploads/2018/03/oc001.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-obgyn.l04",
+   "claim": "ARRIVE (2018): elective induction at 39 weeks in low-risk nulliparas lowered the cesarean rate.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ontariomidwives.ca/sites/default/files/Clinical%20Topics/Impacts%20of%20the%20ARRIVE%20trial-PUB.pdf"
+   ],
+   "note": "18.6% vs 22.2%. The ACOG 2018 \"reasonable to offer\" statement was not opened."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l05",
+   "claim": "17-OHPC was withdrawn from the US market in 2023 after the confirmatory trial failed to show benefit.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/news-events/press-announcements/fda-commissioner-and-chief-scientist-announce-decision-withdraw-approval-makena"
+   ],
+   "note": "FDA final decision April 6, 2023."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l05",
+   "claim": "Vaginal progesterone is recommended (ACOG 2021) for a history of spontaneous preterm birth or a cervical length under 25 mm before 24 weeks.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "ACOG and SMFM pages were paywalled. Search snippets suggest the wording overstates: SMFM Consult #70 (2024) uses CL of 20 mm or less for those without prior sPTB, and evidence does not support vaginal progesterone for prior sPTB without a short cervix. The ACOG 2021 attribution looks stale, since PB 234 favoured 17-OHPC for prior sPTB."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l05",
+   "claim": "Antenatal corticosteroids at 24-34 weeks; magnesium before 32 weeks for neuroprotection.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page (ACOG pages paywalled)."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l06",
+   "claim": "ACOG 2017 defines PPH as cumulative blood loss of 1,000 mL or more, or loss with hypovolaemia, within 24 h of birth.",
+   "verdict": "supported",
+   "sources": [
+    "https://tjodistanbul.org/uploads/postpartum-hemorrhage-number-183-october-2017.pdf"
+   ],
+   "note": "Practice Bulletin 183, Oct 2017."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l06",
+   "claim": "WOMAN trial (2017): early tranexamic acid reduces death from bleeding.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.obgproject.com/2017/04/27/results-landmark-trial-tranexamic-acid-postpartum-hemorrhage/"
+   ],
+   "note": "Benefit when given within 3 h of birth (RR 0.69)."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l06",
+   "claim": "Methylergonovine is avoided in hypertension and carboprost in asthma.",
+   "verdict": "supported",
+   "sources": [
+    "https://tjodistanbul.org/uploads/postpartum-hemorrhage-number-183-october-2017.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-obgyn.l07",
+   "claim": "Severe features: platelets below 100,000, transaminases twice normal, creatinine above 1.1 mg/dL or doubled, pulmonary oedema, new headache or visual disturbance.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.abem.org/wp-content/uploads/2024/07/key-advances_-hypertensive-disorders-of-pregnancy_clinical-policy-alert.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-obgyn.l07",
+   "claim": "Severe-range BP should be treated within 30-60 minutes.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.abem.org/wp-content/uploads/2024/07/key-advances_-hypertensive-disorders-of-pregnancy_clinical-policy-alert.pdf"
+   ],
+   "note": "Acute severe HTN is confirmed as persistent over 15 minutes. The lesson's \"two occasions 4 hours apart\" applies to diagnosis and must not delay treatment."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l07",
+   "claim": "CHAP (2022): treating mild chronic hypertension to below 140/90 improved outcomes without impairing fetal growth.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.acc.org/Latest-in-Cardiology/Clinical-Trials/2022/04/01/03/19/CHAP"
+   ],
+   "note": "Composite 30.2% vs 37.0%; SGA 11.2% vs 10.4% (NS)."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l08",
+   "claim": "Carpenter-Coustan thresholds 95/180/155/140 with two abnormal values; IADPSG 92/180/153 with one.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Matches search snippets, but the page fetches failed (session limit)."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l08",
+   "claim": "A2GDM and well-controlled pregestational diabetes are delivered at 39 0/7-39 6/7; A1GDM may await labour to 40 6/7.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l08",
+   "claim": "Postpartum 75 g OGTT at 4-12 weeks after GDM, then lifelong screening every 1-3 years.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l09",
+   "claim": "Methotrexate for stable unruptured ectopic pregnancy (ACOG 2018), with baseline CBC, liver and renal tests.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Web tools hit their session limit before this lesson was checked."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l09",
+   "claim": "Early pregnancy loss occurs in 10-20% of clinically recognised pregnancies.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "ACOG cites about 10%; not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l09",
+   "claim": "Intrahepatic cholestasis: ursodeoxycholic acid; delivery at 36-39 weeks depending on bile acids.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l10",
+   "claim": "USPSTF 2019 recommends counselling interventions for pregnant and postpartum people at increased risk of perinatal depression.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/perinatal-depression-preventive-interventions"
+   ],
+   "note": "Feb 12, 2019, Grade B."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l10",
+   "claim": "Zuranolone is approved for postpartum depression.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/news-events/press-announcements/fda-approves-first-oral-treatment-postpartum-depression"
+   ],
+   "note": "FDA approved Zurzuvae Aug 4, 2023."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l10",
+   "claim": "ACOG 2018: postpartum contact within 3 weeks and a comprehensive visit no later than 12 weeks.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "ACOG page paywalled; not opened."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l11",
+   "claim": "CDC US MEC 2024 update; person-centred, non-coercive counselling.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/mmwr/volumes/73/rr/rr7304a1.htm"
+   ],
+   "note": "The category 4 list for CHC was not verified on an opened page."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l11",
+   "claim": "Typical-use failure: LARC and sterilisation below 1%, DMPA about 4%, pill/patch/ring about 7%, condoms about 13%.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/contraception/about/index.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-obgyn.l11",
+   "claim": "Copper IUD is the most effective EC (within 5 days); ulipristal works up to 5 days; levonorgestrel is less effective with obesity.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/contraception/hcp/usspr/emergency-contraception.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-obgyn.l12",
+   "claim": "The FDA approved mifepristone in 2000 for use through 10 weeks of pregnancy.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.guttmacher.org/article/2016/06/public-health-implications-fda-update-medication-abortion-label",
+    "https://www.supremecourt.gov/opinions/23pdf/23-235_n7ip.pdf"
+   ],
+   "note": "The 2000 approval was through 49 days (7 weeks). The label was extended to 70 days (10 weeks) on March 30, 2016."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l12",
+   "claim": "Dobbs (2022): no constitutional right to abortion; Roe and Casey overruled; authority returned to the people and their elected representatives.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.supremecourt.gov/opinions/21pdf/19-1392_6j37.pdf"
+   ],
+   "note": "Decided June 24, 2022."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l12",
+   "claim": "FDA v. Alliance for Hippocratic Medicine (2024): the plaintiffs lacked standing, leaving FDA actions in place.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.supremecourt.gov/opinions/23pdf/23-235_n7ip.pdf"
+   ],
+   "note": "Decided June 13, 2024."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l12",
+   "claim": "State law varies: some states ban nearly all abortions, others restrict at early gestational ages, with differing exceptions.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.kff.org/womens-health-policy/exceptions-in-state-abortion-bans-and-early-gestational-limits/"
+   ],
+   "note": "KFF as of April 1, 2026: 13 states have total bans in effect and 7 have limits at 6-12 weeks LMP. The lesson's 15-week example is not among the current early limits. Exceptions vary: 5 states lack a health exception, 9 lack rape/incest exceptions and 12 lack fatal-fetal-anomaly exceptions. This law changes often."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l13",
+   "claim": "The 2023 international PCOS guideline allows AMH as an alternative to ultrasound for PCOM in adults.",
+   "verdict": "supported",
+   "sources": [
+    "https://academic.oup.com/jcem/article/108/10/2447/7242360"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-obgyn.l13",
+   "claim": "Letrozole is first-line ovulation induction in PCOS.",
+   "verdict": "supported",
+   "sources": [
+    "https://academic.oup.com/jcem/article/108/10/2447/7242360"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-obgyn.l13",
+   "claim": "Primary amenorrhoea: no menses by 15 with secondary sexual characteristics, or by 13 without breast development.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l14",
+   "claim": "ASRM: evaluate after 12 months if under 35, after 6 months if 35 or older.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.asrm.org/practice-guidance/practice-committee-documents/fertility-evaluation-of-infertile-women-a-committee-opinion-2021/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-obgyn.l14",
+   "claim": "WHO 2021 semen lower reference limits are about 16 million/mL and 42% total motility.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fertility-smart.net/knowledge-center/normal-semen-analysis-who-2021/",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC8706130/"
+   ],
+   "note": "Concentration from a secondary source; the PMC review confirms 42% motility."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l14",
+   "claim": "Fezolinetant, an NK3 receptor antagonist, was approved in 2023.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.fda.gov/news-events/press-announcements/fda-approves-novel-drug-treat-moderate-severe-hot-flashes-caused-menopause"
+   ],
+   "note": "May 12, 2023. Not checked: newer nonhormonal approvals and FDA action on hormone-therapy labelling may postdate the lesson."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l15",
+   "claim": "CDC 2021: doxycycline for chlamydia, azithromycin preferred in pregnancy, test of cure in pregnancy.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/std/treatment-guidelines/chlamydia.htm"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-obgyn.l15",
+   "claim": "PID outpatient regimen is IM ceftriaxone plus doxycycline and metronidazole, and an IUD need not be removed.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/std/treatment-guidelines/pid.htm"
+   ],
+   "note": "Ceftriaxone 500 mg IM; doxycycline and metronidazole for 14 days."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l15",
+   "claim": "USPSTF recommends annual chlamydia/gonorrhoea screening for sexually active women under 25 and older women at increased risk.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/chlamydia-and-gonorrhea-screening"
+   ],
+   "note": "USPSTF 2021 (24 and younger, plus at-risk 25+) supports the groups. It does not specify \"annual\"; that interval is CDC's."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l16",
+   "claim": "USPSTF 2018: ages 21-29 cytology every 3 y; 30-65 cytology every 3 y, hrHPV every 5 y or cotest every 5 y; stop after 65 with adequate screening.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/cervical-cancer-screening"
+   ],
+   "note": "Still the final USPSTF statement, but a Dec 10, 2024 draft is pending (primary HPV preferred, self-collection allowed). HRSA (Jan 2026) and ACOG (Apr 2026) now prefer primary hrHPV every 5 y at 30-65."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l16",
+   "claim": "Self-collected HPV samples are approved; guideline bodies are \"moving toward\" including them; consult current recommendations.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/draft-recommendation/cervical-cancer-screening-adults-adolescents",
+    "https://www.contemporaryobgyn.net/view/hrsa-updates-cervical-cancer-screening-guidelines",
+    "https://www.healio.com/news/womens-health-ob-gyn/20260424/acog-updates-cervical-cancer-screening-guidance-to-include-selfcollection-option"
+   ],
+   "note": "Out of date. HRSA/WPSI guidelines (Jan 5, 2026) include patient-collected primary hrHPV at 30-65, with no-cost coverage from Jan 1, 2027. ACOG (Apr 2026) gives a qualified endorsement of self-collection every 3 years where follow-up infrastructure exists. The USPSTF Dec 2024 draft includes it. The lesson should state these."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l16",
+   "claim": "HPV vaccine: 2 doses if started before 15, 3 doses after 15 or if immunocompromised, catch-up to 26, shared decision-making 27-45 (ACIP).",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://www.cdc.gov/hpv/hcp/vaccination-considerations/index.html"
+   ],
+   "note": "Matches the CDC page dated July 2024. On Jan 5, 2026 HHS/CDC changed the childhood schedule to a single HPV dose without an ACIP vote (SGO, CIDRAP). A federal court put that change on hold in March 2026, and an appeal hearing is set for Oct 6, 2026. The current schedule is in flux."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l17",
+   "claim": "USPSTF 2018 recommends against ovarian cancer screening in average-risk asymptomatic women.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/ovarian-cancer-screening"
+   ],
+   "note": "Feb 13, 2018, Grade D."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l17",
+   "claim": "Lifetime ovarian cancer risk is about 40% for BRCA1 and 15-20% for BRCA2.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cancer.gov/about-cancer/causes-prevention/genetics/brca-fact-sheet"
+   ],
+   "note": "NCI gives 39-58% (BRCA1) and 13-29% (BRCA2); the lesson figures sit at the low end."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l17",
+   "claim": "An endometrial thickness of 4 mm or less on TVUS is reassuring in postmenopausal bleeding (ACOG 2018).",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "ACOG page paywalled; not opened."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l18",
+   "claim": "USPSTF 2024: biennial mammography at ages 40-74.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/breast-cancer-screening"
+   ],
+   "note": "April 30, 2024."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l18",
+   "claim": "ACOG recommends offering screening from 40, starting no later than 50, through shared decision-making.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://blogs.the-hospitalist.org/content/acog-updates-breast-cancer-screening-guidelines"
+   ],
+   "note": "Out of date. ACOG's 2024 update says average-risk patients should begin mammography at 40, annually or every 2 years by shared decision-making."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l18",
+   "claim": "USPSTF (2018) recommends IPV screening of reproductive-age women with referral of those who screen positive.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/intimate-partner-violence-and-abuse-of-elderly-and-vulnerable-adults-screening"
+   ],
+   "note": "Reaffirmed in a June 24, 2025 update that explicitly includes pregnant and postpartum women. The citation year should be 2025."
+  },
+  {
+   "lessonId": "med-clin-obgyn.l18",
+   "claim": "CDC 2021 STI prophylaxis after sexual assault is ceftriaxone, doxycycline and metronidazole, with HIV PEP within 72 h.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/std/treatment-guidelines/sexual-assault-adults.htm"
+   ],
+   "note": ""
+  }
+ ]
+}

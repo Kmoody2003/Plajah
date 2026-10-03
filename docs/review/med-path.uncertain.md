@@ -1,0 +1,50 @@
+# med-path (Pathology): claims for expert review
+
+All lessons are written from memory at textbook level; items below are those with any residual doubt in number, wording or emphasis.
+
+- l04: wound strength recovering to "about 70 to 80 percent" of normal skin at best (commonly quoted, ranges differ by source).
+- l04: keloids stated as more common in darker skin and as rich in thick type I and III collagen; hypertrophic scar vs keloid distinction simplified.
+- l05: petechiae "under 3 mm" (size cut-offs vary by source: 2 to 3 mm).
+- l06: statement that small pulmonary emboli seldom infarct because of dual supply, except with left heart failure (simplified).
+- l06: lines of Zahn as proof of antemortem clotting; postmortem clots described as gelatinous (generalisation).
+- l07: Marfan mechanism "excess TGF-beta signalling" and cystic fibrosis details stated briefly; F508 deletion described as the most common CFTR mutation.
+- l08: "about 4 percent" of Down syndrome from Robertsonian translocation (textbook figure, approximate).
+- l08: Niemann-Pick (sphingomyelinase) vs Tay-Sachs distinction by organomegaly: applies to classic Niemann-Pick type A; type C differs.
+- l09: "most reliable histologic sign of malignancy" for basement membrane invasion, and the generalisation that carcinomas spread lymphatically first and sarcomas haematogenously.
+- l10: BRAF V600E "in most melanomas" (roughly half of melanomas; wording should be softened to "many"); hairy cell leukemia BRAF association.
+- l11: TP53 stated as "most commonly mutated gene in human cancers"; BRCA role in homologous recombination, and inclusion of prostate and pancreatic risk.
+- l12: CA-125, CA 19-9 and PSA marker uses; checkpoint inhibitor adverse effect list.
+- l13: plaque distribution list; "fixed stenosis of roughly 70 percent" threshold for angina (approximate).
+- l13: infarct timing (neutrophils 1 to 3 days, macrophages 3 to 7 days, granulation 1 to 2 weeks, scar about 2 months); times vary by source.
+- l13: abdominal aortic aneurysm "mainly from atherosclerosis" (pathogenesis is multifactorial) and elective repair statement kept qualitative.
+- l14: giant cell arteritis described in "people older than 50"; polyarteritis nodosa "sparing the lungs" and hepatitis B link.
+- l14: Staphylococcus aureus endocarditis "usually tricuspid" in injection drug users.
+- l15: Reid index "increased" and chronic bronchitis definition (3 months, 2 consecutive years); alpha-1 antitrypsin basal panacinar pattern.
+- l15: sarcoidosis epidemiology "especially in Black women" (US data).
+- l16: lecithin to sphingomyelin ratio "below about 2" for immaturity (threshold varies by lab); "adenocarcinoma ... lepidic pattern was previously called bronchioloalveolar carcinoma" (classification terminology revised).
+- l16: pulmonary hypertension BMPR2 and plexiform lesions grouped briefly; mesothelioma "rind-like" description.
+- l17: "Squamous cell carcinoma upper and middle thirds of oesophagus" and hot beverages as a risk factor; Meckel "rule of twos" mentioned but not enumerated.
+- l17: ulcerative colitis described as confined to mucosa and submucosa (can be deeper in fulminant disease).
+- l18: AST:ALT "about two to one" in alcoholic hepatitis; hepatitis E risk in pregnancy; hepatitis C "curable with direct-acting antivirals" is current practice but should be rechecked as of 2026.
+- l18: cholesterol stones as the majority in Western populations; Courvoisier sign described as head-of-pancreas feature.
+- l19: nephrotic proteinuria threshold 3.5 g per day; APOL1 in FSGS; minimal change association with Hodgkin lymphoma; MPGN "tram-track" and low complement generalised.
+- l19: worked example claims a biopsy "is often deferred" in steroid-responsive childhood nephrotic syndrome (clinical practice varies).
+- l20: muddy brown casts and FENa generalisations; "left-sided varicocele" with renal cell carcinoma (mechanism simplified); VHL on chromosome 3 and papillary RCC with MET.
+- l21: Hashimoto "risk of B cell lymphoma"; Orphan Annie nuclei description; follicular carcinoma RAS association.
+- l22: Addison disease as "the most common cause in developed countries" is autoimmune (true, but rates vary); "rule of tens" reference for pheochromocytoma (older teaching, many hereditary).
+- l22: MEN 2B mucosal neuromas and marfanoid habitus; MEN 1 menin; Conn syndrome low renin.
+- l23: Mentzer index below 13 favouring thalassemia; alpha thalassemia gene-count phenotypes; ringed sideroblasts with isoniazid and alcohol.
+- l23: statement that folate deficiency does not raise methylmalonic acid (true in standard teaching; some exceptions).
+- l24: "blasts above 20 percent" (WHO threshold; 2022 classification updates vary by entity); t(12;21) and hyperdiploidy as favourable features; leukocyte alkaline phosphatase score in CML (older teaching).
+- l24: von Willebrand disease "most common inherited bleeding disorder" and aPTT effect; TTP/HUS descriptions simplified.
+- l25: red neurons appearing at 12 to 24 hours; CA1/Purkinje vulnerability list; Alzheimer genetics (APP, PSEN1/2, APOE e4).
+- l25: nucleus basalis cholinergic loss as the rationale for cholinesterase inhibitors (stated as explanation only).
+- l26: IDH-mutant gliomas "better prognosis" and the current WHO CNS classification (reclassified in 2021, glioblastoma is now IDH-wildtype by definition); this lesson should be reviewed against current classification.
+- l26: Ewing sarcoma t(11;22); synovial sarcoma t(X;18); statement about giant cell tumor "soap-bubble"; Paget high-output heart failure.
+- l27: Breslow thickness as most important prognostic factor (with ulceration and nodal status also key in AJCC staging); S-100 and HMB-45 markers.
+- l27: Stevens-Johnson drug list; Leser-Trelat sign as a possible cancer marker is disputed.
+- l28: gynecomastia causes; BRCA1 tumors "often triple-negative"; ER, PR, HER2 role in therapy selection stated without specific regimens.
+- l29: HPV E6/E7 mechanism; adenomyosis described as premenopausal; complete mole genotype (46,XX paternal) with rare 46,XY variants; ovarian teratoma struma ovarii.
+- l30: scrotal skin drains to inguinal nodes and testis to para-aortic nodes; PSA screening described as shared decision-making (guidelines change, no body or year named); Gleason Grade Groups mention.
+- General: no guideline was cited by body and year as a recommendation; PSA screening, HPV vaccination and cervical screening statements are deliberately general and should be checked against current USPSTF/ACS/ACOG wording.
+- General: every question's correct option was authored in position A; load-time balancing is relied on to shuffle.

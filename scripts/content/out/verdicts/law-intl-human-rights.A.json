@@ -1,0 +1,1086 @@
+{
+ "courseId": "law-intl-human-rights",
+ "verifier": "A",
+ "note": "OHCHR/coe.int direct fetches often 403; used curl with browser UA for OHCHR treaty pages. Several 2022-2026 items verified only via WebSearch result text. Most case-law claims unverifiable (no hudoc text retrieved). Question answers otherwise from knowledge. No option text found cut off.",
+ "fetched": 20,
+ "questions": [
+  {
+   "id": "law-intl-human-rights.l01.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/en/about-us/universal-declaration-of-human-rights"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l01.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l01.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l01.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l01.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l02.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/international-covenant-economic-social-and-cultural-rights"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l02.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l02.q5",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "US ICCPR 1992, ICESCR signed only; from knowledge, not page-checked."
+  },
+  {
+   "id": "law-intl-human-rights.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l03.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l03.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l03.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l03.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l04.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l04.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l04.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l05.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l05.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l05.q3",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Grootboom (2000) fits; not page-checked."
+  },
+  {
+   "id": "law-intl-human-rights.l05.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l05.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l06.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l06.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l06.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/international-covenant-civil-and-political-rights"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l07.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l07.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l07.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l07.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l08.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l08.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l08.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l09.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l09.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l09.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l09.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l09.q5",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": true,
+   "sources": [],
+   "note": "Arab Charter 2004 has a committee; an Arab Court statute (2014) exists but is not operational, so option 2 is still best."
+  },
+  {
+   "id": "law-intl-human-rights.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l10.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/convention-against-torture-and-other-cruel-inhuman-or-degrading"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l10.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l10.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l10.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/case/144"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l11.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l11.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l11.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l11.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l12.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l12.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l12.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l12.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l12.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l13.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.unicef.org/child-rights-convention/convention-text"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l13.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l13.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l13.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l13.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/convention-elimination-all-forms-discrimination-against-women"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l14.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l14.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l14.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l14.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l15.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l15.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l15.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l15.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.un.org/development/desa/indigenouspeoples/declaration-on-the-rights-of-indigenous-peoples.html"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l16.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l16.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l16.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l16.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l16.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l17.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l17.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.icj-cij.org/case/121"
+   ]
+  },
+  {
+   "id": "law-intl-human-rights.l17.q3",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Pinochet (No 3) is the intended authority."
+  },
+  {
+   "id": "law-intl-human-rights.l17.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l17.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l18.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l18.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l18.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-human-rights.l18.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-intl-human-rights.l01",
+   "claim": "UDHR adopted by UNGA on 10 December 1948 as resolution 217A",
+   "verdict": "supported",
+   "sources": [
+    "https://www.un.org/en/about-us/universal-declaration-of-human-rights"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-human-rights.l01",
+   "claim": "UDHR vote 48 for, 0 against, 8 abstentions",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Opened page did not state the vote."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l01",
+   "claim": "UN Charter Arts 1(3), 55, 56 on human rights without listing rights",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l02",
+   "claim": "ICCPR/ICESCR adopted 16 Dec 1966, in force 1976 (ICCPR 23 March, ICESCR 3 Jan)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/international-covenant-civil-and-political-rights",
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/international-covenant-economic-social-and-cultural-rights"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-human-rights.l02",
+   "claim": "ICCPR Art 2(1) respect and ensure; ICESCR Art 2(1) maximum available resources",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/international-covenant-civil-and-political-rights",
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/international-covenant-economic-social-and-cultural-rights"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-human-rights.l02",
+   "claim": "US ratified ICCPR 1992 with RUDs, ICESCR signed only; China signed ICCPR 1998; ICESCR OP in force 2013",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "treaties.un.org status not retrieved."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l03",
+   "claim": "Human Rights Council has 47 members, created 2006 by res 60/251, runs UPR",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/hr-bodies/hrc/about-council"
+   ],
+   "note": "Page confirms 47 members; res number not seen. Lesson omits 2025-26 UN funding/liquidity cuts affecting treaty bodies."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l03",
+   "claim": "HRC has 18 members; CESCR created by ECOSOC 1985; Diallo (ICJ 2010) gave great weight to committee views",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l03",
+   "claim": "General Comments 31 and 29 of HRC",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l04",
+   "claim": "VCLT Art 19 object-and-purpose; HRC GC24 (1994) severability",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l04",
+   "claim": "Belgium v Senegal ICJ 2012: Senegal breached duty to submit case; erga omnes partes",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/case/144"
+   ],
+   "note": "Breach confirmed; erga omnes partes standing not seen in extract."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l04",
+   "claim": "Armed Activities (DRC v Rwanda) 2006: peremptory status did not found jurisdiction",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://www.icj-cij.org/case/126"
+   ],
+   "note": "Opened case page; holding text not extracted."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l05",
+   "claim": "CESCR GC3 (1990): non-discrimination immediate; minimum core",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l05",
+   "claim": "Grootboom 2000 reasonableness; Soobramoney 1997",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l05",
+   "claim": "Airey v Ireland 1979 legal aid",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l06",
+   "claim": "ICCPR Art 4(2) non-derogable: 6, 7, 8(1-2), 11, 15, 16, 18",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/international-covenant-civil-and-political-rights"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-human-rights.l06",
+   "claim": "A and Others v UK (GC 2009) emergency existed but measure disproportionate and discriminatory",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "hudoc not retrieved."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l06",
+   "claim": "ECHR Art 15 non-derogable: Art 2 (except lawful war deaths), 3, 4(1), 7",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l07",
+   "claim": "Protocol 15: four-month limit from 1 Feb 2022; in force 1 Aug 2021",
+   "verdict": "supported",
+   "sources": [
+    "https://hudoc.echr.coe.int/app/conversion/pdf/?library=ECHR&id=003-7218061-9813840&filename=Protocol+no.+15+-+From+1+February+2022+the+time-limit+for+applying+to+the+European+Court+of+Human+Rights+will+be+four+months.pdf"
+   ],
+   "note": "Confirmed from search result text; not opened directly."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l07",
+   "claim": "Russia expelled 16 March 2022; ceased to be ECHR party 16 September 2022",
+   "verdict": "supported",
+   "sources": [
+    "https://www.coe.int/en/web/portal/-/russia-ceases-to-be-a-party-to-the-european-convention-of-human-rights-on-16-september-2022"
+   ],
+   "note": "Confirmed from search result text; direct fetch 403. Stale risk: lesson omits Chisinau Declaration (15 May 2026, non-binding, adopted by 46 states) on ECHR and migration, and KlimaSeniorinnen (9 Apr 2024) Art 8 climate duty."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l07",
+   "claim": "ECHR signed 1950, in force 1953; Protocol 11 in force 1998; Tyrer 1978",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l08",
+   "claim": "Trinidad and Tobago denounced American Convention 1998; Venezuela denunciation effective 2013",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked; Venezuela status contested."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l08",
+   "claim": "Velasquez Rodriguez v Honduras (1988) first contentious case",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l08",
+   "claim": "Awas Tingni v Nicaragua 2001 Art 21 communal property",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l09",
+   "claim": "Art 34(6) declarations: few; withdrawals Rwanda 2016, Tanzania 2019, Benin and Cote d Ivoire 2020, Tunisia 2025",
+   "verdict": "supported",
+   "sources": [
+    "https://www.hrw.org/news/2025/03/27/tunisias-withdrawal-individuals-and-ngos-access-african-court-marks-serious-setback"
+   ],
+   "note": "Tunisia withdrawal confirmed (effective 7 March 2026); others from search results."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l09",
+   "claim": "African Court protocol adopted 1998, in force 2004, seat Arusha; Charter in force 1986",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Official page fetch failed."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l09",
+   "claim": "Endorois v Kenya (2009), SERAC v Nigeria (2001), Ogiek (2017)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l10",
+   "claim": "CAT in force 26 June 1987; Art 2(2) no exceptional circumstances",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/convention-against-torture-and-other-cruel-inhuman-or-degrading"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-human-rights.l10",
+   "claim": "Belgium v Senegal 2012: Senegal breached duty to submit case to prosecuting authorities",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/case/144"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-human-rights.l10",
+   "claim": "Soering 1989; Chahal 1996; Saadi 2008; Ireland v UK 1978; Selmouni 1999",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "hudoc not retrieved."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l11",
+   "claim": "1951 Convention Art 1A(2) five grounds; Art 33; declaratory status",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "UNHCR page 403."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l11",
+   "claim": "Hirsi Jamaa v Italy (GC, 23 Feb 2012): jurisdiction, Art 3, collective expulsion",
+   "verdict": "supported",
+   "sources": [
+    "https://hudoc.echr.coe.int/app/conversion/pdf/?library=ECHR&id=001-109231&filename=001-109231.pdf"
+   ],
+   "note": "PDF unreadable via fetch; holdings confirmed from search summaries."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l11",
+   "claim": "Sale v Haitian Centers Council 1993; Cardoza-Fonseca 1987",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l12",
+   "claim": "ICCPR Art 2(1) text within its territory and subject to its jurisdiction",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/international-covenant-civil-and-political-rights"
+   ],
+   "note": "GC31 disjunctive reading not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l12",
+   "claim": "Bankovic 2001 inadmissible; Al-Skeini and Al-Jedda 2011",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l12",
+   "claim": "ILC Articles Art 16 aid or assistance; Arts 4 and 7",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "ILC PDF not parseable."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l13",
+   "claim": "CRC Art 1 child below 18; Art 3 a primary consideration",
+   "verdict": "supported",
+   "sources": [
+    "https://www.unicef.org/child-rights-convention/convention-text"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-human-rights.l13",
+   "claim": "CRC adopted 20 Nov 1989, in force 2 Sept 1990; US signed 1995; OP3 in force 2014",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "OHCHR 403."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l13",
+   "claim": "Roper v Simmons 2005; OPAC age 18 for compulsory recruitment",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l14",
+   "claim": "CEDAW adopted 18 Dec 1979, in force 3 Sept 1981",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/convention-elimination-all-forms-discrimination-against-women"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-human-rights.l14",
+   "claim": "CEDAW Art 1 effect or purpose",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/convention-elimination-all-forms-discrimination-against-women"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-human-rights.l14",
+   "claim": "Opuz v Turkey 2009; GR19 and GR35; OP 1999/2000; 23 experts",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l15",
+   "claim": "UNDRIP 2007 vote 144-4-11; four later endorsed",
+   "verdict": "supported",
+   "sources": [
+    "https://www.un.org/development/desa/indigenouspeoples/declaration-on-the-rights-of-indigenous-peoples.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-human-rights.l15",
+   "claim": "Lovelace v Canada 1981; Lansman v Finland 1994",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l15",
+   "claim": "Saramaka v Suriname 2007 FPIC; ILO 169 (1989)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l16",
+   "claim": "UNGPs three pillars; endorsed by HRC 2011",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "PDF opened but pillar wording not extracted."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l16",
+   "claim": "CSDDD 2024, scope under revision",
+   "verdict": "supported",
+   "sources": [
+    "https://knowledge.dlapiper.com/dlapiperknowledge/globalemploymentlatestdevelopments/2026/corporate-sustainability-due-diligence-directive-amendments-under-omnibus-i-finalised"
+   ],
+   "note": "Search results: Omnibus I in OJ 26 Feb 2026, in force 18 Mar 2026, narrowed scope (5,000 employees/EUR 1.5bn), application 26 July 2029. Lesson hedge is stale; update. Page itself not opened."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l16",
+   "claim": "Kiobel 2013, Jesner 2018, Nestle 2021, Vedanta 2019, Nevsun 2020",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l17",
+   "claim": "Arrest Warrant (ICJ 2002): Belgium violated immunity of incumbent foreign minister",
+   "verdict": "supported",
+   "sources": [
+    "https://www.icj-cij.org/case/121"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-human-rights.l17",
+   "claim": "US, China, Russia, India not ICC parties; Rome Statute 1998/2002",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://www.hrw.org/news/2026/07/02/sahel-countries-withdrawal-from-icc-betrays-victims"
+   ],
+   "note": "Stale risk: Niger (18 Jun 2026), Burkina Faso and Mali (24 Jun 2026) notified withdrawal effective 2027; Hungary recommitted (June 2026). Lesson silent."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l17",
+   "claim": "Pinochet (No 3) post-8 Dec 1988; Eichmann 1961; Bashir/Jordan 2019",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l18",
+   "claim": "Vienna Declaration 1993: universal, indivisible, interdependent; particularities borne in mind",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ohchr.org/en/instruments-mechanisms/instruments/vienna-declaration-and-programme-action"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-human-rights.l18",
+   "claim": "Cairo Declaration 1990; Bangkok Declaration 1993; AAA 1947",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not page-checked."
+  },
+  {
+   "lessonId": "law-intl-human-rights.l18",
+   "claim": "Margin of appreciation as institutional relativism",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Interpretive claim."
+  }
+ ]
+}

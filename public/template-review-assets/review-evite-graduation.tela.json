@@ -1,0 +1,336 @@
+{
+  "id": "review-evite-graduation-copy-1300babb-5271-4026-9dea-80379da5ced3",
+  "ownerId": "local-review",
+  "title": "Next Chapter · review copy",
+  "createdAt": 1790719091402,
+  "updatedAt": 1790719091402,
+  "frames": [
+    {
+      "id": "review-evite-graduation-frame",
+      "kind": "BOARD",
+      "preset": "FREE",
+      "x": 0,
+      "y": 0,
+      "w": 600,
+      "h": 800,
+      "deviceIds": [
+        "review-evite-graduation-vector"
+      ],
+      "label": "Next Chapter"
+    }
+  ],
+  "devices": {
+    "review-evite-graduation-vector": {
+      "id": "review-evite-graduation-vector",
+      "type": "VECTOR",
+      "name": "Next Chapter",
+      "width": 600,
+      "height": 800,
+      "objects": [
+        {
+          "id": "review-evite-graduation-ground",
+          "kind": "RECT",
+          "x": 0,
+          "y": 0,
+          "w": 600,
+          "h": 800,
+          "fill": "#f2eee4",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "templateRole": "GROUND"
+        },
+        {
+          "id": "review-evite-graduation-step-0",
+          "kind": "RECT",
+          "x": 94,
+          "y": 299,
+          "w": 83,
+          "h": 59,
+          "fill": "#cb573d",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-graduation-step-1",
+          "kind": "RECT",
+          "x": 177,
+          "y": 255,
+          "w": 83,
+          "h": 103,
+          "fill": "#a3b4ba",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-graduation-step-2",
+          "kind": "RECT",
+          "x": 260,
+          "y": 211,
+          "w": 83,
+          "h": 147,
+          "fill": "#cb573d",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-graduation-step-3",
+          "kind": "RECT",
+          "x": 343,
+          "y": 167,
+          "w": 83,
+          "h": 191,
+          "fill": "#a3b4ba",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-graduation-step-4",
+          "kind": "RECT",
+          "x": 426,
+          "y": 123,
+          "w": 83,
+          "h": 235,
+          "fill": "#cb573d",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-graduation-eyebrow",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 32,
+          "w": 496,
+          "h": 16.200000000000003,
+          "fill": "#253855",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "YOU ARE INVITED",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-graduation-divider",
+          "kind": "LINE",
+          "x": 52,
+          "y": 410,
+          "w": 496,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#a3b4ba",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            52,
+            410,
+            548,
+            410
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-graduation-title",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 446,
+          "w": 496,
+          "h": 55.35,
+          "fill": "#253855",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "The next chapter",
+          "fontSize": 41,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "HEADLINE"
+        },
+        {
+          "id": "review-evite-graduation-subtitle",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 511,
+          "w": 492,
+          "h": 21.6,
+          "fill": "#253855",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "A graduation celebration",
+          "fontSize": 16,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-graduation-date",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 588,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#253855",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "SATURDAY, 18 OCTOBER",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-graduation-time",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 617,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#253855",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "7:30 PM · THE STUDIO",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-graduation-venue",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 646,
+          "w": 492,
+          "h": 16.200000000000003,
+          "fill": "#253855",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "24 GARDEN LANE · SAMPLE CITY",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-graduation-rsvp",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 704,
+          "w": 490,
+          "h": 24.3,
+          "fill": "#253855",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Kindly RSVP by 10 October",
+          "fontSize": 18,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-graduation-sample",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 765,
+          "w": 490,
+          "h": 13.5,
+          "fill": "#253855",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "FICTIONAL EVENT · DESIGN PREVIEW",
+          "fontSize": 10,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        }
+      ]
+    }
+  },
+  "bindings": [],
+  "templatePreset": {
+    "schemaVersion": 1,
+    "templateId": "review-evite-graduation",
+    "status": "review",
+    "motion": {
+      "duration": 6000,
+      "tracks": [
+        {
+          "objectId": "review-evite-graduation-step-0",
+          "property": "y",
+          "from": 299,
+          "to": 294,
+          "delay": 0,
+          "duration": 2800
+        },
+        {
+          "objectId": "review-evite-graduation-step-1",
+          "property": "y",
+          "from": 255,
+          "to": 260,
+          "delay": 140,
+          "duration": 3060
+        },
+        {
+          "objectId": "review-evite-graduation-step-2",
+          "property": "y",
+          "from": 211,
+          "to": 206,
+          "delay": 280,
+          "duration": 3320
+        },
+        {
+          "objectId": "review-evite-graduation-step-3",
+          "property": "y",
+          "from": 167,
+          "to": 172,
+          "delay": 420,
+          "duration": 3580
+        },
+        {
+          "objectId": "review-evite-graduation-step-4",
+          "property": "y",
+          "from": 123,
+          "to": 118,
+          "delay": 560,
+          "duration": 3840
+        }
+      ]
+    },
+    "audio": {
+      "notes": [
+        50,
+        57,
+        62,
+        64
+      ],
+      "tempo": 100
+    }
+  }
+}

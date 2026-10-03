@@ -1,0 +1,23 @@
+# med-pharm-principles: claims for expert review
+
+- Quality flag: validator warns the correct option is the longest in about 61% of MCQs; distractors should be lengthened and made more parallel across the whole bank.
+- l01: rectal route described as only "partly" bypassing first pass (true for lower rectal veins; wording simplified).
+- l02: Vd approximations (about 3 L plasma, about 15 L extracellular) and warfarin about 99 percent albumin bound; statement that protein-binding displacement interactions are usually clinically minor.
+- l03: CYP2E1 and CYP3A4 both listed as oxidizing acetaminophen to NAPQI (CYP1A2 and 2E1 also cited in some sources); lorazepam, oxazepam, temazepam as direct glucuronidation drugs.
+- l04: biliary excretion molecular-weight threshold "about 300 to 500 daltons" is approximate and species-dependent; bile acid sequestrants interrupting enterohepatic circulation "for some drugs"; quinidine reducing renal digoxin clearance; probenecid raising methotrexate levels.
+- l05: percentages eliminated after 1-5 half-lives are approximations; amiodarone half-life "weeks".
+- l06: "about 90 percent of plateau at roughly 3.3 half-lives" (standard); accumulation factor of about 2 when interval equals half-life.
+- l07: loading-dose formula given for conceptual purposes only; broad statement that loading doses are used for digoxin, amiodarone, some antiepileptics and antimicrobials.
+- l08: phenytoin metabolism attributed mainly to CYP2C9 with CYP2C19 contribution; theophylline saturable in some ranges; ethanol zero-order at usual intake.
+- l09: Gq/Gs/Gi assignments; statement that irreversible antagonists first shift curves rightward when receptor reserve exists.
+- l10: buprenorphine "ceiling" on respiratory depression is relative, not absolute; inverse agonist description.
+- l11: loop versus thiazide "efficacy" comparison; LD50 as animal measure.
+- l12: "certain safety factor" definition (LD1/ED99); list of narrow-index drugs; opioid tolerance differences by effect (respiratory depression slower than analgesia).
+- l13: inducer and inhibitor lists (cimetidine, bupropion as CYP2D6 inhibitor, fluvoxamine for CYP1A2, amiodarone for CYP2C9); grapefruit as mechanism-based intestinal CYP3A4 inhibitor; onset times of induction (days to about two weeks); phenoconversion.
+- l14: alcohol-metronidazole disulfiram-like reaction (evidence debated); tyramine/MAOI mechanism details; St John's wort and serotonin toxicity.
+- l15: Type C, D and E (extended Rawlins-Thompson) examples; Gell and Coombs examples (HIT as type II mechanism commonly described though technically platelet-activating antibody); methods of enhanced elimination.
+- l16: allele frequency claim (polymorphism at 1 percent); clopidogrel/CYP2C19 stent thrombosis risk framing; HLA-B*15:02 ancestry statement (carbamazepine) and HLA-B*58:01 allopurinol; UGT1A1*28 and irinotecan; the CPIC guideline anchor is general, not a dated document.
+- l17: adrenal medulla secretes epinephrine with some norepinephrine; selectivity statements for neostigmine versus physostigmine (blood-brain barrier).
+- l18: IND 30-day review; Phase 1 size (20 to 100) and Phase 2/3 sizes are typical ranges; PDUFA standard (10 months) and priority (6 months) review goals, which in reality run from the 60-day filing date for new molecular entities (so about 12 and 8 months from submission); "two adequate trials, or one with confirmatory evidence" convention; Sentinel system description; 1962 Kefauver-Harris link to thalidomide.
+- l19: Pregnancy and Lactation Labeling Rule effective date described as 2015; teratogen list (mycophenolate, methotrexate, valproate); neonatal sulfonamide-bilirubin displacement; milk-transfer factors.
+- l20: polypharmacy defined as five or more medicines (definitions vary); Beers Criteria 2023 edition anchor; Cockcroft-Gault use in labels; normeperidine seizures; lorazepam relatively preserved in cirrhosis.

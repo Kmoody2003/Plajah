@@ -4,11 +4,14 @@ import { Post } from '../types';
 import { listenToOrgPosts, createOrgPost, togglePostLike } from '../services/backendService';
 import { auth } from '../services/firebase';
 import { TYPE } from '../src/lib/designSystem';
+import OrgAudienceToggle, { type OrgPostAudience } from './elevate/OrgAudienceToggle';
 
 // Real, persistent church announcements feed. Staff post announcements (as the
 // church identity); members see them and can react. Backed by the shared posts
 // collection via authorOrgId, so announcements also surface in the global feed.
-const ChurchAnnouncements: React.FC<{ orgId: string; orgName: string; orgPhoto: string; isOwner?: boolean }> = ({ orgId, orgName, orgPhoto, isOwner }) => {
+const ChurchAnnouncements: React.FC<{ orgId: string; orgName: string; orgPhoto: string; isOwner?: boolean; /** elevateCan(POST_AS_ORG) — preferred over isOwner */ canPost?: boolean }> = ({ orgId, orgName, orgPhoto, isOwner, canPost }) => {
+  const mayPost = canPost ?? isOwner;
+  const [audience, setAudience] = useState<OrgPostAudience>('PUBLIC');
   const [posts, setPosts] = useState<Post[]>([]);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -19,17 +22,17 @@ const ChurchAnnouncements: React.FC<{ orgId: string; orgName: string; orgPhoto: 
   const publish = async () => {
     if (!text.trim() || busy) return;
     setBusy(true);
-    try { await createOrgPost(orgId, orgName, orgPhoto, { text: text.trim(), isPublic: true }); setText(''); }
+    try { await createOrgPost(orgId, orgName, orgPhoto, { text: text.trim(), isPublic: true, orgAudience: audience }); setText(''); }
     finally { setBusy(false); }
   };
 
-  if (posts.length === 0 && !isOwner) return null;
+  if (posts.length === 0 && !mayPost) return null;
 
   return (
     <section className="mt-10">
       <h2 className={`${TYPE.labelMd} font-black uppercase tracking-widest text-white/40 mb-3 flex items-center gap-2`}><Megaphone size={12} className="text-small-orange" /> Announcements</h2>
 
-      {isOwner && (
+      {mayPost && (
         <div className="rounded-2xl p-4 bg-white/[0.03] border border-white/10 mb-4">
           <textarea
             value={text} onChange={e => setText(e.target.value)}
@@ -37,7 +40,8 @@ const ChurchAnnouncements: React.FC<{ orgId: string; orgName: string; orgPhoto: 
             rows={2}
             className="w-full bg-transparent text-sm outline-none resize-none placeholder:text-white/25"
           />
-          <div className="flex justify-end pt-2 border-t border-white/8 mt-2">
+          <div className="flex items-center justify-between pt-2 border-t border-white/8 mt-2">
+            <OrgAudienceToggle value={audience} onChange={setAudience} />
             <button onClick={publish} disabled={!text.trim() || busy}
               className="flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-small-orange text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-30">
               <Send size={11} /> Publish

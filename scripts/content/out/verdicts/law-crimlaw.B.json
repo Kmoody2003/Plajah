@@ -1,0 +1,1311 @@
+{
+ "courseId": "law-crimlaw",
+ "verifier": "B",
+ "fetched": 56,
+ "note": "Justia returned 403; Supreme Court cases checked on law.cornell.edu, MPC text on criminallawweb.net (fetched with curl). Lessons do not cover 2024-26 developments such as Fischer, Snyder, Dubin, Ruan, Erlinger, Grants Pass, nitrogen-hypoxia/firing-squad execution methods, First Step Act or recent Guidelines amendments; nothing on those is stated wrongly because they are absent. Lesson 20 still states the Apprendi prior-conviction exception without noting Erlinger v. United States (2024), which requires a jury for the ACCA different-occasions finding. No option text found cut off mid-sentence.",
+ "questions": [
+  {
+   "id": "law-crimlaw.l01.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l01.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l01.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l01.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l01.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l02.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l02.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l02.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l03.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l03.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l03.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l03.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l04.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l04.q3",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Correct choice is awkwardly worded (\"not excused because ... unforeseeable\" reads as if unforeseeability is the reason); intended sense is \"not excused even though unforeseeable\"."
+  },
+  {
+   "id": "law-crimlaw.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l04.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l05.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l05.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l05.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l05.q4",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Outcome depends on jurisdiction; some courts find premeditation in an instant, so second degree is the best but not certain answer."
+  },
+  {
+   "id": "law-crimlaw.l05.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l06.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l06.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l06.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l07.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l07.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l07.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l07.q5",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Many proximate-cause courts still exclude liability for a justified killing of a co-felon; \"may be guilty\" keeps the choice defensible."
+  },
+  {
+   "id": "law-crimlaw.l08.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l08.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l08.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l09.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l09.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l09.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l09.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l09.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l10.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l10.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l10.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l10.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l11.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l11.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l11.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l11.q5",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Snatching without resistance is larceny in most jurisdictions, but some treat the force needed to snatch as enough for robbery."
+  },
+  {
+   "id": "law-crimlaw.l12.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l12.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l12.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l12.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l12.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l13.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l13.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l13.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l13.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l13.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l14.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l14.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l14.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l14.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l15.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l15.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l15.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l15.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l16.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l16.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l16.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l16.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l16.q5",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Prompt says he knows killing is illegal, so the moral-wrong reading is the only path; choice is defensible but jurisdiction-dependent."
+  },
+  {
+   "id": "law-crimlaw.l17.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l17.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l17.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l17.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l17.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Holding is stable (2001); marijuana scheduling under the CSA has been under review since 2024, which does not change the holding."
+  },
+  {
+   "id": "law-crimlaw.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l18.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l18.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l18.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l18.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l19.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l19.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l19.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l19.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l20.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l20.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Kennedy v. Louisiana still controls; several states (e.g. Florida 2023) enacted child-rape capital statutes designed to challenge it, but the Court has not revisited it."
+  },
+  {
+   "id": "law-crimlaw.l21.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l21.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l21.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l21.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-crimlaw.l21.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-crimlaw.l01",
+   "claim": "In re Winship (1970) made proof beyond a reasonable doubt of every element a due process requirement.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/397/358"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l01",
+   "claim": "United States v. Hudson and Goodwin (1812) held there are no federal common-law crimes.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/11/32"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l01",
+   "claim": "MPC section 1.05 provides no conduct is an offense unless defined by the Code or another statute; MPC completed 1962.",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html",
+    "https://en.wikipedia.org/wiki/Model_Penal_Code"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l02",
+   "claim": "MPC 2.01: liability requires a voluntary act or omission to perform an act one is physically capable of; reflexes, sleep, hypnosis etc. are not voluntary acts.",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l02",
+   "claim": "Martin v. State (Ala. Ct. App. 1944) reversed a public-drunkenness conviction because police carried the defendant onto the highway.",
+   "verdict": "supported",
+   "sources": [
+    "https://www1.law.umkc.edu/suni/crimLaw/calendar/Class_9_Martin_v_State.htm"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l02",
+   "claim": "Robinson v. California (1962) held punishing the status of narcotics addiction violates the Eighth Amendment.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/370/660"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l03",
+   "claim": "MPC 2.02 defines recklessly as conscious disregard of a substantial and unjustifiable risk, a gross deviation from a law-abiding person's standard; 2.02(3) default culpability.",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": "2.02(3) default is purposely, knowingly or recklessly, i.e. at least recklessness; the lesson shorthand is acceptable."
+  },
+  {
+   "lessonId": "law-crimlaw.l03",
+   "claim": "Cheek v. United States (1991): sincere belief, even unreasonable, negates willfulness, but a belief that tax laws are unconstitutional does not.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/498/192"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l03",
+   "claim": "Elonis v. United States (2015): federal threats statute requires more than a reasonable-person (negligence) showing.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/13-983"
+   ],
+   "note": "Constitutional floor later set by Counterman v. Colorado (2023) at recklessness; lesson 21 covers it."
+  },
+  {
+   "lessonId": "law-crimlaw.l04",
+   "claim": "Burrage v. United States (2014) required but-for causation for the 21 USC 841 death-results enhancement.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/12-7515"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l04",
+   "claim": "MPC 2.03: but-for cause; for purpose/knowledge the actual result must be within purpose or contemplation unless the difference is not too remote or accidental.",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l04",
+   "claim": "Year-and-a-day rule abolished in most places.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "law-crimlaw.l05",
+   "claim": "Pennsylvania in 1794 divided murder into degrees, reserving the death penalty for first-degree murder.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Murder_in_Pennsylvania_law",
+    "https://deathpenaltyinfo.org/resources/high-school/about-the-death-penalty/history-of-the-death-penalty"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l05",
+   "claim": "MPC 210.2: murder is purposely or knowingly, or recklessly with extreme indifference; presumption during listed felonies.",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l05",
+   "claim": "Courts split on whether premeditation can be formed in an instant.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "General doctrinal statement; not checked against a page."
+  },
+  {
+   "lessonId": "law-crimlaw.l06",
+   "claim": "MPC 210.3(1)(b) extreme mental or emotional disturbance, reasonableness judged from the viewpoint of a person in the actor's situation as he believes them to be.",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l06",
+   "claim": "Mullaney v. Wilbur (1975): state may not require the defendant to prove heat of passion to negate malice.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/421/684"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l06",
+   "claim": "Patterson v. New York (1977): state may require defendant to prove extreme emotional disturbance as an affirmative defense; MPC 210.4 negligent homicide.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/432/197",
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l07",
+   "claim": "Felony murder abolished in England.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Felony_murder_rule"
+   ],
+   "note": "Abolished by Homicide Act 1957, s.1."
+  },
+  {
+   "lessonId": "law-crimlaw.l07",
+   "claim": "Commonwealth v. Redline (Pa. 1958) is cited for the rule that felons are not liable when a police officer or victim kills \"a bystander or a co-felon\".",
+   "verdict": "contradicted",
+   "sources": [
+    "https://people.brandeis.edu/~teuber/redline.html"
+   ],
+   "note": "Redline involved only a co-felon killed by police and expressly distinguished (did not overrule) Commonwealth v. Almeida, where felons were held liable for a police-fired killing of an innocent person; citing Redline for bystander killings overstates it."
+  },
+  {
+   "lessonId": "law-crimlaw.l07",
+   "claim": "Enmund v. Florida (1982) and Tison v. Arizona (1987) holdings on the death penalty for felony-murder participants.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/481/137"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l08",
+   "claim": "MPC 211.1 simple assault definition and grading (misdemeanor; petty misdemeanor in mutual-consent fight).",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l08",
+   "claim": "MPC 212.1 kidnapping requires removal from residence/business or a substantial distance, or confinement for a substantial period, with listed purposes.",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": "The Code also requires the confinement to be \"in a place of isolation\", which the lesson omits."
+  },
+  {
+   "lessonId": "law-crimlaw.l08",
+   "claim": "Common-law kidnapping required carrying the victim out of the country.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "law-crimlaw.l09",
+   "claim": "The ALI revised Article 213 (approved 2022) defines offenses by the absence of affirmative consent.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.ali.org/news/articles/updated-consent-definition"
+   ],
+   "note": "The ALI did not adopt affirmative consent: its consent definition (approved Dec 2016, carried into the 2022 Article 213) is \"willingness\" that may be express or inferred from behavior, including inaction."
+  },
+  {
+   "lessonId": "law-crimlaw.l09",
+   "claim": "Coker v. Georgia (1977) barred the death penalty for rape of an adult woman.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/433/584"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l09",
+   "claim": "Kennedy v. Louisiana (2008) barred the death penalty for child rape where the victim did not die.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/07-343"
+   ],
+   "note": "Exact holding: crime did not result, and was not intended to result, in death. Still good law as of Oct 2026, though Florida (2023) and other states enacted statutes aimed at overturning it."
+  },
+  {
+   "lessonId": "law-crimlaw.l10",
+   "claim": "MPC 223.1 consolidates theft offenses into a single offense with grading by value.",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": "The specific forms are in 223.2-223.8; 223.1 provides consolidation and grading."
+  },
+  {
+   "lessonId": "law-crimlaw.l10",
+   "claim": "Larceny by trick vs false pretenses turns on whether the victim intended to pass possession or title.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard doctrine; not checked against a page."
+  },
+  {
+   "lessonId": "law-crimlaw.l10",
+   "claim": "Claim of right negates intent to steal even if unreasonable.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against a page."
+  },
+  {
+   "lessonId": "law-crimlaw.l11",
+   "claim": "MPC 221.1 burglary: entering a building or occupied structure with purpose to commit a crime therein, unless licensed or privileged (or premises open to the public).",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l11",
+   "claim": "MPC 222.1 robbery covers acts in flight after the attempt or commission of theft.",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": "MPC robbery requires serious bodily injury or a threat of immediate serious bodily injury, not mere force; the lesson does not say so."
+  },
+  {
+   "lessonId": "law-crimlaw.l11",
+   "claim": "Worked example: entry through an unlocked door at night is not burglary at common law because there was no breaking.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Internally inconsistent with the lesson's own rule that pushing open a closed door is a breaking; opening an unlocked but closed door is a breaking at common law. Should say the door was open."
+  },
+  {
+   "lessonId": "law-crimlaw.l12",
+   "claim": "People v. Rizzo (N.Y. 1927): no attempt where defendants never found the payroll messenger (dangerous proximity).",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/People_v._Rizzo"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l12",
+   "claim": "MPC 5.01(1)(c) substantial step strongly corroborative of criminal purpose.",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l12",
+   "claim": "MPC 5.01(4) renunciation is an affirmative defense if complete and voluntary.",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l13",
+   "claim": "United States v. Shabani (1994): 21 USC 846 requires no overt act, unlike 18 USC 371.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/513/10"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l13",
+   "claim": "Gebardi v. United States (1932): a consenting woman transported under the Mann Act cannot be convicted of conspiracy.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/287/112"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l13",
+   "claim": "MPC 5.03 adopts a unilateral approach (\"he agrees with such other person\").",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l14",
+   "claim": "MPC 2.06(3)(a) accomplice: purpose of promoting or facilitating plus solicits, aids, agrees or attempts to aid.",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l14",
+   "claim": "Rosemond v. United States (2014) required advance knowledge of the gun, enough to walk away.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/12-895"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l14",
+   "claim": "Standefer v. United States (1980): aider and abettor may be convicted despite the principal's acquittal; MPC 2.06(6)(c) withdrawal.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/447/10",
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l15",
+   "claim": "Brown v. United States (1921) no duty to retreat; cites Beard v. United States (1895).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/256/335"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l15",
+   "claim": "MPC 3.04: actor believes force is immediately necessary to protect against unlawful force on the present occasion.",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l15",
+   "claim": "Martin v. Ohio (1987): state may put the burden of proving self-defense on the defendant.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/480/228"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l16",
+   "claim": "Insanity Defense Reform Act, 18 USC 17: severe mental disease or defect, unable to appreciate nature and quality or wrongfulness; clear and convincing burden on defendant.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/18/17"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l16",
+   "claim": "Kahler v. Kansas (2020): due process does not require a moral-incapacity test; Kansas permits mental illness evidence only to negate mens rea.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/18-6135"
+   ],
+   "note": "Kansas also allows any mental-health evidence, including moral incapacity, at sentencing; \"only\" is accurate for the guilt phase."
+  },
+  {
+   "lessonId": "law-crimlaw.l16",
+   "claim": "MPC 4.01 substantial capacity test with cognitive and volitional prongs.",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l17",
+   "claim": "MPC 2.09 duress: threat of unlawful force a person of reasonable firmness could not resist; unavailable if actor recklessly placed himself in the situation.",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l17",
+   "claim": "United States v. Bailey (1980): escapee must show bona fide effort to surrender once duress lost coercive force.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/444/394"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l17",
+   "claim": "United States v. Oakland Cannabis Buyers' Cooperative (2001): no medical necessity defense under the CSA.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/00-151"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l18",
+   "claim": "MPC 2.08(1)-(2): intoxication relevant only if it negatives an element; unawareness of risk due to self-induced intoxication is immaterial for recklessness.",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l18",
+   "claim": "Montana v. Egelhoff (1996), 5-4: due process does not require jury consideration of voluntary intoxication.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/95-566"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l18",
+   "claim": "Jacobson v. United States (1992): over two years (26 months) of government mailings; predisposition not proved.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/503/540"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l19",
+   "claim": "18 USC 3553(a): sentence sufficient but not greater than necessary, listing just punishment, deterrence, protection, treatment.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/18/3553"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l19",
+   "claim": "Mistretta v. United States (1989) upheld the Sentencing Commission against a separation-of-powers challenge.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/488/361"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l19",
+   "claim": "MPC 1.02(2) purposes include preventing offenses, rehabilitation, safeguarding against excessive punishment, fair warning, and differentiating serious from minor offenses.",
+   "verdict": "supported",
+   "sources": [
+    "https://criminallawweb.net/web1/mpc/mpc.html"
+   ],
+   "note": "Mostly accurate for the 1962 text, but \"differentiate between serious and minor offenses\" is 1.02(1)(e); 1.02(2)(e) is individualization among offenders. ALI revised 1.02(2) in its 2017 Sentencing provisions."
+  },
+  {
+   "lessonId": "law-crimlaw.l20",
+   "claim": "Solem v. Helm (1983) struck life without parole for a $100 no-account check by a recidivist.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/463/277"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l20",
+   "claim": "Alleyne v. United States (2013) extended Apprendi to facts that increase a mandatory minimum.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/11-9335"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l20",
+   "claim": "Jones v. Mississippi (2021): no separate finding of permanent incorrigibility required for discretionary juvenile LWOP.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/18-1259"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l21",
+   "claim": "Counterman v. Colorado (2023): true-threats prosecutions require at least recklessness as to the threatening nature.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-138"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l21",
+   "claim": "United States v. Rahimi (2024) upheld 18 USC 922(g)(8) against a facial challenge.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/22-915"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-crimlaw.l21",
+   "claim": "United States v. Lopez (1995): Gun-Free School Zones Act exceeded Commerce Clause power.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/514/549"
+   ],
+   "note": ""
+  }
+ ]
+}

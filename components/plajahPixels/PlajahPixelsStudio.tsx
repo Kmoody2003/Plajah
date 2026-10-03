@@ -25,8 +25,9 @@ import PostProcessLayer from './components/PostProcessLayer';
 import ShaderPanel, { SHADER_LIBRARY, DEFAULT_SHADER_SRC } from './components/ShaderPanel';
 import LibraryRail, { type LibrarySource } from './ui/LibraryRail';
 import { UniversalLibraryPanel } from '../shared/UniversalLibrary/UniversalLibraryPanel';
-import { getSilentAnalyser } from './engine/silentAnalyser';
 import ShaderInspector from './ui/ShaderInspector';
+import PixelsInspector from './ui/PixelsInspector';
+import { SCENE_CATALOG } from './engine/sceneCatalog';
 import MidiNotesScene from './components/MidiNotesScene';
 import ThreeScene, { Three3DConfig, Three3DVariant, Three3DCamera } from './components/ThreeScene';
 import { LottieLayer, HtmlLayer, FpsMeter, LayersPanel, OverlayState } from './components/ExtraLayers';
@@ -55,6 +56,7 @@ import GLCompositorView from './components/GLCompositorView';
 import WorkerCompositorView from './components/WorkerCompositorView';
 import CaptionsOverlay from './components/CaptionsOverlay';
 import ColorPaletteEditor from './components/ColorPaletteEditor';
+import { getSilentAnalyser } from './engine/silentAnalyser';
 import { VisualizationConfig, VisualizerMode, AudioState, BackgroundMedia, BlendMode, isStudioMode, isFluxMode } from './types';
 import { generateThemeFromMood, generateVideoLoop, LiveLyricsSession } from './services/geminiService';
 import { saveProject, loadProject, saveProjectToCloud, listCloudProjects, loadCloudProject, deleteCloudProject } from './services/projectService';
@@ -272,16 +274,11 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
     const [milkdropBlendMode, setMilkdropBlendMode] = useState<string>('screen');
     const [milkdropLayerOpacity, setMilkdropLayerOpacity] = useState<number>(0.8);
     // Custom GLSL (Shadertoy-style) layer — active source, editor visibility, errors.
-    /* Pixels opens on a signature work rather than a bare Stage. iTime is
-       (now - shaderStart)/1000, so the clock has to start when the studio does
-       or the opening work begins mid-animation. */
-    const [shaderSrc, setShaderSrc] = useState<string | null>(initialMode ? null : DEFAULT_SHADER_SRC);
+    /* Pixels sources its background generator from what the user picks in the library on the left.
+       Starts on the user's chosen mode (or Stage), ready to react immediately to audio. */
+    const [shaderSrc, setShaderSrc] = useState<string | null>(null);
     const [shaderStart, setShaderStart] = useState(() => performance.now());
-    // A generator picked from either library is a program-level source, just like
-    // a picked shader or Milkdrop preset. Keep that intent separate from config.mode:
-    // the deck also updates config.mode when it launches a clip, but already renders
-    // that clip through liveLayers.
-    const [libraryGeneratorMode, setLibraryGeneratorMode] = useState<VisualizerMode | null>(initialMode ?? null);
+    const [libraryGeneratorMode, setLibraryGeneratorMode] = useState<VisualizerMode>(initialMode ?? config.mode ?? VisualizerMode.Stage);
     // iParam0..3 for the look on the canvas. Owned here so the Library rail, the inspector and
     // ShaderLayer all read one source; seeded from the selected work's declared defaults.
     const [shaderParams, setShaderParams] = useState<number[]>([0.5, 0.5, 0.5, 0.5]);
@@ -1492,7 +1489,7 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                     <div style={{ position: 'relative', display: 'flex', height: '100%' }}>
                         <LibraryRail
                             selectedSrc={shaderSrc}
-                            selectedMode={!shaderSrc && !milkdrop ? config.mode : null}
+                            selectedMode={!shaderSrc && !milkdrop ? (libraryGeneratorMode || config.mode) : null}
                             milkdropOn={milkdrop}
                             milkdropIndex={milkdropIdx}
                             onSelect={applySource}
@@ -2233,18 +2230,18 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
                 )}
             </AnimatePresence>
 
-            {/* Trigger Button: Settings Panel */}
+            {/* Trigger Button: Toggle Inspector */}
             <button 
-                id="toggle-settings-btn"
-                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                id="toggle-inspector-btn"
+                onClick={() => setInspectorOpen(v => !v)}
                 className={`absolute top-6 right-6 z-30 w-11 h-11 bg-black/40 hover:bg-black/60 backdrop-blur-xl border border-white/10 rounded-full flex items-center justify-center hover:scale-105 transition-all text-white hover:border-[#FF8C00]/40 shadow-xl ${uiHidden ? 'hidden' : ''}`}
-                title="Toggle Configuration Panel"
+                title={inspectorOpen ? "Close Inspector" : "Open Inspector"}
             >
-                {isSettingsOpen ? <X className="w-5 h-5 text-[#FF8C00]" /> : <Sliders className="w-5 h-5" />}
+                {inspectorOpen ? <X className="w-5 h-5 text-[#FF8C00]" /> : <Sliders className="w-5 h-5" />}
             </button>
 
-            {/* Floating Control Center Dock — draggable + pinnable + persisted */}
-            {!uiHidden && <DraggablePanel
+            {/* Floating Control Center Dock — fallback when Inspector is closed */}
+            {!uiHidden && !inspectorOpen && <DraggablePanel
                 id="controls-dock"
                 defaultPos={{
                     x: Math.max(16, (typeof window !== 'undefined' ? window.innerWidth : 1280) / 2 - 360),
@@ -3976,32 +3973,58 @@ const App: React.FC<{ platform?: PlajahPixelsPlatformBridge; onExit?: () => void
 
         {/* ─── One rail, about whatever is selected. The six floating panels
              dock in here through DraggablePanel; none of them moved. ─── */}
+        {/* ─── Consolidated Right Panel: Inspector of the user chosen generator / look from the library,
+             holding all parameters, color palette, reactivity options, transport bar with upload,
+             and Chora playlist / album tracks. ─── */}
         {inspectorOpen && !uiHidden && (
             <Inspector
-                kind={showShaderPanel ? 'Shader layer' : isSettingsOpen ? 'Controls' : 'Output'}
+                kind={activeShader ? 'Shader layer' : milkdrop ? 'Milkdrop' : 'Generator'}
                 title={
-                    showShaderPanel ? 'Library'
-                        : isSettingsOpen ? (TAB_TITLES[activeTab] || 'Controls')
-                        : (config.name || 'Program')
+                    activeShader
+                        ? activeShader.name
+                        : milkdrop
+                            ? (milkdropMeta.name || 'Milkdrop')
+                            : (SCENE_CATALOG.find(s => s.mode === (libraryGeneratorMode || config.mode))?.name || config.mode)
                 }
                 subtitle={
-                    showShaderPanel
-                        ? 'Pick a work, then Apply. Double-click a card to apply it straight away.'
-                        : isSettingsOpen ? undefined
-                        : 'Open a panel and it docks here instead of covering the canvas.'
+                    activeShader
+                        ? (activeShader.series ? `Series ${activeShader.series}` : 'GLSL Shader')
+                        : milkdrop
+                            ? 'Butterchurn Visualizer'
+                            : (SCENE_CATALOG.find(s => s.mode === (libraryGeneratorMode || config.mode))?.cat || 'Audio Reactive Generator')
                 }
                 onClose={() => setInspectorOpen(false)}
                 dockRef={setDockEl}
-                wide={isSettingsOpen && settingsDocked}
-                selection={activeShader && (
-                    <ShaderInspector
-                        work={activeShader}
-                        params={shaderParams}
-                        onParam={(i, v) => setShaderParams(p => { const n = [...p]; n[i] = v; return n; })}
-                        onOpenSource={() => setShowShaderPanel(true)}
-                        onOff={() => setShaderSrc(null)}
+                wide={true}
+                selection={
+                    <PixelsInspector
+                        config={config}
+                        onUpdateConfig={setConfig}
+                        selectedGeneratorMode={libraryGeneratorMode || config.mode}
+                        activeShader={activeShader ?? null}
+                        shaderParams={shaderParams}
+                        onShaderParam={(i, v) => setShaderParams(p => { const n = [...p]; n[i] = v; return n; })}
+                        onOpenShaderSource={() => setShowShaderPanel(true)}
+                        onOffShader={() => {
+                            setShaderSrc(null);
+                            setLibraryGeneratorMode(config.mode || VisualizerMode.Stage);
+                        }}
+                        milkdropOn={milkdrop}
+                        milkdropMeta={{ name: milkdropMeta.name, count: milkdropMeta.count, idx: milkdropIdx }}
+                        onMilkdropPrev={() => setMilkdropIdx(i => i - 1)}
+                        onMilkdropNext={() => setMilkdropIdx(i => i + 1)}
+                        onMilkdropRandom={() => setMilkdropIdx(() => Math.floor(Math.random() * (milkdropMeta.count || 1)))}
+                        audioState={audioState}
+                        onTogglePlay={effTogglePlay}
+                        onSeek={effSeek}
+                        onVolumeChange={effVolumeChange}
+                        onAudioUpload={handleUpload}
+                        audioFileName={audioFileName}
+                        platform={platform}
+                        onBgUpload={handleBgUpload}
+                        bgMediaCount={{ layer1: bgMedia1.length, layer2: bgMedia2.length }}
                     />
-                )}
+                }
             />
         )}
         {/* ── End canvas + inspector row */}

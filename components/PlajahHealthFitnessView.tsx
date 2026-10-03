@@ -6,9 +6,10 @@ import {
   Target, TrendingUp, Award, Book, X, Check, Loader2,
   Droplets, Wind, Flame, Moon, Sun, Shield, Cpu,
   BarChart2, Bookmark, Share2, ArrowLeft, Filter, Sparkles,
-  Coffee, ListMusic, Music2, Play, Pause,
+  Coffee, ListMusic, Music2, Play, Pause, Leaf,
 } from 'lucide-react';
 import CommunityPlaylistsView from './CommunityPlaylistsView';
+import HolisticHealthView from './holistic/HolisticHealthView';
 
 // ─── Types ─────────────────────────────────────────────────────────────────────
 
@@ -457,7 +458,7 @@ const BreathworkModule: React.FC = () => {
 // ─── Main Component ───────────────────────────────────────────────────────────
 
 const PlajahHealthFitnessView: React.FC<Props> = ({ currentUser, onBack }) => {
-  const [tab, setTab]                   = useState<'health' | 'fitness' | 'wellness'>('health');
+  const [tab, setTab]                   = useState<'health' | 'fitness' | 'wellness' | 'holistic'>('holistic');
   const [exercises, setExercises]       = useState<Exercise[]>([]);
   const [exLoading, setExLoading]       = useState(false);
   const [exSearch, setExSearch]         = useState('');
@@ -655,11 +656,12 @@ const PlajahHealthFitnessView: React.FC<Props> = ({ currentUser, onBack }) => {
         </div>
 
         {/* ── Tab bar ─────────────────────────────────────────────────────────── */}
-        <div className="flex gap-2 border-b border-white/8 pb-px">
+        <div className="flex gap-2 border-b border-white/8 pb-px overflow-x-auto no-scrollbar">
           {([
-            { id: 'health',   label: 'Health',   icon: Heart,     color: '#E63946' },
-            { id: 'fitness',  label: 'Fitness',  icon: Dumbbell,  color: '#06D6A0' },
-            { id: 'wellness', label: 'Wellness', icon: Sparkles,  color: '#748FFC' },
+            { id: 'holistic', label: 'Holistic & Botanical', icon: Leaf,     color: '#10B981' },
+            { id: 'health',   label: 'Health & Systems',     icon: Heart,    color: '#E63946' },
+            { id: 'fitness',  label: 'Fitness',              icon: Dumbbell, color: '#06D6A0' },
+            { id: 'wellness', label: 'Wellness',             icon: Sparkles, color: '#748FFC' },
           ] as const).map(t => {
             const Icon = t.icon;
             return (
@@ -676,9 +678,14 @@ const PlajahHealthFitnessView: React.FC<Props> = ({ currentUser, onBack }) => {
         </div>
 
         {/* ── Main content ─────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 xl:grid-cols-[1fr_340px] gap-8">
+        <div className={`grid grid-cols-1 ${tab === 'holistic' ? 'xl:grid-cols-1' : 'xl:grid-cols-[1fr_340px]'} gap-8`}>
 
           <div className="space-y-8 min-w-0">
+
+            {/* ── HOLISTIC TAB ─────────────────────────────────────────────── */}
+            {tab === 'holistic' && (
+              <HolisticHealthView onBackToFitness={() => setTab('fitness')} />
+            )}
 
             {/* ── HEALTH TAB ───────────────────────────────────────────────── */}
             {tab === 'health' && (
@@ -966,66 +973,68 @@ const PlajahHealthFitnessView: React.FC<Props> = ({ currentUser, onBack }) => {
           </div>
 
           {/* ── Right sidebar ───────────────────────────────────────────────── */}
-          <aside className="space-y-5 hidden xl:block">
+          {tab !== 'holistic' && (
+            <aside className="space-y-5 hidden xl:block">
 
-            {/* Workout tracker sidebar */}
-            <div className="bg-white/[0.03] border border-white/8 rounded-[2rem] overflow-hidden">
-              <div className="px-5 py-4 border-b border-white/8 flex items-center justify-between">
-                <div className="flex items-center gap-2.5">
-                  <Activity size={13} className="text-[#06D6A0]" />
-                  <h3 className="text-[10px] font-black uppercase tracking-widest text-white">Today's Workout</h3>
-                </div>
-                <span className="text-[7px] font-black uppercase tracking-widest text-white/25">
-                  {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                </span>
-              </div>
-              <div className="p-4">
-                <WorkoutTracker currentUser={currentUser} />
-              </div>
-            </div>
-
-            {/* Health targets reference */}
-            <div className="bg-white/[0.03] border border-white/8 rounded-[2rem] overflow-hidden">
-              <div className="px-5 py-4 border-b border-white/8 flex items-center gap-2.5">
-                <Target size={13} className="text-[#FF8C00]" />
-                <h3 className="text-[10px] font-black uppercase tracking-widest text-white">Health Targets</h3>
-              </div>
-              <div className="p-4 space-y-3">
-                {[
-                  { label: 'Resting Heart Rate', target: '60–100 bpm', ideal: '50–70 bpm', color: '#E63946' },
-                  { label: 'Daily Steps', target: '7,000–10,000', ideal: '10,000+', color: '#FF8C00' },
-                  { label: 'Sleep (adults)', target: '7–9 hours', ideal: '8 hours', color: '#748FFC' },
-                  { label: 'Hydration', target: '2–3L daily', ideal: '0.033L × weight (kg)', color: '#00B4D8' },
-                  { label: 'Protein Intake', target: '0.8g/kg body wt', ideal: '1.6–2.2g/kg active', color: '#06D6A0' },
-                  { label: 'Cardio / Week', target: '150 min moderate', ideal: '75 min vigorous', color: '#40C057' },
-                  { label: 'Strength Training', target: '2–3× / week', ideal: 'Progressive overload', color: '#FFB514' },
-                ].map(t => (
-                  <div key={t.label} className="p-3 rounded-xl bg-white/[0.02] border border-white/5 space-y-1">
-                    <p className="text-[9px] font-black text-white/80">{t.label}</p>
-                    <div className="flex items-center justify-between">
-                      <span className="text-[8px] text-white/35">{t.target}</span>
-                      <span className="text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full"
-                        style={{ background: `${t.color}15`, color: t.color }}>
-                        {t.ideal}
-                      </span>
-                    </div>
+              {/* Workout tracker sidebar */}
+              <div className="bg-white/[0.03] border border-white/8 rounded-[2rem] overflow-hidden">
+                <div className="px-5 py-4 border-b border-white/8 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <Activity size={13} className="text-[#06D6A0]" />
+                    <h3 className="text-[10px] font-black uppercase tracking-widest text-white">Today's Workout</h3>
                   </div>
-                ))}
+                  <span className="text-[7px] font-black uppercase tracking-widest text-white/25">
+                    {new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                  </span>
+                </div>
+                <div className="p-4">
+                  <WorkoutTracker currentUser={currentUser} />
+                </div>
               </div>
-            </div>
 
-            {/* Connect fitness tracker placeholder */}
-            <div className="bg-white/[0.02] border border-dashed border-white/10 rounded-[2rem] p-5 text-center space-y-3">
-              <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center mx-auto">
-                <Cpu size={16} className="text-white/20" />
+              {/* Health targets reference */}
+              <div className="bg-white/[0.03] border border-white/8 rounded-[2rem] overflow-hidden">
+                <div className="px-5 py-4 border-b border-white/8 flex items-center gap-2.5">
+                  <Target size={13} className="text-[#FF8C00]" />
+                  <h3 className="text-[10px] font-black uppercase tracking-widest text-white">Health Targets</h3>
+                </div>
+                <div className="p-4 space-y-3">
+                  {[
+                    { label: 'Resting Heart Rate', target: '60–100 bpm', ideal: '50–70 bpm', color: '#E63946' },
+                    { label: 'Daily Steps', target: '7,000–10,000', ideal: '10,000+', color: '#FF8C00' },
+                    { label: 'Sleep (adults)', target: '7–9 hours', ideal: '8 hours', color: '#748FFC' },
+                    { label: 'Hydration', target: '2–3L daily', ideal: '0.033L × weight (kg)', color: '#00B4D8' },
+                    { label: 'Protein Intake', target: '0.8g/kg body wt', ideal: '1.6–2.2g/kg active', color: '#06D6A0' },
+                    { label: 'Cardio / Week', target: '150 min moderate', ideal: '75 min vigorous', color: '#40C057' },
+                    { label: 'Strength Training', target: '2–3× / week', ideal: 'Progressive overload', color: '#FFB514' },
+                  ].map(t => (
+                    <div key={t.label} className="p-3 rounded-xl bg-white/[0.02] border border-white/5 space-y-1">
+                      <p className="text-[9px] font-black text-white/80">{t.label}</p>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8px] text-white/35">{t.target}</span>
+                        <span className="text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full"
+                          style={{ background: `${t.color}15`, color: t.color }}>
+                          {t.ideal}
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <p className="text-[10px] font-black text-white/40">Connect Fitness Tracker</p>
-              <p className="text-[8px] text-white/20 leading-relaxed">Apple Health, Google Fit, Garmin, and Fitbit integrations coming soon</p>
-              <button disabled className="w-full py-2 rounded-xl bg-white/5 text-[8px] font-black uppercase tracking-widest text-white/20 cursor-not-allowed">
-                Connect Device
-              </button>
-            </div>
-          </aside>
+
+              {/* Connect fitness tracker placeholder */}
+              <div className="bg-white/[0.02] border border-dashed border-white/10 rounded-[2rem] p-5 text-center space-y-3">
+                <div className="w-10 h-10 rounded-2xl bg-white/5 flex items-center justify-center mx-auto">
+                  <Cpu size={16} className="text-white/20" />
+                </div>
+                <p className="text-[10px] font-black text-white/40">Connect Fitness Tracker</p>
+                <p className="text-[8px] text-white/20 leading-relaxed">Apple Health, Google Fit, Garmin, and Fitbit integrations coming soon</p>
+                <button disabled className="w-full py-2 rounded-xl bg-white/5 text-[8px] font-black uppercase tracking-widest text-white/20 cursor-not-allowed">
+                  Connect Device
+                </button>
+              </div>
+            </aside>
+          )}
         </div>
       </div>
 

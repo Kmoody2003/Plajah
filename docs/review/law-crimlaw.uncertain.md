@@ -1,0 +1,24 @@
+# law-crimlaw: claims for expert review
+
+- l01: Hudson and Goodwin (1812) no federal common-law crimes; Calder v. Bull (1798) categories; Lambert (1957) described as notice-based due process limit.
+- l02: Martin v. State (Ala. Ct. App. 1944) court and year; Jones v. United States (D.C. Cir. 1962) description; Powell v. Texas (1968) plurality reasoning.
+- l03: Regina v. Prince (1875) cited as the origin of the age-mistake rule; Cheek (1991); Elonis (2015) described as leaving recklessness open; common-law mistake rule (reasonable for general intent, honest for specific intent).
+- l04: Burrage (2014) facts. MPC 2.03 summarised in paraphrase; abolition of year-and-a-day rule "in most places".
+- l05: Pennsylvania 1794 degrees statute; MPC 210.2 presumption language for felonies.
+- l06: MPC 210.3(1)(b) and 210.4 paraphrased; Mullaney (1975) and Patterson (1977) framing; misdemeanor-manslaughter status.
+- l07: People v. Ireland (Cal. 1969) and Commonwealth v. Redline (Pa. 1958) as merger and agency rule leading cases; "abolished in England" (Homicide Act 1957) and "restricted or abolished in some states" are not itemised; Enmund and Tison descriptions. The fright/heart-attack example outcome varies by state.
+- l08: MPC 211.1 and 212.1 summarised from memory; kidnapping incidental-movement doctrine varies by state.
+- l09: M.T.S. (N.J. 1992) holding; Garnett v. State (Md. 1993) facts and strict liability result; ALI 2022 revision of MPC Article 213 described only generally and flagged as "as of this writing"; mens rea as to consent differs by state; Coker and Kennedy.
+- l10: MPC 223.1 to 223.9 consolidation; larceny by trick vs false pretenses distinction; lost property doctrine.
+- l11: Common-law robbery force-after-taking rule and MPC 222.1 coverage of flight; MPC 221.1 and 220.1 paraphrased.
+- l12: People v. Rizzo (N.Y. 1927) facts; MPC 5.01(4) renunciation language; characterisation of legal impossibility.
+- l13: Shabani (1994); Gebardi (1932); Kotteakos (1946) described as variance case; Iannelli (1975); Pinkerton (1946); solicitation merger.
+- l14: Rosemond (2014) holding; Standefer (1980); MPC 2.06(6)(c) withdrawal wording.
+- l15: Beard v. United States (1895) and Brown v. United States (1921) as no-retreat authorities; Martin v. Ohio (1987); the claim that stand-your-ground statutes date from "the early 2000s" (Florida 2005); battered-person imminence discussion.
+- l16: M'Naghten (1843); Durham (D.C. Cir. 1954); IDRA 1984 burden; Clark v. Arizona (2006) and Kahler (2020) descriptions, including "a handful of states" with Kansas-type approach; Jones v. United States (1983) preponderance commitment.
+- l17: Dudley and Stephens (1884) outcome (sentence commuted); Bailey (1980); Oakland Cannabis (2001); MPC 2.09 and 3.02 paraphrased.
+- l18: Egelhoff (1996) divided decision; Sorrells, Sherman, Jacobson descriptions; Russell (1973) on outrageous-conduct defense left open.
+- l19: Research summary on certainty vs severity (stated as widely held); Mistretta (1989).
+- l20: Holdings of Apprendi, Blakely, Booker, Alleyne, Gall, Solem, Harmelin (controlling concurrence), Ewing, Andrade, Graham, Miller, Montgomery, Jones v. Mississippi (2021), Roper, Atkins, Kennedy. Statement that many states retain or have abolished the death penalty is deliberately non-numeric and time-sensitive.
+- l21: Counterman (2023) recklessness holding; Virginia v. Black (2003) description; Heller, McDonald, Bruen, Rahimi (2024) descriptions; Lopez (1995); Johnson (2015), Dimaya (2018), Davis (2019) vagueness line; Stevens (2010) overbreadth.
+- General: all cases cited from memory with year and court, no reporter pin cites. Some distractor texts were lengthened to balance option lengths; reviewers should confirm no distractor is accidentally correct.

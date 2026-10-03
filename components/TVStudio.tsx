@@ -38,8 +38,7 @@ import { saveStudioEpisode } from '../services/podcastStudio/studioService';
 import { collection, addDoc, query, where, getDocs } from 'firebase/firestore';
 import { User as FirebaseUser } from 'firebase/auth';
 import TVStudioLightingBoard from './TVStudioLightingBoard';
-import AmboPresenter from './scripture/AmboPresenter';
-import { BookOpen } from 'lucide-react';
+import { getAppOutputStream } from '../services/mediaEngine/bridge';
 import TVStudioImportModal, { ImportedAsset, HotFolder } from './TVStudioImportModal';
 import { RtcSession } from '../services/rtcCore';
 import { fetchLiveProgramFeedsForUser } from '../services/multiSiteService';
@@ -90,7 +89,7 @@ export interface TVStudioProps {
   onStreamReady?: (stream: MediaStream) => void;
 }
 
-type StudioTab = 'SWITCHER' | 'AUDIO' | 'GRAPHICS_BUILDER' | 'AMBO' | 'LIGHTING' | 'SETTINGS';
+type StudioTab = 'SWITCHER' | 'AUDIO' | 'GRAPHICS_BUILDER' | 'LIGHTING' | 'SETTINGS';
 
 // ── SourceCanvas ──────────────────────────────────────────────────────────────
 
@@ -481,6 +480,13 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
     engineRef.current.addStreamSource(src.captureStream(30), 'Teleprompter');
   }, []);
   useEffect(() => () => { prompterSourceRef.current?.dispose(); }, []);
+
+  const handleAddAmboFeed = useCallback(() => {
+    const stream = getAppOutputStream('ambo:audience') || getAppOutputStream('ambo:lower_third');
+    if (stream && engineRef.current) {
+      engineRef.current.addStreamSourceWithId('ambo_audience', stream, 'Ambo Output');
+    }
+  }, []);
   const handleAddMedia   = useCallback(() => {
     const inp = document.createElement('input');
     inp.type = 'file'; inp.accept = 'video/*,image/*,.m3u8';
@@ -825,7 +831,6 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
               {id:'SWITCHER' as StudioTab,label:'Video Switcher'},
               {id:'AUDIO'    as StudioTab,label:'Audio Mixer'},
               {id:'GRAPHICS_BUILDER' as StudioTab,label:'Graphics Builder'},
-              {id:'AMBO' as StudioTab,label:'Ambo Scripture'},
               {id:'LIGHTING' as StudioTab,label:'Lighting Board'},
               {id:'SETTINGS' as StudioTab,label:'System Config'},
             ]).map(tab=>(
@@ -867,7 +872,6 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
             {id:'SWITCHER' as StudioTab,icon:<Activity size={15}/>,label:'Video SW'},
             {id:'AUDIO'    as StudioTab,icon:<Sliders size={15}/>,label:'Audio'},
             {id:'GRAPHICS_BUILDER' as StudioTab,icon:<Layers size={15}/>,label:'Graphics'},
-            {id:'AMBO' as StudioTab,icon:<BookOpen size={15}/>,label:'Ambo'},
             {id:'LIGHTING' as StudioTab,icon:<Lightbulb size={15}/>,label:'Lighting'},
             {id:'SETTINGS' as StudioTab,icon:<Settings size={15}/>,label:'Config'},
           ]).map(item=>(
@@ -942,6 +946,7 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
                     <button onClick={handleAddMedia}  className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(255,255,255,0.1)'}}>+ Media</button>
                     <button onClick={openCampusPicker} className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(255,140,0,0.4)',color:'#FF8C00'}}>+ Campus</button>
                     <button onClick={handleAddPrompter} className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(255,140,0,0.4)',color:'#FF8C00'}}>+ Prompter</button>
+                    <button onClick={handleAddAmboFeed} className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(147,51,234,0.4)',color:'#c084fc'}}>+ Ambo</button>
                     <button onClick={()=>setShowImport(true)} className="text-[8px] px-2 py-0.5 rounded opacity-40 hover:opacity-80 uppercase" style={{border:'1px solid rgba(107,0,153,0.4)',color:'#a855f7'}}>Import…</button>
                   </div>
                 </div>
@@ -1280,16 +1285,6 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
           )}
 
           {/* ════ LIGHTING BOARD TAB ═══════════════════════════════════════ */}
-          {studioTab === 'AMBO' && (
-            <div className="flex-1 min-h-0 flex">
-              <div style={{width:300}} className="shrink-0 border-r border-white/10">
-                <AmboPresenter engine={engineRef.current} compact />
-              </div>
-              <div className="flex-1 min-w-0 flex items-center justify-center text-[10px] uppercase tracking-widest text-white/25">
-                Program output keys from the panel on the left
-              </div>
-            </div>
-          )}
           {studioTab === 'LIGHTING' && <TVStudioLightingBoard/>}
 
           {/* ════ SETTINGS TAB ════════════════════════════════════════════ */}

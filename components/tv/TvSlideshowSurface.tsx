@@ -58,6 +58,12 @@ const TvSlideshowSurface: React.FC = () => {
   useEffect(() => {
     if (!showing) return;
     const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const active = document.activeElement as HTMLElement | null;
+      const isField = (el: HTMLElement | null) =>
+        !!(el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable || el.closest?.('input, textarea, select, [contenteditable="true"]')));
+      if (isField(target) || isField(active)) return;
+
       const kc = e.keyCode || e.which;
       if (kc === 24 || kc === 25 || kc === 26 || kc === 164) return;   // volume / power — system's
       const stop = () => { e.preventDefault(); e.stopImmediatePropagation(); };

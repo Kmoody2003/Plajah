@@ -1,0 +1,1147 @@
+{
+ "courseId": "med-clin-em",
+ "verifier": "B",
+ "questions": [
+  {
+   "id": "med-clin-em.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l02.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l02.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l04.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l06.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l06.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l07.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l08.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l10.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l10.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l10.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l10.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l10.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l11.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l11.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l11.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l11.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l11.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l12.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l12.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "2024 consensus threshold for delaying insulin is K <3.5; 2.8 qualifies under either threshold."
+  },
+  {
+   "id": "med-clin-em.l12.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l13.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l13.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l13.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l13.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l14.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l14.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l14.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l14.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l14.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l15.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l15.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l15.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l15.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l15.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l16.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l16.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l16.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l17.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l17.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l17.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l17.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l18.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l18.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l18.q3",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Winter range is 21-25; PaCO2 20 is only 1 below, so the concurrent respiratory alkalosis call is borderline but intended."
+  },
+  {
+   "id": "med-clin-em.l18.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l18.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-clin-em.l01",
+   "claim": "Succinylcholine is contraindicated after burns beyond the first day or two and in crush/denervation injury because of hyperkalemia.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK499898/"
+   ],
+   "note": "Risk begins roughly 24-72 h after injury."
+  },
+  {
+   "lessonId": "med-clin-em.l01",
+   "claim": "Waveform capnography is the most reliable method of confirming endotracheal tube placement.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ahajournals.org/doi/10.1161/CIR.0000000000001376"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l01",
+   "claim": "In cardiac arrest the AHA sequence starts with compressions (C-A-B).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ahajournals.org/doi/10.1161/CIR.0000000000001376"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l02",
+   "claim": "ATLS hemorrhage classes: I <15%, II 15-30% with tachycardia and narrowed pulse pressure, III 30-40% with hypotension, IV >40%.",
+   "verdict": "supported",
+   "sources": [
+    "https://litfl.com/major-haemorrhage-in-trauma/",
+    "https://thetraumapro.com/2017/11/06/how-to-remember-those-classes-of-hemorrhage-2/"
+   ],
+   "note": "ATLS 10th ed. lists class III as 31-40%."
+  },
+  {
+   "lessonId": "med-clin-em.l02",
+   "claim": "Tranexamic acid within three hours of injury reduced death from bleeding in CRASH-2.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/20554319/",
+    "https://pubmed.ncbi.nlm.nih.gov/21439633/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l02",
+   "claim": "In the SHOCK trial early revascularization improved long-term survival in MI with cardiogenic shock.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/16507804/"
+   ],
+   "note": "Primary 30-day endpoint was not significant; 6-month and long-term survival improved."
+  },
+  {
+   "lessonId": "med-clin-em.l03",
+   "claim": "AHA CPR/ECC guidelines were updated in 2020 and again in 2025.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ahajournals.org/doi/10.1161/CIR.0000000000001376",
+    "https://cpr.heartandstroke.ca/resource/GuidelinesHighlightsEN2025"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l03",
+   "claim": "In the shockable pathway epinephrine is given after initial defibrillation attempts fail (after the second shock in the algorithm).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ahajournals.org/doi/10.1161/CIR.0000000000001376",
+    "https://acls-algorithms.com/new-2025-aha-acls-guideline-changes/2025-adult-cardiac-arrest-algorithm-changes/"
+   ],
+   "note": "2025 AHA: reasonable to give epinephrine after initial defibrillation attempts have failed."
+  },
+  {
+   "lessonId": "med-clin-em.l03",
+   "claim": "Pediatric two-rescuer compression:ventilation ratio is 15:2 with depth about one-third of chest AP diameter.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ahajournals.org/doi/10.1161/CIR.0000000000001370",
+    "https://publications.aap.org/pediatrics/article/157/1/e2025074350/205235/Part-6-Pediatric-Basic-Life-Support-2025-American"
+   ],
+   "note": "2025 AHA specifies 15:2 for pre-pubertal children with 2+ rescuers; 30:2 for post-pubertal adolescents."
+  },
+  {
+   "lessonId": "med-clin-em.l04",
+   "claim": "Sepsis-3 (2016): septic shock requires vasopressors for MAP >=65 and lactate >2 mmol/L despite adequate fluids; qSOFA uses RR >=22 and SBP <=100.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/26903338/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l04",
+   "claim": "SSC 2021: antimicrobials within 1 hour for septic shock/high likelihood of sepsis, within 3 hours for possible sepsis without shock.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.sccm.org/clinical-resources/guidelines/guidelines/surviving-sepsis-guidelines-2021"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l04",
+   "claim": "SSC 2021 suggests at least 30 mL/kg crystalloid within 3 hours and balanced crystalloids over saline.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.sccm.org/clinical-resources/guidelines/guidelines/surviving-sepsis-guidelines-2021",
+    "https://www.emdocs.net/surviving-sepsis-campaign-2021-updates/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l05",
+   "claim": "2021 ACC/AHA chest pain guideline recommends an ECG within 10 minutes of arrival.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/34709879/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l05",
+   "claim": "STEMI: FMC-to-device <=90 min; fibrinolysis within 30 min of arrival when PCI cannot be done within 120 min.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ahajournals.org/doi/10.1161/CIR.0b013e3182742cf6"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l05",
+   "claim": "Ischemic stroke within three months is a contraindication to fibrinolysis.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ahajournals.org/doi/10.1161/CIR.0b013e3182742cf6"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l06",
+   "claim": "Needle decompression at the 2nd ICS midclavicular line or the 4th-5th ICS anterior axillary line.",
+   "verdict": "supported",
+   "sources": [
+    "https://wjes.biomedcentral.com/articles/10.1186/s13017-025-00613-7"
+   ],
+   "note": "ATLS 10th ed. (2018) prefers 4th/5th ICS in adults; 2nd ICS MCL retained for children."
+  },
+  {
+   "lessonId": "med-clin-em.l06",
+   "claim": "NIV in hypercapnic COPD exacerbation reduces intubation and mortality; oxygen target about 88-92%.",
+   "verdict": "supported",
+   "sources": [
+    "https://goldcopd.org/2025-gold-report/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l06",
+   "claim": "IM epinephrine into the anterolateral thigh is first-line for anaphylaxis; glucagon for beta-blocker refractory cases.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK482124/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l07",
+   "claim": "U.S. Poison Help line is 1-800-222-1222.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.poison.org/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l07",
+   "claim": "Activated charcoal is most effective within about 1 hour and binds iron, lithium and alcohols poorly.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK482294/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l07",
+   "claim": "Isopropyl alcohol produces ketosis without acidosis.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK493181/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l08",
+   "claim": "Factor Xa inhibitors (rivaroxaban, apixaban) are reversed by andexanet alfa or PCC.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.tctmd.com/news/andexanet-alfa-pulled-us-market",
+    "https://www.aabb.org/news-resources/news/article/2025/12/23/astrazeneca-withdraws-factor-xa-reversal-agent-from-u.s.-market"
+   ],
+   "note": "U.S.: andexanet alfa (Andexxa) was withdrawn from the market effective Dec 22, 2025 over thrombosis risk; PCC is now the U.S. option."
+  },
+  {
+   "lessonId": "med-clin-em.l08",
+   "claim": "Rumack-Matthew nomogram starts at 4 hours after a single acute ingestion; NAC most effective within 8-10 hours.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK441917/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l08",
+   "claim": "Naloxone duration is about 30-90 minutes, shorter than many opioids such as methadone.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK441910/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l09",
+   "claim": "CO binds hemoglobin with about 200 times the affinity of oxygen; 100% O2 shortens COHb half-life to about an hour.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK430740/"
+   ],
+   "note": "Sources quote 200-250x and ~74-90 min on 100% O2."
+  },
+  {
+   "lessonId": "med-clin-em.l09",
+   "claim": "Methemoglobinemia gives SpO2 near 85%, treated with methylene blue except in G6PD deficiency.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK537317/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l09",
+   "claim": "Nitrites for cyanide are avoided with concurrent CO poisoning; hydroxocobalamin is the antidote.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK507796/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l10",
+   "claim": "Hypothermia graded mild 32-35 C, moderate 28-32 C, severe <28 C.",
+   "verdict": "supported",
+   "sources": [
+    "https://journals.sagepub.com/doi/10.1016/j.wem.2019.10.002"
+   ],
+   "note": "Traditional staging; WMS/Swiss systems also use clinical staging."
+  },
+  {
+   "lessonId": "med-clin-em.l10",
+   "claim": "Resuscitation of hypothermic arrest may be withheld with serum potassium >12 mmol/L; ECLS preferred for hypothermic arrest.",
+   "verdict": "supported",
+   "sources": [
+    "https://journals.sagepub.com/doi/10.1016/j.wem.2019.10.002",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC10973648/"
+   ],
+   "note": "ERC 2021 favors the HOPE score over a single potassium cutoff."
+  },
+  {
+   "lessonId": "med-clin-em.l10",
+   "claim": "Exertional heat stroke: cold water immersion, cooling to about 38.9 C.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK537135/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l11",
+   "claim": "Acetazolamide prevents/treats AMS; HAPE treated with descent, oxygen and nifedipine; illness above ~2,500 m.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.wemjournal.org/article/S1080-6032(19)30090-4/fulltext"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l11",
+   "claim": "Prussian blue treats cesium and thallium; DTPA for plutonium; KI protects thyroid.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/radiation-emergencies/hcp/clinical-care/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l11",
+   "claim": "Pit viper first aid: limb at heart level; tourniquets, incision/suction and ice are harmful.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK557814/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l12",
+   "claim": "In DKA, if potassium is below about 3.3 mEq/L, replace it and delay insulin.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://diabetesjournals.org/care/article/47/8/1257/156808/Hyperglycemic-Crises-in-Adults-With-Diabetes-A",
+    "https://www.ccjm.org/content/92/3/152"
+   ],
+   "note": "2024 ADA/EASD/JBDS/AACE/DTS consensus raised the threshold to 3.5 mmol/L; 3.3 is the superseded 2009 value."
+  },
+  {
+   "lessonId": "med-clin-em.l12",
+   "claim": "DKA hyperglycemia is above about 250 mg/dL.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://diabetesjournals.org/care/article/47/8/1257/156808/Hyperglycemic-Crises-in-Adults-With-Diabetes-A"
+   ],
+   "note": "2024 consensus lowered the DKA glucose cutoff to >=200 mg/dL (or known diabetes). The HHS osmolality >320 statement remains consistent (total osm >320 or effective >300)."
+  },
+  {
+   "lessonId": "med-clin-em.l12",
+   "claim": "IV thrombolysis within 4.5 h; BP must be <185/110; thrombectomy up to 24 h per DAWN/DEFUSE-3.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/29129157/",
+    "https://pubmed.ncbi.nlm.nih.gov/29364767/",
+    "https://www.ahajournals.org/doi/10.1161/STR.0000000000000211"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l12",
+   "claim": "AES 2016 status epilepticus guideline: benzodiazepine first-line (IM midazolam, IV lorazepam, IV diazepam), then fosphenytoin, valproate or levetiracetam.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/26900382/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l13",
+   "claim": "Massive hemothorax is >1,500 mL initial drainage or >200 mL/h for several hours.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK538219/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l13",
+   "claim": "PROPPR trial supported 1:1:1 plasma:platelets:red cells.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/25647203/"
+   ],
+   "note": "PROPPR found no 24-h/30-day mortality difference but fewer exsanguination deaths."
+  },
+  {
+   "lessonId": "med-clin-em.l13",
+   "claim": "Traumatic aortic rupture usually occurs at the isthmus just distal to the left subclavian artery.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK459337/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l14",
+   "claim": "GCS 13-15 mild, 9-12 moderate, <=8 severe.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK513298/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l14",
+   "claim": "Neurogenic shock accompanies cord injuries above about T6.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK459361/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l14",
+   "claim": "High-dose steroids are not recommended for acute spinal cord injury in current guidance.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/23417182/"
+   ],
+   "note": "AANS/CNS 2013 recommends against; AO Spine 2017 allows a 24-h methylprednisolone option within 8 h, so guidance is not unanimous."
+  },
+  {
+   "lessonId": "med-clin-em.l15",
+   "claim": "Rule of nines: each leg 18%, each arm 9%, perineum 1%.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK513287/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l15",
+   "claim": "Parkland: 4 mL/kg/%TBSA LR over 24 h, half in first 8 h from injury, titrate to urine output ~0.5 mL/kg/h.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK537190/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l15",
+   "claim": "ABA referral criteria include burns of 10% or more TBSA in some groups.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ameriburn.org/burn-care-team/resources/guidelines-for-burn-patient-referral"
+   ],
+   "note": "2022 ABA criteria: partial-thickness >=10% TBSA in any patient warrants immediate consultation; \"in some groups\" understates it."
+  },
+  {
+   "lessonId": "med-clin-em.l16",
+   "claim": "Plateau pressure kept below 30 cmH2O; tidal volume 6-8 mL/kg predicted body weight.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/10793162/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l16",
+   "claim": "RSBI below about 105 predicts weaning success; SBT 30-120 minutes.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/2023914/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l16",
+   "claim": "Weaning readiness example: PEEP <=8 and FiO2 <=0.5.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK539800/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l17",
+   "claim": "Berlin 2012: mild 200-300, moderate 100-200, severe <=100 on PEEP >=5.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/22797452/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l17",
+   "claim": "ARMA (2000): 6 vs 12 mL/kg PBW reduced mortality; PROSEVA prone positioning reduced mortality.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/10793162/",
+    "https://pubmed.ncbi.nlm.nih.gov/23688302/"
+   ],
+   "note": "PROSEVA used sessions of at least 16 h."
+  },
+  {
+   "lessonId": "med-clin-em.l17",
+   "claim": "NICE-SUGAR: tight control increased hypoglycemia; target ~140-180 mg/dL.",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/19318384/"
+   ],
+   "note": "Tight control also increased mortality."
+  },
+  {
+   "lessonId": "med-clin-em.l18",
+   "claim": "Winter formula: expected PaCO2 = 1.5 x HCO3 + 8 +/- 2.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK482146/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l18",
+   "claim": "2023 AAN/AAP/CNS/SCCM guideline standardized adult and pediatric brain death determination with apnea testing and ancillary tests.",
+   "verdict": "supported",
+   "sources": [
+    "https://publications.aap.org/aapnews/news/26440/When-does-brain-death-occur-Joint-consensus"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l18",
+   "claim": "Chronic respiratory acidosis raises bicarbonate about 3-4 mEq/L per 10 mmHg PaCO2; acute about 1.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK482430/"
+   ],
+   "note": ""
+  }
+ ]
+}

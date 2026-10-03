@@ -1,35 +1,40 @@
 /**
- * Google Home / Google Assistant Integration
+ * Google Home / Google Assistant Integration for Chora (Plajah Music)
  *
- * Two layers:
- *   1. Google Actions SDK — conversational skill served at /api/google-action
- *      "Hey Google, talk to Plajah" → custom voice UI
- *
- *   2. Google Cast — already handled by useGoogleCast hook on the web side
- *      and PlajahCastOptionsProvider + PlajahMediaService on Android.
- *      This file provides the web-app-side Cast helpers.
- *
- * Setup:
- *   - Google Actions Console: console.actions.google.com
- *   - Enable: Actions on Google SDK → Conversational Actions
- *   - Fulfillment webhook: https://plajah.com/api/google-action
- *   - Deploy: gactions push && gactions deploy preview
+ * Provides two integration layers:
+ *   1. Google Actions SDK — Conversational fulfillment webhook served at /api/google-action
+ *      Supports "Hey Google, talk to Chora" → voice search & Audio Media playback on Nest / Google Home.
+ *   2. Google Cast — Cast receiver metadata helpers for streaming from Plajah to Nest / Chromecast.
  */
 
-// ─── Google Actions fulfillment types ─────────────────────────────────────────
+import { ChoraVoiceTrack, searchChora, getChoraTrackByToken } from './alexaService.js';
+
+// ─── Google Actions Fulfillment Types ─────────────────────────────────────────
 
 export interface GoogleActionRequest {
-  handler: { name: string };
-  intent: { name: string; params: Record<string, { original: string; resolved: string }> };
-  scene: { name: string; slots?: any };
-  session: { id: string; params: Record<string, any>; languageCode: string };
-  user: {
-    params: Record<string, any>;
-    accountLinkingStatus?: 'LINKED' | 'NOT_LINKED';
-    locale: string;
+  handler?: { name: string };
+  intent: {
+    name: string;
+    params?: Record<string, { original?: string; resolved?: string }>;
   };
-  home: { params: Record<string, any> };
-  device: { capabilities: string[] };
+  scene?: { name: string; slots?: Record<string, any> };
+  session?: {
+    id: string;
+    params?: Record<string, any>;
+    languageCode?: string;
+  };
+  user?: {
+    params?: Record<string, any>;
+    accountLinkingStatus?: 'LINKED' | 'NOT_LINKED';
+    locale?: string;
+  };
+  home?: { params?: Record<string, any> };
+  device?: { capabilities?: string[] };
+  context?: {
+    media?: {
+      progress?: string;
+    };
+  };
 }
 
 export interface GoogleSimpleResponse {
@@ -38,9 +43,9 @@ export interface GoogleSimpleResponse {
 }
 
 export interface GoogleActionResponse {
-  session?: { params: Record<string, any> };
+  session?: { params?: Record<string, any> };
   prompt?: {
-    override: boolean;
+    override?: boolean;
     firstSimple?: GoogleSimpleResponse;
     content?: {
       card?: {
@@ -70,116 +75,186 @@ export interface GoogleActionResponse {
 
 // ─── Builder helpers ───────────────────────────────────────────────────────────
 
-const simple = (speech: string, text?: string): GoogleActionResponse => ({
+export const googleSimple = (speech: string, text?: string, suggestions?: string[]): GoogleActionResponse => ({
   prompt: {
     override: false,
     firstSimple: { speech, text: text ?? speech },
+    suggestions: suggestions ? suggestions.map(title => ({ title })) : undefined,
   },
 });
 
-const withCard = (
+export const googleWithCard = (
   speech: string,
-  card: NonNullable<NonNullable<GoogleActionResponse['prompt']>['content']>['card']
+  card: NonNullable<NonNullable<GoogleActionResponse['prompt']>['content']>['card'],
+  suggestions?: string[]
 ): GoogleActionResponse => ({
   prompt: {
     override: false,
     firstSimple: { speech },
     content: { card },
+    suggestions: suggestions ? suggestions.map(title => ({ title })) : undefined,
   },
 });
 
-const withAudio = (
+export const googleWithAudio = (
   speech: string,
-  url: string,
-  title: string,
-  artist: string,
-  artUrl?: string
+  track: ChoraVoiceTrack,
+  startOffset?: string,
+  sessionParams?: Record<string, any>
 ): GoogleActionResponse => ({
+  session: sessionParams ? { params: sessionParams } : undefined,
   prompt: {
     override: true,
-    firstSimple: { speech },
+    firstSimple: { speech, text: speech },
     content: {
       media: {
         mediaType: 'AUDIO',
+        startOffset: startOffset || '0s',
         mediaObjects: [
           {
-            name: title,
-            description: artist,
-            url,
-            ...(artUrl && { image: { large: { url: artUrl, alt: title } } }),
+            name: track.title,
+            description: `${track.artist}${track.albumTitle ? ` • ${track.albumTitle}` : ''}`,
+            url: track.url,
+            image: track.cover
+              ? { large: { url: track.cover, alt: `${track.title} cover art` } }
+              : undefined,
           },
         ],
       },
     },
+    suggestions: [
+      { title: 'Next track' },
+      { title: 'Play another mix' },
+      { title: 'Stop' },
+    ],
   },
 });
 
-// ─── Intent handlers ───────────────────────────────────────────────────────────
+// ─── Main Google Action Handler ────────────────────────────────────────────────
 
-type ActionHandler = (req: GoogleActionRequest) => GoogleActionResponse;
+export const handleGoogleActionRequest = async (
+  body: GoogleActionRequest,
+  getTracks: () => Promise<ChoraVoiceTrack[]>
+): Promise<GoogleActionResponse> => {
+  const intentName = body.intent?.name || 'actions.intent.MAIN';
+  const params = body.intent?.params || {};
 
-const handlers: Record<string, ActionHandler> = {
-  'actions.intent.MAIN': () =>
-    simple(
-      "Welcome to Plajah! I can play music, start your creator feed, or tell you what's trending. What would you like?",
-      "Welcome to Plajah"
-    ),
+  const getParam = (key: string): string => {
+    return params[key]?.resolved || params[key]?.original || '';
+  };
 
-  'actions.intent.NO_INPUT_1': () =>
-    simple("I didn't hear you. Try saying play music or start my feed."),
+  switch (intentName) {
+    case 'actions.intent.MAIN':
+    case 'WelcomeIntent':
+      return googleSimple(
+        'Welcome to Chora on Plajah! You can ask me to play a song, an artist, an album, or a DJ mix. What would you like to hear?',
+        'Welcome to Chora on Plajah',
+        ['Play music', 'Play a DJ mix', 'Help']
+      );
 
-  'actions.intent.NO_INPUT_2': () =>
-    simple("I still didn't hear you. Goodbye!", "Goodbye"),
+    case 'PlayMusic':
+    case 'PlaySong':
+    case 'PlayArtist':
+    case 'PlayAlbum':
+    case 'PlayMix': {
+      const song = getParam('song') || getParam('track');
+      const artist = getParam('artist');
+      const album = getParam('album');
+      const genre = getParam('genre');
+      const isMix = intentName === 'PlayMix' || getParam('type') === 'mix';
 
-  PlayMusic(req) {
-    const artist = req.intent.params?.artist?.resolved ?? '';
-    const track = req.intent.params?.track?.resolved ?? '';
-    const query = artist || track;
-    return simple(
-      query ? `Playing ${query} on Plajah.` : 'Starting your Plajah music feed.'
-    );
-  },
+      const tracks = await getTracks();
+      const match = searchChora(tracks, { song, artist, album, genre, isMix }) || (isMix ? tracks[0] : null);
 
-  OpenFASTChannel: () =>
-    withCard(
-      "Opening your Plajah TV channel.",
-      {
-        title: "Plajah TV",
-        text: "Your 24/7 creator channel is live.",
-        button: { name: "Open Plajah TV", open: { url: "https://plajah.com/tv" } },
+      if (!match) {
+        const queryDesc = song || artist || album || 'that';
+        return googleSimple(
+          `Sorry, I couldn't find ${queryDesc} on Chora. You can ask for another song, artist, or mix.`,
+          `Could not find ${queryDesc} on Chora`,
+          ['Play a mix', 'Play trending music']
+        );
       }
-    ),
 
-  GetTrending: () =>
-    withCard(
-      "Here are the trending artists on Plajah right now.",
-      {
-        title: "Trending on Plajah",
-        text: "Visit Plajah to see the full trending chart.",
-        button: { name: "Open Plajah", open: { url: "https://plajah.com/explore" } },
+      const speech = `Playing ${match.title} by ${match.artist} on Chora.`;
+      const token = `${match.albumId}::${match.index}`;
+
+      return googleWithAudio(speech, match, '0s', {
+        currentTrackToken: token,
+        currentAlbumId: match.albumId,
+      });
+    }
+
+    case 'actions.intent.MEDIA_STATUS': {
+      // Google Assistant notifies when media playback finishes
+      const sessionParams = body.session?.params || {};
+      const currentToken = sessionParams.currentTrackToken;
+      if (currentToken) {
+        const tracks = await getTracks();
+        const nextTrack = getChoraTrackByToken(tracks, currentToken, 1);
+        if (nextTrack) {
+          const speech = `Up next: ${nextTrack.title} by ${nextTrack.artist}`;
+          const nextToken = `${nextTrack.albumId}::${nextTrack.index}`;
+          return googleWithAudio(speech, nextTrack, '0s', {
+            currentTrackToken: nextToken,
+            currentAlbumId: nextTrack.albumId,
+          });
+        }
       }
-    ),
+      return googleSimple('That was the last track in this album on Chora.');
+    }
 
-  'actions.intent.CANCEL': () =>
-    simple("Goodbye! Come back to Plajah anytime.", "Goodbye"),
+    case 'NextTrack': {
+      const sessionParams = body.session?.params || {};
+      const currentToken = sessionParams.currentTrackToken;
+      const tracks = await getTracks();
+      const nextTrack = currentToken ? getChoraTrackByToken(tracks, currentToken, 1) : tracks[0];
+      if (!nextTrack) {
+        return googleSimple('That was the last track in this album.');
+      }
+      const nextToken = `${nextTrack.albumId}::${nextTrack.index}`;
+      return googleWithAudio(`Playing ${nextTrack.title} by ${nextTrack.artist}`, nextTrack, '0s', {
+        currentTrackToken: nextToken,
+        currentAlbumId: nextTrack.albumId,
+      });
+    }
 
-  'actions.intent.HELP': () =>
-    simple(
-      "You can say: play music, play an artist name, open my TV channel, or what's trending. What would you like to do?",
-      "Plajah Help"
-    ),
+    case 'PreviousTrack': {
+      const sessionParams = body.session?.params || {};
+      const currentToken = sessionParams.currentTrackToken;
+      const tracks = await getTracks();
+      const prevTrack = currentToken ? getChoraTrackByToken(tracks, currentToken, -1) : null;
+      if (!prevTrack) {
+        return googleSimple('This is the first track.');
+      }
+      const prevToken = `${prevTrack.albumId}::${prevTrack.index}`;
+      return googleWithAudio(`Playing ${prevTrack.title} by ${prevTrack.artist}`, prevTrack, '0s', {
+        currentTrackToken: prevToken,
+        currentAlbumId: prevTrack.albumId,
+      });
+    }
+
+    case 'actions.intent.NO_INPUT_1':
+      return googleSimple("I didn't catch that. What song, artist, or mix would you like to hear on Chora?");
+
+    case 'actions.intent.NO_INPUT_2':
+    case 'actions.intent.CANCEL':
+      return googleSimple('Goodbye from Chora on Plajah!', 'Goodbye');
+
+    case 'actions.intent.HELP':
+      return googleSimple(
+        'You can say: play a song title, play an artist name, play an album, or play a DJ mix. What would you like to hear?',
+        'Chora Voice Help',
+        ['Play music', 'Play a mix', 'Stop']
+      );
+
+    default:
+      return googleSimple("Sorry, I didn't catch that. Ask Chora to play a song, artist, or mix.");
+  }
 };
 
-// ─── Main handler ──────────────────────────────────────────────────────────────
+// ─── Google Cast helpers (for streaming directly to Google Home / Nest speakers) ───
 
-export const handleGoogleActionRequest = (body: GoogleActionRequest): GoogleActionResponse => {
-  const handler = handlers[body.intent.name] ?? handlers['actions.intent.MAIN'];
-  return handler(body);
-};
-
-// ─── Cast helpers (web-side, used with useGoogleCast hook) ─────────────────────
-
-export const CAST_APP_ID = 'CC1AD845'; // Default Media Receiver — replace with custom app ID when built
+export const CAST_APP_ID = 'CC1AD845'; // Default Media Receiver
 
 export interface CastMediaParams {
   url: string;

@@ -20,6 +20,8 @@ public partial class App : Application
     {
         _window = new MainWindow();
         _window.Activate();
+        var activationArgs = AppInstance.GetCurrent().GetActivatedEventArgs();
+        _window.HandleActivationArgs(activationArgs);
 
         // Register app notification activator (toast callbacks)
         AppNotificationManager.Default.Register();
@@ -44,7 +46,11 @@ public partial class App : Application
 
     private void OnActivated(object? sender, AppActivationArguments args)
     {
-        _window?.DispatcherQueue.TryEnqueue(() => _window.BringToFront());
+        _window?.DispatcherQueue.TryEnqueue(() =>
+        {
+            _window.BringToFront();
+            _window.HandleActivationArgs(args);
+        });
     }
 
     private void OnNotificationInvoked(AppNotificationManager sender, AppNotificationActivatedEventArgs args)

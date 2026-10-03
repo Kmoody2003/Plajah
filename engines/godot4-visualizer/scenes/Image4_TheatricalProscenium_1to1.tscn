@@ -1,0 +1,29 @@
+[gd_scene load_steps=5 format=3]
+
+[ext_resource type="Environment" path="res://default_env.tres" id="1_env"]
+[ext_resource type="Script" path="res://scripts/plajah_audio_bridge.gd" id="2_audio"]
+[ext_resource type="Script" path="res://scripts/image4_theatrical_proscenium_1to1.gd" id="3_controller"]
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_stage"]
+size = Vector2(40, 24)
+
+[node name="Image4_TheatricalProscenium_1to1" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = ExtResource("1_env")
+
+[node name="PlajahAudioBridge" type="Node" parent="."]
+script = ExtResource("2_audio")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 0.965926, 0.258819, 0, -0.258819, 0.965926, 0, 3.2, 13.5)
+current = true
+fov = 50.0
+
+[node name="TheatricalProsceniumSystem" type="Node3D" parent="." node_paths=PackedStringArray("audio_bridge", "stage_floor_mesh")]
+script = ExtResource("3_controller")
+audio_bridge = NodePath("../PlajahAudioBridge")
+stage_floor_mesh = NodePath("StageFloorMesh")
+
+[node name="StageFloorMesh" type="MeshInstance3D" parent="TheatricalProsceniumSystem"]
+mesh = SubResource("PlaneMesh_stage")

@@ -1,0 +1,70 @@
+import { mcq, type CoursePart } from '../../courseKit';
+
+export const PART: CoursePart = {
+  track: {
+    id: 'med-g35.t5', title: 'Staying Safe and Meeting Health Helpers',
+    blurb: 'First aid basics, using medicines safely, and the people who work in health.',
+    level: 'FOUNDATION',
+    lessons: [
+      {
+        id: 'med-g35.l16', title: 'First Aid: Cuts, Burns and Calling for Help', minutes: 7, asOf: '2026-10',
+        blurb: 'Simple steps for small injuries, and how to get help in an emergency.',
+        body:
+          'First aid is the quick help you give before a doctor or ambulance arrives, or care for a small injury. The first rule is safety: if the place is dangerous, do not put yourself in danger, and get an adult.\n\nFor a small cut or scrape, wash your hands first if you can. Press a clean cloth on the cut to stop the bleeding, which can take a few minutes. Rinse the cut gently with clean water, then cover it with a clean bandage. Tell an adult. If blood is spurting, will not stop, or the cut is deep, call for help right away.\n\nFor a small burn, cool it under cool running water for several minutes. Do not use ice, butter or oil. Cover it loosely with a clean cloth and tell an adult. A burn that is large, blistered over a big area, or on the face or hands needs a grown-up and medical help.\n\nKnow how to call for help. In the United States the emergency number is 911. Other countries have their own numbers, so learn yours. Stay calm, say your name and where you are, tell what happened, and answer the questions. Do not hang up until the call taker says you can.\n\nCall for help if someone is not breathing, will not wake up, has a bad injury, is choking and cannot speak, or has a serious allergic reaction.',
+        anchors: [],
+      },
+      {
+        id: 'med-g35.l17', title: 'Medicine Safety', minutes: 6, asOf: '2026-10',
+        blurb: 'Medicines help, but only when used the right way, with a trusted adult.',
+        body:
+          'Medicines are substances that treat, prevent or relieve illness. Used properly, they help a great deal. Used the wrong way, they can be dangerous, even if they come from a store and even if they look like candy.\n\nHere are the main safety rules. Only take medicine that a parent, caregiver, doctor or nurse gives you, and never take it alone. Take the amount the label or doctor says, because more is not better and can cause harm. Never share your medicine with someone else, and never take someone else\'s, because medicine is chosen for a particular person.\n\nRead the label together with an adult. It lists what the medicine is for, how much to take, when to stop, and warnings. Check the expiration date. Keep medicines in their original container, in a safe place that young children cannot reach, such as a locked cabinet.\n\nIf you or a child swallows a medicine or a household product by mistake, tell an adult right away. In the United States, Poison Control can be reached at 1-800-222-1222, and 911 is for serious emergencies. Do not wait for symptoms.\n\nVitamins and cough syrups count as medicines, too. When you finish a course of antibiotics, the doctor decides how long to take them, so do not stop early or save leftovers.',
+        anchors: [],
+      },
+      {
+        id: 'med-g35.l18', title: 'Doctors, Nurses and Scientists', minutes: 6, asOf: '2026-10',
+        blurb: 'Many kinds of people work together to keep us healthy and find new answers.',
+        body:
+          'Many people work to keep us healthy. A doctor, also called a physician, studies for many years to learn how the body works and how illness is found and treated. Some doctors are general, like a pediatrician who cares for children. Others are specialists, such as a cardiologist for hearts or a surgeon who operates.\n\nNurses give care and teach patients. They check things like temperature and heartbeat, give medicines as ordered, comfort people, and notice when something changes. Other helpers include dentists, who care for teeth, pharmacists, who prepare medicines and explain how to use them, physical therapists, who help people move after an injury, and paramedics, who give emergency care.\n\nScientists work behind the scenes. Researchers study germs, test new treatments, and learn why diseases happen. They use the scientific method: ask a question, test it carefully, and check the results. For a new medicine, careful studies called clinical trials test whether it works and is safe before it is approved for use.\n\nWhen a check-up happens, a doctor may ask about your health, listen to your heart and lungs, and check growth. It is a good time to ask questions. Going to a doctor when healthy helps prevent problems.\n\nYou can be a health helper too, by washing hands, eating well and being kind to a friend who is not well.',
+        anchors: [],
+      },
+    ],
+  },
+  questions: [
+    mcq('med-g35.l16', 1, 1, 'What is the first step for a small cut that is bleeding?',
+      ['Press a clean cloth on it to stop the bleeding', 'Pour ice and butter on it to cool the skin', 'Leave it uncovered so that it can dry in the air', 'Rub it hard with a rough towel to clean it'], 0,
+      'Apply gentle pressure.', 'Pressure with a clean cloth slows bleeding. Rubbing hard and using butter can cause more harm.'),
+    mcq('med-g35.l16', 2, 1, 'What should you do first for a small burn?',
+      ['Cool it under cool running water for several minutes', 'Put ice directly on the burn for a long time', 'Spread butter or oil all over the burned skin', 'Pop any blisters at once to let the heat out'], 0,
+      'Cool, not frozen.', 'Cool running water is the standard first step. Ice, butter and oil can damage skin or trap heat.'),
+    mcq('med-g35.l16', 3, 2, 'Which of these is a time to call 911 in the United States?',
+      ['Someone will not wake up and you cannot get a response', 'A scraped knee that has stopped bleeding after a bandage', 'A paper cut that stung for a minute and is now clean', 'A sunburn so mild that the skin is only slightly pink'], 0,
+      'Think life-threatening.', 'A person who will not wake up is an emergency. Small scrapes and mild sunburn can be handled with an adult.'),
+    mcq('med-g35.l16', 4, 2, 'When you call for emergency help, which is the best way to act?',
+      ['Stay calm, say where you are, tell what happened, and stay on the line', 'Hang up quickly after saying hello so the line stays free', 'Describe a different place so help can arrive more slowly', 'Wait for the call taker to guess what the problem is'], 0,
+      'Clear information helps.', 'The call taker needs the location and the problem. Hanging up early can stop help from reaching you.'),
+    mcq('med-g35.l17', 1, 1, 'Who should give you medicine?',
+      ['A parent, caregiver, doctor or nurse, who checks the label', 'A friend who has the same cough and offers some', 'Nobody, because you can pick it up from any shelf', 'A sibling who tells you a safe amount at the time'], 0,
+      'A trusted adult.', 'Medicine should come from a trusted adult who reads the label. Sharing medicine with friends can be harmful.'),
+    mcq('med-g35.l17', 2, 1, 'What does the label on a medicine tell you?',
+      ['What it is for, how much to take and any warnings', 'Which games to play while you wait for it to work', 'Whether it will taste like candy when you swallow it', 'How to tell if a person is faking an illness'], 0,
+      'Read it with an adult.', 'Labels give use, amount and warnings. They are there to keep people safe.'),
+    mcq('med-g35.l17', 3, 2, 'A child feels better after two days of antibiotics and wants to stop. What is the safest choice?',
+      ['Follow the doctor\'s directions about how long to take them', 'Stop now, then save the rest for the next time', 'Take a double amount to finish the bottle sooner', 'Share the leftovers with a sibling who has a cough'], 0,
+      'The doctor chose the length.', 'The doctor sets the length of treatment. Stopping early or sharing leftovers can be unsafe and unhelpful.'),
+    mcq('med-g35.l17', 4, 2, 'A younger child finds a bottle of vitamins that look like candy and swallows several. What should an adult do?',
+      ['Call Poison Control or 911 right away rather than waiting for symptoms', 'Wait until the child feels sick before asking anyone for help', 'Give the child extra water and say nothing about the bottle', 'Hide the bottle so nobody learns what happened to the child'], 0,
+      'Do not wait.', 'Vitamins count as medicines and can poison children in large amounts. Poison Control can advise quickly.'),
+    mcq('med-g35.l18', 1, 1, 'What does a pediatrician do?',
+      ['Cares for the health of babies, children and teenagers', 'Fixes teeth and treats problems of the gums and mouth', 'Prepares medicines and explains how to use them safely', 'Studies rocks and soil in different parts of the world'], 0,
+      'Pedi means children.', 'A pediatrician is a doctor for children. Dentists care for teeth and pharmacists prepare medicines.'),
+    mcq('med-g35.l18', 2, 1, 'What is a clinical trial?',
+      ['A careful study that tests whether a treatment works and is safe', 'A court case in which a doctor must prove a mistake', 'A race held among nurses to see who works fastest', 'A school test that checks how well a child can read'], 0,
+      'Testing before approval.', 'Clinical trials test new treatments in people under careful rules before approval.'),
+    mcq('med-g35.l18', 3, 2, 'Why do doctors suggest check-ups even when a child feels healthy?',
+      ['They can check growth and find or prevent problems early', 'They are only a way to make sure that a child is sick', 'They are needed so that medicine can be handed out to all', 'They replace sleep, food and exercise as health habits'], 0,
+      'Prevention.', 'Check-ups track growth and catch concerns early. They do not replace healthy habits.'),
+    mcq('med-g35.l18', 4, 2, 'Which pair of workers is matched correctly with its job?',
+      ['A paramedic gives emergency care, and a physical therapist helps people move after injury', 'A pharmacist operates on hearts, and a surgeon prepares medicines in a shop', 'A dentist treats lungs, and a nurse studies planets using a telescope', 'A researcher serves meals, and a paramedic repairs ambulances at night'], 0,
+      'Match job to person.', 'Paramedics give emergency care and physical therapists help recovery. The other pairs mix up the jobs.'),
+  ],
+};

@@ -1,0 +1,24 @@
+capsule {
+  id (plajah.chora)
+  version (1.0.0)
+  format (3)
+  targets {
+    target (bixby-mobile-en-US)
+    target (bixby-tv-en-US)
+    target (bixby-watch-en-US)
+  }
+  runtime-version (9) {
+    overrides {
+      allow-dialogs-on-detail-pages (true)
+    }
+  }
+  capsule-imports {
+    import (viv.core) {
+      as (core)
+    }
+    import (viv.audioPlayer) {
+      as (audioPlayer)
+      version (1.0.0)
+    }
+  }
+}

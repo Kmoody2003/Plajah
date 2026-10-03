@@ -17,6 +17,16 @@ import {
 import { buildTapestryII, buildLattice, buildTunnel, buildAurora, buildSanctum } from './fluxCouncilScenes';
 import { buildPorcelainTide, buildVelvetBloom, buildPrismArchive } from './fluxAtelierScenes';
 import { buildDecoMorph } from './decoMorphScene';
+import { buildEgypt } from './culture/egyptScene';
+import { buildVenetian } from './culture/venetianScene';
+import { buildHellenic } from './culture/hellenicScene';
+import { buildJapaneseInk } from './culture/japaneseInkScene';
+import { buildBogolan } from './culture/bogolanScene';
+import { PLAJAH_BRAND_GLSL } from './fluxBrand';
+import { FluxDirector } from './fluxDirector';
+
+// One camera director per scene instance (Deco Morph runs its own).
+const directors = new WeakMap<object, FluxDirector>();
 
 let status: 'idle' | 'loading' | 'ready' | 'failed' = 'idle';
 export function fluxStatus() { return status; }
@@ -134,6 +144,11 @@ const SCENE_BUILDERS: Record<FluxSceneId, ((THREE: any, renderer: any) => SceneI
   'velvet-bloom': buildVelvetBloom,
   'prism-archive': buildPrismArchive,
   'deco-morph': buildDecoMorph,
+  'egypt-temple': buildEgypt,
+  'venetian-maiolica': buildVenetian,
+  'hellenic-marble': buildHellenic,
+  'japanese-ink': buildJapaneseInk,
+  'african-bogolan': buildBogolan,
 };
 
 function getScene(e: Env, id: FluxSceneId): SceneInst | null {
@@ -161,6 +176,7 @@ function buildField(THREE: any): SceneInst {
         h+=(fbm3(q*5.0+vec3(0.,uTime*2.0,0.))-0.5)*(smoothstep(0.3,1.0,uEnergy)*0.7+uSnare*0.7);
         float d=length(pw.xz); h+=sin(d*0.4-uTime*4.0)*0.14*uKick;
         return h;}
+      ${PLAJAH_BRAND_GLSL}
       void main(){vec3 pw=position;
         float h=height(pw);
         float y=(h-0.5)*(5.0+uBass*4.0)*(0.85+smoothstep(0.25,1.0,uEnergy)*0.9);
@@ -168,7 +184,7 @@ function buildField(THREE: any): SceneInst {
         float hn=clamp((h-0.35)*1.6,0.0,1.0);
         vec3 lo=vec3(0.02,0.08,0.28), midc=vec3(0.10,0.62,0.92), hi=vec3(0.75,0.98,1.0);
         vec3 c=mix(lo,midc,smoothstep(0.0,0.6,hn)); c=mix(c,hi,smoothstep(0.62,1.0,hn));
-        c=mix(c, c.bgr, uHue*0.25);
+        c=plajahBrand(c, uHue*0.5 + uTime*0.01);
         c+=(uKick*0.3+uSnare*0.25)*hn;
         vCol=c; vG=hn;
         vec4 mv=modelViewMatrix*vec4(p,1.0);
@@ -437,13 +453,22 @@ function renderFrame(e: Env, inst: SceneInst, spec: FluxSpec, w: number, h: numb
   const locked = !!inst.cam.lock;
   const dolly = (!locked && inst.radiusScale) ? inst.radiusScale(a) : 1;
   const orbit = (!locked && spec.camera === 'orbit') ? spec.orbitSpeed * Math.max(0, localT) : 0;
-  const yawDeg = inst.cam.yaw + spec.yaw + orbit;
-  const pitchDeg = inst.cam.pitch + (locked ? 0 : spec.pitch);
-  const eye = fluxOrbitEye({ x: inst.cam.target[0], y: inst.cam.target[1], z: inst.cam.target[2] }, yawDeg, pitchDeg, inst.cam.radius * spec.distance * dolly);
-  inst.camera.fov = inst.cam.fov;
+  // Beat-cut camera director on every scene except Deco Morph (its own) — gentle on locked shots.
+  let dir = null as ReturnType<FluxDirector['update']> | null;
+  if (spec.scene !== 'deco-morph' && (spec as any).director !== false) {
+    let d = directors.get(inst); if (!d) { d = new FluxDirector(); directors.set(inst, d); }
+    dir = d.update(a, localT, locked);
+  }
+  const yawDeg = inst.cam.yaw + spec.yaw + orbit + (dir ? dir.yaw : 0);
+  const pitchDeg = inst.cam.pitch + (locked ? 0 : spec.pitch) + (dir ? dir.pitch : 0);
+  const radius = inst.cam.radius * spec.distance * dolly * (dir ? dir.radiusMul : 1);
+  const tgtX = inst.cam.target[0] + (dir ? dir.tx * radius : 0), tgtY = inst.cam.target[1] + (dir ? dir.ty * radius : 0), tgtZ = inst.cam.target[2];
+  const eye = fluxOrbitEye({ x: tgtX, y: tgtY, z: tgtZ }, yawDeg, pitchDeg, radius);
+  inst.camera.fov = inst.cam.fov * (dir ? dir.fovMul : 1);
   inst.camera.aspect = w / Math.max(1, h);
   inst.camera.position.set(eye.x, eye.y, eye.z); inst.camera.up.set(0, 1, 0);
-  inst.camera.lookAt(inst.cam.target[0], inst.cam.target[1], inst.cam.target[2]);
+  inst.camera.lookAt(tgtX, tgtY, tgtZ);
+  if (dir && dir.roll) inst.camera.rotateZ(dir.roll);
   inst.camera.updateProjectionMatrix();
 
   inst.update(localT, a, spec);

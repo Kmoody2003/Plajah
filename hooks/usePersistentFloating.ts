@@ -20,14 +20,32 @@ export function usePersistentFloating(storageKey: string, fallback: () => Positi
   const clamp = useCallback((v: Position) => ({ x: Math.max(8, Math.min(window.innerWidth - 56, v.x)), y: Math.max(8, Math.min(window.innerHeight - 56, v.y)) }), []);
   useEffect(() => { const resize = () => setPos((v) => { const n = clamp(v); persist(n); return n; }); window.addEventListener('resize', resize); return () => window.removeEventListener('resize', resize); }, [clamp, persist]);
   const dragProps = {
+    style: { touchAction: 'none' as const },
     onPointerDown: (e: React.PointerEvent) => {
       if (state.current.pinned || e.button !== 0) return;
       didDragRef.current = false;
+      const target = e.currentTarget as HTMLElement;
+      try { target.setPointerCapture(e.pointerId); } catch {}
       const origin = { x: e.clientX, y: e.clientY, pos: state.current.pos }; let moved = false;
       let finalPos = origin.pos;
-      const move = (ev: PointerEvent) => { moved ||= Math.hypot(ev.clientX - origin.x, ev.clientY - origin.y) > 4; if (moved) { didDragRef.current = true; finalPos = clamp({ x: origin.pos.x + ev.clientX - origin.x, y: origin.pos.y + ev.clientY - origin.y }); setPos(finalPos); } };
-      const up = () => { window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); if (moved) persist(finalPos); };
-      window.addEventListener('pointermove', move); window.addEventListener('pointerup', up);
+      const move = (ev: PointerEvent) => {
+        moved ||= Math.hypot(ev.clientX - origin.x, ev.clientY - origin.y) > 4;
+        if (moved) {
+          didDragRef.current = true;
+          finalPos = clamp({ x: origin.pos.x + ev.clientX - origin.x, y: origin.pos.y + ev.clientY - origin.y });
+          setPos(finalPos);
+        }
+      };
+      const up = (ev: PointerEvent) => {
+        try { target.releasePointerCapture(ev.pointerId); } catch {}
+        window.removeEventListener('pointermove', move);
+        window.removeEventListener('pointerup', up);
+        window.removeEventListener('pointercancel', up);
+        if (moved) persist(finalPos);
+      };
+      window.addEventListener('pointermove', move);
+      window.addEventListener('pointerup', up);
+      window.addEventListener('pointercancel', up);
     },
     onClickCapture: (e: React.MouseEvent) => {
       if (!didDragRef.current) return;

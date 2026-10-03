@@ -49,6 +49,8 @@ export const CONTAINERS: Container[] = [
   { id: 'webm', label: 'WebM', ext: 'webm', kinds: ['video', 'audio'], note: 'VP9 / AV1 + Opus/Vorbis only.' },
   { id: 'mpegts', label: 'MPEG-TS', ext: 'ts', kinds: ['video'], note: 'Broadcast / stream-safe.' },
   { id: 'mpeg', label: 'MPEG Program Stream', ext: 'mpg', kinds: ['video'], note: 'Classic MPEG-2 .mpg target.' },
+  { id: 'm2t', label: 'Sony HDV (.m2t)', ext: 'm2t', kinds: ['video'], note: 'Sony HDV MPEG-2 Transport Stream.' },
+  { id: 'crm', label: 'Canon RAW (.crm)', ext: 'crm', kinds: ['video'], note: 'Canon Cinema RAW Light.' },
   { id: 'avi', label: 'AVI', ext: 'avi', kinds: ['video'] },
   { id: 'gif', label: 'Animated GIF', ext: 'gif', kinds: ['video'] },
   { id: 'flac', label: 'FLAC', ext: 'flac', kinds: ['audio'] },
@@ -67,10 +69,15 @@ export const VIDEO_CODECS: Codec[] = [
   { id: 'av1', label: 'AV1', encoder: 'libsvtav1', kind: 'video', backend: 'server', note: 'SVT-AV1 — fast, royalty-free.' },
   { id: 'vp9', label: 'VP9', encoder: 'libvpx-vp9', kind: 'video', backend: 'server' },
   { id: 'mpeg2', label: 'MPEG-2', encoder: 'mpeg2video', kind: 'video', backend: 'server', note: 'High-quality MPEG-2 target (DVD / broadcast).' },
+  { id: 'mainconcept_mpeg2', label: 'MainConcept MPEG-2 (Broadcast/XDCAM/HDV)', encoder: 'mpeg2video', kind: 'video', backend: 'server', note: 'Hardware-accelerated MPEG-2 via MainConcept / Windows MFT.' },
+  { id: 'xavc', label: 'Sony XAVC (Intra/Long GOP)', encoder: 'libx264', kind: 'video', backend: 'server', note: 'Broadcast-grade Sony XAVC Intra Class 100/300.' },
   { id: 'prores', label: 'Apple ProRes', encoder: 'prores_ks', kind: 'video', backend: 'server', note: '422 / 4444 mastering. Free encoder.' },
   { id: 'dnxhr', label: 'Avid DNxHR / DNxHD', encoder: 'dnxhd', kind: 'video', backend: 'server', note: 'Editing-friendly intermediate.' },
   { id: 'ffv1', label: 'FFV1 (lossless)', encoder: 'ffv1', kind: 'video', backend: 'server', lossless: true, note: 'Archival lossless.' },
   { id: 'braw', label: 'Blackmagic RAW', encoder: '(sdk)', kind: 'video', backend: 'server', note: 'Decode-only via free BRAW SDK — no tool can freely ENCODE BRAW.' },
+  { id: 'arriraw', label: 'ARRIRAW', encoder: '(sdk)', kind: 'video', backend: 'server', note: 'Decode-only via ARRI RAW SDK.' },
+  { id: 'r3d', label: 'RED R3D', encoder: '(sdk)', kind: 'video', backend: 'server', note: 'Decode-only via RED R3D SDK.' },
+  { id: 'canon_crm', label: 'Canon Cinema RAW Light', encoder: '(sdk)', kind: 'video', backend: 'server', note: 'Decode-only via Canon CRM SDK.' },
 ];
 
 export const AUDIO_CODECS: Codec[] = [

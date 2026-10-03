@@ -208,6 +208,12 @@ const ChoraTvView: React.FC<{
   useEffect(() => {
     if (!openEra) return;
     const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const active = document.activeElement as HTMLElement | null;
+      const isField = (el: HTMLElement | null) =>
+        !!(el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable || el.closest?.('input, textarea, select, [contenteditable="true"]')));
+      if (isField(target) || isField(active)) return;
+
       const kc = e.keyCode || e.which;
       if (kc === 4 || kc === 13 || kc === 23 || e.key === 'Enter' || e.key === 'Backspace' || e.key === 'XF86Back') {
         e.preventDefault(); e.stopImmediatePropagation();

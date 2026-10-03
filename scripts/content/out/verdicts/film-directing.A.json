@@ -1,0 +1,1407 @@
+{
+ "courseId": "film-directing",
+ "verifier": "A",
+ "note": "Only Wikipedia pages were fetched; most generic craft-definition claims were not checked against a page and are marked unverifiable. Lesson 22 has 6 claims because it covers many directors.",
+ "fetched": 15,
+ "questions": [
+  {
+   "id": "film-directing.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l02.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l06.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l07.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l08.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l10.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l10.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l10.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l10.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l11.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l11.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l11.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l12.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l12.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l13.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l13.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l13.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l14.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l14.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l14.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l14.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l15.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l15.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l15.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l15.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l16.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l17.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l17.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l17.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l17.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l18.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l18.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l18.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l18.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l19.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l19.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l19.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l19.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l20.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l20.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l20.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l21.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l21.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l21.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l21.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l21.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l22.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l22.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l22.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l22.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l22.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l23.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l23.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l23.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l23.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l23.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l24.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l24.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l24.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l24.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "film-directing.l24.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "film-directing.l01",
+   "claim": "Director is responsible for creative interpretation and guiding actors/crew",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l01",
+   "claim": "Producers usually handle money, schedules, hiring",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l01",
+   "claim": "Final cut is usually set by contract",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l02",
+   "claim": "Four broad stages: development, pre-production, production, post-production",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l02",
+   "claim": "First AD runs the schedule on set",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l02",
+   "claim": "Pickups are extra shooting after principal photography",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l03",
+   "claim": "Three-act structure is a model, not a law",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l03",
+   "claim": "Subtext/theme/plot definitions",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l03",
+   "claim": "Beats as units of shifting dynamic",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l04",
+   "claim": "Tone = overall mood or attitude",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l04",
+   "claim": "Directors use statements of intent and visual references",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l04",
+   "claim": "Specific vision statements are more useful than vague ones",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l05",
+   "claim": "Casting directors organise auditions; callbacks are second meetings",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l05",
+   "claim": "Chemistry reads pair actors",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l05",
+   "claim": "Casting considers availability, budget, representation",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l06",
+   "claim": "Table read is cast reading whole script aloud",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l06",
+   "claim": "Improvisation used in rehearsal to build backstory",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l06",
+   "claim": "Heavy vs light rehearsal is a genuine debate",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l07",
+   "claim": "Blocking term comes from theatre",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l07",
+   "claim": "Marks are tape on floor to keep actors in focus/frame",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l07",
+   "claim": "Stagger-through is a blocking rehearsal for crew before lighting",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l08",
+   "claim": "Many modern acting approaches descend from Stanislavski, a Russian theatre practitioner",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Constantin_Stanislavski"
+   ],
+   "note": "Stanislavski (1863-1938), Russian/Soviet practitioner; system transformed modern acting pedagogy."
+  },
+  {
+   "lessonId": "film-directing.l08",
+   "claim": "Actors act on actions (active verbs) rather than results",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l08",
+   "claim": "Give one clear adjustment, privately",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l09",
+   "claim": "Script supervisor keeps continuity notes on dialogue and props",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l09",
+   "claim": "Continuity of prop hand/emotional level across shots",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l09",
+   "claim": "Screen acting scale differs from stage",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l10",
+   "claim": "Shot size vocabulary: medium shot roughly waist up",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l10",
+   "claim": "Dutch angle tilts the horizon",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l10",
+   "claim": "Low angle imposing / high angle weak are tendencies",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l11",
+   "claim": "Dolly zoom closely associated with Vertigo (1958)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Dolly_zoom"
+   ],
+   "note": "Page credits Irmin Roberts devising it for Hitchcock's Vertigo."
+  },
+  {
+   "lessonId": "film-directing.l11",
+   "claim": "Steadicam is operator-worn stabilising rig",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l11",
+   "claim": "Zoom changes focal length; dolly moves camera",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l12",
+   "claim": "Shorter focal length gives wider view; telephoto compresses space",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l12",
+   "claim": "mm ranges depend on sensor/film size",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l12",
+   "claim": "Depth of field depends on aperture, focal length, distance",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l13",
+   "claim": "Master shot then closer coverage; shot/reverse shot",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l13",
+   "claim": "Cutting in camera means shooting only what will be used",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l13",
+   "claim": "Cutaways help editors trim or join takes",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l14",
+   "claim": "180-degree rule: keep camera on one side of axis between characters",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/180-degree_rule"
+   ],
+   "note": "Page confirms rule and ways to cross: buffer shot, arcing camera move, changing movement."
+  },
+  {
+   "lessonId": "film-directing.l14",
+   "claim": "30-degree rule: consecutive shots should differ by about 30 degrees",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page only mentions it without detail."
+  },
+  {
+   "lessonId": "film-directing.l14",
+   "claim": "Ozu discussed for unconventional eyelines/screen space",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l15",
+   "claim": "Animatic is rough moving storyboard with timing",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l15",
+   "claim": "Hitchcock known for meticulous advance planning",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Alfred_Hitchcock"
+   ],
+   "note": "Page has a section on writing, storyboards and production; excerpt lacked detail, so only partly confirmed."
+  },
+  {
+   "lessonId": "film-directing.l15",
+   "claim": "Floor plans and shot lists are standard planning tools",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l16",
+   "claim": "Mise-en-scene means 'placing on stage'",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l16",
+   "claim": "Rule of thirds is a 3x3 grid",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l16",
+   "claim": "Colour meaning depends on culture and story",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l17",
+   "claim": "Battleship Potemkin (1925) by Eisenstein exemplifies Soviet montage",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Battleship_Potemkin"
+   ],
+   "note": "Released 1925, directed by Sergei Eisenstein, prime example of Soviet montage theory."
+  },
+  {
+   "lessonId": "film-directing.l17",
+   "claim": "Match on action cuts mid-movement",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l17",
+   "claim": "Jump cut skips time within one angle",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l18",
+   "claim": "ADR is re-recording dialogue after filming",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Automated_dialogue_replacement"
+   ],
+   "note": "Confirmed as re-recording dialogue in a booth after filming."
+  },
+  {
+   "lessonId": "film-directing.l18",
+   "claim": "Foley artists perform sound effects to picture",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l18",
+   "claim": "Diegetic vs non-diegetic music definitions",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l19",
+   "claim": "DP is also called cinematographer and responsible for image",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l19",
+   "claim": "Production designer leads art department",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l19",
+   "claim": "Editor often cuts during the shoot",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l20",
+   "claim": "First AD runs set; call sheet lists next day's scenes and call times",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l20",
+   "claim": "Scenes shot out of story order for grouping",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l20",
+   "claim": "Intimacy coordinators increasingly used",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l21",
+   "claim": "Nanook of the North (1922) by Robert Flaherty, partly staged",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Nanook_of_the_North"
+   ],
+   "note": "Released 1922; staged elements include hunting style and three-walled igloo."
+  },
+  {
+   "lessonId": "film-directing.l21",
+   "claim": "Feature film usually understood as about 40 minutes or more under many industry definitions",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Feature_film"
+   ],
+   "note": "AMPAS, AFI, BFI: over 40 minutes. SAG-AFTRA uses 60 and Germany 79, so the threshold varies by body."
+  },
+  {
+   "lessonId": "film-directing.l21",
+   "claim": "Voice recording often done early in animation",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l22",
+   "claim": "Hitchcock 1899-1980; Rear Window 1954",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Alfred_Hitchcock"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l22",
+   "claim": "Kurosawa 1910-1998; Rashomon 1950, Seven Samurai 1954; often edited own films",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Akira_Kurosawa"
+   ],
+   "note": "Page did not confirm the multiple-camera claim, but the dates, films and editing are supported."
+  },
+  {
+   "lessonId": "film-directing.l22",
+   "claim": "Ozu 1903-1963, Tokyo Story 1953, low static camera",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Yasujir%C5%8D_Ozu"
+   ],
+   "note": "Page confirms tatami (low) shots."
+  },
+  {
+   "lessonId": "film-directing.l22",
+   "claim": "Kubrick 1928-1999; Barry Lyndon (1975) candlelit with very fast lenses",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Stanley_Kubrick",
+    "https://en.wikipedia.org/wiki/Barry_Lyndon"
+   ],
+   "note": "Released Dec 1975; Zeiss 50mm f/0.7 lenses, candlelight interiors."
+  },
+  {
+   "lessonId": "film-directing.l22",
+   "claim": "Varda 1928-2019; Cleo from 5 to 7 (1962); The Gleaners and I (2000)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Agn%C3%A8s_Varda"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l22",
+   "claim": "DuVernay: Selma 2014, 13th 2016, When They See Us 2019, distribution via ARRAY; Lee's Do the Right Thing 1989; double dolly shot",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ava_DuVernay",
+    "https://en.wikipedia.org/wiki/Spike_Lee"
+   ],
+   "note": "DuVernay and DTRT 1989 confirmed. The Spike Lee page only mentions dolly shots where characters float, not the name double dolly shot, so that attribution is unconfirmed."
+  },
+  {
+   "lessonId": "film-directing.l23",
+   "claim": "Final cut set by contract; often studio/producer",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l23",
+   "claim": "Picture lock lets other departments finish",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l23",
+   "claim": "'Written three times' idea",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l24",
+   "claim": "Directors Guild of America is a US guild for directors",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Directors_Guild_of_America"
+   ],
+   "note": "US trade union for film/TV directors, founded 1936."
+  },
+  {
+   "lessonId": "film-directing.l24",
+   "claim": "Major festivals: Sundance, Cannes, Venice, Berlin, Toronto, SXSW",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l24",
+   "claim": "Festivals have fees and premiere requirements",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  }
+ ]
+}

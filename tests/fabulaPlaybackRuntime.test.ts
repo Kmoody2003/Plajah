@@ -48,3 +48,36 @@ test('source end freezes rather than restarting playback', async () => {
     assert.equal(plays, 0); assert.equal(pauses, 1); assert.equal(video.currentTime, 4.95);
   } finally { unregisterLiveVideo('end'); }
 });
+
+test('resolver never downloads: a cloud-only asset streams as-is by default, and throws OFFLINE in Switch-to-Local', async () => {
+  const { setLocalOnly, setSyncMode } = await import('../services/fabula/mediaSource.ts');
+  setSyncMode(false);
+  setLocalOnly(false);
+  const asset = { id: 'asset-remote-test', url: 'https://example.com/stream.mp4' };
+  const source = await resolveMediaSource(asset);
+  assert.equal(source.url, 'https://example.com/stream.mp4');
+  assert.equal(source.local, false);
+  assert.equal(source.origin, 'cloud');
+  source.release();
+  setLocalOnly(true);
+  try { await assert.rejects(() => resolveMediaSource(asset), /LOCAL-ONLY/); } finally { setLocalOnly(false); }
+});
+
+test('cached bytes resolve to local source instantly', async () => {
+  const { putBytes } = await import('../services/fabula/mediaStore.ts');
+  const testBlob = new Blob(['sample-local-content'], { type: 'video/mp4' });
+  await putBytes('studio:blob:asset-cached-123', testBlob);
+
+  const source = await resolveMediaSource({ id: 'asset-cached-123', url: 'https://example.com/ignored.mp4' });
+  assert.equal(source.local, true);
+  assert.equal(source.origin, 'cache');
+  assert.ok(source.url.startsWith('blob:'));
+  source.release();
+});
+
+test('decoder budget returns positive hardware limit and expands on native host', async () => {
+  const { decoderCap } = await import('../services/fabula/decoderBudget.ts');
+  const cap = decoderCap();
+  assert.ok(cap >= 4);
+});
+

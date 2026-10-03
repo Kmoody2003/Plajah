@@ -1,0 +1,1157 @@
+{
+ "courseId": "lighting-design",
+ "verifier": "B",
+ "note": "Opened ~9 Wikipedia pages (WebFetch); other claims left unverifiable per source discipline. Lessons with only 2 claims recorded in l01/l05/l16 were padded with unverifiable ones.",
+ "fetched": 12,
+ "questions": [
+  {
+   "id": "lighting-design.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l01.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l02.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l04.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l05.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l07.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l08.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l10.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l10.q3",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Convention-dependent; 4:1 as lit:shadow ratio is two stops."
+  },
+  {
+   "id": "lighting-design.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l11.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l11.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l14.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l14.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l15.q4",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Distractor 'incandescent then candles' is wrong; gas then incandescent is best."
+  },
+  {
+   "id": "lighting-design.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l18.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l18.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l19.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l19.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l19.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "lighting-design.l20.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "lighting-design.l01",
+   "claim": "Visible light is roughly 380-750 nm",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Visible_spectrum"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lighting-design.l01",
+   "claim": "Illuminance falls with square of distance (400 lux at 1 m -> 100 lux at 2 m)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard physics; no page opened."
+  },
+  {
+   "lessonId": "lighting-design.l01",
+   "claim": "Doubling distance costs two stops",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Follows from inverse square; no page opened."
+  },
+  {
+   "lessonId": "lighting-design.l02",
+   "claim": "Sun casts hard shadows because apparent size small",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l02",
+   "claim": "Closer source appears larger so softer",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l02",
+   "claim": "Overcast sky acts as large soft source",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l03",
+   "claim": "Side light reveals texture",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l03",
+   "claim": "Rembrandt lighting triangle on shadow-side cheek",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l03",
+   "claim": "Key about 45 degrees to side and above eye level",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l04",
+   "claim": "Colour temperature scale based on idealised glowing (black-body) object; lower K looks warmer",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Color_temperature"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lighting-design.l04",
+   "claim": "CRI is a scale up to 100 comparing colour fidelity to a reference",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Color_rendering_index"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lighting-design.l04",
+   "claim": "Warm bulbs ~2700 K; tungsten 3200 K; daylight film 5600 K",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Color_temperature"
+   ],
+   "note": "Page confirms 2700 K soft white and daylight 5500-6500 K; 3200 K tungsten and 5600 K not explicitly shown."
+  },
+  {
+   "lessonId": "lighting-design.l05",
+   "claim": "Fresnel lens developed by Augustin-Jean Fresnel in the 1820s for lighthouses",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Fresnel_lens"
+   ],
+   "note": "Prototype 1820, first lit 1823."
+  },
+  {
+   "lessonId": "lighting-design.l05",
+   "claim": "Gobo in the gate of an ellipsoidal projects a pattern",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "lighting-design.l05",
+   "claim": "Leko brand name for ellipsoidal reflector spotlight",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "lighting-design.l06",
+   "claim": "LEDs more efficient and cooler than tungsten",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l06",
+   "claim": "Softbox enlarges source",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l06",
+   "claim": "Cheap LEDs may have low CRI or flicker",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l07",
+   "claim": "DMX512 developed in the 1980s",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/DMX512"
+   ],
+   "note": "Created 1986."
+  },
+  {
+   "lessonId": "lighting-design.l07",
+   "claim": "One universe carries 512 channels, values 0-255",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/DMX512"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lighting-design.l07",
+   "claim": "Tungsten lamp becomes warmer as it dims",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "lighting-design.l08",
+   "claim": "CTO warms daylight to match tungsten",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l08",
+   "claim": "Gels absorb light; ND reduces brightness without colour change",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l08",
+   "claim": "Diffusion softens and reduces brightness",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l09",
+   "claim": "Key ~45 degrees above eye level",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l09",
+   "claim": "Fill dimmer/softer than key",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l09",
+   "claim": "Back light separates subject",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l10",
+   "claim": "2:1 ratio = one stop, 4:1 = two stops",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l10",
+   "claim": "Negative fill deepens shadows",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l10",
+   "claim": "High-key low ratio, low-key high ratio",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l11",
+   "claim": "Motivated lighting borrowed from acting",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l11",
+   "claim": "Large light outside window imitates sun",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l11",
+   "claim": "Motivation need not be visible",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l12",
+   "claim": "Loop/Rembrandt/butterfly/clamshell definitions",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l12",
+   "claim": "Short lighting lights side turned away",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l12",
+   "claim": "Butterfly (Paramount) key high in front",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l13",
+   "claim": "Law of reflection equal angles",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l13",
+   "claim": "Soft source gives gradient highlight",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l13",
+   "claim": "Light tent diffuses",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l14",
+   "claim": "1200 W at 120 V draws about 10 A",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "P=VI arithmetic; no page opened."
+  },
+  {
+   "lessonId": "lighting-design.l14",
+   "claim": "Household circuit often rated 15 A (North America)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Often 15 or 20 A; no page opened."
+  },
+  {
+   "lessonId": "lighting-design.l14",
+   "claim": "Skin oils can cause halogen bulb failure",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "lighting-design.l15",
+   "claim": "Limelight credited to Thomas Drummond in the 1820s; oxygen-hydrogen flame on lime",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Limelight"
+   ],
+   "note": "Drummond built working version 1826."
+  },
+  {
+   "lessonId": "lighting-design.l15",
+   "claim": "Limelight used in theatres from around the 1830s",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Limelight"
+   ],
+   "note": "First public use 1836, indoor Covent Garden 1837; widespread 1860s-70s."
+  },
+  {
+   "lessonId": "lighting-design.l15",
+   "claim": "Savoy Theatre lit entirely by electricity in 1881; Swan/Edison bulbs around 1879",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Savoy_Theatre",
+    "https://en.wikipedia.org/wiki/Incandescent_light_bulb"
+   ],
+   "note": "Savoy 1881 (stage gas until Dec 1881); Swan and Edison 1879 demos."
+  },
+  {
+   "lessonId": "lighting-design.l16",
+   "claim": "McCandless 1932 book on stage lighting",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Stanley_McCandless"
+   ],
+   "note": "A Method of Lighting the Stage, 1932."
+  },
+  {
+   "lessonId": "lighting-design.l16",
+   "claim": "Acting areas lit from two directions about 45 degrees",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Stanley_McCandless"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "lighting-design.l16",
+   "claim": "Light plot / cue-to-cue definitions",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened."
+  },
+  {
+   "lessonId": "lighting-design.l17",
+   "claim": "Haze makes beams visible",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l17",
+   "claim": "Moving lights change position colour beam",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l17",
+   "claim": "Timecode triggering cues",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l18",
+   "claim": "Ambient/task/accent layers",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l18",
+   "claim": "Warm 2700 K living rooms, 3500-5000 K offices",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l18",
+   "claim": "Grazing reveals texture",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l19",
+   "claim": "Chiaroscuro Caravaggio Rembrandt",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l19",
+   "claim": "Colour meanings culturally varied",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l19",
+   "claim": "Under-light looks threatening",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l20",
+   "claim": "Design sequence story-motivation-key-ratio",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l20",
+   "claim": "Add up electrical load",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  },
+  {
+   "lessonId": "lighting-design.l20",
+   "claim": "Test through camera/monitor",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "No page opened; matches general knowledge only."
+  }
+ ]
+}

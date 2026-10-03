@@ -1,0 +1,1408 @@
+{
+ "courseId": "med-clin-surgery",
+ "label": "Surgery",
+ "lessons": [
+  {
+   "id": "med-clin-surgery.l01",
+   "title": "Preoperative Evaluation and Risk",
+   "body": [
+    "The preoperative evaluation exists to answer three questions: what is the risk of this operation in this patient, what can be modified beforehand, and which chronic medicines should continue or stop. Risk reflects the patient and the procedure. Procedures are grouped as low, elevated or high risk, with vascular, major abdominal and thoracic operations carrying more cardiac risk than superficial or cataract surgery. Emergency operations carry more risk than elective ones, and urgent surgery should not be delayed for testing that will not change care.",
+    "For cardiac risk, the Revised Cardiac Risk Index counts six factors: high-risk surgery, ischemic heart disease, heart failure, cerebrovascular disease, insulin-treated diabetes and a creatinine above 2 mg/dL. Each adds risk of a major cardiac event. The ACC/AHA perioperative guideline (most recently revised in 2024) uses a stepwise approach: determine urgency, look for an active cardiac condition such as unstable coronary syndrome, decompensated heart failure, severe valve disease or a significant arrhythmia, which must be addressed first, then estimate risk and functional capacity. A patient who can climb two flights of stairs, about 4 metabolic equivalents, usually proceeds without further testing. Poor or unknown capacity with elevated risk may justify stress testing only if the result would change management. Coronary revascularization purely to get through surgery is not helpful in stable disease. Routine preoperative electrocardiograms, chest radiographs and laboratory panels in healthy patients undergoing low-risk surgery do not improve outcomes.",
+    "Pulmonary risk is raised by smoking, chronic obstructive disease, obstructive sleep apnea, advanced age, upper abdominal or thoracic surgery and prolonged anesthesia. Lung expansion maneuvers such as incentive spirometry, early ambulation and optimizing airway disease reduce postoperative pulmonary complications. Screening tools like STOP-BANG identify undiagnosed sleep apnea.",
+    "Medication management follows principles. Continue beta-blockers that the patient already takes, but do not begin a high dose on the day of surgery. Statins continue. Aspirin is usually continued for coronary stents unless bleeding risk is prohibitive, and elective surgery is delayed after recent stenting until the minimum dual antiplatelet period has been completed. Warfarin is stopped about five days before elective surgery, and bridging with heparin is not routine because it raises bleeding without lowering thromboembolism in most atrial fibrillation patients, as shown in the BRIDGE trial. Direct oral anticoagulants are held for a period that depends on the drug and renal function. SGLT2 inhibitors are held several days before surgery because of the risk of euglycemic ketoacidosis. Patients on long-term glucocorticoids may need stress-dose steroids for major operations to avoid adrenal crisis, which presents with unexplained hypotension. Finally, assessing frailty, nutrition, cognition and goals of care matters especially in older adults, and informed consent includes risks, benefits and alternatives."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l02",
+   "title": "Postoperative Complications by Timing",
+   "body": [
+    "Postoperative problems are best sorted by when they occur and what the operation was. Immediately after surgery, think of bleeding, anesthetic effects and cardiac events. Hypotension and tachycardia with falling hemoglobin and a distending abdomen suggest hemorrhage and need volume, correction of coagulopathy and sometimes reoperation. Hypoxemia in the recovery room may reflect airway obstruction, residual neuromuscular blockade or opioid effect, atelectasis or aspiration. Pain, urinary retention and agitation also cause tachycardia.",
+    "Fever is traditionally remembered by the five Ws, a mnemonic that links each cause to a typical day. Wind, meaning atelectasis, is the traditional cause of fever on the first one or two days, although the evidence that atelectasis alone causes fever is modest, and fever in the first 48 hours is usually benign unless it is high. Water, a urinary tract infection from a catheter, peaks around days 3 to 5. Wound infection appears around days 5 to 7, though necrotizing soft tissue infection from group A streptococcus or Clostridium species can appear within 24 to 48 hours with pain out of proportion, bullae and rapidly spreading erythema, and demands immediate surgical debridement. Walking refers to deep venous thrombosis and pulmonary embolism, typically after day 3 to 5, and wonder drugs refers to drug fever. Deep abscesses and anastomotic leaks present after about 5 to 10 days.",
+    "Postoperative ileus is expected for a short time after abdominal surgery, with the stomach and colon recovering at different rates. Prolonged ileus is associated with opioids, electrolyte disturbances such as hypokalemia, and intra-abdominal infection, so the first steps are to correct electrolytes, minimize opioids, and use early feeding and ambulation. An early small bowel obstruction from adhesions should be considered if there is vomiting, distension and a transition point on imaging. Anastomotic leak after bowel resection presents with fever, tachycardia, abdominal pain, ileus and leukocytosis, typically days 5 to 7, and is evaluated with CT. A contained leak may be drained percutaneously, whereas peritonitis requires reoperation.",
+    "Acute kidney injury is common and is approached as prerenal from hypovolemia, intrinsic from hypotension or nephrotoxins, and postrenal from urinary retention or ureteral injury. Wound dehiscence, with a salmon-colored serosanguinous drainage on days 5 to 10, suggests fascial failure, and evisceration needs coverage with moist sterile dressings and return to the operating room. Prevention of venous thromboembolism uses early ambulation, mechanical compression and pharmacologic prophylaxis scaled to risk. Postoperative delirium is more common in older patients and is evaluated for pain, medications, infection and metabolic cause."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l03",
+   "title": "Fluids, Electrolytes, Nutrition and Shock",
+   "body": [
+    "Surgical patients lose fluid through bleeding, evaporation, bowel losses and third-space shifts. Maintenance fluids replace ongoing needs, resuscitation fluids restore circulating volume, and replacement fluids match specific losses. Isotonic crystalloids such as lactated Ringer solution and normal saline expand the intravascular space and are the usual choices. Large volumes of normal saline can cause hyperchloremic metabolic acidosis, and lactated Ringer contains potassium but is not contraindicated in hyperkalemia as is often claimed. Hypotonic fluids should not be used for resuscitation. Modern practice favors goal-directed and restrictive strategies, because excess fluid causes edema, ileus and impaired wound healing.",
+    "Shock is inadequate tissue perfusion, and its type is recognized from the hemodynamic profile. Hypovolemic shock, from hemorrhage or fluid loss, shows low cardiac output, high systemic vascular resistance, flat neck veins and low filling pressures. Cardiogenic shock shows low output with high filling pressures and distended neck veins. Obstructive shock arises from tamponade, tension pneumothorax and massive pulmonary embolism. Distributive shock arises from sepsis, anaphylaxis or neurogenic injury, and shows low resistance, with warm extremities in the early phase of sepsis. Neurogenic shock after spinal cord injury shows hypotension with bradycardia and warm skin, in contrast to hemorrhage with tachycardia.",
+    "For hemorrhage the principles are to stop the bleeding and restore volume with blood. Balanced transfusion with red cells, plasma and platelets in a ratio close to 1:1:1 is used in massive transfusion, as in the PROPPR trial, and tranexamic acid given early reduces death from bleeding in trauma, as in the CRASH-2 trial. Complications of massive transfusion include hypocalcemia from citrate, hyperkalemia, hypothermia and coagulopathy.",
+    "Electrolyte disturbances are common. Hyponatremia after surgery often reflects antidiuretic hormone release and hypotonic fluids. Hypokalemia contributes to ileus. Hypomagnesemia must be corrected for potassium repletion to work. Refeeding syndrome in malnourished patients causes hypophosphatemia, hypokalemia and hypomagnesemia when nutrition is restarted, and is avoided by starting slowly with thiamine.",
+    "Nutrition supports healing. Enteral feeding is preferred over parenteral nutrition whenever the gut works, because it maintains mucosal integrity and lowers infection risk. Parenteral nutrition is reserved for those who cannot be fed enterally. Enhanced recovery after surgery pathways combine carbohydrate loading, limited fasting, multimodal opioid-sparing analgesia, early feeding and early mobilization, and shorten hospital stay without raising complications. Malnutrition, signaled by albumin or weight loss, predicts complications, though albumin reflects inflammation as well as nutrition."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l04",
+   "title": "Anesthesia Basics",
+   "body": [
+    "General anesthesia produces unconsciousness, amnesia, analgesia and muscle relaxation using a combination of intravenous and inhaled agents. Induction commonly uses propofol, which is rapid and reduces nausea but causes hypotension and pain on injection. Etomidate preserves hemodynamics but suppresses adrenal steroid synthesis, ketamine is a dissociative that supports blood pressure and bronchodilates but can raise secretions, and thiopental has been largely withdrawn. Maintenance uses volatile agents such as sevoflurane or total intravenous anesthesia. Neuromuscular blockers allow intubation and surgical relaxation. Succinylcholine is a depolarizing agent with a rapid onset and short duration, and it can cause hyperkalemia in burns, crush injury, prolonged immobilization and denervation, as well as masseter spasm and malignant hyperthermia. Rocuronium is a nondepolarizing agent reversed with sugammadex, or with neostigmine given with glycopyrrolate.",
+    "Malignant hyperthermia is an inherited disorder, usually from RYR1 mutation, triggered by volatile agents and succinylcholine. It presents with rising end-tidal carbon dioxide, tachycardia, rigidity, hyperthermia, hyperkalemia and rhabdomyolysis, and is treated by stopping triggers, giving dantrolene, which blocks calcium release from the sarcoplasmic reticulum, hyperventilating with 100 percent oxygen and cooling.",
+    "Airway planning anticipates difficulty using features such as limited mouth opening, a small thyromental distance, a high Mallampati class, a short neck and prior radiation. Patients at risk for aspiration, such as those with a full stomach, bowel obstruction, pregnancy or gastroparesis, are managed with rapid sequence induction. Standard fasting guidance from the American Society of Anesthesiologists is about 2 hours after clear liquids and 6 hours after a light meal, with 8 hours after fatty meals. Because GLP-1 receptor agonists delay gastric emptying, guidance about holding them before sedation has been evolving, so as of this writing the approach should follow current society statements.",
+    "Regional techniques include spinal anesthesia, where local anesthetic in the subarachnoid space produces rapid dense block with sympathetic blockade causing hypotension and bradycardia, and a post-dural puncture headache that is worse upright and treated with fluids, caffeine and an epidural blood patch. Epidural anesthesia is slower and allows catheter infusion. Neuraxial blocks require care with anticoagulants because of epidural hematoma, which presents with back pain and new weakness and needs emergent decompression. Local anesthetic systemic toxicity presents with perioral numbness, tinnitus and seizures, followed by cardiovascular collapse, and bupivacaine is especially cardiotoxic. Treatment is airway support, benzodiazepines for seizures and intravenous lipid emulsion. Amide anesthetics such as lidocaine and bupivacaine are metabolized in the liver, while esters like procaine are broken down by plasma cholinesterase and more often cause allergy."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l05",
+   "title": "The Acute Abdomen and Appendicitis",
+   "body": [
+    "An acute abdomen is sudden abdominal pain that may need an operation. The reasoning starts with three questions: is the patient stable, is there peritonitis, and where is the pain. Visceral pain from stretch of an organ is dull, poorly localized and midline, following embryologic origin: foregut structures cause epigastric pain, midgut structures periumbilical pain and hindgut structures lower midline pain. Parietal pain, from irritation of the peritoneum, is sharp and localized, and is made worse by movement. Rigidity, rebound, guarding and a patient lying still point to peritonitis, usually from perforation, and call for resuscitation, antibiotics and surgery without prolonged imaging. A pregnancy test is mandatory in every woman of reproductive age, because ectopic pregnancy is a surgical emergency.",
+    "Location narrows the differential. Right upper quadrant pain suggests biliary disease, hepatitis or pneumonia. Epigastric pain suggests ulcer, pancreatitis or myocardial infarction. Left lower quadrant pain in older patients suggests diverticulitis, and in women ovarian torsion or an ectopic pregnancy. Pain out of proportion to the examination in an older patient with atrial fibrillation or vascular disease suggests mesenteric ischemia. Free air under the diaphragm on an upright chest film indicates a perforated hollow viscus. Computed tomography with contrast is the most useful test in stable adults, and ultrasound is preferred in children, pregnant women and for biliary or gynecologic questions.",
+    "Appendicitis begins when luminal obstruction by a fecalith or lymphoid hyperplasia leads to distension, ischemia and perforation. The classic story is periumbilical pain migrating to the right lower quadrant over hours with anorexia, nausea and low-grade fever. Examination shows maximal tenderness at McBurney point, with Rovsing, psoas and obturator signs depending on the appendix position. Leukocytosis with left shift supports the diagnosis. Scoring systems such as the Alvarado score help risk stratification. In adults CT is the preferred study, and in children and pregnant women ultrasound comes first, with MRI as a follow-up. Treatment is appendectomy, usually laparoscopic, after intravenous antibiotics. Perforated appendicitis with an abscess may initially be managed with percutaneous drainage and antibiotics. Antibiotics alone have been studied for uncomplicated appendicitis, as in the CODA trial, with a substantial minority requiring appendectomy within a few years, so it is a shared decision.",
+    "Special settings matter. In pregnancy the appendix is displaced upward, and pain may be higher on the right. In older adults presentation is atypical and perforation more frequent. Mimics include mesenteric adenitis, Crohn disease, ovarian torsion, ectopic pregnancy and pelvic inflammatory disease. A normal appendix found at surgery should prompt a search for these alternatives."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l06",
+   "title": "Obstruction, Volvulus and Mesenteric Ischemia",
+   "body": [
+    "Bowel obstruction presents with colicky pain, vomiting, distension and obstipation. In small bowel obstruction the most common causes in adults are adhesions from previous surgery, hernias and malignancy, and in the large bowel they are cancer, volvulus and diverticular stricture. Abdominal radiographs show dilated loops with air-fluid levels, and CT identifies the transition point and signs of strangulation, such as bowel wall thickening, mesenteric edema and poor enhancement. A closed-loop obstruction, where a segment is occluded at both ends, can lead to ischemia within hours. Initial care is nasogastric decompression, intravenous fluids and correction of electrolytes. A partial obstruction without peritonitis, fever, leukocytosis, acidosis or signs of ischemia can be observed, and water-soluble contrast given by mouth has both diagnostic and therapeutic value. Surgery is needed for complete obstruction with strangulation, hernia incarceration, peritonitis or failure of nonoperative management over several days. An unoperated abdomen with obstruction and no hernia raises suspicion of cancer or inflammatory disease.",
+    "Large bowel obstruction is dangerous when the ileocecal valve is competent, because the cecum dilates, and a diameter above about 12 cm raises the risk of perforation. Sigmoid volvulus occurs in older, institutionalized patients with constipation, and the radiograph shows a coffee-bean loop. It is treated with endoscopic decompression and then elective sigmoid resection, since recurrence is common. Cecal volvulus is more often in younger patients and usually needs surgery. Acute colonic pseudo-obstruction, or Ogilvie syndrome, occurs in hospitalized, ill patients, with massive colonic dilation without a mechanical blockage, and is treated with supportive care, correction of electrolytes, neostigmine in selected patients and colonoscopic decompression.",
+    "Acute mesenteric ischemia is a vascular emergency whose hallmark is pain out of proportion to the abdominal examination. Causes are an embolus to the superior mesenteric artery, typically from atrial fibrillation, arterial thrombosis in someone with atherosclerosis, nonocclusive ischemia from low flow states, and venous thrombosis. Lactate may be normal early. CT angiography is the test of choice. Treatment is resuscitation, anticoagulation with heparin, revascularization by embolectomy, stenting or bypass, and resection of nonviable bowel with planned second-look surgery. Chronic mesenteric ischemia causes postprandial pain, fear of eating and weight loss in vasculopaths. Ischemic colitis usually affects watershed areas at the splenic flexure, with painless or mild bloody diarrhea after a hypotensive episode, and is usually managed conservatively.",
+    "A perforated viscus causes sudden severe pain and a rigid abdomen. Perforated peptic ulcer shows free air, and operative patching with omentum is traditional, with Helicobacter pylori eradication afterward. Perforated diverticulitis with fecal peritonitis requires an operation, commonly the Hartmann procedure of sigmoid resection with an end colostomy."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l07",
+   "title": "Hernias",
+   "body": [
+    "A hernia is a protrusion of a viscus or tissue through a defect in the wall that normally contains it. Groin hernias are the most common, and the anatomy guides diagnosis. An indirect inguinal hernia passes through the deep inguinal ring, lateral to the inferior epigastric vessels, along the spermatic cord, and is due to a patent processus vaginalis. It is the most common hernia in both men and women and the main type in children. A direct inguinal hernia protrudes through the floor of the inguinal canal in Hesselbach triangle, medial to the inferior epigastric vessels, and is acquired from weakness in the transversalis fascia in older men. A femoral hernia passes below the inguinal ligament through the femoral canal, medial to the femoral vein, is more common in women and has a high risk of strangulation because the neck is narrow, so it is repaired urgently or early even if reducible. Examination uses a cough impulse and invagination of the scrotal skin, and ultrasound or CT clarifies uncertain cases.",
+    "Complications follow the state of the contents. A reducible hernia can be pushed back. An incarcerated hernia cannot be reduced. A strangulated hernia has compromised blood supply, with severe pain, tenderness, erythema over the bulge, fever and leukocytosis, and is an emergency requiring surgery because the bowel can become gangrenous. A Richter hernia involves only part of the circumference of the bowel wall, and so can strangulate without obstruction. Gentle manual reduction can be tried in a stable patient without signs of strangulation, while forceful attempts risk reducing infarcted bowel.",
+    "Repair uses a tension-free approach with a mesh, either open or laparoscopic, which reduces recurrence compared with tissue repair. Asymptomatic or minimally symptomatic inguinal hernias in men can safely be observed, as a randomized trial showed low rates of acute incarceration, though most eventually become symptomatic. Pediatric inguinal hernias are repaired soon after diagnosis because incarceration is more likely in infants. Mesh is also standard for ventral and incisional hernias. Incisional hernias complicate up to a fraction of laparotomies, with risk raised by infection, obesity, smoking and malnutrition.",
+    "Other hernias include umbilical hernias, which close spontaneously in many children by age four or five, epigastric hernias through the linea alba, Spigelian hernias at the lateral edge of the rectus sheath, obturator hernias in thin elderly women who present with obstruction and medial thigh pain, and hiatal hernias. Sliding hiatal hernias are the common type and associate with reflux, while paraesophageal hernias carry a risk of obstruction and volvulus and are generally repaired when symptomatic. Preoperative optimization includes smoking cessation and glycemic control."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l08",
+   "title": "Colorectal and Upper Gastrointestinal Surgery",
+   "body": [
+    "Diverticulosis is the presence of colonic outpouchings, and diverticulitis is the inflammation of them, producing left lower quadrant pain, fever and leukocytosis. CT confirms the diagnosis and stages complications using the Hinchey classification, from pericolic abscess to purulent and fecal peritonitis. Uncomplicated diverticulitis is increasingly managed with outpatient observation and sometimes without antibiotics in selected patients. An abscess larger than about 3 to 4 cm is drained percutaneously, and generalized peritonitis requires surgery, such as a Hartmann procedure. Colonoscopy is performed several weeks after an episode to exclude cancer. Complications include fistulas to the bladder, which cause pneumaturia and fecaluria, and strictures.",
+    "Colorectal cancer arises through the adenoma-carcinoma sequence, from APC mutation to KRAS and TP53 changes, or through microsatellite instability in Lynch syndrome. Right-sided tumors cause iron deficiency anemia and occult bleeding, while left-sided tumors cause change in bowel habit and obstruction. Management is by stage and location. Colon cancer is treated by segmental resection with lymph node dissection, and adjuvant chemotherapy for node-positive disease. Rectal cancer uses MRI staging and, for locally advanced disease, neoadjuvant chemoradiation before total mesorectal excision. Preoperative CEA gives a baseline for surveillance, and the liver is the commonest site of metastasis, with resection of limited liver metastases potentially curative. An obstructing left-sided cancer may need a stent as a bridge, or a diverting stoma.",
+    "Anorectal disease is common. Hemorrhoids cause painless bright red bleeding, with internal hemorrhoids graded by prolapse, and are treated with fiber, banding or surgery when severe. An anal fissure causes severe pain with defecation and a tear in the posterior midline, treated with topical agents such as nifedipine or nitroglycerin and sometimes sphincterotomy. A perianal abscess is drained, and a fistula-in-ano may follow, with Goodsall rule predicting the tract. Anal cancer is linked to human papillomavirus and managed with chemoradiation rather than surgery.",
+    "Peptic ulcer disease now needs surgery mainly for complications: perforation, uncontrolled bleeding after failed endoscopic therapy and obstruction. Gastric ulcers are biopsied because of malignancy risk, and a refractory ulcer with multiple or distal ulcers should prompt checking gastrin for Zollinger-Ellison syndrome. Gastric adenocarcinoma is treated with gastrectomy and lymphadenectomy with perioperative chemotherapy. Bariatric surgery, such as sleeve gastrectomy and Roux-en-Y gastric bypass, is indicated for body mass index of 35 or more, or 30 or more with comorbidity, per recent society statements, and produces durable weight loss and diabetes remission. Complications include marginal ulcer, dumping syndrome, internal hernia and deficiencies of iron, B12, folate and calcium."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l09",
+   "title": "Gallstone Disease and Biliary Infection",
+   "body": [
+    "Gallstones form from supersaturated bile and are classically associated with female sex, fertility, forty years of age, obesity and rapid weight loss, although the so-called five Fs are only a memory aid. Most stones are cholesterol stones. Pigmented stones form with hemolysis, such as sickle cell disease, and cirrhosis. Most patients with gallstones never have symptoms, and asymptomatic stones are not removed, except in special groups such as those with a porcelain gallbladder or large stones with other risk.",
+    "Biliary colic occurs when a stone transiently blocks the cystic duct, causing postprandial right upper quadrant or epigastric pain that lasts minutes to a few hours and resolves, with normal laboratory tests and a normal ultrasound apart from stones. Treatment is elective laparoscopic cholecystectomy. Acute cholecystitis follows persistent cystic duct obstruction with inflammation, giving constant pain over many hours, fever, leukocytosis and a positive Murphy sign. Ultrasound shows stones, gallbladder wall thickening, pericholecystic fluid and a sonographic Murphy sign. If ultrasound is equivocal, hepatobiliary iminodiacetic acid scanning shows nonfilling of the gallbladder. Treatment is antibiotics and early laparoscopic cholecystectomy, ideally within the first days, as the Tokyo Guidelines recommend. In patients too ill for surgery a percutaneous cholecystostomy tube can serve as a bridge. Acalculous cholecystitis occurs in critically ill patients, and gangrene, perforation and emphysematous cholecystitis, which is more frequent in diabetes, are complications.",
+    "When a stone passes into the common bile duct, choledocholithiasis causes cholestasis with raised alkaline phosphatase and bilirubin, and may cause pancreatitis. The American Society for Gastrointestinal Endoscopy risk stratification uses cholangitis, a stone seen on imaging, a bilirubin above 4 mg/dL with a dilated duct, or other markers to decide between direct endoscopic retrograde cholangiopancreatography and a less invasive test such as magnetic resonance cholangiopancreatography or endoscopic ultrasound. Acute cholangitis is infection of obstructed bile, with the Charcot triad of fever, jaundice and right upper quadrant pain, and Reynolds pentad adding hypotension and altered mental status. Common organisms are Escherichia coli, Klebsiella and Enterococcus. Treatment is resuscitation, antibiotics and urgent biliary decompression, usually by endoscopic retrograde cholangiopancreatography, with percutaneous drainage if that is not possible.",
+    "Other biliary conditions to know include gallstone ileus, in which a stone erodes into the duodenum and obstructs the ileocecal region, giving a small bowel obstruction with pneumobilia, and Mirizzi syndrome, where a stone in the cystic duct compresses the common hepatic duct. Primary sclerosing cholangitis shows beaded ducts and ulcerative colitis, and cholangiocarcinoma presents with painless jaundice. A bile duct injury during cholecystectomy is minimized by obtaining the critical view of safety, which clearly identifies the cystic duct and artery before they are divided."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l10",
+   "title": "Pancreatic and Liver Surgery",
+   "body": [
+    "Pancreatic ductal adenocarcinoma is usually diagnosed late. Presentation includes painless jaundice with a palpable nontender gallbladder, known as the Courvoisier sign, weight loss, back pain and new-onset diabetes. Risk factors include smoking, chronic pancreatitis, hereditary syndromes and BRCA mutations. A pancreas protocol CT assesses the tumor and its relationship to the superior mesenteric artery and vein, celiac axis and portal vein, and classifies disease as resectable, borderline resectable, locally advanced or metastatic. Only a minority are resectable. Resectable tumors of the head are treated with pancreaticoduodenectomy, or Whipple procedure, followed by adjuvant chemotherapy, and tumors of the body and tail with distal pancreatectomy. Endoscopic ultrasound with biopsy gives tissue, and biliary stenting is avoided before surgery unless there is cholangitis or a delay. CA 19-9 is used to follow response and is not a screening test, and it can be raised in biliary obstruction. Pancreatic neuroendocrine tumors, such as insulinoma, have a better prognosis. Insulinoma is shown by the Whipple triad of symptoms of hypoglycemia, a low glucose and relief with glucose.",
+    "Chronic pancreatitis, most often from alcohol, leads to pain, steatorrhea and diabetes, with calcifications on imaging. Operations are for intractable pain or complications, and include drainage procedures for a dilated duct. Pancreatic pseudocysts form four or more weeks after acute pancreatitis and are drained if symptomatic or enlarging. Acute necrotizing pancreatitis is initially managed conservatively, with supportive care and enteral nutrition. Infected necrosis, shown by gas on CT or clinical deterioration, is treated with antibiotics and a step-up approach beginning with percutaneous or endoscopic drainage, as in the PANTER trial, which showed less morbidity than open necrosectomy.",
+    "Liver masses are evaluated by imaging and risk. A hemangioma is the most common benign tumor and needs no treatment if asymptomatic. Hepatic adenoma, associated with oral contraceptives and anabolic steroids, can bleed or rupture and may transform, so large lesions are resected and contraceptive use is stopped. Focal nodular hyperplasia shows a central scar and is observed. Hepatocellular carcinoma in a cirrhotic liver can be diagnosed by characteristic contrast-enhancing features on imaging without biopsy, using arterial enhancement with washout. Treatment depends on stage and liver function, using resection, transplantation within criteria such as the Milan criteria, ablation or locoregional therapy. Colorectal liver metastases may be resected for cure when enough liver remains.",
+    "Liver trauma is common after blunt injury, and the hemodynamically stable patient can be managed nonoperatively with observation, with angioembolization for bleeding, while an unstable patient needs laparotomy and may need perihepatic packing. A Pringle maneuver clamps the hepatoduodenal ligament to control hepatic inflow, and persistent bleeding after it suggests a hepatic vein or retrohepatic caval injury."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l11",
+   "title": "Aortic Aneurysm, Carotid and Peripheral Arterial Disease",
+   "body": [
+    "An abdominal aortic aneurysm is a permanent dilation of the aorta to at least 3.0 cm, or 1.5 times normal diameter. It is mostly infrarenal and is associated with age, male sex, smoking and hypertension. Most aneurysms are asymptomatic and discovered by imaging. The USPSTF of 2019 recommends one-time ultrasound screening in men aged 65 to 75 who have ever smoked. Elective repair is considered at a diameter of 5.5 cm in men, a rapid growth of more than about 1 cm per year, or any symptoms. Smaller aneurysms are monitored by ultrasound at intervals set by size, while blood pressure control, statins and smoking cessation are advised. The choice between endovascular repair and open repair depends on anatomy, age and comorbidity, with endovascular repair giving lower early mortality and requiring lifelong surveillance for endoleak.",
+    "A ruptured aneurysm presents with the triad of abdominal or back pain, hypotension and a pulsatile mass, and is a surgical emergency. In practice, an unstable patient with a suspected rupture goes straight to the operating room, without waiting for imaging, and permissive hypotension limits further bleeding until the aorta is controlled. A stable patient may have CT angiography. An aortoenteric fistula after previous aortic graft repair presents with a herald gastrointestinal bleed. Thoracic aortic dissection is distinguished by a tearing pain, with Stanford type A involving the ascending aorta treated surgically, and type B uncomplicated cases treated with blood pressure control using beta-blockade first.",
+    "Carotid stenosis causes stroke through embolism. A patient with recent transient ischemic attack or minor stroke in the territory of a 70 to 99 percent stenosis benefits from carotid endarterectomy, ideally within about two weeks, as in the NASCET trial. Revascularization of asymptomatic stenosis offers a smaller benefit, and only in selected patients with a long life expectancy and a low procedural risk. Carotid stenting is an alternative in patients at high surgical risk. All receive antiplatelet therapy and a statin. Amaurosis fugax is transient monocular vision loss from retinal emboli.",
+    "Peripheral arterial disease presents as intermittent claudication, calf pain on walking relieved by rest, and its first-line treatment is supervised exercise, smoking cessation, antiplatelet therapy and statins, with cilostazol as a symptomatic drug that is contraindicated in heart failure. Chronic limb-threatening ischemia causes rest pain, nonhealing ulcers or gangrene and needs revascularization. The ankle-brachial index is below 0.9 in disease, below about 0.4 in severe disease, and falsely high with calcified incompressible vessels, as in diabetes and renal failure, where a toe-brachial index is helpful. Arterial ulcers are painful, punched-out lesions on the toes or lateral foot, whereas venous ulcers are shallow and on the medial malleolus."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l12",
+   "title": "Acute Limb Ischemia, Aortic Dissection and Venous Disease",
+   "body": [
+    "Acute limb ischemia is a sudden decrease in limb perfusion threatening viability. It results from embolism, often cardiac from atrial fibrillation or recent infarction, from thrombosis in situ in a patient with atherosclerotic disease, or from trauma or dissection. The classic features are remembered as the six Ps: pain, pallor, pulselessness, paresthesia, paralysis and poikilothermia. An embolus tends to produce a sudden severe presentation without prior claudication, with a normal contralateral pulse examination, whereas thrombosis occurs with chronic disease and absent pulses in both legs. The Rutherford classification separates viable limbs from those that are marginally or immediately threatened, and from irreversible injury. Motor weakness and loss of sensation signal an immediately threatened limb, and revascularization must take place within hours. Management starts with immediate heparin anticoagulation, then catheter-directed thrombolysis, surgical embolectomy with a Fogarty balloon catheter or bypass, depending on the category and severity.",
+    "Reperfusion after prolonged ischemia releases potassium, myoglobin and lactate, and causes swelling of muscle. Compartment syndrome results when pressure within a closed fascial space exceeds capillary perfusion pressure, producing pain out of proportion that is worsened by passive stretch of the muscles, followed by paresthesia, tense compartment and late pulselessness. It follows fractures, crush injury, ischemia and reperfusion, burns and tight casts. It is diagnosed clinically, and a compartment pressure within about 30 mmHg of the diastolic blood pressure supports the diagnosis. Treatment is urgent fasciotomy. Rhabdomyolysis causes dark urine with a positive dipstick for blood but few red cells, and creatine kinase elevation, with the risk of kidney injury, hyperkalemia and hypocalcemia, treated with fluids.",
+    "Venous disease in the surgical setting includes varicose veins, which are caused by valvular incompetence, and chronic venous insufficiency, with edema, hyperpigmentation, lipodermatosclerosis and shallow ulcers over the medial malleolus. Compression therapy is the mainstay, and endovenous ablation is used for symptomatic reflux. Deep vein thrombosis is diagnosed by pretest probability scoring, D-dimer and duplex ultrasonography, and is treated with anticoagulation. Phlegmasia cerulea dolens is a massive iliofemoral thrombosis causing a painful, swollen, cyanotic limb that threatens the leg and needs thrombolysis or thrombectomy. An inferior vena cava filter is reserved for patients with venous thromboembolism and a contraindication to anticoagulation.",
+    "Two other vascular emergencies are worth knowing. A ruptured abdominal aneurysm and acute aortic dissection, described in the previous lesson, share hypertension as a major risk factor. Blunt aortic injury after rapid deceleration is suspected in a widened mediastinum, and is confirmed by CT angiography, with repair and strict heart rate and blood pressure control."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l13",
+   "title": "ATLS Primary Survey, Airway and Chest Trauma",
+   "body": [
+    "Advanced Trauma Life Support (ATLS), taught by the American College of Surgeons, rests on one idea: treat the greatest threat to life first, and reassess when the patient changes. The primary survey proceeds in order, and each problem is corrected as it is found. Current teaching places control of massive external hemorrhage first, then the sequence of airway with cervical spine protection, breathing, circulation with hemorrhage control, disability and exposure with environmental control. The adjuncts are an electrocardiogram, pulse oximetry, urinary and gastric catheters when appropriate, and a chest radiograph and pelvic radiograph and focused assessment with sonography for trauma (FAST). The secondary survey is a head-to-toe examination and history, using the mnemonic AMPLE: allergies, medications, past illness, last meal and events.",
+    "Airway comes first because oxygen delivery stops within minutes without it. A patient who speaks in a normal voice has a patent airway. Stridor, hoarseness, facial injury, expanding neck hematoma or a Glasgow Coma Scale score of 8 or below call for definitive airway, usually orotracheal intubation with manual in-line stabilization of the cervical spine. A surgical cricothyroidotomy is the rescue when intubation fails and the patient cannot be oxygenated, and in children under about 12 years needle cricothyroidotomy is preferred. Cervical spine injury is assumed until excluded by clinical criteria, such as the NEXUS criteria or the Canadian C-spine rule, or by imaging.",
+    "Breathing problems that kill quickly are recognized clinically. A tension pneumothorax shows respiratory distress, hypotension, distended neck veins, absent breath sounds and tracheal deviation as a late sign. It is treated at once by decompression, with needle or finger thoracostomy, followed by chest tube, before any radiograph. An open pneumothorax, a sucking chest wound, is covered with an occlusive dressing taped on three sides, and a chest tube is placed at a separate site. A massive hemothorax, with dullness to percussion, is treated with a chest tube, and thoracotomy is considered for 1,500 mL of immediate drainage, or continuing loss of about 200 mL per hour for several hours. Flail chest, from three or more adjacent ribs each broken in two places, causes paradoxical movement, though hypoxia is mainly caused by the underlying pulmonary contusion. Treatment is oxygen, analgesia and ventilatory support if needed, and fluid avoidance.",
+    "Cardiac tamponade from penetrating injury produces the Beck triad of hypotension, muffled heart sounds and distended neck veins. The FAST scan shows pericardial fluid, and treatment is surgical decompression, because pericardiocentesis is only a temporizing measure. Other chest injuries include blunt aortic injury, with a widened mediastinum, a first rib fracture, and loss of aortic knob contour, evaluated by CT angiography. A resuscitative thoracotomy is reserved for patients with penetrating chest trauma and witnessed loss of vital signs."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l14",
+   "title": "Hemorrhagic Shock, Abdominal and Pelvic Trauma",
+   "body": [
+    "In trauma, hypotension is hemorrhage until proven otherwise. ATLS classifies hemorrhage by estimated blood loss. Class I, under 15 percent of blood volume, produces little change. Class II, 15 to 30 percent, causes tachycardia and a narrowed pulse pressure. Class III, 30 to 40 percent, adds hypotension and altered mentation. Class IV, above 40 percent, threatens life immediately. Hypotension is a late sign, especially in young, fit patients and in children, who compensate well and then collapse. Beta-blockers and pacemakers blunt tachycardia, and older patients are less able to compensate.",
+    "Resuscitation avoids large volumes of crystalloid, which dilute clotting factors, worsen acidosis and hypothermia and raise blood pressure before the bleeding is controlled. Instead, practice favors early balanced transfusion of red cells, plasma and platelets, tranexamic acid within 3 hours, hemostatic procedures, and permissive hypotension in penetrating torso trauma until surgical control, except with head injury, where cerebral perfusion pressure must be protected. The lethal triad of hypothermia, acidosis and coagulopathy is prevented by warming, correcting acidosis and calcium, and damage control surgery, in which the surgeon controls bleeding and contamination quickly, packs the abdomen and returns after physiologic recovery in the intensive care unit. Patients are classified by response to the initial fluid challenge as responders, transient responders, or nonresponders, and transient or nonresponders need operative or angiographic control.",
+    "For the abdomen, the unstable blunt trauma patient with a positive FAST goes directly to laparotomy. A stable patient without peritonitis undergoes CT with intravenous contrast. Diagnostic peritoneal lavage is rarely used now. Penetrating wounds with hypotension, peritonitis or evisceration require laparotomy, and stable gunshot wounds traditionally do too, whereas select anterior abdominal stab wounds can be observed. Solid organ injuries such as spleen and liver are managed nonoperatively in hemodynamically stable patients, using angioembolization when there is contrast blush. After splenectomy or splenic embolization, vaccination against encapsulated organisms, namely pneumococcus, Haemophilus influenzae type b and meningococcus, is given. Kehr sign is left shoulder pain from diaphragmatic irritation by splenic blood. Hollow viscus injuries, such as the duodenum or small bowel, can be subtle initially and show up as delayed peritonitis, with a seat belt sign and Chance fracture as clues.",
+    "Pelvic fracture can cause exsanguination into the retroperitoneum. A pelvic binder or sheet reduces volume of the pelvis, with preperitoneal packing, angioembolization or external fixation as definitive control. Blood at the urethral meatus, a high-riding prostate or a perineal hematoma suggests urethral injury, and a retrograde urethrogram precedes catheter placement. Hematuria after blunt trauma with a stable patient calls for CT cystography when bladder rupture is suspected."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l15",
+   "title": "Head, Spine and Extremity Trauma",
+   "body": [
+    "Head injury is graded by the Glasgow Coma Scale, which sums eye opening, verbal response and motor response from 3 to 15, with 13 to 15 mild, 9 to 12 moderate and 8 or below severe. Management aims to prevent secondary brain injury from hypoxia and hypotension. A severe injury needs intubation, head-of-bed elevation and a head CT. Signs of herniation, such as a blown pupil, posturing or Cushing triad of hypertension, bradycardia and irregular respiration, call for hyperosmolar therapy with mannitol or hypertonic saline, brief hyperventilation as a bridge and neurosurgical evacuation.",
+    "Intracranial hematomas have characteristic patterns. An epidural hematoma, typically from a temporal bone fracture tearing the middle meningeal artery, appears as a biconvex lens-shaped collection that does not cross suture lines, and there may be a lucid interval before deterioration. It is a surgical emergency with an excellent outcome when evacuated early. A subdural hematoma comes from torn bridging veins, forms a crescent that crosses sutures, and occurs in older adults, alcohol users and anticoagulated patients after minor trauma, with a subacute or chronic course. Traumatic subarachnoid hemorrhage and diffuse axonal injury, in which small hemorrhages appear at the gray-white junction after rotational forces, are other patterns. Skull base fracture shows raccoon eyes, Battle sign, hemotympanum and cerebrospinal fluid leak. Decision rules such as the Canadian CT Head Rule and the New Orleans criteria identify who needs a CT scan after minor injury.",
+    "Spinal injury is suspected with neck or back pain, deficits or altered consciousness. Complete cord injury causes loss of function below the level, and incomplete syndromes are distinct. Central cord syndrome, in hyperextension of an older neck with stenosis, causes greater weakness in the arms than the legs. Anterior cord syndrome causes loss of motor function and pain and temperature sensation with preserved dorsal column function. Brown-Sequard syndrome, from hemisection, causes ipsilateral motor and proprioception loss and contralateral pain and temperature loss. Neurogenic shock causes hypotension and bradycardia, while spinal shock is a temporary loss of reflexes. High-dose steroid for acute spinal cord injury is not recommended in the current guidelines.",
+    "Extremity trauma is judged by neurovascular status first. Open fractures are treated with early intravenous antibiotics, tetanus prophylaxis, irrigation and debridement and stabilization, and the Gustilo classification grades severity. A dislocation with absent pulses needs urgent reduction, and a knee dislocation can injure the popliteal artery, so vascular assessment with ankle-brachial index is needed. Fracture with compartment syndrome needs fasciotomy. Fat embolism syndrome after long bone fracture presents with hypoxia, confusion and petechiae a day or two later. Femoral neck fractures in older adults are treated surgically within about 48 hours, with arthroplasty or pinning depending on displacement."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l16",
+   "title": "Burns and Inhalation Injury",
+   "body": [
+    "Burn injury is assessed by depth and by the total body surface area (TBSA) involved. Superficial burns affect only the epidermis, are red, dry and painful, and heal without scarring, as in a mild sunburn. Superficial partial-thickness burns are moist, blistered, blanching and very painful and heal in about two weeks. Deep partial-thickness burns are drier, mottled and less sensitive and often need grafting. Full-thickness burns are white, brown or leathery, dry and painless because nerve endings are destroyed, and require excision and grafting. Only partial-thickness and full-thickness burns count in the estimate of TBSA. In adults the rule of nines assigns 9 percent each to the head and each arm, 18 percent to each leg, 18 percent to the front and 18 percent to the back of the trunk, and 1 percent to the perineum, and a small area can be estimated using the patient palm, which is roughly 1 percent. Children have a proportionally larger head, so charts such as Lund and Browder are used.",
+    "The first priorities follow the trauma approach. Stop the burning process and remove clothing and jewelry, secure the airway early when there are signs of inhalation injury such as facial burns, singed nasal hairs, hoarseness, carbonaceous sputum and stridor, because swelling can obstruct the airway rapidly, and look for associated trauma. Carbon monoxide poisoning is suspected with enclosed-space fires and headache or confusion, and pulse oximetry reads falsely normal because carboxyhemoglobin is read as oxyhemoglobin, so diagnosis uses co-oximetry. Treatment is 100 percent oxygen. Cyanide toxicity should be considered with unexplained lactic acidosis in smoke inhalation, and treated with hydroxocobalamin.",
+    "Fluid resuscitation is needed for burns above about 20 percent TBSA in adults. The Parkland formula estimates 4 mL per kilogram per percent TBSA burned of lactated Ringer solution over the first 24 hours, half given in the first 8 hours from the time of injury, and the rate is titrated to urine output, aiming for about 0.5 mL per kilogram per hour in adults. Over-resuscitation causes edema, compartment syndromes of the limbs and abdomen, and respiratory failure. A circumferential full-thickness burn of a limb or the chest may need escharotomy to restore perfusion or ventilation.",
+    "Wound care uses topical agents. Silver sulfadiazine has broad antimicrobial coverage but can cause transient neutropenia and does not penetrate eschar well, and mafenide acetate penetrates eschar but is a carbonic anhydrase inhibitor that can cause metabolic acidosis. Early excision and grafting of deep burns lowers mortality. Tetanus immunization is updated. Electrical burns can cause deep muscle injury, rhabdomyolysis and arrhythmia, so monitoring and fluids to maintain urine output are needed, and the surface injury underestimates the damage. Chemical burns are treated by copious irrigation, and hydrofluoric acid burns need calcium. The American Burn Association recommends referral to a burn center for partial-thickness burns over 10 percent TBSA, burns of the face, hands, feet, genitalia or major joints, full-thickness burns, electrical or chemical burns, inhalation injury and burns in children or patients with serious comorbidity."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l17",
+   "title": "Breast Masses and Breast Cancer",
+   "body": [
+    "A breast mass is evaluated by triple assessment: clinical examination, imaging and tissue diagnosis. In women aged 30 and older, the imaging is diagnostic mammography with ultrasound, and under 30, where breast tissue is dense, it is ultrasound first. Results are reported with BI-RADS categories, and a suspicious lesion is biopsied, preferably with core needle biopsy, which gives architecture and receptor status. Fine-needle aspiration is cytology only. A simple cyst on ultrasound is benign and can be aspirated or left alone, and a complex or solid mass is sampled. Fibroadenoma, the commonest benign solid tumor in young women, is a firm, mobile, rubbery mass. Phyllodes tumor is a rapidly growing leaf-like mass that is treated with wide excision. Bloody discharge from a single duct suggests an intraductal papilloma, and bilateral milky discharge suggests hyperprolactinemia or medication. Lactational mastitis is managed with continued feeding and antibiotics, and abscesses are drained.",
+    "Screening in the United States follows the USPSTF 2024 recommendation of biennial mammography for women 40 to 74, with additional imaging for women at high risk, such as BRCA carriers, who may also be offered breast MRI. Risk-reducing options include endocrine agents and prophylactic surgery in carriers.",
+    "Breast cancer is classified by histology and by estrogen receptor, progesterone receptor and human epidermal growth factor receptor 2 (HER2) status. Ductal carcinoma in situ is confined within ducts and is treated with lumpectomy plus radiation, or mastectomy, with endocrine therapy if receptor positive. Invasive ductal carcinoma is the most common type, and invasive lobular carcinoma is often bilateral and multifocal. Paget disease of the nipple presents as an eczematous nipple lesion with an underlying carcinoma, and inflammatory breast cancer as a red, swollen, warm breast with peau d orange (orange-peel skin) from dermal lymphatic invasion, which is not an infection and is treated with systemic therapy first.",
+    "For early cancer, breast-conserving surgery with radiation gives survival equal to mastectomy, as shown in randomized trials, and mastectomy is chosen for large tumors relative to the breast, multicentric disease, contraindication to radiation, or by patient preference. Axillary staging uses sentinel lymph node biopsy, and axillary dissection is used for selected patients with clinically positive nodes. Systemic therapy depends on subtype: endocrine therapy for hormone receptor positive disease, using tamoxifen in premenopausal women and aromatase inhibitors in postmenopausal women, trastuzumab-based therapy for HER2-positive disease, and chemotherapy for triple-negative disease. Tamoxifen carries risks of endometrial cancer and venous thromboembolism, and aromatase inhibitors cause bone loss and arthralgia. Male breast cancer occurs, with a link to BRCA2 and Klinefelter syndrome."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l18",
+   "title": "Thyroid, Parathyroid and Adrenal Surgery",
+   "body": [
+    "A thyroid nodule is evaluated with TSH and ultrasound. A suppressed TSH suggests an autonomous nodule, which is rarely malignant and is assessed with a radioiodine scan. Otherwise, ultrasound features such as microcalcifications, irregular margins, taller-than-wide shape and hypoechogenicity, plus size, determine fine-needle aspiration. Cytology is reported by the Bethesda system from benign to malignant, with indeterminate categories managed with molecular testing or diagnostic lobectomy. Risk factors for malignancy include childhood neck radiation, family history and rapid growth with hoarseness or fixed nodes.",
+    "Papillary carcinoma is the most common thyroid cancer, spreads to cervical lymph nodes and has an excellent prognosis, with nuclear clearing and psammoma bodies. Follicular carcinoma cannot be diagnosed by cytology because it requires capsular or vascular invasion on the resected specimen and spreads hematogenously to bone and lung. Medullary carcinoma arises from parafollicular C cells, secretes calcitonin, and is associated with RET mutations in multiple endocrine neoplasia type 2, so pheochromocytoma must be excluded before thyroid surgery. Anaplastic carcinoma is aggressive and occurs in older patients. Treatment of differentiated cancer is lobectomy for small low-risk tumors or total thyroidectomy, with radioactive iodine for selected higher risk patients and thyroid hormone suppression.",
+    "Operations in the neck carry specific risks. Injury to the recurrent laryngeal nerve causes hoarseness if unilateral, and airway compromise if bilateral. Injury to the external branch of the superior laryngeal nerve causes loss of high pitch and voice fatigue. Postoperative neck hematoma causes airway compression and demands immediate opening of the wound at the bedside. Hypocalcemia after total thyroidectomy, from damage or removal of the parathyroid glands, appears 1 to 3 days later with perioral numbness, paresthesias, Chvostek and Trousseau signs and QT prolongation, and is treated with calcium. Thyroid storm may occur with inadequate preparation of hyperthyroid patients.",
+    "Primary hyperparathyroidism is typically from a single adenoma, with hypercalcemia and an elevated or inappropriately normal parathyroid hormone. Symptoms are remembered as stones, bones, groans and psychiatric moans, though many patients are asymptomatic. Surgery is advised for symptomatic patients and for asymptomatic patients with a calcium more than 1 mg/dL above the upper limit, osteoporosis, a kidney stone, reduced renal function or age below 50. Localization uses sestamibi scanning and ultrasound. Secondary hyperparathyroidism is a response to chronic kidney disease. A hungry bone syndrome of postoperative hypocalcemia can follow surgery in patients with severe bone disease. Adrenal masses discovered incidentally are tested for hormone excess and size, and masses above about 4 cm or with suspicious imaging are generally resected, and functional tumors such as aldosteronoma or pheochromocytoma are removed after preparation."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l19",
+   "title": "Urology and Orthopedics Basics",
+   "body": [
+    "Testicular torsion is a surgical emergency in which the spermatic cord twists, most often in adolescents with a bell-clapper deformity. It presents with sudden severe scrotal pain, nausea, a high-riding testis lying horizontally and absence of the cremasteric reflex. Doppler ultrasound shows decreased flow, but suspicion should not delay surgery, since viability falls after about 6 hours. Treatment is exploration with detorsion and fixation of both testes. Epididymitis has a more gradual onset, fever, pyuria and relief on lifting the testis, and is treated with antibiotics chosen by age and sexual activity. A painless testicular mass in a young man is cancer until proven otherwise, and is evaluated with ultrasound and serum alpha-fetoprotein, beta-hCG and lactate dehydrogenase, then radical inguinal orchiectomy. A transscrotal biopsy is avoided because it alters lymphatic drainage.",
+    "Kidney stones cause colicky flank pain radiating to the groin with hematuria. Noncontrast CT is the test of choice in adults, and ultrasound in children and pregnancy. Stones smaller than about 5 mm usually pass with fluids, analgesia with NSAIDs and possibly an alpha-blocker, while larger or obstructing stones need ureteroscopy, shock wave lithotripsy or percutaneous removal. An obstructing stone with fever or infected urine is an emergency needing urgent decompression by stent or nephrostomy, because obstructive pyelonephritis can cause sepsis. Calcium oxalate stones are the most common, and uric acid stones are radiolucent. Benign prostatic hyperplasia is treated with alpha-blockers and 5-alpha reductase inhibitors, and bladder cancer should be suspected with painless gross hematuria in a smoker, evaluated by cystoscopy. Renal cell carcinoma can present with hematuria, flank mass and paraneoplastic syndromes, and is linked to von Hippel-Lindau disease.",
+    "Orthopedic basics begin with describing a fracture: location, pattern, displacement, open or closed, and neurovascular status. The Ottawa rules guide radiographs for ankle injury. Scaphoid fractures follow a fall on an outstretched hand with snuffbox tenderness and may be missed on initial films, so the wrist is immobilized and reimaged or MRI performed, because the proximal blood supply is retrograde and avascular necrosis can follow. Supracondylar fractures of the humerus in children risk brachial artery injury and Volkmann ischemic contracture. Hip fractures in older adults are repaired promptly to reduce mortality. Growth plate injuries are classified by Salter-Harris types. Slipped capital femoral epiphysis occurs in obese adolescents with hip or referred knee pain and a limp. Septic arthritis in a child with fever, refusal to bear weight and a high white count is an emergency, and osteomyelitis is commonly Staphylococcus aureus, while Salmonella is classic in sickle cell disease. Cauda equina syndrome, with saddle anesthesia, urinary retention and bilateral leg weakness, needs urgent MRI and decompression."
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l20",
+   "title": "Wound Healing and Surgical Infections",
+   "body": [
+    "Wound healing proceeds in overlapping phases. Hemostasis begins immediately with platelet plugging and fibrin. The inflammatory phase over the first days brings neutrophils and then macrophages that clear debris and bacteria and release growth factors. The proliferative phase, from about day 3 to several weeks, has fibroblasts laying down type III collagen, angiogenesis, granulation tissue and epithelialization, and myofibroblasts contract the wound. Remodeling over months replaces type III with type I collagen, and the scar reaches only about 80 percent of the strength of normal skin. Healing by primary intention closes clean edges with sutures, secondary intention leaves the wound open to heal by granulation and contraction, and tertiary or delayed primary closure is done after several days of observation in a contaminated wound.",
+    "Healing is impaired by hypoxia and poor perfusion, infection, malnutrition including protein, vitamin C and zinc deficiency, diabetes, smoking, chronic corticosteroids, radiation, uremia and excess tension. Vitamin C is needed for collagen hydroxylation, so scurvy causes perifollicular hemorrhages and poor healing. Vitamin A can partially reverse the effect of steroids. Hypertrophic scars stay within the wound margins and may regress, while keloids extend beyond the margins, are more common in darker skin, and recur after excision alone.",
+    "Surgical site infections are classified by wound class: clean, clean-contaminated with controlled entry into a hollow viscus, contaminated with spillage or acute inflammation, and dirty with established infection or devitalized tissue. Infection rates rise with class. Prevention includes antibiotic prophylaxis timed within 60 minutes before incision, for example cefazolin for most clean and clean-contaminated operations, and ceasing within 24 hours of surgery, redosing for long operations or blood loss, skin preparation with chlorhexidine-alcohol, appropriate hair clipping instead of shaving, normothermia, glycemic control and supplemental oxygen as discussed in guidelines from the CDC and WHO. Colorectal surgery adds mechanical bowel preparation with oral antibiotics. A superficial wound infection presenting with erythema, induration and purulence is treated by opening the wound and drainage, with antibiotics added for significant cellulitis, systemic signs or immunosuppression. Abscesses require incision and drainage.",
+    "Necrotizing soft tissue infection is a surgical emergency: skin changes lag behind pain out of proportion, with rapid spread, bullae, skin necrosis, crepitus, hypotension and often a high lactate. The LRINEC laboratory score is a supportive tool, but surgical exploration should not wait for it. Treatment is early radical debridement, broad-spectrum antibiotics including anaerobic coverage and clindamycin to suppress toxin, and resuscitation. Type I is polymicrobial, and type II from group A streptococcus or methicillin-resistant Staphylococcus aureus. Fournier gangrene involves the perineum and genitals, especially in diabetics. Clostridial gas gangrene from Clostridium perfringens produces gas in tissue, with alpha toxin, hemolysis and rapid course, and gram-positive rods are seen on stain. Tetanus prophylaxis depends on wound type and vaccination history."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-clin-surgery.l01.q1",
+   "lessonId": "med-clin-surgery.l01",
+   "kind": "mcq",
+   "prompt": "Which of these is one of the six factors in the Revised Cardiac Risk Index?",
+   "choices": [
+    "Current tobacco smoking history",
+    "Insulin-treated diabetes mellitus",
+    "Chronic obstructive lung disease",
+    "Age greater than 65 years"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l01.q2",
+   "lessonId": "med-clin-surgery.l01",
+   "kind": "mcq",
+   "prompt": "A man with chronic atrial fibrillation takes warfarin and will have elective hernia repair. What is the best plan?",
+   "choices": [
+    "Stop warfarin about five days before, no routine bridging",
+    "Continue warfarin and bridge with full-dose heparin until the day",
+    "Stop warfarin the evening before and give vitamin K that morning",
+    "Switch to aspirin permanently so no interruption is ever needed"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l01.q3",
+   "lessonId": "med-clin-surgery.l01",
+   "kind": "mcq",
+   "prompt": "Which approach to a healthy 40-year-old before knee arthroscopy has the best evidence?",
+   "choices": [
+    "A full panel of routine blood tests and chest radiography",
+    "A resting ECG, echocardiogram and exercise stress test",
+    "Pulmonary function testing and arterial blood gas analysis",
+    "History and examination without routine testing"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l01.q4",
+   "lessonId": "med-clin-surgery.l01",
+   "kind": "mcq",
+   "prompt": "A 70-year-old woman on prednisone for polymyalgia rheumatica for two years undergoes colectomy. After surgery she is hypotensive despite fluids, with normal hemoglobin and no evidence of sepsis. What is the next best step?",
+   "choices": [
+    "An intravenous vasopressor with no steroid supplementation",
+    "A computed tomography scan to look for anastomotic leakage",
+    "IV hydrocortisone for presumed adrenal insufficiency",
+    "A blood transfusion to improve the oxygen carrying capacity"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l01.q5",
+   "lessonId": "med-clin-surgery.l01",
+   "kind": "mcq",
+   "prompt": "A 66-year-old man with diabetes treated with an SGLT2 inhibitor has an elective operation. Two days afterward he is nauseated and tachypneic with a glucose of 180 mg/dL and an anion gap acidosis. Which is the likely diagnosis?",
+   "choices": [
+    "Respiratory alkalosis from pulmonary embolism",
+    "Euglycemic diabetic ketoacidosis",
+    "Lactic acidosis from anastomotic leak",
+    "Hyperosmolar hyperglycemic state"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l02.q1",
+   "lessonId": "med-clin-surgery.l02",
+   "kind": "mcq",
+   "prompt": "Which postoperative day range is classically associated with fever from urinary tract infection?",
+   "choices": [
+    "Days 10 to 14",
+    "After one month",
+    "Days 3 to 5",
+    "The first 24 hours"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l02.q2",
+   "lessonId": "med-clin-surgery.l02",
+   "kind": "mcq",
+   "prompt": "A patient is febrile 36 hours after laparoscopic cholecystectomy, has severe pain out of proportion at a port site, bullae and spreading erythema with crepitus. What is needed?",
+   "choices": [
+    "A course of oral antibiotics and re-evaluation tomorrow",
+    "Warm compresses with elevation and observation overnight",
+    "Incentive spirometry and mobilization for presumed atelectasis",
+    "Immediate surgical debridement with broad antibiotics"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l02.q3",
+   "lessonId": "med-clin-surgery.l02",
+   "kind": "mcq",
+   "prompt": "Which finding is most likely when salmon-colored serosanguinous fluid drains from a laparotomy wound on day 7?",
+   "choices": [
+    "Fascial dehiscence",
+    "Surgical site infection of skin only",
+    "A resolving seroma without any fascial issue",
+    "Normal healing that needs no assessment"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l02.q4",
+   "lessonId": "med-clin-surgery.l02",
+   "kind": "mcq",
+   "prompt": "A 60-year-old man had a sigmoid colectomy with primary anastomosis six days ago and now has fever, tachycardia, worsening abdominal pain, and a rising white count. CT shows a localized fluid collection with air near the anastomosis and he has no peritonitis. What is the next best step?",
+   "choices": [
+    "Immediate stoma reversal without any further evaluation",
+    "Percutaneous drainage with antibiotics and close monitoring",
+    "Discharge home on oral antibiotics with outpatient follow-up",
+    "Observation with serial examinations and no antibiotics at all"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l02.q5",
+   "lessonId": "med-clin-surgery.l02",
+   "kind": "mcq",
+   "prompt": "On postoperative day 4 after pelvic surgery a woman develops pleuritic chest pain, a heart rate of 112 and an oxygen saturation of 90 percent. Her chest radiograph is clear. What is the most likely diagnosis?",
+   "choices": [
+    "Aspiration pneumonitis",
+    "Tension pneumothorax",
+    "Pulmonary embolism",
+    "Postoperative atelectasis"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l03.q1",
+   "lessonId": "med-clin-surgery.l03",
+   "kind": "mcq",
+   "prompt": "Which type of shock shows low systemic vascular resistance with bradycardia after cervical spinal cord injury?",
+   "choices": [
+    "Hemorrhagic shock",
+    "Cardiogenic shock",
+    "Obstructive shock",
+    "Neurogenic shock"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l03.q2",
+   "lessonId": "med-clin-surgery.l03",
+   "kind": "mcq",
+   "prompt": "Which intervention given early has been shown to reduce death from bleeding in trauma?",
+   "choices": [
+    "Desmopressin",
+    "Aminocaproic acid given late",
+    "Tranexamic acid",
+    "Vitamin K"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l03.q3",
+   "lessonId": "med-clin-surgery.l03",
+   "kind": "mcq",
+   "prompt": "A severely malnourished patient begins parenteral feeding and two days later develops weakness and arrhythmia. Which findings are expected?",
+   "choices": [
+    "Hyperglycemia with a normal phosphate and potassium",
+    "Hypophosphatemia, hypokalemia and hypomagnesemia",
+    "Hyperphosphatemia and hyperkalemia with hypercalcemia",
+    "Hypernatremia and hypercalcemia with metabolic acidosis"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l03.q4",
+   "lessonId": "med-clin-surgery.l03",
+   "kind": "mcq",
+   "prompt": "A trauma patient with a pulse of 130, blood pressure 80/50 mmHg and flat neck veins has received 2 liters of crystalloid with minimal improvement. Which next step best addresses the problem?",
+   "choices": [
+    "Transfuse balanced products and control the bleeding",
+    "Give another several liters of crystalloid to raise pressure",
+    "Start a vasopressor infusion and continue current fluids",
+    "Obtain a stress ulcer prophylaxis order and observe closely"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l03.q5",
+   "lessonId": "med-clin-surgery.l03",
+   "kind": "mcq",
+   "prompt": "A 55-year-old man after massive transfusion develops muscle cramps, a prolonged QT interval and hypotension. Which abnormality is likely?",
+   "choices": [
+    "Hypercalcemia from stored blood lysis",
+    "Hypomagnesemia from renal wasting only",
+    "Hyperphosphatemia from tumor lysis",
+    "Hypocalcemia from citrate binding"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l04.q1",
+   "lessonId": "med-clin-surgery.l04",
+   "kind": "mcq",
+   "prompt": "Which drug is the specific treatment for malignant hyperthermia?",
+   "choices": [
+    "Dantrolene",
+    "Naloxone",
+    "Flumazenil",
+    "Neostigmine"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l04.q2",
+   "lessonId": "med-clin-surgery.l04",
+   "kind": "mcq",
+   "prompt": "Which complication is typical of spinal anesthesia?",
+   "choices": [
+    "Hyperthermia from muscle activity",
+    "Hypotension from sympathetic blockade",
+    "Hypertension from catecholamine release",
+    "Seizures from systemic absorption"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l04.q3",
+   "lessonId": "med-clin-surgery.l04",
+   "kind": "mcq",
+   "prompt": "Which hemodynamically favorable induction agent suppresses adrenal steroid synthesis?",
+   "choices": [
+    "Ketamine",
+    "Midazolam",
+    "Etomidate",
+    "Propofol"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l04.q4",
+   "lessonId": "med-clin-surgery.l04",
+   "kind": "mcq",
+   "prompt": "A 16-year-old boy has masseter rigidity after succinylcholine and sevoflurane induction, with end-tidal carbon dioxide rising to 80 mmHg, a heart rate of 150 and a temperature of 39.5 C. What is the next best step?",
+   "choices": [
+    "Give additional succinylcholine to relax the muscles",
+    "Administer neostigmine to reverse residual blockade",
+    "Continue the volatile agent while cooling the patient",
+    "Stop the triggering agents and administer dantrolene"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l04.q5",
+   "lessonId": "med-clin-surgery.l04",
+   "kind": "mcq",
+   "prompt": "During a nerve block a patient develops perioral numbness and tinnitus, then a seizure and ventricular arrhythmia. Which local anesthetic and treatment are likely involved?",
+   "choices": [
+    "Bupivacaine toxicity treated with intravenous lipid emulsion",
+    "Lidocaine allergy treated with intravenous epinephrine only",
+    "Procaine toxicity treated with intravenous physostigmine",
+    "Ropivacaine overdose treated with intravenous naloxone"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l05.q1",
+   "lessonId": "med-clin-surgery.l05",
+   "kind": "mcq",
+   "prompt": "Which sign is expected with irritation of the peritoneum?",
+   "choices": [
+    "Pain that improves with coughing or jarring",
+    "Guarding with rebound tenderness and pain on movement",
+    "Diffuse dull pain that is worse when walking",
+    "A soft abdomen with pain that eases when pressed"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l05.q2",
+   "lessonId": "med-clin-surgery.l05",
+   "kind": "mcq",
+   "prompt": "A 24-year-old woman has right lower quadrant pain, a missed period and a positive urine hCG. What is the next best step?",
+   "choices": [
+    "Transvaginal ultrasound to evaluate for ectopic pregnancy",
+    "Oral antibiotics for pelvic inflammatory disease at home",
+    "Diagnostic colonoscopy to exclude Crohn disease flares",
+    "Discharge with analgesics and follow up in a week"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l05.q3",
+   "lessonId": "med-clin-surgery.l05",
+   "kind": "mcq",
+   "prompt": "Which imaging approach is preferred for suspected appendicitis in a pregnant woman?",
+   "choices": [
+    "CT of the abdomen first, with contrast, to limit delay",
+    "Plain abdominal radiographs to look for a fecalith",
+    "Barium enema to show a nonfilling appendix tip",
+    "Ultrasound first, with MRI if it is nondiagnostic"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l05.q4",
+   "lessonId": "med-clin-surgery.l05",
+   "kind": "mcq",
+   "prompt": "A 19-year-old man has 18 hours of periumbilical pain that migrated to the right lower quadrant, anorexia, a temperature of 38.2 C and a white count of 14,500 with tenderness and guarding at McBurney point. What is the next best step?",
+   "choices": [
+    "Upper endoscopy to rule out peptic ulcer disease first",
+    "Colonoscopy to evaluate for inflammatory bowel disease",
+    "Intravenous antibiotics and laparoscopic appendectomy",
+    "Discharge on oral analgesics with repeat evaluation tomorrow"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l05.q5",
+   "lessonId": "med-clin-surgery.l05",
+   "kind": "mcq",
+   "prompt": "A 75-year-old man with atrial fibrillation not on anticoagulation has severe diffuse abdominal pain with a soft nontender abdomen, a lactate of 4.8 and a leukocyte count of 18,000. What is the most likely diagnosis?",
+   "choices": [
+    "Diverticulitis with a localized abscess",
+    "Acute mesenteric ischemia from an arterial embolus",
+    "Acute appendicitis with early perforation",
+    "Acute uncomplicated cholecystitis"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l06.q1",
+   "lessonId": "med-clin-surgery.l06",
+   "kind": "mcq",
+   "prompt": "Which is the most common cause of small bowel obstruction in an adult with prior abdominal surgery?",
+   "choices": [
+    "Gallstone ileus",
+    "Intussusception",
+    "Adhesions",
+    "Malignancy"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l06.q2",
+   "lessonId": "med-clin-surgery.l06",
+   "kind": "mcq",
+   "prompt": "Which radiographic sign is typical of sigmoid volvulus?",
+   "choices": [
+    "A thumbprinting pattern of the transverse colon wall",
+    "Pneumatosis within the small bowel wall with portal gas",
+    "A paucity of gas with a ground-glass appearance",
+    "A coffee-bean shaped dilated loop rising from the pelvis"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l06.q3",
+   "lessonId": "med-clin-surgery.l06",
+   "kind": "mcq",
+   "prompt": "Which feature of a bowel obstruction mandates urgent operation?",
+   "choices": [
+    "Peritonitis, acidosis or CT signs of strangulation",
+    "Vomiting that has lasted for a number of hours",
+    "A nasogastric output of a moderate volume",
+    "Air-fluid levels visible on a plain film"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l06.q4",
+   "lessonId": "med-clin-surgery.l06",
+   "kind": "mcq",
+   "prompt": "A 78-year-old nursing home resident with chronic constipation has two days of abdominal distension and obstipation. The abdominal film shows a markedly dilated loop in a coffee-bean pattern and there is no peritonitis. What is the next best step?",
+   "choices": [
+    "Neostigmine infusion for presumed pseudo-obstruction",
+    "Endoscopic detorsion, followed by elective sigmoid resection",
+    "Immediate colectomy without any attempt at decompression",
+    "Oral laxatives with discharge and outpatient follow-up"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l06.q5",
+   "lessonId": "med-clin-surgery.l06",
+   "kind": "mcq",
+   "prompt": "A 62-year-old man with severe atherosclerosis has postprandial abdominal pain, food avoidance and 15 kg weight loss over several months. Which diagnosis fits?",
+   "choices": [
+    "Peptic ulcer disease of the duodenum",
+    "Acute pancreatitis with pseudocyst",
+    "Chronic mesenteric ischemia",
+    "Celiac disease with malabsorption"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l07.q1",
+   "lessonId": "med-clin-surgery.l07",
+   "kind": "mcq",
+   "prompt": "Where does a direct inguinal hernia protrude relative to the inferior epigastric vessels?",
+   "choices": [
+    "Lateral to them through the deep ring",
+    "Inferior to the inguinal ligament only",
+    "Through the obturator canal alone",
+    "Medial to them through Hesselbach triangle"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l07.q2",
+   "lessonId": "med-clin-surgery.l07",
+   "kind": "mcq",
+   "prompt": "A 70-year-old woman has a firm tender bulge below the inguinal ligament with vomiting. Which hernia is most likely and how is it managed?",
+   "choices": [
+    "Umbilical hernia, which closes spontaneously",
+    "Spigelian hernia, which is treated with a truss",
+    "Femoral hernia, which is repaired urgently",
+    "Direct inguinal hernia, which is observed"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l07.q3",
+   "lessonId": "med-clin-surgery.l07",
+   "kind": "mcq",
+   "prompt": "What is a Richter hernia?",
+   "choices": [
+    "The hernia sac contains a Meckel diverticulum",
+    "Only part of the bowel wall is trapped in the defect",
+    "The hernia sac contains the bladder in the groin",
+    "The hernia passes through the obturator foramen"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l07.q4",
+   "lessonId": "med-clin-surgery.l07",
+   "kind": "mcq",
+   "prompt": "A 55-year-old man has a painful groin bulge for 12 hours, vomiting, and now erythema over the lump with fever and a white count of 16,000. It cannot be reduced. What is the next best step?",
+   "choices": [
+    "Urgent surgical exploration with bowel assessment",
+    "Repeated forceful manual reduction at the bedside",
+    "Elective repair scheduled for the next few months",
+    "Treatment with oral antibiotics and a hernia truss"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l07.q5",
+   "lessonId": "med-clin-surgery.l07",
+   "kind": "mcq",
+   "prompt": "A 3-month-old boy has an intermittent right groin bulge that is soft and reducible. What is the best management?",
+   "choices": [
+    "Observation until age five, as with umbilical hernias",
+    "Application of a truss and review in six months",
+    "A trial of cough suppression with reassurance only",
+    "Prompt repair because infants often incarcerate"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l08.q1",
+   "lessonId": "med-clin-surgery.l08",
+   "kind": "mcq",
+   "prompt": "Which procedure is commonly used for perforated diverticulitis with fecal peritonitis?",
+   "choices": [
+    "Hartmann procedure with end colostomy",
+    "Percutaneous drainage with a long antibiotic course",
+    "Total proctocolectomy with an ileal pouch",
+    "Right hemicolectomy with a primary anastomosis"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l08.q2",
+   "lessonId": "med-clin-surgery.l08",
+   "kind": "mcq",
+   "prompt": "A patient with diverticulitis has a 6 cm pericolic abscess on CT and is hemodynamically stable. What is the best approach?",
+   "choices": [
+    "Immediate colonoscopy to see the abscess cavity",
+    "Percutaneous CT-guided drainage with antibiotics",
+    "Emergency Hartmann procedure on arrival to the hospital",
+    "Outpatient oral antibiotics without any drainage"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l08.q3",
+   "lessonId": "med-clin-surgery.l08",
+   "kind": "mcq",
+   "prompt": "Which treatment sequence is standard for locally advanced rectal cancer?",
+   "choices": [
+    "Chemotherapy only, avoiding surgery in all patients",
+    "Radiation after surgery restricted to node-negative disease",
+    "Neoadjuvant chemoradiation, then mesorectal excision",
+    "Primary surgery alone with no further treatment of any type"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l08.q4",
+   "lessonId": "med-clin-surgery.l08",
+   "kind": "mcq",
+   "prompt": "A 68-year-old man with iron deficiency anemia, fatigue and occult blood positive stool has a mass in the cecum on colonoscopy. Biopsy shows adenocarcinoma, and CT shows no metastases. What is the next best step?",
+   "choices": [
+    "Neoadjuvant radiation to the right lower quadrant",
+    "Observation with repeat colonoscopy in one year",
+    "Palliative chemotherapy as first-line treatment",
+    "Right hemicolectomy with regional lymphadenectomy"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l08.q5",
+   "lessonId": "med-clin-surgery.l08",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman has recurrent duodenal and jejunal ulcers despite proton pump inhibitors, with diarrhea. What should be measured?",
+   "choices": [
+    "Fasting serum gastrin",
+    "Serum calcitonin level",
+    "Urinary 5-hydroxyindoleacetic acid",
+    "Serum vasoactive intestinal peptide"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l09.q1",
+   "lessonId": "med-clin-surgery.l09",
+   "kind": "mcq",
+   "prompt": "Which triad defines acute cholangitis (the Charcot triad)?",
+   "choices": [
+    "Pain, vomiting and elevated serum lipase level",
+    "Fever, jaundice and right upper quadrant pain",
+    "Fever, hypotension and altered mental status",
+    "Jaundice, pruritus and a palpable gallbladder"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l09.q2",
+   "lessonId": "med-clin-surgery.l09",
+   "kind": "mcq",
+   "prompt": "A woman has 90 minutes of postprandial right upper quadrant pain that resolved, with normal labs and an ultrasound showing gallstones without wall thickening. What is the best management?",
+   "choices": [
+    "Elective laparoscopic cholecystectomy",
+    "Emergency open cholecystectomy tonight",
+    "Ursodeoxycholic acid for lifelong therapy",
+    "Endoscopic sphincterotomy to prevent a recurrence"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l09.q3",
+   "lessonId": "med-clin-surgery.l09",
+   "kind": "mcq",
+   "prompt": "Which technique helps prevent common bile duct injury during cholecystectomy?",
+   "choices": [
+    "Clipping the first tubular structure seen",
+    "Dividing the structures before dissection",
+    "Using electrocautery near the hepatic hilum",
+    "Obtaining the critical view of safety"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l09.q4",
+   "lessonId": "med-clin-surgery.l09",
+   "kind": "mcq",
+   "prompt": "A 72-year-old woman has fever, jaundice, right upper quadrant pain, a blood pressure of 82/50 mmHg and confusion. Ultrasound shows a dilated common bile duct with stones. What is the next best step?",
+   "choices": [
+    "Oral ursodiol and discharge with an outpatient follow-up",
+    "Observation overnight to see whether stones pass on their own",
+    "Resuscitation, antibiotics and urgent biliary decompression",
+    "Elective cholecystectomy scheduled for the coming month"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l09.q5",
+   "lessonId": "med-clin-surgery.l09",
+   "kind": "mcq",
+   "prompt": "A 68-year-old woman has small bowel obstruction, and abdominal imaging shows air in the biliary tree and an ectopic gallstone in the distal ileum. What is the likely diagnosis?",
+   "choices": [
+    "Emphysematous cholecystitis",
+    "Gallstone ileus",
+    "Mirizzi syndrome",
+    "Choledochal cyst"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l10.q1",
+   "lessonId": "med-clin-surgery.l10",
+   "kind": "mcq",
+   "prompt": "What does the Courvoisier sign suggest?",
+   "choices": [
+    "Chronic cholecystitis with gallstone disease",
+    "Acute viral hepatitis with hepatomegaly",
+    "Hepatic abscess with right shoulder pain",
+    "Malignant obstruction of the distal bile duct"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l10.q2",
+   "lessonId": "med-clin-surgery.l10",
+   "kind": "mcq",
+   "prompt": "Which operation is used for a resectable pancreatic head adenocarcinoma?",
+   "choices": [
+    "Total gastrectomy with Roux-en-Y reconstruction",
+    "Left hepatic lobectomy with biliary bypass",
+    "Pancreaticoduodenectomy (Whipple procedure)",
+    "Distal pancreatectomy with splenectomy"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l10.q3",
+   "lessonId": "med-clin-surgery.l10",
+   "kind": "mcq",
+   "prompt": "What is the preferred approach for infected pancreatic necrosis in a stable patient?",
+   "choices": [
+    "Total pancreatectomy performed within the first day",
+    "Antibiotics with a step-up drainage approach",
+    "Immediate open necrosectomy through a laparotomy",
+    "Observation alone without antibiotics or drainage"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l10.q4",
+   "lessonId": "med-clin-surgery.l10",
+   "kind": "mcq",
+   "prompt": "A 28-year-old woman taking oral contraceptives has sudden right upper quadrant pain and hypotension. CT shows a 9 cm liver mass with intratumoral hemorrhage and free fluid. What is the most likely diagnosis?",
+   "choices": [
+    "Ruptured hepatic adenoma",
+    "Hepatocellular carcinoma in cirrhosis",
+    "Hepatic hemangioma with thrombosis",
+    "Focal nodular hyperplasia with a scar"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l10.q5",
+   "lessonId": "med-clin-surgery.l10",
+   "kind": "mcq",
+   "prompt": "A hemodynamically stable man with blunt trauma has a grade III liver laceration on CT without active contrast extravasation. What is the best management?",
+   "choices": [
+    "Immediate laparotomy with hepatic resection",
+    "Perihepatic packing in the operating room",
+    "Transfer for liver transplantation evaluation",
+    "Nonoperative management with serial examinations"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l11.q1",
+   "lessonId": "med-clin-surgery.l11",
+   "kind": "mcq",
+   "prompt": "At what diameter is elective repair of an asymptomatic infrarenal aortic aneurysm typically considered in men?",
+   "choices": [
+    "4.0 cm",
+    "7.5 cm",
+    "5.5 cm",
+    "3.0 cm"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l11.q2",
+   "lessonId": "med-clin-surgery.l11",
+   "kind": "mcq",
+   "prompt": "Who should receive one-time ultrasound screening for abdominal aortic aneurysm according to the USPSTF (2019)?",
+   "choices": [
+    "All women over 60 years old with hypertension",
+    "All adults over 50 who have diabetes mellitus",
+    "Men aged 40 to 55 with a family history only",
+    "Men aged 65 to 75 who have ever smoked"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l11.q3",
+   "lessonId": "med-clin-surgery.l11",
+   "kind": "mcq",
+   "prompt": "A man had a transient episode of left arm weakness two days ago, and carotid duplex shows 80 percent stenosis of the right internal carotid artery. Which is the best next step?",
+   "choices": [
+    "Carotid endarterectomy within about two weeks",
+    "Observation with annual duplex follow-up",
+    "Warfarin therapy with the INR target of three",
+    "Carotid surgery after six months of medical therapy"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l11.q4",
+   "lessonId": "med-clin-surgery.l11",
+   "kind": "mcq",
+   "prompt": "A 67-year-old smoker has a sudden severe low back pain, a blood pressure of 78/40 mmHg, and a pulsatile abdominal mass. What is the next best step?",
+   "choices": [
+    "Admission for beta-blocker therapy and observation",
+    "Immediate transfer to the operating room for repair",
+    "CT angiography of the abdomen before any treatment",
+    "Aggressive crystalloid resuscitation to a normal pressure"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l11.q5",
+   "lessonId": "med-clin-surgery.l11",
+   "kind": "mcq",
+   "prompt": "A 58-year-old diabetic man with chronic kidney disease has foot ulcers and rest pain. His ankle-brachial index is 1.4 with a very faint dorsalis pedis pulse. What is the best explanation?",
+   "choices": [
+    "Venous insufficiency causing a falsely high ankle pressure",
+    "Severe aortic stenosis causing a spurious value",
+    "Calcified, noncompressible arteries",
+    "Normal arterial perfusion with a neuropathic ulcer only"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l12.q1",
+   "lessonId": "med-clin-surgery.l12",
+   "kind": "mcq",
+   "prompt": "Which finding is among the six Ps of acute limb ischemia?",
+   "choices": [
+    "Pyrexia",
+    "Poikilothermia",
+    "Polyuria",
+    "Photophobia"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l12.q2",
+   "lessonId": "med-clin-surgery.l12",
+   "kind": "mcq",
+   "prompt": "What is the first drug to give for acute limb ischemia from an embolus?",
+   "choices": [
+    "Intravenous unfractionated heparin",
+    "Oral aspirin at a low maintenance dose",
+    "Intravenous tranexamic acid for bleeding",
+    "Oral warfarin to start therapeutic anticoagulation"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l12.q3",
+   "lessonId": "med-clin-surgery.l12",
+   "kind": "mcq",
+   "prompt": "Which finding is the earliest and most reliable in compartment syndrome?",
+   "choices": [
+    "Absent distal pulses in the affected extremity",
+    "Pallor and coolness of the skin overlying the limb",
+    "A markedly elevated serum creatine kinase value",
+    "Pain out of proportion, worse on passive stretch"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l12.q4",
+   "lessonId": "med-clin-surgery.l12",
+   "kind": "mcq",
+   "prompt": "A 70-year-old man with atrial fibrillation has an acutely cold, pale, painful left leg for 4 hours, with decreased sensation, mild weakness and no Doppler arterial signal. His right leg pulses are normal. What is the next best step?",
+   "choices": [
+    "Discharge on warfarin with outpatient vascular follow-up",
+    "Oral cilostazol with a supervised walking program",
+    "Heparin and urgent embolectomy",
+    "Observation with limb elevation until symptoms improve"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l12.q5",
+   "lessonId": "med-clin-surgery.l12",
+   "kind": "mcq",
+   "prompt": "After fasciotomy for compartment syndrome following a crush injury, a patient has dark urine that is dipstick positive for blood with almost no red cells, and a potassium of 6.2. What is the next step?",
+   "choices": [
+    "Immediate hemodialysis without any trial of fluids",
+    "Aggressive fluids and treatment of hyperkalemia",
+    "Fluid restriction to avoid volume overload and edema",
+    "Intravenous antibiotics for a presumed urinary infection"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l13.q1",
+   "lessonId": "med-clin-surgery.l13",
+   "kind": "mcq",
+   "prompt": "In the ATLS primary survey, what is the usual order after control of massive external bleeding?",
+   "choices": [
+    "Airway, breathing, circulation, disability, exposure",
+    "Circulation, airway, breathing, exposure, disability",
+    "Breathing, airway, disability, circulation, exposure",
+    "Disability, airway, breathing, circulation, exposure"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l13.q2",
+   "lessonId": "med-clin-surgery.l13",
+   "kind": "mcq",
+   "prompt": "A man with a stab wound to the chest has severe dyspnea, hypotension, distended neck veins and absent breath sounds on the right. What is the immediate step?",
+   "choices": [
+    "Aggressive intravenous fluid boluses of crystalloid",
+    "Needle or finger decompression of the right chest",
+    "A chest radiograph to confirm the diagnosis first",
+    "Pericardiocentesis through the subxiphoid approach"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l13.q3",
+   "lessonId": "med-clin-surgery.l13",
+   "kind": "mcq",
+   "prompt": "What is the correct initial management of an open pneumothorax?",
+   "choices": [
+    "Immediate intubation with a tube placed through the wound",
+    "Observation with analgesia and a radiograph in an hour",
+    "Occlusive dressing taped on three sides plus chest tube",
+    "Complete occlusive dressing sealed on all four sides at once"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l13.q4",
+   "lessonId": "med-clin-surgery.l13",
+   "kind": "mcq",
+   "prompt": "A 30-year-old man is stabbed in the left chest and has hypotension, muffled heart sounds and distended neck veins. Breath sounds are equal and a FAST scan shows pericardial fluid. What is the best treatment?",
+   "choices": [
+    "Bilateral chest tubes to relieve bilateral pneumothoraces",
+    "Large boluses of fluids until blood pressure improves",
+    "Admission to the intensive care unit for serial echocardiograms",
+    "Emergency surgical exploration and repair in the operating room"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l13.q5",
+   "lessonId": "med-clin-surgery.l13",
+   "kind": "mcq",
+   "prompt": "A restrained driver has chest pain after a car crash. Chest radiography shows a widened mediastinum with loss of the aortic knob and a left apical cap. Hemodynamics are stable. What is the next best step?",
+   "choices": [
+    "CT angiography of the chest with beta-blockade",
+    "Immediate left thoracotomy in the emergency room",
+    "Esophagoscopy to look for a contained perforation",
+    "Repeat chest radiography after four hours of observation"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l14.q1",
+   "lessonId": "med-clin-surgery.l14",
+   "kind": "mcq",
+   "prompt": "In ATLS classification, which class of hemorrhage involves 30 to 40 percent blood volume loss with hypotension?",
+   "choices": [
+    "Class I",
+    "Class II",
+    "Class IV",
+    "Class III"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l14.q2",
+   "lessonId": "med-clin-surgery.l14",
+   "kind": "mcq",
+   "prompt": "Which approach to resuscitation is recommended in hemorrhagic shock?",
+   "choices": [
+    "Hypotonic fluid to restore intracellular volume",
+    "Vasopressors alone to restore the blood pressure",
+    "Early balanced blood products and tranexamic acid",
+    "Several liters of crystalloid before any blood products"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l14.q3",
+   "lessonId": "med-clin-surgery.l14",
+   "kind": "mcq",
+   "prompt": "What is the correct management of blood at the urethral meatus after pelvic trauma?",
+   "choices": [
+    "Cystoscopy under general anesthesia before any imaging",
+    "Retrograde urethrogram before inserting a catheter",
+    "Immediate Foley catheter placement to monitor urine output",
+    "Digital rectal examination only with a catheter after"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l14.q4",
+   "lessonId": "med-clin-surgery.l14",
+   "kind": "mcq",
+   "prompt": "A 25-year-old man is thrown from a motorcycle. His blood pressure is 80/50 mmHg with a pulse of 130 after 2 liters of crystalloid, his abdomen is distended and the FAST scan is positive in the left upper quadrant. What is the next best step?",
+   "choices": [
+    "Exploratory laparotomy",
+    "CT scan of the abdomen and pelvis with contrast",
+    "Diagnostic peritoneal lavage in the emergency department",
+    "Observation with serial hemoglobin measurements"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l14.q5",
+   "lessonId": "med-clin-surgery.l14",
+   "kind": "mcq",
+   "prompt": "A 20-year-old is stable after splenic laceration managed by angioembolization. Which long-term step is needed?",
+   "choices": [
+    "Lifelong prophylactic penicillin for all and no immunization",
+    "Annual influenza vaccination alone, with no further measures",
+    "Repeat embolization every year to prevent regrowth",
+    "Pneumococcal, meningococcal and Hib vaccines"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l15.q1",
+   "lessonId": "med-clin-surgery.l15",
+   "kind": "mcq",
+   "prompt": "Which hematoma is lens-shaped and does not cross suture lines?",
+   "choices": [
+    "Subarachnoid hemorrhage",
+    "Intraparenchymal contusion",
+    "Epidural hematoma",
+    "Subdural hematoma"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l15.q2",
+   "lessonId": "med-clin-surgery.l15",
+   "kind": "mcq",
+   "prompt": "What is Cushing triad, a sign of raised intracranial pressure?",
+   "choices": [
+    "Hypotension, tachycardia and rapid shallow breathing",
+    "Fever, neck stiffness and photophobia with headache",
+    "Hypertension, tachycardia and a wide pulse pressure",
+    "Hypertension, bradycardia and irregular respirations"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l15.q3",
+   "lessonId": "med-clin-surgery.l15",
+   "kind": "mcq",
+   "prompt": "A man falls and strikes his temple, loses consciousness briefly, wakes and is lucid, then deteriorates over several hours. What is the likely lesion?",
+   "choices": [
+    "Epidural hematoma with a lucid interval",
+    "Chronic subdural hematoma in an older patient",
+    "Diffuse axonal injury at the gray-white junction",
+    "Basilar skull fracture with a spinal fluid leak"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l15.q4",
+   "lessonId": "med-clin-surgery.l15",
+   "kind": "mcq",
+   "prompt": "A 70-year-old man falls and has weakness more marked in the arms than the legs with burning dysesthesias in the hands. Cervical imaging shows spondylosis without fracture. What is the likely syndrome?",
+   "choices": [
+    "Conus medullaris syndrome",
+    "Central cord syndrome",
+    "Anterior cord syndrome",
+    "Brown-Sequard syndrome"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l15.q5",
+   "lessonId": "med-clin-surgery.l15",
+   "kind": "mcq",
+   "prompt": "A 24-year-old man with an open tibial fracture from a motorcycle crash has a wound of 5 cm with moderate contamination. Which measures are part of initial care?",
+   "choices": [
+    "Oral antibiotics and wound dressing with delayed surgery",
+    "Irrigation at the bedside and discharge with follow-up",
+    "IV antibiotics, tetanus prophylaxis and debridement",
+    "Closure of the wound and a cast with antibiotics tomorrow"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l16.q1",
+   "lessonId": "med-clin-surgery.l16",
+   "kind": "mcq",
+   "prompt": "Which burn depth is dry, leathery and painless?",
+   "choices": [
+    "Deep partial-thickness burn with blisters",
+    "Full-thickness burn",
+    "Superficial burn",
+    "Superficial partial-thickness burn"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l16.q2",
+   "lessonId": "med-clin-surgery.l16",
+   "kind": "mcq",
+   "prompt": "What does the Parkland formula estimate?",
+   "choices": [
+    "Lactated Ringer volume in the first 24 hours",
+    "The blood loss expected after surgical debridement",
+    "The calorie requirement of a patient with a large burn",
+    "The surface area of burns in a child using proportions"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l16.q3",
+   "lessonId": "med-clin-surgery.l16",
+   "kind": "mcq",
+   "prompt": "A person rescued from a house fire has headache and confusion, and pulse oximetry reads 99 percent. What is the best explanation and treatment?",
+   "choices": [
+    "Normal oxygenation, treated with observation alone",
+    "Cyanide poisoning, treated with high-dose steroids",
+    "Pulmonary embolism, treated with immediate anticoagulants",
+    "Carbon monoxide poisoning, treated with 100 percent oxygen"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l16.q4",
+   "lessonId": "med-clin-surgery.l16",
+   "kind": "mcq",
+   "prompt": "A 35-year-old man trapped in a fire has facial burns, singed nasal hairs, a hoarse voice and carbonaceous sputum. His oxygen saturation is normal and he is speaking. What is the next best step?",
+   "choices": [
+    "Nebulized bronchodilators and a chest radiograph first",
+    "Oral antibiotics and discharge with outpatient follow-up",
+    "Early endotracheal intubation to secure the airway",
+    "Observation with humidified oxygen and reassessment later"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l16.q5",
+   "lessonId": "med-clin-surgery.l16",
+   "kind": "mcq",
+   "prompt": "A 70 kg man has 40 percent TBSA partial and full-thickness burns, and an hour after arrival his urine output is 15 mL per hour while on lactated Ringer at the calculated rate. Which is the best next step?",
+   "choices": [
+    "Switch to a hypotonic maintenance fluid solution",
+    "Increase the fluid rate and titrate to urine output",
+    "Stop all fluids because of the risk of edema",
+    "Give a diuretic to improve the urine output"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l17.q1",
+   "lessonId": "med-clin-surgery.l17",
+   "kind": "mcq",
+   "prompt": "Which imaging is first for a palpable breast mass in a 24-year-old woman?",
+   "choices": [
+    "Ultrasound of the breast",
+    "Screening mammography",
+    "MRI with contrast",
+    "PET scan"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l17.q2",
+   "lessonId": "med-clin-surgery.l17",
+   "kind": "mcq",
+   "prompt": "Which adjuvant therapy suits a postmenopausal woman with an estrogen receptor positive early breast cancer?",
+   "choices": [
+    "Cisplatin-based chemotherapy only",
+    "An aromatase inhibitor",
+    "Trastuzumab as a single agent",
+    "Tamoxifen with ovarian ablation"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l17.q3",
+   "lessonId": "med-clin-surgery.l17",
+   "kind": "mcq",
+   "prompt": "A woman has a red, swollen, warm breast with skin dimpling like orange peel, for three weeks, without fever or response to antibiotics. What is the likely diagnosis?",
+   "choices": [
+    "Fat necrosis after trauma",
+    "Fibrocystic change",
+    "Inflammatory breast cancer",
+    "Lactational mastitis"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l17.q4",
+   "lessonId": "med-clin-surgery.l17",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman has a 1.5 cm invasive ductal carcinoma, estrogen receptor positive and HER2 negative, in a normal-sized breast with no palpable nodes. What is the best surgical approach?",
+   "choices": [
+    "Modified radical mastectomy with full axillary dissection",
+    "Wide excision alone without radiation or nodal staging",
+    "Chemotherapy first with no operation planned",
+    "Lumpectomy with radiation and sentinel node biopsy"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l17.q5",
+   "lessonId": "med-clin-surgery.l17",
+   "kind": "mcq",
+   "prompt": "A 55-year-old woman has a unilateral bloody discharge from a single duct, and no mass. Imaging is unremarkable. What is the most likely lesion?",
+   "choices": [
+    "Intraductal papilloma",
+    "Fibroadenoma",
+    "Hyperprolactinemia",
+    "Mammary duct ectasia"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l18.q1",
+   "lessonId": "med-clin-surgery.l18",
+   "kind": "mcq",
+   "prompt": "Which thyroid cancer secretes calcitonin?",
+   "choices": [
+    "Papillary carcinoma",
+    "Follicular carcinoma",
+    "Anaplastic carcinoma",
+    "Medullary carcinoma"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l18.q2",
+   "lessonId": "med-clin-surgery.l18",
+   "kind": "mcq",
+   "prompt": "Which operative feature distinguishes follicular carcinoma from an adenoma?",
+   "choices": [
+    "Psammoma bodies",
+    "Amyloid deposits",
+    "Capsular or vascular invasion",
+    "Nuclear grooves and clearing"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l18.q3",
+   "lessonId": "med-clin-surgery.l18",
+   "kind": "mcq",
+   "prompt": "A man develops numbness around the mouth and carpopedal spasm 36 hours after total thyroidectomy. What is the treatment?",
+   "choices": [
+    "Potassium replacement",
+    "Intravenous calcium",
+    "Levothyroxine dose increase",
+    "Intravenous magnesium only"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l18.q4",
+   "lessonId": "med-clin-surgery.l18",
+   "kind": "mcq",
+   "prompt": "A 52-year-old woman has a serum calcium of 11.6 mg/dL, a raised parathyroid hormone, a kidney stone last year and low bone density. What is the best treatment?",
+   "choices": [
+    "Parathyroidectomy after localization",
+    "Lifelong bisphosphonate monotherapy",
+    "Cinacalcet with no surgical referral",
+    "Observation with annual calcium testing"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l18.q5",
+   "lessonId": "med-clin-surgery.l18",
+   "kind": "mcq",
+   "prompt": "A patient with a thyroid nodule has a family history of a thyroid cancer and pheochromocytoma in a sibling, and a markedly high calcitonin. What must be done before thyroid surgery?",
+   "choices": [
+    "Radioiodine ablation to shrink the tumor",
+    "Start high-dose thyroid hormone suppression",
+    "Sentinel node biopsy of the neck",
+    "Exclude pheochromocytoma with metanephrines"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l19.q1",
+   "lessonId": "med-clin-surgery.l19",
+   "kind": "mcq",
+   "prompt": "What is the time-sensitive treatment for testicular torsion?",
+   "choices": [
+    "Observation with analgesics",
+    "Ultrasound follow-up in a week",
+    "Surgical detorsion and fixation",
+    "Antibiotics and scrotal support"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l19.q2",
+   "lessonId": "med-clin-surgery.l19",
+   "kind": "mcq",
+   "prompt": "Which stone type is radiolucent on plain radiographs?",
+   "choices": [
+    "Calcium oxalate",
+    "Struvite",
+    "Calcium phosphate",
+    "Uric acid"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l19.q3",
+   "lessonId": "med-clin-surgery.l19",
+   "kind": "mcq",
+   "prompt": "A 24-year-old man has a painless testicular mass. What is the correct procedure for diagnosis and treatment?",
+   "choices": [
+    "Radical inguinal orchiectomy",
+    "Transscrotal biopsy of the mass",
+    "Fine-needle aspiration of the testis",
+    "Antibiotic course and repeat examination"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l19.q4",
+   "lessonId": "med-clin-surgery.l19",
+   "kind": "mcq",
+   "prompt": "A 45-year-old man with an obstructing ureteral stone has a temperature of 39.2 C, a heart rate of 120 and a blood pressure of 90/55 mmHg. Urinalysis shows pyuria. What is the next best step?",
+   "choices": [
+    "Fluids and observation until the stone passes",
+    "Antibiotics and urgent stent or nephrostomy",
+    "Oral analgesia and tamsulosin with outpatient follow-up",
+    "Shock wave lithotripsy tomorrow after clinic review"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l19.q5",
+   "lessonId": "med-clin-surgery.l19",
+   "kind": "mcq",
+   "prompt": "A 13-year-old obese boy has a limp and knee pain, and his hip has limited internal rotation. What is the likely diagnosis?",
+   "choices": [
+    "Osgood-Schlatter disease",
+    "Transient synovitis",
+    "Slipped capital femoral epiphysis",
+    "Legg-Calve-Perthes disease"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l20.q1",
+   "lessonId": "med-clin-surgery.l20",
+   "kind": "mcq",
+   "prompt": "Which collagen type predominates in early granulation tissue?",
+   "choices": [
+    "Type IV",
+    "Type II",
+    "Type III",
+    "Type I"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l20.q2",
+   "lessonId": "med-clin-surgery.l20",
+   "kind": "mcq",
+   "prompt": "When should prophylactic antibiotics generally be given before surgery?",
+   "choices": [
+    "The evening before the operation",
+    "After the wound is closed",
+    "Continued for a week afterward",
+    "Within 60 minutes before incision"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l20.q3",
+   "lessonId": "med-clin-surgery.l20",
+   "kind": "mcq",
+   "prompt": "How does a keloid differ from a hypertrophic scar?",
+   "choices": [
+    "It extends beyond the original wound margins",
+    "It regresses over time without treatment",
+    "It occurs only after burn injury",
+    "It stays within the wound borders"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l20.q4",
+   "lessonId": "med-clin-surgery.l20",
+   "kind": "mcq",
+   "prompt": "A diabetic man has a day of perineal pain, fever and hypotension. His scrotum is red and swollen with crepitus, and a white count is 24,000. What is the next best step?",
+   "choices": [
+    "Needle aspiration of the scrotum with discharge",
+    "Emergency debridement with broad antibiotics",
+    "Oral antibiotics and warm sitz baths at home",
+    "CT scan first, with surgery only if results are clear"
+   ]
+  },
+  {
+   "id": "med-clin-surgery.l20.q5",
+   "lessonId": "med-clin-surgery.l20",
+   "kind": "mcq",
+   "prompt": "A 35-year-old man has a farm wound, and 36 hours later has severe pain, bronze skin discoloration, gas in tissue and gram-positive rods on smear. Which is the likely cause?",
+   "choices": [
+    "Pseudomonas aeruginosa",
+    "Staphylococcus aureus",
+    "Clostridium perfringens",
+    "Group A Streptococcus"
+   ]
+  }
+ ]
+}

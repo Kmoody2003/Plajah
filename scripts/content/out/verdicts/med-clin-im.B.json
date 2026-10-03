@@ -1,0 +1,1246 @@
+{
+ "courseId": "med-clin-im",
+ "verifier": "B",
+ "note": "Rerun with web access. PubMed, ahajournals, diabetesjournals and professional.heart.org returned 403/cookie walls to WebFetch and curl; Europe PMC and other pages used instead. Claims with no opened supporting page are marked unverifiable.",
+ "fetched": 45,
+ "questions": [
+  {
+   "id": "med-clin-im.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l02.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l02.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.acc.org/latest-in-cardiology/ten-points-to-remember/2023/11/27/19/46/2023-acc-guideline-for-af-gl-af"
+   ]
+  },
+  {
+   "id": "med-clin-im.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.acc.org/latest-in-cardiology/ten-points-to-remember/2023/11/27/19/46/2023-acc-guideline-for-af-gl-af"
+   ]
+  },
+  {
+   "id": "med-clin-im.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.acc.org/latest-in-cardiology/articles/2025/10/01/01/new-in-clinical-guidance-hbp"
+   ],
+   "note": "Correct for 2017; the 2025 AHA/ACC guideline supersedes it and keeps the 130/80 threshold."
+  },
+  {
+   "id": "med-clin-im.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l04.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://schillerus.com/gina-2025-key-updates-for-the-diagnosis-and-management-of-asthma/"
+   ],
+   "note": "Consistent with GINA 2025 (SABA-only not recommended; ICS-formoterol Track 1 preferred)."
+  },
+  {
+   "id": "med-clin-im.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l06.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l06.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l07.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l08.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l10.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l10.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l10.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l10.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l10.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l11.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l11.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.pharmacytimes.com/view/ada-2026-earlier-glp-1-and-sglt-2-use-recommended-from-diabetes-diagnosis-expert-says"
+   ]
+  },
+  {
+   "id": "med-clin-im.l11.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://consultqd.clevelandclinic.org/hyperglycemic-crises-in-adults-the-2024-consensus-report"
+   ],
+   "note": "Answer unaffected, but the 2024 ADA/EASD/JBDS/AACE/DTS hyperglycemic-crises consensus delays insulin until K >3.5 mmol/L (lesson says 3.3)."
+  },
+  {
+   "id": "med-clin-im.l11.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l11.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l12.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l12.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l12.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l13.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l13.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l13.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l13.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l14.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l14.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l14.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l14.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l14.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l15.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l15.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l15.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l15.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l15.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l16.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l16.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l16.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l17.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.sccm.org/clinical-resources/guidelines/guidelines/surviving-sepsis-campaign-international-guidelines-for-management-of-sepsis-and-septic-shock-2026"
+   ],
+   "note": "Norepinephrine remains first-line in Surviving Sepsis Campaign 2026."
+  },
+  {
+   "id": "med-clin-im.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l17.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l17.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l17.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l18.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l18.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l18.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l18.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l18.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l19.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l19.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l19.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l19.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l19.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l20.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/osteoporosis-screening"
+   ]
+  },
+  {
+   "id": "med-clin-im.l20.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l20.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-im.l20.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-clin-im.l01",
+   "claim": "ACC/AHA favor primary PCI with a ~90-minute goal and fibrinolysis if PCI cannot be reached within ~120 minutes of first contact.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.guidelinecentral.com/guideline/4374545/"
+   ],
+   "note": "Current guideline is the 2025 ACC/AHA/ACEP/NAEMSP/SCAI ACS guideline: FMC-to-device <=90 min (1A); fibrinolysis when anticipated PPCI delay >120 min from FMC (1A). Lesson names no year; consider citing 2025."
+  },
+  {
+   "lessonId": "med-clin-im.l01",
+   "claim": "Everyone gets aspirin early; secondary prevention includes high-intensity statin, antiplatelet therapy, beta-blocker and cardiac rehabilitation.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.guidelinecentral.com/guideline/4374545/",
+    "https://www.acc.org/latest-in-cardiology/articles/2025/04/01/01/new-in-clinical-guidance"
+   ],
+   "note": "2025 ACS guideline: aspirin load 1A, early oral beta-blocker 1A, high-intensity statin 1A, DAPT >=12 months, cardiac rehab referral."
+  },
+  {
+   "lessonId": "med-clin-im.l01",
+   "claim": "Fibrinolysis ideally within 30 minutes of arrival at a non-PCI center; morphine no longer routine.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Opened summaries did not quote the 30-minute door-to-needle target or the morphine wording; search snippets indicate FMC-to-needle <=30 min and opioids only for refractory pain."
+  },
+  {
+   "lessonId": "med-clin-im.l02",
+   "claim": "The 2022 ACC/AHA/HFSA guideline: HFrEF is EF <=40%, HFpEF >=50%, four foundational classes (ARNi/ACEi/ARB, beta-blocker, MRA, SGLT2i).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.acc.org/latest-in-cardiology/ten-points-to-remember/2022/03/29/19/53/2022-aha-acc-hfsa-heart-failure-guideline-gl-hf"
+   ],
+   "note": "2022 AHA/ACC/HFSA guideline remains the current comprehensive US HF guideline as of Oct 2026 (an update is listed as in progress)."
+  },
+  {
+   "lessonId": "med-clin-im.l02",
+   "claim": "SGLT2 inhibitors reduce HF hospitalization in HFpEF.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.acc.org/latest-in-cardiology/ten-points-to-remember/2022/03/29/19/53/2022-aha-acc-hfsa-heart-failure-guideline-gl-hf"
+   ],
+   "note": "2022 guideline gives SGLT2i a 2a recommendation in HFmrEF/HFpEF."
+  },
+  {
+   "lessonId": "med-clin-im.l02",
+   "claim": "ACE inhibitor to sacubitril-valsartan requires a 36-hour washout; ICD for EF <=35% after >=3 months of therapy.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not confirmed on an opened page (AHA/PubMed pages blocked); consistent with labeling knowledge only."
+  },
+  {
+   "lessonId": "med-clin-im.l03",
+   "claim": "The ACC/AHA/ACCP/HRS guideline of 2023 increased emphasis on early rhythm control and risk-factor modification.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.acc.org/latest-in-cardiology/ten-points-to-remember/2023/11/27/19/46/2023-acc-guideline-for-af-gl-af"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-im.l03",
+   "claim": "Anticoagulation is generally recommended at CHA2DS2-VASc >=2 in men and >=3 in women.",
+   "verdict": "supported",
+   "sources": [
+    "https://utswmed.org/heart/physician-update/physician-update-2024/applications-and-implications-of-the-2023-accahaaccphrs-guideline/",
+    "https://www.acc.org/latest-in-cardiology/ten-points-to-remember/2023/11/27/19/46/2023-acc-guideline-for-af-gl-af"
+   ],
+   "note": "2023 guideline frames the threshold as annual stroke risk >=2%, equivalent to these scores. (ESC 2024 uses CHA2DS2-VA without sex.)"
+  },
+  {
+   "lessonId": "med-clin-im.l03",
+   "claim": "DOACs are preferred over warfarin except in moderate-severe mitral stenosis or a mechanical valve.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.acc.org/latest-in-cardiology/ten-points-to-remember/2023/11/27/19/46/2023-acc-guideline-for-af-gl-af"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-im.l04",
+   "claim": "The 2017 ACC/AHA guideline defines hypertension as >=130/80 mmHg (presented as the current US reference).",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.acc.org/latest-in-cardiology/articles/2025/10/01/01/new-in-clinical-guidance-hbp"
+   ],
+   "note": "Out of date: the 2025 AHA/ACC high blood pressure guideline (Aug 2025) supersedes 2017. It keeps 130/80 (stage 1 130-139/80-89) and a <130/80 goal for all adults, and the same first-line classes. Update the citation."
+  },
+  {
+   "lessonId": "med-clin-im.l04",
+   "claim": "Endocarditis echocardiography is interpreted with the modified Duke criteria; at least three blood-culture sets from separate sites.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://academic.oup.com/cid/article/77/4/518/7151107"
+   ],
+   "note": "Out of date: the 2023 Duke-ISCVID criteria update the 2000 modified Duke criteria (adds PET/CT, cardiac CT, PCR/sequencing, intraoperative inspection; removes timing/separate-venipuncture requirements for cultures). Three sets before antibiotics is still sound practice."
+  },
+  {
+   "lessonId": "med-clin-im.l04",
+   "claim": "Dental prophylaxis is reserved for prosthetic valves, prior endocarditis, certain congenital heart disease and cardiac transplant valvulopathy (AHA 2007 onward).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ada.org/resources/ada-library/oral-health-topics/antibiotic-prophylaxis"
+   ],
+   "note": "2021 AHA scientific statement made no changes to the 2007 recommendations."
+  },
+  {
+   "lessonId": "med-clin-im.l05",
+   "claim": "GINA (report of 2024) recommends that even mild asthma not be treated with SABA alone; ICS-formoterol as-needed is a preferred approach.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://schillerus.com/gina-2025-key-updates-for-the-diagnosis-and-management-of-asthma/"
+   ],
+   "note": "Version out of date, substance correct: GINA 2025 keeps SABA-only not recommended and ICS-formoterol (Track 1) preferred; a GINA 2026 strategy report is posted on ginasthma.org (May 2026). Cite the current year."
+  },
+  {
+   "lessonId": "med-clin-im.l05",
+   "claim": "GOLD (report of 2024): long-acting bronchodilator base therapy; ICS added for continued exacerbations with eosinophils >=300/uL.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.uspharmacist.com/article/updated-gold-2026-report-broadens-copd-treatment-guidance"
+   ],
+   "note": "Version out of date, substance largely correct: GOLD 2026 (published Dec 1, 2025) is current; LABA+LAMA base, ICS considered with eos >=300, and GOLD 2026 now advises escalation after even one moderate exacerbation."
+  },
+  {
+   "lessonId": "med-clin-im.l05",
+   "claim": "Long-term oxygen prolongs survival when resting PaO2 <=55 mmHg or saturation <=88%.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard GOLD criterion but no reliable primary page was opened (GOLD PDF too large)."
+  },
+  {
+   "lessonId": "med-clin-im.l06",
+   "claim": "The ESC guideline of 2019 defines high-risk PE by hemodynamic instability and calls for systemic thrombolysis, with catheter-directed or surgical embolectomy as alternatives.",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC13400101/"
+   ],
+   "note": "Accurate for ESC 2019, but a US guideline now exists: 2026 AHA/ACC/ACCP/ACEP/CHEST et al. acute PE guideline (July 2026) with new clinical categories A-E and broader roles for catheter-directed therapy. Lesson should mention it."
+  },
+  {
+   "lessonId": "med-clin-im.l06",
+   "claim": "ATS/IDSA 2019: outpatients without comorbidity get amoxicillin, doxycycline or a macrolide (if local resistance low); ward inpatients get beta-lactam plus macrolide or a respiratory fluoroquinolone.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.aafp.org/pubs/afp/issues/2020/0715/p121.html"
+   ],
+   "note": "Macrolide only where pneumococcal macrolide resistance <25%. Search results indicate a 2025 ATS update on selected questions (e.g., withholding antibiotics in virus-positive healthy outpatients); not opened."
+  },
+  {
+   "lessonId": "med-clin-im.l06",
+   "claim": "Empyema/complicated parapneumonic effusion is drained when pleural pH is below 7.2 or pus is present.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.aafp.org/pubs/afp/issues/2023/1100/pleural-effusion.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-im.l07",
+   "claim": "Restrictive transfusion threshold about 7 g/dL and endoscopy within 24 hours for upper GI bleeding.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.guidelinecentral.com/guideline/325721/"
+   ],
+   "note": "ACG 2021 UGIB guideline. Note: ACG reached no consensus on pre-endoscopic PPI, which the lesson presents as routine."
+  },
+  {
+   "lessonId": "med-clin-im.l07",
+   "claim": "UC treatment steps from aminosalicylates to biologics such as anti-TNF, vedolizumab and ustekinumab; toxic megacolon needs surgical consultation.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.guidelinecentral.com/guideline/13311/"
+   ],
+   "note": "2025 ACG UC guideline update also lists IL-23 inhibitors and JAK inhibitors."
+  },
+  {
+   "lessonId": "med-clin-im.l07",
+   "claim": "Colonoscopic surveillance for dysplasia begins after about eight years of colitis.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Search snippet from ACG 2019 UC guideline states 8 years, but the opened 2025 summary did not state it."
+  },
+  {
+   "lessonId": "med-clin-im.l08",
+   "claim": "Hepatitis C screening is recommended once for all adults by the USPSTF of 2020.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/hepatitis-c-screening"
+   ],
+   "note": "USPSTF (March 2, 2020, grade B) covers adults aged 18 to 79, not all adults; periodic rescreening for ongoing risk. (CDC 2020 says all adults >=18.)"
+  },
+  {
+   "lessonId": "med-clin-im.l08",
+   "claim": "SBP is diagnosed by ascitic neutrophil count >=250/uL and treated with a third-generation cephalosporin plus albumin; paracentesis for anyone admitted with ascites.",
+   "verdict": "supported",
+   "sources": [
+    "https://cdn.hepatitisc.uw.edu/pdf/management-cirrhosis-related-complications/spontaneous-bacterial-peritonitis-recognition-management/core-concept/all"
+   ],
+   "note": "PMN >=250 cells/mm3; third-generation cephalosporins first line; all with cirrhosis and ascites admitted should have diagnostic paracentesis. Albumin not confirmed in extracted text."
+  },
+  {
+   "lessonId": "med-clin-im.l08",
+   "claim": "Acute pancreatitis: 2 of 3 criteria (pain, lipase/amylase >3x ULN, imaging); goal-directed fluids, early oral feeding, antibiotics only for infection, ERCP only with cholangitis/obstruction, same-admission cholecystectomy for mild gallstone pancreatitis.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.the-hospitalist.org/hospitalist/article/41218/critical-care/applying-the-2024-acg-guidelines-on-acute-pancreatitis-to-hospital-medicine/"
+   ],
+   "note": "2024 ACG acute pancreatitis guideline; LR preferred, moderate (not aggressive) fluids."
+  },
+  {
+   "lessonId": "med-clin-im.l09",
+   "claim": "KDIGO AKI: creatinine rise of 0.3 mg/dL within 48 hours or 1.5-fold from baseline within a week.",
+   "verdict": "supported",
+   "sources": [
+    "https://acdis.org/articles/qa-kdigo-criteria"
+   ],
+   "note": "Also urine output <0.5 mL/kg/h for 6 h."
+  },
+  {
+   "lessonId": "med-clin-im.l09",
+   "claim": "KDIGO 2024: ACEi/ARB with albuminuria, SGLT2i in diabetic and many nondiabetic CKD with adequate eGFR, finerenone in diabetic kidney disease with albuminuria; CKD defined by abnormalities >3 months.",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC12158546/"
+   ],
+   "note": "SGLT2i threshold eGFR >=20."
+  },
+  {
+   "lessonId": "med-clin-im.l09",
+   "claim": "Prerenal azotemia: FENa below 1 percent, BUN:Cr >20; ATN: FENa above 2 percent with muddy brown casts.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Textbook values; no page opened."
+  },
+  {
+   "lessonId": "med-clin-im.l10",
+   "claim": "Chronic hyponatremia must not be corrected more than 8 mEq/L in 24 hours in high-risk patients to avoid osmotic demyelination.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Search snippets cite the US/Irish expert panel (<=8 mmol/L per 24 h in high-risk; 10-12 average risk), but the CJASN page returned 402 and was not read."
+  },
+  {
+   "lessonId": "med-clin-im.l10",
+   "claim": "Anion gap normal near 8 to 12; MUDPILES causes of high-gap acidosis.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page; normal range is assay-dependent."
+  },
+  {
+   "lessonId": "med-clin-im.l10",
+   "claim": "Hyperkalemia emergency: IV calcium first, then insulin-glucose and beta agonists, then removal.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-im.l11",
+   "claim": "DKA: give IV insulin only after confirming potassium is at least about 3.3 mEq/L.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://consultqd.clevelandclinic.org/hyperglycemic-crises-in-adults-the-2024-consensus-report",
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC11343900/"
+   ],
+   "note": "2024 ADA/EASD/JBDS/AACE/DTS hyperglycemic-crises consensus (June 2024): if K <3.5 mmol/L, replace at ~10 mmol/h and postpone insulin until K >3.5. The 3.3 threshold is from the 2009 ADA statement."
+  },
+  {
+   "lessonId": "med-clin-im.l11",
+   "claim": "HHS: glucose often above 600 mg/dL with effective osmolality above about 320.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://consultqd.clevelandclinic.org/hyperglycemic-crises-in-adults-the-2024-consensus-report"
+   ],
+   "note": "2024 consensus HHS criteria: glucose >=600 mg/dL AND calculated effective osmolality >300 mOsm/kg or total osmolality >320; BHB <3.0 mmol/L. DKA now: glucose >=200 or known diabetes, BHB >=3.0 mmol/L, pH <7.3 or HCO3 <18. Lesson does not give the updated DKA criteria."
+  },
+  {
+   "lessonId": "med-clin-im.l11",
+   "claim": "The ADA Standards of Care of 2024 (updated annually) keep metformin as a common first drug; GLP-1 RA or SGLT2i favored in ASCVD, HF or CKD independent of A1c.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.pharmacytimes.com/view/ada-2026-earlier-glp-1-and-sglt-2-use-recommended-from-diabetes-diagnosis-expert-says"
+   ],
+   "note": "Dated: the current edition is Standards of Care in Diabetes-2026, which recommends considering GLP-1 RA/SGLT2i from diagnosis as disease-modifying therapy and moves away from 'lifestyle plus metformin first'. The cardiorenal-indication part is still correct."
+  },
+  {
+   "lessonId": "med-clin-im.l12",
+   "claim": "Propylthiouracil is preferred in the first trimester of pregnancy.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.thyroid.org/hyperthyroidism-in-pregnancy/"
+   ],
+   "note": "ATA: PTU preferred until week 16."
+  },
+  {
+   "lessonId": "med-clin-im.l12",
+   "claim": "An adrenal incidentaloma should always prompt checking metanephrines, an aldosterone-to-renin ratio if hypertensive, and a dexamethasone suppression test.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC10475962/"
+   ],
+   "note": "2023 ESE/ENSAT guideline: metanephrines are NOT needed when the mass is <=10 HU on unenhanced CT; DST may be omitted in frail patients with limited life expectancy. ARR with hypertension or unexplained hypokalemia is correct."
+  },
+  {
+   "lessonId": "med-clin-im.l12",
+   "claim": "Thionamide agranulocytosis: a patient with fever and sore throat should be tested at once.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "ATA 2016 guidance (stop drug, urgent CBC) seen only in search snippet."
+  },
+  {
+   "lessonId": "med-clin-im.l13",
+   "claim": "Thalassemia trait shows a Mentzer index below 13.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mentzer_index"
+   ],
+   "note": "Tertiary source; screening heuristic only."
+  },
+  {
+   "lessonId": "med-clin-im.l13",
+   "claim": "Only B12 deficiency (not folate) raises methylmalonic acid and causes subacute combined degeneration.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-im.l13",
+   "claim": "Iron deficiency in an adult man or postmenopausal woman demands GI evaluation including colonoscopy and endoscopy.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Consistent with AGA 2020 iron-deficiency guideline per knowledge; no page opened."
+  },
+  {
+   "lessonId": "med-clin-im.l14",
+   "claim": "Apixaban and rivaroxaban are reversed with andexanet alfa or prothrombin complex concentrate.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.tctmd.com/news/andexanet-alfa-pulled-us-market"
+   ],
+   "note": "Out of date for the U.S.: andexanet alfa (Andexxa) was withdrawn from the US market on Dec 22, 2025 after ANNEXA-I showed doubled thrombosis (14.6% vs 6.9%). In the US, PCC is the remaining option for factor Xa inhibitor reversal; still conditionally authorized in EU/UK."
+  },
+  {
+   "lessonId": "med-clin-im.l14",
+   "claim": "HIT: score with 4Ts, stop all heparin, start a nonheparin anticoagulant such as argatroban or fondaparinux; do not start warfarin until platelets recover.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.hematology.org/-/media/hematology/files/education/clinicians/guidelines-quality/documents/ash_vte_hit_pocketguide.pdf"
+   ],
+   "note": "ASH 2018 HIT guideline; DOACs are also listed options."
+  },
+  {
+   "lessonId": "med-clin-im.l14",
+   "claim": "TTP is caused by ADAMTS13 deficiency and needs urgent plasma exchange.",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC9217651/"
+   ],
+   "note": "ISTH 2020 (endorsed by ERBP): TPE plus steroids immediately; rituximab and caplacizumab may be added. A 2025 ISTH focused update exists (not opened)."
+  },
+  {
+   "lessonId": "med-clin-im.l15",
+   "claim": "USPSTF: colorectal screening 45-75 (2021); breast biennial 40-74 (2024); lung LDCT 50-80, >=20 pack-years, quit within 15 years (2021).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/colorectal-cancer-screening",
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/breast-cancer-screening",
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/lung-cancer-screening"
+   ],
+   "note": "CRC May 18, 2021; breast April 30, 2024; lung March 9, 2021."
+  },
+  {
+   "lessonId": "med-clin-im.l15",
+   "claim": "Cervical cancer: cytology every 3 years 21-29, then cytology, hrHPV or both up to 65 (USPSTF 2018).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/draft-recommendation/cervical-cancer-screening-adults-adolescents"
+   ],
+   "note": "Still the final rec; a Dec 10, 2024 USPSTF draft prefers primary hrHPV every 5 years at 30-65, including patient self-collection. PSA (2018) page notes an update in progress."
+  },
+  {
+   "lessonId": "med-clin-im.l15",
+   "claim": "PSA screening is an individual decision for men 55-69 (2018); one-time AAA ultrasound for men 65-75 who ever smoked.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/prostate-cancer-screening",
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/abdominal-aortic-aneurysm-screening"
+   ],
+   "note": "PSA May 8, 2018 (grade C), update in progress; AAA Dec 10, 2019 (grade B)."
+  },
+  {
+   "lessonId": "med-clin-im.l16",
+   "claim": "Febrile neutropenia is temperature >=38.3 C with ANC below about 500/uL and needs antipseudomonal beta-lactam within an hour.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/sites/books/NBK541102/"
+   ],
+   "note": "IDSA: single oral temp >=38.3 C or >=38.0 C sustained 1 h; antibiotics within 1 h; cefepime, pip-tazo or carbapenem. StatPearls defines neutropenia as ANC <1500 with severe <500; IDSA FN uses <500 or expected to fall below 500."
+  },
+  {
+   "lessonId": "med-clin-im.l16",
+   "claim": "Rasburicase is avoided in G6PD deficiency; tumor lysis gives hyperkalemia, hyperphosphatemia, hypocalcemia, hyperuricemia.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-im.l16",
+   "claim": "CML has t(9;22) producing BCR-ABL; APL has t(15;17) PML-RARA treated at first suspicion with ATRA.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-im.l17",
+   "claim": "The Surviving Sepsis Campaign guideline of 2021: antimicrobials within 1 hour in shock/probable sepsis, ~30 mL/kg balanced crystalloid, norepinephrine first-line, MAP 65.",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.sccm.org/clinical-resources/guidelines/guidelines/surviving-sepsis-campaign-international-guidelines-for-management-of-sepsis-and-septic-shock-2026"
+   ],
+   "note": "Version out of date, substance unchanged: SSC 2026 guidelines were published March 23, 2026 and keep antimicrobials ideally within 1 h, cultures before antibiotics, >=30 mL/kg crystalloid (conditional), balanced crystalloids, norepinephrine first-line, MAP 65."
+  },
+  {
+   "lessonId": "med-clin-im.l17",
+   "claim": "Adult empiric meningitis therapy is vancomycin plus ceftriaxone with ampicillin over age 50 or immunocompromised; dexamethasone with or before the first dose; cultures and antibiotics before CT when imaging delays LP.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.aafp.org/pubs/afp/issues/2005/0515/p2003.html"
+   ],
+   "note": "IDSA 2004 guideline (still the IDSA community-acquired meningitis guideline)."
+  },
+  {
+   "lessonId": "med-clin-im.l17",
+   "claim": "IDSA/SHEA 2021 focused update prefers fidaxomicin over oral vancomycin for an initial C. difficile episode; fulminant disease gets high-dose oral vancomycin plus IV metronidazole.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.idsociety.org/practice-guideline/clostridioides-difficile-2021-focused-update/"
+   ],
+   "note": "Fidaxomicin preference is conditional and resource-dependent; not used in fulminant CDI."
+  },
+  {
+   "lessonId": "med-clin-im.l18",
+   "claim": "PCP prophylaxis with TMP-SMX at CD4 <200, covering Toxoplasma (CD4 <100); MAC prophylaxis not routine when ART started promptly.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.hiv.uw.edu/pdf/co-occurring-conditions/opportunistic-infections-prevention/core-concept/all"
+   ],
+   "note": "Toxoplasma prophylaxis only if Toxoplasma IgG positive."
+  },
+  {
+   "lessonId": "med-clin-im.l18",
+   "claim": "CDC 2021 STI guidelines: ceftriaxone for gonorrhea, doxycycline for chlamydia; benzathine penicillin G for primary syphilis and in pregnancy.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/mmwr/volumes/70/rr/rr7004a1.htm"
+   ],
+   "note": "Gonorrhea ceftriaxone 500 mg IM (1 g if >=150 kg)."
+  },
+  {
+   "lessonId": "med-clin-im.l18",
+   "claim": "DHHS recommends ART for everyone with HIV as soon as possible, built around an INSTI plus two NRTIs.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "clinicalinfo.hiv.gov returned 403. Search snippets indicate current DHHS guidance favors second-generation INSTI plus one or two NRTIs (e.g., DTG/3TC), so 'plus two NRTIs' is incomplete."
+  },
+  {
+   "lessonId": "med-clin-im.l19",
+   "claim": "ACR 2020 gout: allopurinol first-line ULT for frequent flares or tophi, with flare prophylaxis during initiation.",
+   "verdict": "supported",
+   "sources": [
+    "https://rheumatology.org/press-releases/acr-releases-gout-management-guideline-with-emphasis-on-treat-to-target-strategy-for-urate-lowering-therapy"
+   ],
+   "note": "Released May 11, 2020; prophylaxis 3-6 months; treat-to-target urate <6 mg/dL."
+  },
+  {
+   "lessonId": "med-clin-im.l19",
+   "claim": "In GCA high-dose glucocorticoids are started before the temporal artery biopsy.",
+   "verdict": "supported",
+   "sources": [
+    "https://pmc.ncbi.nlm.nih.gov/articles/PMC12344528/"
+   ],
+   "note": "2021 ACR/VF guideline: biopsy within 2 weeks of starting glucocorticoids; IV pulse conditionally for threatened vision loss."
+  },
+  {
+   "lessonId": "med-clin-im.l19",
+   "claim": "Urate crystals are needle-shaped and negatively birefringent; CPPD rhomboid and positively birefringent.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "med-clin-im.l20",
+   "claim": "AGS Beers Criteria updated in 2023 list first-generation antihistamines, benzodiazepines and long-acting sulfonylureas such as glyburide.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.pharmacytimes.com/view/beers-criteria-updates-refine-introduce-new-drug-criteria"
+   ],
+   "note": "2023 update extends the avoid-sulfonylurea advice to all sulfonylureas (incl. short-acting glipizide), not only long-acting ones."
+  },
+  {
+   "lessonId": "med-clin-im.l20",
+   "claim": "USPSTF 2025 recommends osteoporosis screening in women 65+ and younger postmenopausal women at increased risk; osteoporosis is T-score <= -2.5.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/osteoporosis-screening"
+   ],
+   "note": "Final Jan 14, 2025, grade B; men grade I."
+  },
+  {
+   "lessonId": "med-clin-im.l20",
+   "claim": "Anti-amyloid antibodies are newer Alzheimer therapies with modest effects and risk of ARIA.",
+   "verdict": "supported",
+   "sources": [
+    "https://clevelandadrc.org/education-resources/new-fda-approved-alzheimers-treatments/"
+   ],
+   "note": "Lecanemab (2023) and donanemab (July 2, 2024) are FDA-approved; aducanumab also received accelerated approval in 2021."
+  }
+ ]
+}

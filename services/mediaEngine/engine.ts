@@ -12,21 +12,24 @@ import {
 import { detectCapabilities } from './capabilities';
 import { WebcamSource, WhepSource } from './browserSources';
 import {
-  hasNativeEngine, listNativeSources, connectNativeSource, disconnectNativeSource,
+  hasNativeEngine, listNativeSources, scanNdiStreams, connectNativeSource, disconnectNativeSource,
   nativeRoute, nativeProgram, nativeSync, NativeSourceInfo,
 } from './bridge';
 import { VideoSource as IVideoSource, FrameRef } from './types';
 
 /** A source acquired by the native engine (capture card / NDI / SRT). Frames arrive as
  *  GPU texture handles, not a browser MediaStream. No-op unless a native host is present. */
-class NativeSource implements IVideoSource {
+export class NativeSource implements IVideoSource {
   id: string; label: string; kind: NativeSourceInfo['kind'];
   formats: NativeSourceInfo['formats']; latencyMs: number; clockDomain?: string;
+  url?: string; machineName?: string; streamName?: string; status?: string; discoveryMethod?: string;
   tally: IVideoSource['tally'] = 'off'; stream = null; connected = false;
   private cbs: ((f: FrameRef) => void)[] = [];
   constructor(info: NativeSourceInfo) {
     this.id = info.id; this.label = info.label; this.kind = info.kind;
     this.formats = info.formats || []; this.latencyMs = info.latencyMs ?? 0; this.clockDomain = info.clockDomain;
+    this.url = info.url; this.machineName = info.machineName; this.streamName = info.streamName;
+    this.status = info.status; this.discoveryMethod = info.discoveryMethod;
   }
   async connect() { const r = await connectNativeSource(this.id); this.connected = !!r; if (r?.textureId) for (const cb of this.cbs) cb({ textureId: r.textureId }); }
   onFrame(cb: (f: FrameRef) => void) { this.cbs.push(cb); }
@@ -132,6 +135,19 @@ export class MediaEngine {
       this.commit({ router: { ...this.state.router, sources: [...this.state.router.sources, ...fresh] } });
       this.recomputeSync();
     }
+  }
+
+  /** Actively probe the network and NDI runtime for NDI streams and register them into the router/switcher. */
+  async scanNdi(): Promise<NativeSourceInfo[]> {
+    if (!hasNativeEngine()) return [];
+    const infos = await scanNdiStreams();
+    const existing = new Set(this.state.router.sources.map(s => s.id));
+    const fresh = infos.filter(i => !existing.has(i.id)).map(i => new NativeSource(i));
+    if (fresh.length) {
+      this.commit({ router: { ...this.state.router, sources: [...this.state.router.sources, ...fresh] } });
+      this.recomputeSync();
+    }
+    return infos;
   }
 
   removeSource(id: string) {

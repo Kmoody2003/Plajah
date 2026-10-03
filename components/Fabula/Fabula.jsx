@@ -5,8 +5,8 @@ import IndexedVideoCanvas from './IndexedVideoCanvas';
 import { indexedVideoAvailable } from '../../services/mediaEngine/indexedVideo';
 import PanelDivider from "./PanelDivider";
 import { timelineBoundaries, crossedTimelineBoundary } from "../../services/fabula/timelineBoundaries";
-import { resolveMediaSource, setAudioProxyPreference, setLocalOnly, isLocalOnly, mediaOriginOf, subscribeMediaOrigin } from "../../services/fabula/mediaSource";
-import { prefetchAssets, onPrefetched, cancelPrefetch, setPrefetchSuspended, conformNow } from "../../services/fabula/prefetch";
+import { resolveMediaSource, setAudioProxyPreference, setLocalOnly, isLocalOnly, setSyncMode, isSyncMode, downloadMissingAsset, mediaOriginOf, subscribeMediaOrigin, onAssetDownloaded } from "../../services/fabula/mediaSource";
+import { prefetchAssets, onPrefetched, cancelPrefetch, setPrefetchSuspended, conformNow, autoSyncProjectMedia } from "../../services/fabula/prefetch";
 import { nextShuttleRate } from "../../services/fabula/shuttle";
 import { useState, useEffect, useRef, useMemo, memo, Fragment } from "react";
 import {
@@ -15,8 +15,9 @@ import {
   Palette, Box, Cpu, Lock, Unlock, Camera, Brush, Type, Captions, Keyboard,
   Scissors, MousePointer2, FlagTriangleRight, FlagTriangleLeft,
   SlidersHorizontal, Mic2, FolderOpen, Search, Tag, FileText, RefreshCw,
-  Image as ImageIcon, HardDrive,
+  Image as ImageIcon, HardDrive, Eye,
 } from "lucide-react";
+import SpatialStudio from "./SpatialStudio";
 import * as THREE from "three";
 import { get as idbGet, set as idbSet, del as idbDel, keys as idbKeys } from "idb-keyval";
 import { putBytes as mediaPutBytes, getBytes as mediaGetBytes, delBytes as mediaDelBytes } from "../../services/fabula/mediaStore";
@@ -89,8 +90,11 @@ import { quickStems, separateStemsCloud } from "../../services/fabula/stemSepara
 import { exportFCPXML, importFCPXML } from "../../services/fabula/fcpxml";
 import { initResumableUploads, enqueueUpload, onUploadProgress, pendingCount, setUploadsPaused, uploadsPaused, clearUploadQueue } from "../../services/fabula/resumableUpload";
 import { listSyncFolders, addSyncFolder, removeSyncFolder, rescanNew, markSeen, getFileFromFolder, foldersNeedingAuth, reconnectFolders } from "../../services/fabula/syncFolders";
+import { isWindowsApp, pickWindowsFolder, pickWindowsFile, convertWindowsPickedFileToFile, getStudioDisplays, openStudioCleanFeed, closeStudioCleanFeed, onNativeMessage, extractStudioThumbnails } from "../../services/windowsBridgeService";
 import { isVectorFile, rasterizeVector } from "../../services/fabula/vectorRaster";
 import GeneratePanel from "./GeneratePanel";
+import RunwayPluginPanel from "./RunwayPluginPanel";
+import { LocalCreativeStudio } from "./LocalCreativeStudio";
 import { specFromShot, connectorById, placeResultInCut } from "../../services/fabula/genAgent";
 import { auth } from "../../services/firebase";
 import { onAuthStateChanged } from "firebase/auth";
@@ -108,6 +112,7 @@ import LowerThirdInspector from "./LowerThirdInspector";
 import BroadcastGraphicMonitor from "./BroadcastGraphicMonitor";
 import { findLowerThird } from "../../services/fabula/lowerThirdRegistry";
 import { openLowerThirdInTela } from "../../services/fabula/lowerThirdToTela";
+import ViewerFpsBadge from "./ViewerFpsBadge";
 
 // Read a drag-and-drop into { path, name, file } items, recursively walking dropped FOLDERS via the
 // webkitGetAsEntry directory API (mirroring their structure into `path`). This is a picker-free way to
@@ -654,9 +659,32 @@ export default function Fabula() {
   const [srcPoolCap, setSrcPoolCap] = useState(300);                     // source-viewer pool: cap DOM cards on huge libraries
   const screenRef = useRef(null);                                        // program-monitor .screen element (for the GPU canvas to size to)
   const gpuRegRef = useRef(new Map());                                   // clip.id → { el, fx, fade, z } registered by eligible MonitorLayers
-  const [gpuMonitor, setGpuMonitor] = useState(() => { try { return webgpuAvailable() && localStorage.getItem("fabula:gpuMonitor") === "on"; } catch { return false; } });
+  const [gpuMonitor, setGpuMonitor] = useState(() => {
+    try {
+      if (!webgpuAvailable()) return false;
+      // In WinUI desktop app, auto-pull on local GPU/metal hardware by default
+      if (isWindowsApp()) return localStorage.getItem("fabula:gpuMonitor") !== "off";
+      return localStorage.getItem("fabula:gpuMonitor") === "on";
+    } catch { return false; }
+  });
   const toggleGpuMonitor = () => setGpuMonitor((v) => { const n = !v; try { localStorage.setItem("fabula:gpuMonitor", n ? "on" : "off"); } catch { /* */ } if (!n) gpuRegRef.current.clear(); return n; });
-  const [mediaAutoSync, setMediaAutoSync] = useState(() => { try { return localStorage.getItem("fabula:autoSyncMedia") === "1"; } catch { return false; } }); // default LOCAL-FIRST — big folders don't flood the cloud uploader
+  const [cleanFeedActive, setCleanFeedActive] = useState(false);
+  const toggleCleanFeed = async () => {
+    if (cleanFeedActive) {
+      closeStudioCleanFeed();
+      setCleanFeedActive(false);
+    } else {
+      const displays = await getStudioDisplays();
+      const feedUrl = `${window.location.origin}/cleanfeed.html?projectId=${prod?.id || ''}`;
+      const ok = await openStudioCleanFeed({
+        displayIndex: displays.length > 1 ? 1 : 0,
+        feedUrl,
+        title: `${prod?.name || 'Fabula'} — Studio Clean Feed`
+      });
+      setCleanFeedActive(ok);
+    }
+  };
+  const [mediaAutoSync, setMediaAutoSync] = useState(() => { try { return localStorage.getItem("fabula:autoSyncMedia") === "1"; } catch { return false; } }); // default LOCAL-FIRST — big folders don't flood the cloud uploader (opt-in)
   const [syncPaused, setSyncPaused] = useState(false);                 // uploader paused (mirrors resumableUpload)
   const [scriptImporting, setScriptImporting] = useState(false); // Lorea .txt → structured script
   const [scriptMsg, setScriptMsg] = useState("");                // SLATE auto-breakdown progress
@@ -778,6 +806,17 @@ export default function Fabula() {
         { id: "regen-still", label: "Generate still for this shot…", icon: <ImageIcon size={14} />, onSelect: () => openGenForClip(c, "still") },
       );
     }
+    // Restyle with Runway on any video track clip (Runway Edit Studio equivalent)
+    if (c.assetId && c.trackId?.startsWith("v")) {
+      items.push(
+        { kind: "separator" },
+        {
+          id: "runway-restyle", label: "Restyle with Runway (Subscription)…",
+          icon: <Sparkles size={14} color="#10b981" />, shortcut: "Runway",
+          onSelect: () => { setSelClipId(c.id); setRunwayPluginOpen(true); },
+        },
+      );
+    }
     if (c.assetId && (c.trackId?.startsWith("a") || c.kind === "media")) {
       items.push(
         { kind: "separator" },
@@ -813,14 +852,13 @@ export default function Fabula() {
   // IndexedDB. The MONITOR plays proxies (Resolve-style scrub perf); EXPORT always uses full-res.
   const [indexedMode, setIndexedMode] = useState(() => localStorage.getItem("fabula:decoder") === "indexed");
   const [proxyOn, setProxyOn] = useState(() => (localStorage.getItem("fabula:proxy") ?? "1") === "1");
-  // "Sync to Local" — OPT-IN cloud→disk download for assets that DON'T live on this device. Off by
-  // default: the default is to read originals straight off disk (disk-resident files are NEVER
-  // downloaded). Distinct from disk-first reading, which is always on.
-  const [syncToLocal, setSyncToLocal] = useState(() => localStorage.getItem("fabula:syncLocal") === "1");
+  const [isScrubbing, setIsScrubbing] = useState(false);
+  // TWO distinct switches (never conflated):
+  //  • LOCAL (Switch to Local): originals are read off disk first ALWAYS; ON = absolute — cloud never streams.
+  //  • SYNC LOCAL: explicit opt-in DOWNLOAD of cloud-only assets. OFF by default — nothing touches the cloud.
+  const [syncToLocal, setSyncToLocal] = useState(() => { try { return localStorage.getItem("fabula:syncLocal") === "1"; } catch { return false; } });
+  const [localOnly, setLocalOnlyState] = useState(() => { try { return localStorage.getItem("fabula:localOnly") === "1"; } catch { return false; } });
   const syncToLocalRef = useRef(false); syncToLocalRef.current = syncToLocal; // stable read inside async proxy/sync loops
-  // "Switch to Local" master mode — disk-first made absolute: never stream from the cloud; a missing
-  // local source reads as OFFLINE (relink), like a native NLE with its drive disconnected.
-  const [localOnly, setLocalOnlyState] = useState(() => localStorage.getItem("fabula:localOnly") === "1");
   const [proxies, setProxies] = useState(() => new Map()); // assetId → object URL of proxy blob
   const [proxyBusy, setProxyBusy] = useState(null);        // "2/7 · name" while building
   const [guides, setGuides] = useState(() => localStorage.getItem("fabula:guides") === "1"); // title/action-safe overlay (never rendered)
@@ -1118,6 +1156,9 @@ export default function Fabula() {
     await rehydrateBlobs(mp); // local-first: prefer stashed original bytes, else cloud copy
     setProd(mp); setSceneSel(null); setProdTab("structure");
     scheduleAutoSync(null); // upload anything local that has no cloud copy yet (silent)
+    if (syncToLocalRef.current && mp?.mediaPool?.length) {
+      autoSyncProjectMedia(mp.mediaPool).catch(() => {});   // explicit Sync-to-Local only
+    }
   };
   const deleteProduction = async (id) => {
     if (!window.confirm("Delete this production and everything inside it?")) return;
@@ -1188,6 +1229,8 @@ export default function Fabula() {
   // than the media pool — carries the compiled ShotSpec so the panel opens pre-filled with the shot's
   // prompt and the scene bible's identity locks as references. null = opened bare from the pool.
   const [genCtx, setGenCtx] = useState(null);
+  const [runwayPluginOpen, setRunwayPluginOpen] = useState(false); // Runway DaVinci & Premiere style Workflow Integration plugin
+  const [localStudioOpen, setLocalStudioOpen] = useState(false); // Plajah Local Creative Studio (Local GPU)
 
   const inferCategory = (relPath) => {
     for (const [re, cat] of FOLDER_MAP) if (re.test(relPath)) return cat;
@@ -1685,7 +1728,7 @@ export default function Fabula() {
     const srcInVal = hasRange ? qFrame(range.in) : 0;
     const duration = Math.max(1 / (vfmt.fps || 24), qFrame(hasRange ? (range.out - range.in) : (asset.duration || 5)));
     const start = qFrame(opts.at != null ? Math.max(0, opts.at) : playhead);
-    const aTrack = tracks.find((t) => t.type === "audio")?.id || "a1";
+    let aTrack = tracks.find((t) => t.type === "audio")?.id || "a1";
     const dropType = opts.trackId ? tracks.find((t) => t.id === opts.trackId)?.type : null;
     // Audio-only asset, OR dropped onto an audio track → a single audio clip.
     if (asset.type === "audio" || dropType === "audio") {
@@ -1707,10 +1750,29 @@ export default function Fabula() {
     // Video → linked picture + audio pair (the clip's sound rides an audio track so
     // track volume/pan/EQ apply). The picture clip is `av`-muted; audio plays via AudioLayer.
     const trackId = opts.trackId && dropType === "video" ? opts.trackId : "v1";
+    const curTracks = (prod?.tracks && prod.tracks.length) ? prod.tracks : TRACKS;
+    let audioTrackIds = curTracks.filter((t) => t.type === "audio").map((t) => t.id);
+    const overlaps = (tid) => clips.some((x) => x.trackId === tid && !(x.start + x.duration <= start + 1e-4 || x.start >= start + duration - 1e-4));
+    aTrack = audioTrackIds.find((tid) => !overlaps(tid));
+    const addTracks = [];
+    if (!aTrack) {
+      const nums = audioTrackIds.map((t) => parseInt(t.slice(1), 10) || 0);
+      const n = (nums.length ? Math.max(...nums) : 0) + 1;
+      aTrack = "a" + n;
+      addTracks.push({ id: aTrack, name: "A" + n, type: "audio" });
+    }
     const linkId = uid();
     const videoClip = { id: uid(), trackId, start, duration, srcIn: srcInVal, kind: "media", assetId: asset.id, label: asset.name, linkId, av: true };
     const audioClip = { id: uid(), trackId: aTrack, start, duration, srcIn: srcInVal, kind: "media", assetId: asset.id, label: asset.name + " · A", linkId };
-    const next = [...clips, videoClip, audioClip]; setClips(next); commitClips(next); setSelClipId(videoClip.id);
+    const next = [...clips, videoClip, audioClip];
+    if (addTracks.length) {
+      updateProd((p) => {
+        p.tracks = (p.tracks && p.tracks.length) ? p.tracks : TRACKS.map((t) => ({ ...t }));
+        addTracks.forEach((t) => { if (!p.tracks.some((x) => x.id === t.id)) p.tracks.push(t); });
+        writeTimelineClips(p, next);
+      });
+    }
+    setClips(next); commitClips(next); setSelClipId(videoClip.id);
   };
   // Detach a video clip's embedded audio onto an audio track (NLE "split/detach audio"). Mutes the
   // picture clip's built-in sound (av:true) so it isn't doubled, and links the pair (shared linkId) so
@@ -2038,21 +2100,58 @@ export default function Fabula() {
     }catch(error){reportMediaHealth(a.id,error.message);ping(error.message);}
   };
   // Relink an offline/missing asset to a local file (re-point its url).
-  const openRelink = (assetId) => {
-    const input=document.createElement("input");input.type="file";input.accept="video/*,audio/*,image/*,.wav,.mp4,.mov,.mkv,.flac";
-    input.onchange=async()=>{
-      const file=input.files?.[0];if(!file)return;
-      const previous=prod.mediaPool.find(a=>a.id===assetId);
-      const type=file.type.startsWith("audio") || /\.(wav|mp3|flac|aiff?|m4a|ogg)$/i.test(file.name) ? "audio" : file.type.startsWith("video") || /\.(mp4|mov|mkv|webm|m4v|avi)$/i.test(file.name) ? "video" : previous?.type || "image";
-      if(!await mediaPutBytes("studio:blob:"+assetId,file)){ping("Relink could not be saved locally. Free browser storage and retry.");return;}
-      await stDel("studio:proxy:"+assetId);
-      setProxies(current=>{const next=new Map(current);next.delete(assetId);return next;});
-      setPlaying(false);stopPlayback();
-      const url=URL.createObjectURL(file);
-      updateProd(p=>{const a=p.mediaPool.find(a=>a.id===assetId);if(a){a.url=url;a.name=file.name;a.type=type;a.size=file.size;a.offline=false;a.session=true;delete a.folderId;delete a.diskPath;delete a.diskName;}});
-      setPreviewAsset(a=>a?.id===assetId?{...a,url,type,name:file.name}:a);
+  const openRelink = async (assetId) => {
+    if (isWindowsApp()) {
+      try {
+        const picked = await pickWindowsFile();
+        if (!picked || picked.cancelled || !picked.fullPath) return;
+        const file = await convertWindowsPickedFileToFile(picked);
+        const previous = prod.mediaPool.find((a) => a.id === assetId);
+        const type = file.type.startsWith("audio") || /\.(wav|mp3|flac|aiff?|m4a|ogg)$/i.test(file.name) ? "audio" : file.type.startsWith("video") || /\.(mp4|mov|mkv|webm|m4v|avi)$/i.test(file.name) ? "video" : previous?.type || "image";
+        if (!await mediaPutBytes("studio:blob:" + assetId, file)) {
+          ping("Relink could not be saved locally. Free disk storage and retry.");
+          return;
+        }
+        await stDel("studio:proxy:" + assetId);
+        setProxies((current) => { const next = new Map(current); next.delete(assetId); return next; });
+        setPlaying(false); stopPlayback();
+        const url = picked.url || URL.createObjectURL(file);
+        updateProd((p) => {
+          const a = p.mediaPool.find((x) => x.id === assetId);
+          if (a) {
+            a.url = url;
+            a.name = file.name;
+            a.type = type;
+            a.size = file.size;
+            a.offline = false;
+            a.session = true;
+            a.diskPath = picked.folderPath || "";
+            a.diskName = file.name;
+            delete a.folderId;
+          }
+        });
+        setPreviewAsset((a) => a?.id === assetId ? { ...a, url, type, name: file.name, diskPath: picked.folderPath, diskName: file.name } : a);
+        ping(`Source relinked to ${file.name}; outdated proxy removed.`);
+        return;
+      } catch (err) {
+        console.warn("[Fabula] Windows file picker relink error:", err);
+      }
+    }
+
+    const input = document.createElement("input"); input.type = "file"; input.accept = "video/*,audio/*,image/*,.wav,.mp4,.mov,.mkv,.flac";
+    input.onchange = async () => {
+      const file = input.files?.[0]; if (!file) return;
+      const previous = prod.mediaPool.find((a) => a.id === assetId);
+      const type = file.type.startsWith("audio") || /\.(wav|mp3|flac|aiff?|m4a|ogg)$/i.test(file.name) ? "audio" : file.type.startsWith("video") || /\.(mp4|mov|mkv|webm|m4v|avi)$/i.test(file.name) ? "video" : previous?.type || "image";
+      if (!await mediaPutBytes("studio:blob:" + assetId, file)) { ping("Relink could not be saved locally. Free browser storage and retry."); return; }
+      await stDel("studio:proxy:" + assetId);
+      setProxies((current) => { const next = new Map(current); next.delete(assetId); return next; });
+      setPlaying(false); stopPlayback();
+      const url = URL.createObjectURL(file);
+      updateProd((p) => { const a = p.mediaPool.find((x) => x.id === assetId); if (a) { a.url = url; a.name = file.name; a.type = type; a.size = file.size; a.offline = false; a.session = true; delete a.folderId; delete a.diskPath; delete a.diskName; } });
+      setPreviewAsset((a) => a?.id === assetId ? { ...a, url, type, name: file.name } : a);
       ping("Source relinked and saved locally; outdated proxy removed.");
-    };input.click();
+    }; input.click();
   };
   // Media resolution hierarchy on load — LOCAL-FIRST. If this machine holds the original bytes
   // (IndexedDB stash), edit from them: frame-accurate, zero-network, full-res scrubbing. The
@@ -2074,15 +2173,26 @@ export default function Fabula() {
           if (f && f.size) { a.url = URL.createObjectURL(f); a.offline = false; a.session = true; if (f.size) a.size = f.size; return; }
         } catch { /* fall through to idb / cloud */ }
       }
-      // 2) IndexedDB stash: the local original bytes we cached at import (safety net + non-folder imports).
-      const b = await stGet("studio:blob:" + a.id);
+      // 2) Stored local bytes (OPFS / IndexedDB): the local original bytes we cached at import (safety net + non-folder imports).
+      const b = await mediaGetBytes("studio:blob:" + a.id);
       if (b && b.size) { // local original available → always prefer it over the cloud
         if (a.url && a.url.startsWith("blob:")) { try { if ((await fetch(a.url)).ok) return; } catch { /* dead */ } }
         try { a.url = URL.createObjectURL(b); a.offline = false; a.session = true; return; } catch { /* */ }
       }
       // 3) Cloud copy — ONLY when the bytes aren't on this device at all (a portable open on another machine).
       const local = !a.url || a.url.startsWith("blob:") || a.url.startsWith("data:") || a.offline;
-      if (local && a.cloudUrl) { a.url = a.cloudUrl; a.offline = false; a.session = false; }
+      if (local && a.cloudUrl) {
+        a.url = a.cloudUrl;
+        a.offline = false;
+        a.session = false;
+        if (isSyncMode()) {
+          downloadMissingAsset(a.id, a.cloudUrl).then((downloaded) => {
+            if (downloaded && downloaded.size) {
+              try { a.url = URL.createObjectURL(downloaded); a.offline = false; a.session = true; } catch { /* */ }
+            }
+          }).catch(() => {});
+        }
+      }
     }));
   };
   // Load any stashed proxies for this project's assets (built earlier, survive reloads).
@@ -2093,7 +2203,7 @@ export default function Fabula() {
       const found = [];
       for (const a of prod.mediaPool) {
         if (!(a.type === "video" || a.type === "audio" || a.type === "image" || a.type === "graphic")) continue;
-        const b = await stGet("studio:proxy:" + a.id);
+        const b = await mediaGetBytes("studio:proxy:" + a.id);
         if (b && b.size) { try { found.push([a.id, URL.createObjectURL(b)]); } catch { /* */ } }
       }
       if (alive) setProxies(new Map(found));
@@ -2174,6 +2284,7 @@ export default function Fabula() {
   // streaming); export still reads the original. Kept in sync with the PROXY ON/OFF toggle.
   useEffect(() => { setAudioProxyPreference(proxyOn); }, [proxyOn]);
   useEffect(() => { setLocalOnly(localOnly); }, [localOnly]);
+  useEffect(() => { setSyncMode(syncToLocal); }, [syncToLocal]);
   // Timeline local-glow: re-render when any asset's resolved origin (disk/cache/proxy vs cloud) changes,
   // so a clip playing from the drive lights up blue and a cloud-streamed one doesn't.
   const [, setOriginTick] = useState(0);
@@ -2338,8 +2449,102 @@ export default function Fabula() {
     autoSyncTimer.current = setTimeout(() => { autoSyncTimer.current = null; if (auth.currentUser) syncAssetsToCloud(ids || null, { silent: true }); }, 5000);
   };
   // Batch relink from a folder: pick a folder, match each target asset by filename, re-point it.
-  // targets = asset ids (null = all offline assets). "finds the clips again" workflow.
-  const openFolderRelink = (targets) => { folderRelinkTargetsRef.current = targets && targets.length ? targets : null; folderRelinkRef.current?.click(); };
+  // targets = asset ids (null = all offline assets). targetFolderOrBin = optional specific folder/bin to relink.
+  const openFolderRelink = async (targets, targetFolderOrBin) => {
+    if (isWindowsApp()) {
+      try {
+        const folderResult = await pickWindowsFolder();
+        if (!folderResult || folderResult.cancelled) return;
+        if (!folderResult.files?.length) {
+          ping("The selected folder contains no recognized media files.");
+          return;
+        }
+
+        const byName = new Map();
+        for (const f of folderResult.files) {
+          byName.set((f.name || "").toLowerCase(), f);
+        }
+
+        const ids = Array.isArray(targets) && targets.length ? targets : null;
+        let poolTargets = (prod.mediaPool || []).filter((a) => {
+          if (ids) return ids.includes(a.id);
+          if (targetFolderOrBin) {
+            return (a.bin === targetFolderOrBin || a.diskPath === targetFolderOrBin || a.folderId === targetFolderOrBin);
+          }
+          return (!a.url || a.offline);
+        });
+
+        // If no offline targets found, offer relinking all assets in that scope
+        if (!poolTargets.length) {
+          if (targetFolderOrBin) {
+            poolTargets = (prod.mediaPool || []).filter((a) =>
+              a.bin === targetFolderOrBin || a.diskPath === targetFolderOrBin || a.folderId === targetFolderOrBin
+            );
+          } else {
+            poolTargets = prod.mediaPool || [];
+          }
+        }
+
+        if (!poolTargets.length) {
+          ping("Nothing to relink — media pool is empty.");
+          return;
+        }
+
+        const matched = [];
+        for (const a of poolTargets) {
+          const match = byName.get((a.name || "").toLowerCase()) ||
+                        (a.diskName ? byName.get((a.diskName || "").toLowerCase()) : null);
+          if (match) matched.push({ asset: a, picked: match });
+        }
+
+        if (!matched.length) {
+          ping(`No matching filenames found in "${folderResult.folderName}".`);
+          return;
+        }
+
+        for (const item of matched) {
+          try {
+            const file = await convertWindowsPickedFileToFile(item.picked);
+            await mediaPutBytes("studio:blob:" + item.asset.id, file);
+            await stDel("studio:proxy:" + item.asset.id);
+            item.file = file;
+          } catch (e) {
+            console.warn("[Fabula] error caching bytes for relink:", e);
+          }
+        }
+
+        updateProd((p) => {
+          for (const item of matched) {
+            const x = p.mediaPool.find((y) => y.id === item.asset.id);
+            if (x) {
+              x.url = item.picked.url || (item.file ? URL.createObjectURL(item.file) : x.url);
+              x.offline = false;
+              x.session = true;
+              x.size = item.picked.size || item.file?.size || x.size;
+              x.diskPath = folderResult.folderPath;
+              x.diskName = item.picked.name;
+              delete x.folderId;
+            }
+          }
+        });
+
+        setProxies((current) => {
+          const next = new Map(current);
+          matched.forEach((m) => next.delete(m.asset.id));
+          return next;
+        });
+        setPlaying(false);
+        stopPlayback();
+        ping(`🔗 Relinked ${matched.length} of ${poolTargets.length} clip${poolTargets.length === 1 ? "" : "s"} to ${folderResult.folderName}`);
+        return;
+      } catch (err) {
+        console.warn("[Fabula] Windows folder picker relink error:", err);
+      }
+    }
+
+    folderRelinkTargetsRef.current = targets && targets.length ? targets : null;
+    folderRelinkRef.current?.click();
+  };
   const relinkFromFolderFiles = async (fileList) => {
     const files = Array.from(fileList || []);
     if (!files.length) return;
@@ -2947,6 +3152,26 @@ export default function Fabula() {
     openGenForShot(found.scene, found.shot, which);
   };
 
+  const openRunwayForClip = (c, asset) => {
+    const url = asset?.url || asset?.cloudUrl;
+    const isVideo = asset?.type === "video" || url?.endsWith(".mp4") || url?.includes("video");
+    const spec = {
+      prompt: `Cinematic restyle of ${c.label || "clip"}`,
+      aspect: prod?.defaults?.aspect || "16:9",
+      shotId: c.shotId || c.id,
+      clipId: c.id,
+      refs: url ? [{ role: "source", url, name: asset?.name || c.label }] : [],
+      videoUrl: isVideo ? url : undefined,
+    };
+    setGenCtx({
+      spec,
+      kind: "video",
+      provider: "runway",
+      title: `RUNWAY · ${c.label || "Clip"}`,
+    });
+    setGenOpen(true);
+  };
+
   // Agent results → bins: the generation agent writes outputs to cloud storage; when a job finishes,
   // GeneratePanel hands the result URLs here and they become pool assets in the target bin — the
   // "populate bins headless" path (same destination the watch folder feeds).
@@ -3013,9 +3238,18 @@ export default function Fabula() {
     if (!asset || !sceneId) return;
     const dur = asset.duration && isFinite(asset.duration) && asset.duration > 0 ? asset.duration : 5;
     const label = asset.name || "Clip";
+    const isVideo = asset.type === "video";
+    const linkId = isVideo ? uid() : undefined;
     if (!editSel && sceneSel?.sceneId === sceneId) {
       const v1End = clips.filter((c) => (c.trackId || "v1").startsWith("v")).reduce((m, c) => Math.max(m, (c.start || 0) + (c.duration || 0)), 0);
-      const nc = [...clips, { id: uid(), trackId: "v1", start: v1End, duration: dur, kind: "media", assetId: asset.id, label, srcIn: 0 }];
+      const vClip = { id: uid(), trackId: "v1", start: v1End, duration: dur, kind: "media", assetId: asset.id, label, srcIn: 0, ...(isVideo ? { linkId, av: true } : {}) };
+      let nc = [...clips, vClip];
+      if (isVideo) {
+        const curTracks = (prod?.tracks && prod.tracks.length) ? prod.tracks : TRACKS;
+        const aTrack = curTracks.find((t) => t.type === "audio")?.id || "a1";
+        const aClip = { id: uid(), trackId: aTrack, start: v1End, duration: dur, kind: "media", assetId: asset.id, label: label + " · A", srcIn: 0, linkId };
+        nc.push(aClip);
+      }
       setClips(nc); commitClips(nc);
     } else {
       updateProd((p) => {
@@ -3024,7 +3258,12 @@ export default function Fabula() {
         sc.timeline = sc.timeline || { clips: [] };
         const cl = sc.timeline.clips || [];
         const v1End = cl.filter((c) => (c.trackId || "v1").startsWith("v")).reduce((m, c) => Math.max(m, (c.start || 0) + (c.duration || 0)), 0);
-        cl.push({ id: uid(), trackId: "v1", start: v1End, duration: dur, kind: "media", assetId: asset.id, label, srcIn: 0 });
+        const vClip = { id: uid(), trackId: "v1", start: v1End, duration: dur, kind: "media", assetId: asset.id, label, srcIn: 0, ...(isVideo ? { linkId, av: true } : {}) };
+        cl.push(vClip);
+        if (isVideo) {
+          const aClip = { id: uid(), trackId: "a1", start: v1End, duration: dur, kind: "media", assetId: asset.id, label: label + " · A", srcIn: 0, linkId };
+          cl.push(aClip);
+        }
         sc.timeline.clips = cl; sc.updatedAt = Date.now();
       });
     }
@@ -3178,9 +3417,49 @@ export default function Fabula() {
   // "Everything Local" — one click to make the whole project readable on this device: reconnect watch
   // folders (disk-resident assets read from disk, no download) THEN pull every cloud-only asset to disk
   // with progress. This is the explicit "conform now" that Sync-to-Local does lazily in the background.
+  const syncEmbeddedAudioTracks = (cl = clips, silent = false) => {
+    const curTracks = (prod?.tracks && prod.tracks.length) ? prod.tracks : TRACKS;
+    let audioTrackIds = curTracks.filter((t) => t.type === "audio").map((t) => t.id);
+    const addTracks = [];
+    let working = [...cl];
+    let addedCount = 0;
+    for (const c of cl) {
+      if (!c?.assetId || !c.trackId?.startsWith("v") || c.av) continue;
+      const asset = prod?.mediaPool?.find((a) => a.id === c.assetId);
+      if (asset?.type !== "video") continue;
+      const overlaps = (tid) => working.some((x) => x.trackId === tid && !(x.start + x.duration <= c.start + 1e-4 || x.start >= c.start + c.duration - 1e-4));
+      let aTrack = audioTrackIds.find((tid) => !overlaps(tid));
+      if (!aTrack) {
+        const nums = audioTrackIds.map((t) => parseInt(t.slice(1), 10) || 0);
+        const n = (nums.length ? Math.max(...nums) : 0) + 1;
+        aTrack = "a" + n;
+        audioTrackIds = [...audioTrackIds, aTrack];
+        addTracks.push({ id: aTrack, name: "A" + n, type: "audio" });
+      }
+      const linkId = c.linkId || uid();
+      const audioClip = { id: uid(), trackId: aTrack, start: c.start, duration: c.duration, srcIn: c.srcIn || 0, kind: "media", assetId: c.assetId, label: (c.label || asset?.name || "clip") + " · A", linkId };
+      working = working.map((x) => (x.id === c.id ? { ...x, av: true, linkId } : x)).concat(audioClip);
+      addedCount++;
+    }
+    if (addedCount > 0) {
+      updateProd((p) => {
+        p.tracks = (p.tracks && p.tracks.length) ? p.tracks : TRACKS.map((t) => ({ ...t }));
+        addTracks.forEach((t) => { if (!p.tracks.some((x) => x.id === t.id)) p.tracks.push(t); });
+        writeTimelineClips(p, working);
+      });
+      setClips(working);
+      commitClips(working);
+      if (!silent) ping(`Synced embedded audio onto timeline audio tracks (${addedCount} clip${addedCount === 1 ? "" : "s"})`);
+    } else if (!silent) {
+      ping("All video clips already have linked audio tracks ✓");
+    }
+    return working;
+  };
+
   const [conforming, setConforming] = useState(null); // { done, total } while running, else null
   const conformEverythingLocal = async () => {
     if (conforming || !prod?.id) return;
+    try { syncEmbeddedAudioTracks(); } catch { /* */ }
     if (foldersNeedAuthRef.current > 0) { try { await reconnectDrives(); } catch { /* */ } } // disk-resident → read from disk
     const pool = prod?.mediaPool || [];
     const candidates = [];
@@ -3201,14 +3480,19 @@ export default function Fabula() {
   };
 
   // "Switch to Local" master toggle. ON = disk-first made absolute (no cloud streaming; missing local
-  // media reads as OFFLINE/relink). Enabling it re-grants disk access right away so reads go to the
-  // originals on the drive. This is a user gesture, so the permission re-grant is allowed here.
+  // media reads as OFFLINE/relink). Enabling it re-grants disk access right away (a user gesture).
   const toggleLocalOnly = () => {
     const nv = !localOnly;
     setLocalOnlyState(nv);
     try { localStorage.setItem("fabula:localOnly", nv ? "1" : "0"); } catch { /* */ }
     if (nv) { if (foldersNeedAuthRef.current > 0) reconnectDrives(); ping("Switched to Local — reading originals off disk; cloud streaming is OFF"); }
     else ping("Local-only OFF — cloud is a fallback again for media not on this device");
+  };
+  const toggleSyncLocal = () => {
+    const nv = !syncToLocal;
+    setSyncToLocal(nv);
+    try { localStorage.setItem("fabula:syncLocal", nv ? "1" : "0"); } catch { /* */ }
+    ping(nv ? "Sync to Local ON — cloud-only assets will download to disk while idle" : "Sync to Local OFF — reading originals off disk only");
   };
   const rescanSyncFolder = async (id, interactive, full = false) => {
     if (!prod?.id) return;
@@ -3226,6 +3510,33 @@ export default function Fabula() {
   };
   const addSyncFolderNow = async () => {
     if (!prod?.id) return;
+    if (isWindowsApp()) {
+      try {
+        setFolderSyncing(true);
+        const folderResult = await pickWindowsFolder();
+        if (!folderResult || folderResult.cancelled) return;
+        if (!folderResult.files?.length) {
+          ping("The selected folder contains no recognized media files.");
+          return;
+        }
+        const domFiles = [];
+        for (const f of folderResult.files) {
+          try {
+            const df = await convertWindowsPickedFileToFile(f);
+            domFiles.push(df);
+          } catch { /* skip unreadable */ }
+        }
+        if (domFiles.length) {
+          const count = await importFilesToBins(domFiles, { folderId: folderResult.folderPath });
+          ping(`Imported ${count} native file${count === 1 ? "" : "s"} from ${folderResult.folderName}`);
+        }
+        return;
+      } catch (e) {
+        ping("Windows folder import failed: " + (e?.message || e));
+      } finally {
+        setFolderSyncing(false);
+      }
+    }
     // Live-watching needs the File System Access API (Chrome/Edge/Android Chrome). Where it's missing
     // (Safari, Firefox, some PWA contexts) fall back to a one-time folder import so the local structure
     // still reads in immediately — just without background re-scanning.
@@ -3247,36 +3558,33 @@ export default function Fabula() {
 
   useEffect(() => { refreshSyncFolders(); /* eslint-disable-next-line */ }, [prod?.id]);
 
-  // "SYNC TO LOCAL" (opt-in) — download cloud copies to OPFS for assets that DON'T live on this device.
-  // This does NOT run by default and NEVER touches disk-resident files: an asset that came from a watch
-  // folder (folderId) or a saved file handle (localFileHandle) is read straight off the drive, not
-  // downloaded. Only genuinely cloud-only assets (no disk source on this machine) are pulled, and only
-  // while the user has Sync to Local enabled. fetch-only (zero decoders), sequential + size-capped.
+  // Native Windows Drag-and-Drop: when media files/folders are dropped from Windows Explorer
   useEffect(() => {
-    if (!prod?.id || !clips.length || !syncToLocal) return undefined;
-    const kick = () => {
-      try {
-        const ph = prefetchPhRef.current || 0;
-        const pool = prod.mediaPool || [];
-        const seen = new Set(); const list = [];
-        for (const c of clips.slice().sort((a, b) => a.start - b.start)) {
-          if (!c.assetId || seen.has(c.assetId)) continue;
-          if ((c.start + (c.duration || 0)) < ph - 1) continue;                 // already passed
-          const a = pool.find((x) => x.id === c.assetId);
-          if (!a || (a.type !== "video" && a.type !== "audio")) continue;
-          if (a.folderId || a.localFileHandle) continue;                        // lives on disk → read from disk, never download
-          const cloud = [a.url, a.cloudUrl].find((u) => /^https?:/i.test(u || "")); // local (blob:) → skip
-          if (!cloud) continue;
-          seen.add(c.assetId); list.push({ id: a.id, url: cloud });
-          if (list.length >= 64) break;                                         // whole timeline, deduped by asset
+    if (!isWindowsApp() || !prod?.id) return undefined;
+    return onNativeMessage(async (msg) => {
+      if (msg.type === "NATIVE_FILES_DROPPED" && msg.files && msg.files.length) {
+        const domFiles = [];
+        for (const f of msg.files) {
+          try {
+            const df = await convertWindowsPickedFileToFile(f);
+            domFiles.push(df);
+          } catch { /* skip unreadable */ }
         }
-        if (list.length) prefetchAssets(list);
-      } catch { /* best-effort */ }
-    };
-    kick();
-    const iv = setInterval(kick, 4000);
-    return () => clearInterval(iv);
-  }, [clips, prod?.id, syncToLocal]);
+        if (domFiles.length) {
+          const count = await importFilesToBins(domFiles);
+          ping(`Imported ${count} native file${count === 1 ? "" : "s"} dropped from Windows Explorer.`);
+        }
+      }
+    });
+  }, [prod?.id]);
+
+  // SYNC TO LOCAL (opt-in): queue cloud-only assets for the background prefetcher. It is suspended
+  // by syncEditBusy() during play/scrub/render, so this never competes with the transport. No polling
+  // interval — the queue is (re)filled only when the pool/project/toggle changes.
+  useEffect(() => {
+    if (!prod?.id || !syncToLocal) return;
+    try { if (prod?.mediaPool?.length) autoSyncProjectMedia(prod.mediaPool); } catch { /* best-effort */ }
+  }, [prod?.id, prod?.mediaPool?.length, syncToLocal]);
   useEffect(() => () => cancelPrefetch(), []);   // stop pulls when Fabula unmounts
   // Reset media filters when the production changes. Otherwise a bin/search filter from a previous
   // project persists and strands the grid: every import lands in a bin the stale filter excludes, so
@@ -3704,8 +4012,22 @@ export default function Fabula() {
     const c = clips.find((x) => x.id === clipId);
     if (!c || at <= c.start + 0.05 || at >= c.start + c.duration - 0.05) return null;
     const rightId = uid();
-    const right = { ...c, id: rightId, start: at, duration: c.start + c.duration - at, srcIn: (c.srcIn || 0) + (at - c.start) };
-    const next = clips.flatMap((x) => (x.id === clipId ? [{ ...x, duration: at - x.start }, right] : [x]));
+    const newLinkId = c.linkId ? uid() : undefined;
+    const right = { ...c, id: rightId, start: at, duration: c.start + c.duration - at, srcIn: (c.srcIn || 0) + (at - c.start), ...(newLinkId ? { linkId: newLinkId } : {}) };
+
+    // Also cut the linked counterpart (e.g. accompanying audio clip) synchronously
+    const linked = c.linkId ? clips.find((x) => x.id !== c.id && x.linkId === c.linkId && at > x.start + 0.05 && at < x.start + x.duration - 0.05) : null;
+    let rightLinked = null;
+    if (linked) {
+      const rightLinkedId = uid();
+      rightLinked = { ...linked, id: rightLinkedId, start: at, duration: linked.start + linked.duration - at, srcIn: (linked.srcIn || 0) + (at - linked.start), ...(newLinkId ? { linkId: newLinkId } : {}) };
+    }
+
+    const next = clips.flatMap((x) => {
+      if (x.id === clipId) return [{ ...x, duration: at - x.start }, right];
+      if (linked && x.id === linked.id) return [{ ...x, duration: at - x.start }, rightLinked];
+      return [x];
+    });
     setClips(next); commitClips(next);
     return rightId;
   };
@@ -4082,6 +4404,39 @@ export default function Fabula() {
     "app.openShortcuts": () => setShowShortcuts(true),
   }, { enabled: page === "edit", prefs: shortcutPrefs });
 
+  // Native Hardware Jog / Shuttle / Control Surface Integration (Phase 4)
+  useEffect(() => {
+    if (!isWindowsApp()) return undefined;
+    return onNativeMessage((msg) => {
+      if (msg.type === "HARDWARE_JOG_EVENT") {
+        if (msg.mode === "jog") {
+          const delta = msg.deltaFrames || (msg.direction || 0);
+          if (delta !== 0) {
+            setPlayhead((p) => Math.max(0, p + delta * frameDur));
+          }
+        } else if (msg.mode === "shuttle") {
+          const dir = msg.direction || (msg.deltaFrames > 0 ? 1 : -1);
+          if (msg.action === "toggle_play") {
+            ensureDiskAccess();
+            rateRef.current = 1;
+            setPlaying((p) => !p);
+          } else if (msg.action === "step_forward") {
+            stepFrame(1);
+          } else if (msg.action === "step_backward") {
+            stepFrame(-1);
+          } else if (msg.action === "shuttle_fast_forward") {
+            shuttle(1);
+          } else if (msg.action === "shuttle_fast_reverse") {
+            shuttle(-1);
+          } else if (dir !== 0) {
+            shuttle(dir);
+          }
+        }
+      }
+    });
+    /* eslint-disable-next-line */
+  }, [frameDur]);
+
   const switchAngle = (angleIdx) => {
     const target = monitorClip || selClip;
     if (!target || target.kind !== "multicam") return;
@@ -4237,16 +4592,42 @@ export default function Fabula() {
   const qFrame = (t) => Math.round(t * (vfmt.fps || 24)) / (vfmt.fps || 24);
   const rulerSeek = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    setPlayhead(Math.max(0, qFrame((e.clientX - rect.left) / pxPerSec)));
+    const t = Math.max(0, qFrame((e.clientX - rect.left) / pxPerSec));
+    clockRef.current = t;
+    setPlayhead(t);
   };
   // Drag-scrub: hold + drag on the ruler to scrub the playhead (preview video + audio follow).
   const startScrub = (e) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    const seek = (clientX) => setPlayhead(Math.max(0, qFrame((clientX - rect.left) / pxPerSec)));
-    ensureDiskAccess(); setPlaying(false); scrubbingRef.current = true; syncEditBusy(); seek(e.clientX);
-    const move = (ev) => { ev.preventDefault(); seek(ev.clientX); };
-    const up = () => { scrubbingRef.current = false; syncEditBusy(); document.removeEventListener("mousemove", move); document.removeEventListener("mouseup", up); };
-    document.addEventListener("mousemove", move); document.addEventListener("mouseup", up);
+    const seek = (clientX) => {
+      const t = Math.max(0, qFrame((clientX - rect.left) / pxPerSec));
+      clockRef.current = t;
+      setPlayhead(t);
+    };
+    ensureDiskAccess(); setPlaying(false); scrubbingRef.current = true; setIsScrubbing(true); syncEditBusy(); seek(e.clientX);
+    let pendingX = null;
+    let scrubRaf = null;
+    const move = (ev) => {
+      ev.preventDefault();
+      pendingX = ev.clientX;
+      if (!scrubRaf) {
+        scrubRaf = requestAnimationFrame(() => {
+          scrubRaf = null;
+          if (pendingX != null) seek(pendingX);
+        });
+      }
+    };
+    const up = (ev) => {
+      if (scrubRaf) { cancelAnimationFrame(scrubRaf); scrubRaf = null; }
+      if (ev?.clientX != null) seek(ev.clientX);
+      scrubbingRef.current = false;
+      setIsScrubbing(false);
+      syncEditBusy();
+      document.removeEventListener("mousemove", move);
+      document.removeEventListener("mouseup", up);
+    };
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
   };
   // Razor: split the clip at the clicked position (used when the razor tool is active).
   const razorAt = (e, clipId) => {
@@ -4432,6 +4813,7 @@ export default function Fabula() {
                       onDragStart={(e) => { if (!previewAsset?.url) { e.preventDefault(); return; } dragAssetRef.current = { asset: previewAsset, range: { in: srcIn, out: srcOut } }; e.dataTransfer.effectAllowed = "copy"; try { e.dataTransfer.setData("text/plain", "fabula-src"); } catch { /* */ } }}
                       onDragEnd={() => { dragAssetRef.current = null; }}
                       title={previewAsset?.url ? "Drag into the timeline to insert this clip" : undefined}>
+                      <ViewerFpsBadge targetFps={vfmt.fps || 24} playing={srcPlaying} videoRef={srcVideoRef} style={{ position: "absolute", top: 8, left: 8, zIndex: 30 }} />
                       {previewAsset ? (
                         <>
                           {previewAsset.type === "video" && previewAsset.url && (
@@ -4711,6 +5093,7 @@ export default function Fabula() {
   const renderMonitor = () => (
 <section className="monitor" onMouseDown={() => (activeViewerRef.current = "program")}>
                     <div ref={screenRef} className="screen" style={{ aspectRatio: prod.defaults.aspect.includes(":") ? prod.defaults.aspect.replace(":", "/") : "2.39/1", filter: LOOKS.find((l) => l.id === prod.design?.lookId)?.filter || "none", containerType: "inline-size" }}>
+                      <ViewerFpsBadge targetFps={vfmt.fps || 24} playing={playing} videoRef={videoRef} style={{ position: "absolute", top: 10, left: 10, zIndex: 65 }} />
                       {gpuMonitor && <GpuStage reg={gpuRegRef.current} hostRef={screenRef} onFail={() => { try { localStorage.setItem("fabula:gpuMonitor", "off"); } catch { /* */ } gpuRegRef.current.clear(); setGpuMonitor(false); ping("GPU monitor hit an issue — reverted to the standard renderer."); }} />}
                       {(() => { const s = getSel(); const inst = maskEdit && s && s.id === maskEdit.clipId ? (s.fx?.stack || []).find((i) => i.id === maskEdit.instanceId) : null; return inst?.mask && inst.mask.kind !== "subject" && inst.mask.kind !== "depth" && inst.mask.kind !== "aux" ? <MaskOverlay clip={s} instance={inst} playhead={playhead} screenRef={screenRef} videoRef={videoRef} fps={vfmt.fps || 24} onChange={(mask) => updateFx(s.id, { stack: s.fx.stack.map((i) => i.id === inst.id ? { ...i, mask } : i) })} /> : null; })()}
                       {(() => { const s = getSel(); return s && /^v\d+$/.test(s.trackId) && (s.fx?.planarSurface || s.fx?.planarTrack) ? <SurfaceOverlay clip={s} playhead={playhead} screenRef={screenRef} videoRef={videoRef} editing={surfaceEdit} onChange={(corners) => updateFx(s.id, { planarSurface: { corners } })} onAdjust={(frame, corners) => adjustPlanarFrame(s, frame, corners)} /> : null; })()}
@@ -4720,7 +5103,13 @@ export default function Fabula() {
                         // src reload → no dip to black between butted clips).
                         const tclips = clips.filter((c) => c.trackId === tr.id).sort((a, b) => a.start - b.start);
                         if (!tclips.length) return null;
-                        const curIdx = tclips.findIndex((c) => playhead >= c.start && playhead < c.start + c.duration);
+                        let curIdx = tclips.findIndex((c) => playhead >= c.start && playhead < c.start + c.duration);
+                        if (curIdx < 0 && tclips.length > 0) {
+                          const last = tclips[tclips.length - 1];
+                          if (playhead >= last.start && playhead <= last.start + last.duration + 0.05) {
+                            curIdx = tclips.length - 1;
+                          }
+                        }
                         const idxs = new Set();
                         // +2 lookahead: the clip after next starts decoding a full clip early, so even
                         // short clips cut to a warm buffer (black frames at cuts came from cold loads).
@@ -4730,7 +5119,7 @@ export default function Fabula() {
                         return [...idxs].filter((idx) => idx >= 0 && idx < tclips.length).map((idx) => {
                           const c = tclips[idx];
                           const isActive = curIdx >= 0 && idx === curIdx;
-                          return <MonitorLayer key={c.id} indexedMode={indexedMode && editWs === "edit"} clip={c} active={isActive} prod={monitorProd} scene={scene} playhead={playhead} playing={playing} top={i > 0} z={(i + 1) * 10 + (isActive ? 5 : 0)} videoRef={(i === 0 && isActive) ? videoRef : undefined} vol={ts.vol} mute={ts.mute} gpuMode={gpuMonitor} gpuReg={gpuRegRef.current} pinSource={c.fx?.pinTo?.clipId ? clips.find((x) => x.id === c.fx.pinTo.clipId) || null : null} />;
+                          return <MonitorLayer key={c.id} indexedMode={indexedMode && editWs === "edit"} clip={c} active={isActive} prod={monitorProd} scene={scene} playhead={playhead} playing={playing} isScrubbing={isScrubbing} top={i > 0} z={(i + 1) * 10 + (isActive ? 5 : 0)} videoRef={(i === 0 && isActive) ? videoRef : undefined} vol={ts.vol} mute={ts.mute} gpuMode={gpuMonitor} gpuReg={gpuRegRef.current} pinSource={c.fx?.pinTo?.clipId ? clips.find((x) => x.id === c.fx.pinTo.clipId) || null : null} />;
                         });
                       })}
                       {/* Audio bed — mount the live clip + the next one per track (double-buffered, gapless) */}
@@ -4865,7 +5254,13 @@ export default function Fabula() {
                         onClick={() => { const nv = !guides; setGuides(nv); try { localStorage.setItem("fabula:guides", nv ? "1" : "0"); } catch { /* */ } }}>SAFE</button>
                       {webgpuAvailable() && (
                         <button className={`minibtn ${gpuMonitor ? "blue" : ""}`} style={{ opacity: gpuMonitor ? 1 : 0.55 }} onClick={toggleGpuMonitor}
-                          title={gpuMonitor ? "GPU monitor ON — video layers composite on one WebGPU surface. Click to use the standard renderer." : "GPU monitor OFF (beta) — composite video preview on the GPU (one surface instead of a stack of video elements). Click to try it."}>⚡ GPU</button>
+                          title={gpuMonitor ? (isWindowsApp() ? "GPU monitor ON — native Direct3D/WebGPU hardware acceleration active." : "GPU monitor ON — video layers composite on one WebGPU surface.") : "GPU monitor OFF — click to enable hardware compositing."}>⚡ GPU{isWindowsApp() && gpuMonitor ? " · NATIVE" : ""}</button>
+                      )}
+                      {isWindowsApp() && (
+                        <button className={`minibtn ${cleanFeedActive ? "blue" : ""}`} style={{ opacity: cleanFeedActive ? 1 : 0.55 }} onClick={toggleCleanFeed}
+                          title={cleanFeedActive ? "Clean Feed ON — Click to close secondary display window." : "Open full-screen Clean Feed on secondary monitor."}>
+                          <MonitorPlay size={11} /> CLEAN FEED
+                        </button>
                       )}
                       {monitorAssetRaw?.type === "multicam" && (
                         <button className={`minibtn ${angleView ? "blue" : ""}`} onClick={() => setAngleView(!angleView)}><Layers size={11} /> ANGLES</button>
@@ -5666,6 +6061,7 @@ export default function Fabula() {
         {mi("Insert at playhead", () => ids.forEach((id) => { const a = prod.mediaPool.find((x) => x.id === id); if (a) insertAssetClip(a); }))}
         {div}
         {mi(`Relink from folder…${offlineN ? ` (${offlineN} offline)` : ""}`, () => openFolderRelink(ids))}
+        {ids.length === 1 && mi("Relink source file…", () => openRelink(ids[0]))}
         {mi(`Sync to cloud${localN ? ` (${localN})` : ""}`, () => syncAssetsToCloud(ids), { disabled: !localN })}
         {div}
         {mi("Move to bin…", () => movePoolToBin(ids))}
@@ -5711,7 +6107,7 @@ export default function Fabula() {
           </div>
           <span className="tdiv" />
           <div className="tgrp">
-            <button className="tbtn2" title="Relink offline media from a folder" onClick={() => folderRelinkRef.current?.click()}>RELINK</button>
+            <button className="tbtn2" title="Relink offline media from a folder" onClick={() => openFolderRelink()}>RELINK</button>
             <button className="tbtn2" disabled={!!proxyBusy || !proxyableMissing}
               title="Build lightweight proxies for heavy media — 540p video, tiny AAC audio, downscaled stills. Preview plays light; export is always full-res."
               onClick={() => buildProxiesFor()}>
@@ -5976,9 +6372,10 @@ export default function Fabula() {
                         <button className="minibtn" title="SWITCH TO LOCAL — read originals straight off disk, like Resolve/Premiere. Never streams from the cloud; media not on this device reads as OFFLINE (relink). Enabling it re-grants disk access." style={{ opacity: localOnly ? 1 : 0.55, borderColor: localOnly ? "rgba(90,168,255,0.7)" : undefined, color: localOnly ? "#bcdcff" : undefined, background: localOnly ? "rgba(60,120,220,0.16)" : undefined }}
                           onClick={toggleLocalOnly}><HardDrive size={10} /> LOCAL {localOnly ? "ON" : "OFF"}</button>
                         <button className="minibtn" title="SYNC TO LOCAL — download CLOUD-ONLY assets (ones that don't live on this device) to disk for offline use. OFF by default: files already on your drive are read straight off disk, never re-downloaded." style={{ opacity: syncToLocal ? 1 : 0.45, color: syncToLocal ? "#8fd0ff" : undefined }}
-                          onClick={() => { const nv = !syncToLocal; setSyncToLocal(nv); try { localStorage.setItem("fabula:syncLocal", nv ? "1" : "0"); } catch { /* */ } ping(nv ? "Sync to Local ON — cloud-only assets will download to disk" : "Sync to Local OFF — reading originals off disk only"); }}>SYNC LOCAL {syncToLocal ? "ON" : "OFF"}</button>
+                          onClick={toggleSyncLocal}>SYNC LOCAL {syncToLocal ? "ON" : "OFF"}</button>
                         <button className="minibtn" disabled={!!conforming} title="EVERYTHING LOCAL — reconnect your drives and pull every cloud-only asset onto this device now, so the whole project plays from local storage." style={{ borderColor: conforming ? "rgba(90,168,255,0.7)" : undefined, color: conforming ? "#bcdcff" : undefined }}
                           onClick={conformEverythingLocal}><HardDrive size={10} /> {conforming ? `CONFORMING ${conforming.done}/${conforming.total}` : "EVERYTHING LOCAL"}</button>
+                        <button className="minibtn" title="CONFORM AUDIO TRACKS — ensures every video clip on the timeline with embedded audio has its accompanying audio clip on an audio track (Resolve/Premiere style)." onClick={() => syncEmbeddedAudioTracks()}><Music size={10} /> SYNC AUDIO TRACKS</button>
                         <button className="minibtn" disabled={scriptBuilding || !clips.length} title="Reverse-engineer the screenplay from this edit: every clip is watched (computer vision) + transcribed, dialogue is tagged to your cast, and the scene + SLATE shot list are rebuilt from the cut"
                           onClick={buildScriptFromTimeline} style={{ color: scriptBuilding ? "#FF8C00" : undefined }}>{scriptBuilding ? "📜 BUILDING…" : "📜 BUILD SCRIPT FROM TIMELINE"}</button>
                       </div>
@@ -6178,6 +6575,105 @@ export default function Fabula() {
           defaultBin={binFilter !== "all" ? binFilter : ""} context={genCtx}
           importResults={importGenResults} onClose={() => { setGenOpen(false); setGenCtx(null); }} />
       )}
+      {runwayPluginOpen && (
+        <RunwayPluginPanel
+          isOpen={runwayPluginOpen}
+          onClose={() => setRunwayPluginOpen(false)}
+          selectedClip={clips.find((c) => c.id === selClipId) || null}
+          clips={clips}
+          prod={prod}
+          onImportTake={({ url, name, targetClipId, trackId, aspect }) => {
+            if (!url) return;
+            const targetClip = clips.find((c) => c.id === targetClipId);
+            const targetBin = "Runway Takes";
+            const newAsset = {
+              id: uid(),
+              name: name || "runway-take.mp4",
+              type: "video",
+              url,
+              cloudUrl: url,
+              bin: targetBin,
+              duration: targetClip ? targetClip.duration : 5,
+              generated: true,
+              synced: true,
+              session: true,
+              shotId: targetClip?.shotId,
+            };
+
+            updateProd((p) => {
+              p.mediaPool = p.mediaPool || [];
+              p.bins = p.bins || [];
+              if (!p.bins.includes(targetBin)) p.bins.push(targetBin);
+              p.mediaPool.push(newAsset);
+            });
+
+            if (targetClip) {
+              const placed = placeResultInCut(clips, targetClip.shotId || targetClip.id, newAsset, uid);
+              setClips(placed.clips);
+              commitClips(placed.clips);
+              ping(`Runway take laid into cut on track ${trackId || "V2"} — original muted for A/B comparison.`);
+            } else {
+              ping(`Runway take added to ${targetBin}.`);
+            }
+          }}
+          onUpdateClips={(fn) => {
+            const next = fn(clips);
+            setClips(next);
+            commitClips(next);
+          }}
+        />
+      )}
+      {localStudioOpen && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, backgroundColor: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px", backdropFilter: "blur(6px)" }}>
+          <div style={{ width: "1140px", height: "820px", maxWidth: "96vw", maxHeight: "94vh", borderRadius: "10px", overflow: "hidden", boxShadow: "0 25px 80px rgba(0,0,0,0.9)", border: "1px solid rgba(255,255,255,0.1)" }}>
+            <LocalCreativeStudio
+              initialImage={clips.find((c) => c.id === selClipId)?.url || null}
+              onSendToTimeline={(url) => {
+                if (!url) return;
+                const isVideo = url.endsWith('.mp4') || url.endsWith('.webm') || url.includes('video');
+                const targetBin = "Local AI Renders";
+                const newAsset = {
+                  id: uid(),
+                  name: `local_${Date.now()}.${isVideo ? "mp4" : "png"}`,
+                  type: isVideo ? "video" : "image",
+                  url,
+                  cloudUrl: url,
+                  bin: targetBin,
+                  duration: isVideo ? 4 : 5,
+                  generated: true,
+                  synced: true,
+                  session: true,
+                };
+                updateProd((p) => {
+                  p.mediaPool = p.mediaPool || [];
+                  p.bins = p.bins || [];
+                  if (!p.bins.includes(targetBin)) p.bins.push(targetBin);
+                  p.mediaPool.push(newAsset);
+                });
+                const newClip = {
+                  id: uid(),
+                  assetId: newAsset.id,
+                  url: newAsset.url,
+                  name: newAsset.name,
+                  type: newAsset.type,
+                  track: "V2",
+                  start: playhead,
+                  duration: newAsset.duration,
+                  offset: 0,
+                  in: 0,
+                  out: newAsset.duration,
+                };
+                const nextClips = [...clips, newClip];
+                setClips(nextClips);
+                commitClips(nextClips);
+                ping(`Local render dropped into timeline at playhead (${formatTimecode(playhead)}).`);
+                setLocalStudioOpen(false);
+              }}
+              onClose={() => setLocalStudioOpen(false)}
+            />
+          </div>
+        </div>
+      )}
       {exportReady && (
         <div style={{ position: "fixed", inset: 0, zIndex: 10000, background: "rgba(0,0,0,0.62)", backdropFilter: "blur(4px)", display: "flex", alignItems: "center", justifyContent: "center" }}
           onMouseDown={(e) => { if (e.target === e.currentTarget && !publishing) setExportReady(null); }}>
@@ -6285,6 +6781,24 @@ export default function Fabula() {
             )}
             {(page === "slate" || page === "edit") && <button className="crumb" onClick={() => newEdit()} title="New standalone timeline">＋ EDIT</button>}
             {scene && <button className="crumb" onClick={sendSceneToComic} title="Send this scene's script + world cast to the Lorea comic composer">→ COMIC</button>}
+            <button
+              className={`crumb ${localStudioOpen ? "on" : ""}`}
+              style={localStudioOpen ? { borderColor: "#f59e0b", color: "#fbbf24", background: "rgba(245, 158, 11, 0.15)" } : { borderColor: "rgba(245, 158, 11, 0.45)", color: "#f59e0b" }}
+              onClick={() => setLocalStudioOpen(!localStudioOpen)}
+              title="Plajah Local Creative Studio — FLUX Cinema, Detail Hallucination, 3D Relighting & Cinema Motion"
+            >
+              <Sparkles size={11} color="#f59e0b" /> LOCAL AI STUDIO
+            </button>
+            {page === "edit" && (
+              <button
+                className={`crumb ${runwayPluginOpen ? "on" : ""}`}
+                style={runwayPluginOpen ? { borderColor: "#10b981", color: "#34d399", background: "rgba(16, 185, 129, 0.15)" } : {}}
+                onClick={() => setRunwayPluginOpen(!runwayPluginOpen)}
+                title="Runway Workflow Integration plugin (Resolve / Premiere style)"
+              >
+                <Sparkles size={11} color="#10b981" /> RUNWAY
+              </button>
+            )}
           </div>
         )}
         <div className="hdr-right">
@@ -6919,7 +7433,22 @@ export default function Fabula() {
                   </>
                 )}
 
-                {designTab === "stage" && <Stage3D prod={prod} ping={ping} />}
+                {designTab === "stage" && (
+                  <SpatialStudio
+                    prod={prod}
+                    clips={clips}
+                    playhead={playhead}
+                    selClip={getSel()}
+                    ping={ping}
+                    onAddToPool={(asset, label) => {
+                      updateProd((p) => {
+                        p.mediaPool = p.mediaPool || [];
+                        p.mediaPool.push(asset);
+                      });
+                      ping(`Added "${label}" to media pool`);
+                    }}
+                  />
+                )}
 
                 {designTab === "engines" && (
                   <div className="glass-card">
@@ -7151,8 +7680,40 @@ export default function Fabula() {
                 {/* The EDIT toolset renders above the timeline (see renderTimeline call) since its
                     tools act on the timeline; other workspaces keep their tool band here at the top. */}
                 {editWs !== "edit" && renderRoomToolbar()}
-                {editWs === "media" && <div className="btnrow"><button className="minibtn" onClick={()=>setRepairTab(false)}>MEDIA POOL</button><button className="minibtn" onClick={()=>setRepairTab(true)}>MEDIA REPAIR</button></div>}
-                {editWs === "media" && repairTab && <MediaRepair assets={prod.mediaPool} selected={poolSel} onSelect={a=>{setPoolSel([a.id]);openInViewer(a,false);}} onRelink={openRelink} onReconnect={()=>rescanAll(true,true)} onBuildProxies={()=>buildProxiesFor()} />}
+                {editWs === "media" && (
+                  <div className="btnrow">
+                    <button className="minibtn" onClick={() => setRepairTab(false)}>MEDIA POOL</button>
+                    <button className="minibtn" onClick={() => {
+                      setRepairTab(true);
+                      if (prod.mediaPool?.some((a) => !a.url || a.offline)) {
+                        openFolderRelink();
+                      }
+                    }}>MEDIA REPAIR</button>
+                  </div>
+                )}
+                {editWs === "media" && repairTab && (
+                  <MediaRepair
+                    assets={prod.mediaPool}
+                    selected={poolSel}
+                    onSelect={(a) => { setPoolSel([a.id]); openInViewer(a, false); }}
+                    onRelink={openRelink}
+                    onRelinkFolder={openFolderRelink}
+                    onReconnect={async () => {
+                      if (isWindowsApp()) {
+                        await openFolderRelink();
+                      } else {
+                        const folders = await listSyncFolders(prod.id);
+                        if (!folders.length) {
+                          openFolderRelink();
+                        } else {
+                          await reconnectDrives();
+                          await rescanAll(true, true);
+                        }
+                      }
+                    }}
+                    onBuildProxies={() => buildProxiesFor()}
+                  />
+                )}
                 {editWs === "media" && !repairTab && (
                   <div className="mediaws glass-dark"
                     onDragOver={(e) => { if (e.dataTransfer?.types?.includes("Files")) { e.preventDefault(); e.dataTransfer.dropEffect = "copy"; } }}
@@ -7862,7 +8423,7 @@ export default function Fabula() {
                             <span className="numval dim small" style={{ marginLeft: "auto" }}>{fmtTc(playhead, vfmt)}</span></div>
                           <div style={{ position: "relative", width: "100%", aspectRatio: String(ar), background: "#0c0c11", borderRadius: 8, overflow: "hidden", border: "1px solid var(--line)" }}>
                             {cur
-                              ? <MonitorLayer key={cur.id} clip={cur} active prod={monitorProd} scene={scene} playhead={playhead} playing={playing} top={false} z={10} vol={0} mute />
+                              ? <MonitorLayer key={cur.id} clip={cur} active prod={monitorProd} scene={scene} playhead={playhead} playing={playing} isScrubbing={isScrubbing} top={false} z={10} vol={0} mute />
                               : <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "#5a5a64", fontSize: 11 }}>no picture at playhead</div>}
                           </div>
                           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -7918,6 +8479,23 @@ export default function Fabula() {
                   );
                 })()}
 
+                {editWs === "spatial" && (
+                  <SpatialStudio
+                    prod={prod}
+                    clips={clips}
+                    playhead={playhead}
+                    selClip={getSel()}
+                    ping={ping}
+                    onAddToPool={(asset, label) => {
+                      updateProd((p) => {
+                        p.mediaPool = p.mediaPool || [];
+                        p.mediaPool.push(asset);
+                      });
+                      ping(`Added "${label}" to media pool`);
+                    }}
+                  />
+                )}
+
                 {editWs === "deliver" && (() => {
                   // ── Four-band DELIVER. The export VERBS (RENDER MP4 / FCPXML / EDL) live in the
                   //    band-2 tool bar like every other room; the work surface holds the deliverables:
@@ -7927,6 +8505,7 @@ export default function Fabula() {
                   const badFormats = mp.filter((a) => a.needsConversion && !a.converted && clips.some((c) => c.assetId === a.id && !c.disabled)).length;
                   const PRESETS = [
                     { id: "mp4", tab: "var(--org)", name: "Master — MP4 / H.264", sub: `${vfmt.w}×${vfmt.h} · ${vfmt.fps}${vfmt.drop ? " DF" : ""} · AAC`, note: "Pixels engine · frame-exact" },
+                    { id: "sbs3d", tab: "var(--blue)", name: "Side-by-Side 3D — VR / Quest", sub: `${vfmt.w * 2}×${vfmt.h} · Full SBS MP4`, note: "Meta Quest / Android XR / 4XVR" },
                     { id: "fcpxml", tab: "var(--blue)", name: "FCPXML — Resolve / Premiere / FCP", sub: "timeline interchange · relinkable", note: "Round-trips this cut for finishing" },
                     { id: "edl", tab: "var(--green)", name: "EDL — CMX3600", sub: "classic conform list", note: "Avid / any NLE" },
                   ];
@@ -8114,7 +8693,7 @@ export default function Fabula() {
           {page === "edit" && prod && container && (
             <>
               <span className="raildiv" />
-              {[["media", "MEDIA", MonitorPlay], ["edit", "EDIT", Film], ["vfx", "VFX", Box], ["color", "COLOR", Palette], ["audio", "AUDIO", Music], ["deliver", "DELIVER", ListVideo]].map(([id, lab, Ic]) => (
+              {[["media", "MEDIA", MonitorPlay], ["edit", "EDIT", Film], ["vfx", "VFX", Box], ["color", "COLOR", Palette], ["audio", "AUDIO", Music], ["spatial", "SPATIAL 3D", Eye], ["deliver", "DELIVER", ListVideo]].map(([id, lab, Ic]) => (
                 <button key={id} className={`raildot ws ${editWs === id ? "on" : ""}`} onClick={() => setEditWs(id)} title={lab}>
                   <Ic size={13} />
                 </button>
@@ -8363,13 +8942,27 @@ function Model3DLayer({ clip, prod, playhead, playing, active, z }) {
   );
 }
 
-function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playing, top, z, videoRef, vol = 1, mute = false, active = true, gpuMode = false, gpuReg = null, pinSource = null }) {
+function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playing, top, z, videoRef, vol = 1, mute = false, active = true, gpuMode = false, gpuReg = null, pinSource = null, isScrubbing = false }) {
   if (clip.kind === "model3d") return <Model3DLayer clip={clip} prod={prod} playhead={playhead} playing={playing} active={active} z={z} />;
   const localRef = useRef(null);
   const wrapRef = useRef(null);
+  // resolve media (multicam → active angle)
+  let asset = clip.assetId ? prod.mediaPool.find((a) => a.id === clip.assetId) : null;
+  let offset = clip.srcIn || 0;
+  if (asset?.type === "multicam") {
+    const ang = asset.angles[clip.angle || 0];
+    offset += ang?.offset || 0;
+    asset = ang ? prod.mediaPool.find((a) => a.id === ang.assetId) : null;
+  }
+  // NEVER seed from asset.url: for a cloud-backed asset that is the CLOUD url, and mounting it before the
+  // local-first resolve finishes starts a cloud stream (the "pulls from cloud instead of the local file"
+  // bug). The element mounts only on what resolveMediaSource returns (disk → cache → proxy → cloud last).
   const [playbackSrc, setPlaybackSrc] = useState(null);
   const [sourceRetry, setSourceRetry] = useState(0);
   useEffect(() => { setSourceRetry(0); }, [clip.assetId, prod?.id]);
+  // A different asset must not keep showing the previous one's source while it resolves.
+  const srcAssetRef = useRef(asset?.id);
+  useEffect(() => { if (srcAssetRef.current !== asset?.id) { srcAssetRef.current = asset?.id; setPlaybackSrc(null); } }, [asset?.id]);
   const [loadState, setLoadState] = useState({ phase: "idle", pct: 0 });
   const fxBase = ensureFx(clip);
   const activeCubeLut = (prod?.design?.luts || []).find((lut) => lut.id === prod?.design?.activeLutId) || null;
@@ -8410,14 +9003,6 @@ function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playin
   if (_td > 0.01 && playhead >= clip.start && playhead < clip.start + _td) {
     fx.op = (fx.op ?? 1) * Math.max(0, Math.min(1, (playhead - clip.start) / _td));
   }
-  // resolve media (multicam → active angle)
-  let asset = clip.assetId ? prod.mediaPool.find((a) => a.id === clip.assetId) : null;
-  let offset = clip.srcIn || 0;
-  if (asset?.type === "multicam") {
-    const ang = asset.angles[clip.angle || 0];
-    offset += ang?.offset || 0;
-    asset = ang ? prod.mediaPool.find((a) => a.id === ang.assetId) : null;
-  }
   const shot = clip.shotId ? scene?.shots.find((s) => s.id === clip.shotId) : null;
   const vRef = videoRef || localRef;
   const frameRef = useRef(null);
@@ -8435,27 +9020,26 @@ function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playin
   // Resolve local bytes BEFORE mounting; never swap a running stream for a full download.
   useEffect(() => {
     let alive = true; let source = null;
-    setPlaybackSrc(null);
-    setLoadState({ phase: "loading", pct: 0 });
+    if (!playbackSrc) setLoadState({ phase: "loading", pct: 0 });
     // Resolve video AND stills local-first (disk→cache→proxy→…), so in Local mode an image never
     // loads from the cloud either — the still now honors the same resolution order as video.
     if (asset?.type === "video" || asset?.type === "image" || asset?.type === "graphic") resolveMediaSource(asset, sourceRetry > 0, true).then((resolved) => {
       if (!alive) { resolved.release(); return; }
       source = resolved;
       setPlaybackSrc(resolved.url);
-      setLoadState({ phase: "loading", pct: 0 });
+      setLoadState({ phase: "ready", pct: 100 });
     }).catch(error => { if (alive) {setLoadState({ phase: "error", pct: 0, message: error.message });reportMediaHealth(asset?.id,error.message);} });
     return () => { alive = false; source?.release(); };
   }, [asset?.id, asset?.url, asset?.type, asset?.previewProxy, sourceRetry]);
 
-  // When the byte-prefetcher pulls this clip's asset local, re-resolve so it plays from disk instead of
+  // When the byte-prefetcher or auto-download pulls this clip's asset local, re-resolve so it plays from disk instead of
   // the cloud stream — but ONLY when this layer isn't the live playing element (never swap a running
   // stream; the on-deck/paused clips upgrade silently, the live one upgrades on its next pass/seek).
   useEffect(() => {
     if (!asset?.id) return undefined;
-    // Only upgrade to the freshly-local copy while paused — never re-resolve any layer mid-playback
-    // (that churn is what degraded the 2nd pass). The live pass finishes on cloud; the next one is local.
-    return onPrefetched((id) => { if (id === asset.id && !playing) setSourceRetry((r) => r + 1); });
+    const unPrefetch = onPrefetched((id) => { if (id === asset.id && !playing) setSourceRetry((r) => r + 1); });
+    const unDownload = onAssetDownloaded((id) => { if (id === asset.id && !playing) setSourceRetry((r) => r + 1); });
+    return () => { unPrefetch(); unDownload(); };
   }, [asset?.id, active, playing]);
 
   // Bound loading recovery. A seek finishing can produce a frame without a
@@ -8475,18 +9059,44 @@ function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playin
   // load/seek events can re-apply it (fixes: a freshly-swapped clip renders black or a
   // stale frame until you click — the seek was issued before the element could honor it).
   const seekRef = useRef(0);
-  const doSeek = () => {
+  const pendingSeekRef = useRef(null);
+  const isSeekingRef = useRef(false);
+
+  const performSeek = (targetTime, useFast = false) => {
     const v = vRef.current;
     if (!(v instanceof HTMLVideoElement) || asset?.type !== "video") return;
-    // Media readiness can arrive long after React's last cut update. Never seek
-    // a late-loaded decoder back to that stale UI position while transport runs.
-    const target = active && playing && engineRunning() ? Math.max(0, engineClock() - clip.start + offset) : seekRef.current;
-    const t = Number.isFinite(v.duration) ? Math.min(target, Math.max(0, v.duration - 0.001)) : target;
+    // NLE Transport Law: while actively playing, never issue seeks on running video elements!
+    // Seeking flushes hardware decoder buffers and causes rubber-band replay loops.
+    if (playing) return;
+    const t = Number.isFinite(v.duration) ? Math.min(targetTime, Math.max(0, v.duration - 0.001)) : targetTime;
     if (!Number.isFinite(t)) return;
-    // Seek ~1 frame-tight when paused (accurate trim/in-out preview); loose while playing (no stutter).
-    if (Math.abs(v.currentTime - t) > (playing ? 1.0 : 0.034)) {
-      try { v.currentTime = Math.max(0, t); } catch { /* not seekable yet — onLoadedData/onSeeked retries */ }
+
+    if (v.seeking) {
+      pendingSeekRef.current = t;
+      return;
     }
+
+    const threshold = isScrubbing ? 0.04 : 0.008;
+    if (Math.abs(v.currentTime - t) > threshold) {
+      try {
+        isSeekingRef.current = true;
+        if (useFast && typeof v.fastSeek === "function") {
+          v.fastSeek(t);
+        } else {
+          v.currentTime = Math.max(0, t);
+        }
+      } catch {
+        isSeekingRef.current = false;
+      }
+    }
+  };
+
+  const doSeek = (useFast = false) => {
+    const v = vRef.current;
+    if (!(v instanceof HTMLVideoElement) || asset?.type !== "video") return;
+    if (playing) return;
+    const target = seekRef.current;
+    performSeek(target, useFast || isScrubbing);
   };
   // Slave this element to the transport clock while it's the live picture: the engine's
   // sync pass (playbackRate nudges) replaces per-render seek yanks — smooth, drift-free.
@@ -8500,7 +9110,7 @@ function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playin
     if (!(v instanceof HTMLVideoElement) || asset?.type !== "video") return;
     if (active) {
       seekRef.current = Math.max(0, playhead - clip.start + offset);
-      if (!playing || !engineRunning()) doSeek();
+      if (!playing) doSeek(isScrubbing);
       // Never restart an element parked at its own end — the sync pass froze it there
       // (clip longer than its source); replaying it caused a few-frame stutter at bounds.
       const atEnd = Number.isFinite(v.duration) && v.duration > 0.2 && v.currentTime >= v.duration - 0.1;
@@ -8512,9 +9122,9 @@ function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playin
       // no dip to black at the cut (this is the double-buffering that kills the between-clip flash).
       seekRef.current = Math.max(0, offset);
       if (!v.paused) v.pause();
-      doSeek();
+      if (!playing) doSeek(false);
     }
-  }, [active, playhead, playing, playbackSrc, asset?.url, clip.start, offset, indexedReady]);
+  }, [active, playhead, playing, isScrubbing, playbackSrc, asset?.url, clip.start, offset, indexedReady]);
   // Live audio: honor the track's mixer vol/mute (was hardcoded `muted`, so nothing played).
   // av === linked-audio clip present → the picture is muted here and its sound plays through the
   // audio track (AudioLayer). Warm (inactive) buffers stay muted.
@@ -8563,7 +9173,7 @@ function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playin
 
   const style = {
     position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
-    opacity: (gpuEligible && active) ? 0 : (active ? fx.op * fade : 0), // GPU draws it → hide the DOM copy; warm buffers already invisible
+    opacity: (gpuEligible && active && playing) ? 0.001 : (active ? fx.op * fade : 0), // GPU draws during playback → hide DOM copy; while parked/idle, DOM video stays visible so viewer never blanks!
     // Planar: the affine part is rewritten about the centre explicitly so matrix3d (origin 0 0)
     // can be composed on the right (applied first). Without a planar track the string is unchanged.
     transform: planarCss
@@ -8588,13 +9198,13 @@ function MonitorLayer({ indexedMode = false, clip, prod, scene, playhead, playin
         {useIndexed && <IndexedVideoCanvas key={playbackSrc} url={playbackSrc} sourceRef={frameRef} playing={playing} active={active} time={playhead} offset={offset} clipStart={clip.start} fps={prod?.defaults?.format?.fps || 24} hidden={!indexedReady || hasForge} onReady={() => { setIndexedState({url:playbackSrc,phase:"ready"}); setLoadState({phase:"ready",pct:100}); }} onError={(error) => { console.warn("[Fabula] indexed decoder fallback", error); setIndexedState({url:playbackSrc,phase:"failed"}); }} />}
         {useIndexed && !clip.av && !engineOwnsAudio && <AudioLayer clip={{...clip,assetId:asset.id,srcIn:offset}} prod={prod} playhead={playhead} playing={playing} active={active} track={{vol,mute}} trackId={clip.trackId} />}
         {hasForge && <ForgeClipPreview videoRef={renderRef} effects={fx.stack} mediaPool={prod?.mediaPool || []} cubeLut={activeCubeLut} time={Math.max(0, playhead - clip.start)} active={active} clipFx={fx} fps={prod?.defaults?.format?.fps || 24} />}
-        {!indexedReady && playbackSrc && asset.type === "video" && <video ref={vRef} src={playbackSrc} className="mvid" style={hasForge ? { opacity: 0 } : undefined} muted={!active || !!mute || !!clip.disabled || !!clip.av || engineOwnsAudio || useIndexed} playsInline preload="auto" crossOrigin={needsCors(playbackSrc) ? "anonymous" : undefined} onLoadStart={() => setLoadState({ phase: "loading", pct: 0 })} onWaiting={() => setLoadState({ phase: "buffering", pct: 0 })} onPlaying={() => setLoadState({ phase: "ready", pct: 100 })} onLoadedData={() => { doSeek(); setLoadState({ phase: "ready", pct: 100 }); }} onCanPlay={() => { doSeek(); setLoadState({ phase: "ready", pct: 100 }); }} onSeeked={() => { if (!playing) doSeek(); if (vRef.current?.readyState >= 2) setLoadState({phase:"ready",pct:100}); }}
+        {!indexedReady && playbackSrc && asset.type === "video" && <video ref={vRef} src={playbackSrc} className="mvid" style={hasForge ? { opacity: 0 } : undefined} muted={!active || !!mute || !!clip.disabled || !!clip.av || engineOwnsAudio || useIndexed} playsInline preload="auto" crossOrigin={needsCors(playbackSrc) ? "anonymous" : undefined} onLoadStart={() => setLoadState({ phase: "loading", pct: 0 })} onWaiting={() => { if (playing && !isScrubbing && (vRef.current?.readyState || 0) < 2) setLoadState({ phase: "buffering", pct: 0 }); }} onPlaying={() => setLoadState({ phase: "ready", pct: 100 })} onLoadedData={() => { if (!playing) doSeek(false); setLoadState({ phase: "ready", pct: 100 }); }} onCanPlay={() => { if (!playing) doSeek(false); setLoadState({ phase: "ready", pct: 100 }); }} onCanPlayThrough={() => setLoadState({ phase: "ready", pct: 100 })} onTimeUpdate={() => { if (loadState.phase === "buffering") setLoadState({ phase: "ready", pct: 100 }); }} onSeeked={() => { isSeekingRef.current = false; if (!playing && pendingSeekRef.current != null) { const nextT = pendingSeekRef.current; pendingSeekRef.current = null; performSeek(nextT, isScrubbing); } if (vRef.current?.readyState >= 2) setLoadState({ phase: "ready", pct: 100 }); }}
           onError={() => {
             reportMediaHealth(asset?.id,vRef.current?.error?.code===3?"Video decode failed":"Video source unavailable or unsupported");
             if (sourceRetry === 0) setSourceRetry(1);
             else setLoadState({ phase: "error", pct: 0, message: vRef.current?.error?.code === 3 ? "VIDEO DECODE FAILED — file loaded, but the browser rejected its video stream" : "VIDEO SOURCE UNAVAILABLE — reconnect local folder or relink media" });
           }} />}
-        {active && (asset?.type === "video" || isStill) && ["error", "loading", "buffering"].includes(loadState.phase) && !(isStill && (playbackSrc || (!isLocalOnly() && asset?.url))) && (
+        {active && ((loadState.phase === "error") || (playing && !isScrubbing && ["loading", "buffering"].includes(loadState.phase))) && (asset?.type === "video" || isStill) && !(isStill && (playbackSrc || (!isLocalOnly() && asset?.url))) && (
           <div style={{ position: "absolute", left: "6%", right: "6%", bottom: "7%", zIndex: 90, padding: "8px 10px", borderRadius: 8, background: "rgba(0,0,0,.74)", color: "white", fontSize: 9, letterSpacing: ".12em" }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}><span>{loadState.phase === "error" ? (loadState.message || "VIDEO UNAVAILABLE — RELINK OR CONVERT SOURCE") : loadState.phase.toUpperCase()}</span><span>{loadState.pct ? loadState.pct + "%" : "PREPARING"}</span></div>
             <div style={{ height: 3, borderRadius: 4, overflow: "hidden", background: "rgba(255,255,255,.18)" }}><div style={{ width: (loadState.pct || 12) + "%", height: "100%", background: "#ff8c00", transition: "width .2s" }} /></div>
@@ -8677,7 +9287,7 @@ function GpuStage({ reg, hostRef, onFail }) {
     })();
     return () => { alive = false; cancelAnimationFrame(raf); try { comp?.destroy(); } catch { /* */ } };
   }, []); // eslint-disable-line
-  return <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block", zIndex: 1, background: "#000" }} />;
+  return <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block", zIndex: 1, background: "transparent" }} />;
 }
 
 /* ---------- audio playback: one active clip on one audio track (a1/a2) ----------
@@ -8693,20 +9303,25 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
   // element errors instead; we then rebuild it plain and play it DIRECT (no DSP, but audible).
   const [corsFail, setCorsFail] = useState(false);
   const asset = clip.assetId ? prod.mediaPool.find((a) => a.id === clip.assetId) : null;
-  const [resolvedAudio, setResolvedAudio] = useState(null);
+  const [resolvedAudio, setResolvedAudio] = useState(null);   // never seeded from asset.url (cloud) — local-first resolve only
   const [sourceRetry, setSourceRetry] = useState(0);
   const [audioError, setAudioError] = useState("");
   useEffect(() => { setSourceRetry(0); setAudioError(""); }, [asset?.id,asset?.url]);
   useEffect(() => {
     let alive = true, source = null;
-    setResolvedAudio(null);
     resolveMediaSource(asset, sourceRetry > 0).then((s) => {
       if (!alive) { s.release(); return; }
-      source = s; setResolvedAudio({ id: asset?.id, original: asset?.url, url: s.url });
+      source = s; setResolvedAudio({ id: asset?.id, url: s.url });
     }).catch(error => { if (alive) {setAudioError(error.message);reportMediaHealth(asset?.id,error.message);} });
     return () => { alive = false; source?.release(); };
   }, [asset?.id, asset?.url, sourceRetry]);
-  const url = resolvedAudio?.id === asset?.id && resolvedAudio?.original === asset?.url ? resolvedAudio?.url : null;
+  useEffect(() => {
+    if (!asset?.id) return undefined;
+    return onAssetDownloaded((id) => {
+      if (id === asset.id && !playing) setSourceRetry((r) => r + 1);
+    });
+  }, [asset?.id, playing]);
+  const url = resolvedAudio?.id === asset?.id ? resolvedAudio?.url : null;
   const wantCors = needsCors(url) && !corsFail;
   const offset = clip.srcIn || 0;
   useEffect(() => { setCorsFail(false); }, [url]); // new source, new chance
@@ -8726,7 +9341,7 @@ function AudioLayer({ clip, prod, playhead, playing, track = {}, trackId, active
     if (active) {
       resumeAudioCtx();
       const t = (playing && engineRunning() ? engineClock() : playhead) - clip.start + offset;
-      if (!playing || Math.abs(a.currentTime - t) > 0.25) { try { a.currentTime = Math.max(0, t); } catch { /* seeking */ } }
+      if (!playing || Math.abs(a.currentTime - t) > 0.45) { try { a.currentTime = Math.max(0, t); } catch { /* seeking */ } }
       if (playing && a.paused) a.play().catch(() => {});
       if (!playing && !a.paused) a.pause();
     } else { // warm buffer — parked at in-point, paused, ready to go live gaplessly

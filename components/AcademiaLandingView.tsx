@@ -349,6 +349,8 @@ const AcademiaLandingView: React.FC<{
                 <div className="ctas">
                   <button className="btn btn-primary" onClick={() => onNavigate('LEARNER_LEDGER')}>🎓 Open my Academic Passport →</button>
                   <button className="btn btn-ghost" onClick={onEnterCourses}>Browse all courses</button>
+                  <button className="btn btn-primary" onClick={() => onNavigate('LEARN')}>🧭 Open the Learn map</button>
+                  <button className="btn btn-ghost" onClick={() => onNavigate('HOMESCHOOL')}>🏡 Homeschooling? Start here</button>
                 </div>
               </div></div>
             </section>

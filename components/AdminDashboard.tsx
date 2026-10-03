@@ -4,6 +4,7 @@ import AlbumCreator from './AlbumCreator';
 import CuratedBuilder from './CuratedBuilder';
 import {
   Shield,
+  ShieldAlert,
   Users,
   HardDrive,
   Activity,
@@ -169,7 +170,9 @@ import AdminPushBroadcast from './AdminPushBroadcast';
 import AdminChoraStreams from './AdminChoraStreams';
 import AdminMusicLab from './admin/AdminMusicLab';
 import AdminMediaHealth from './admin/AdminMediaHealth';
+import BillingFlagsAdmin from './billing/BillingFlagsAdmin';
 import AdminFilmIngestVault from './admin/AdminFilmIngestVault';
+import AdminThreatProtection from './admin/AdminThreatProtection';
 
 interface AdminDashboardProps {
   onBack: () => void;
@@ -202,7 +205,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
     }
   };
 
-  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'UPLOAD_REPORTS' | 'NOTIFY' | 'CHORA_STREAMS' | 'MEDIA_HEALTH' | 'PLATFORM_MEDIA' | 'CHANNEL_NUMBERS' | 'ENDLESS_HOUR' | 'FILM_INGEST' | 'MUSIC_LAB'>('STATS');
+  const [activeTab, setActiveTab] = useState<'STATS' | 'ASSETS' | 'LIBRARY' | 'ADS' | 'STAFF' | 'THEMES' | 'MAINTENANCE' | 'FEATURES' | 'UNIVERSE' | 'CURATED' | 'LIVE_FEEDS' | 'LANDING_BG' | 'CLUB_COVER_MEDIA' | 'SPORTS_HERO' | 'ACHIEVEMENTS' | 'ANALYTICS' | 'SPORTS_AGENTS' | 'SITE_HEALTH' | 'USER_HEALTH' | 'ERRORS' | 'UPLOAD_REPORTS' | 'NOTIFY' | 'CHORA_STREAMS' | 'MEDIA_HEALTH' | 'BILLING_FLAGS' | 'PLATFORM_MEDIA' | 'CHANNEL_NUMBERS' | 'ENDLESS_HOUR' | 'FILM_INGEST' | 'MUSIC_LAB' | 'THREAT_PROTECTION'>('STATS');
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [systemSettings, setSystemSettings] = useState<SystemSettingsConfig | null>(null);
   const [contentLicensingOn, setContentLicensingOn] = useState(false);
@@ -646,6 +649,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
             eleventh was unreachable rather than merely hidden. */}
         <nav className="flex-1 min-h-0 overflow-y-auto space-y-2 -mr-3 pr-3">
           {[
+            { id: 'THREAT_PROTECTION', label: 'Threat Protection (CSO)', icon: ShieldAlert },
             { id: 'ANALYTICS', label: 'Analytics', icon: BarChart3 },
             { id: 'SITE_HEALTH', label: 'Site Health', icon: Activity },
             { id: 'USER_HEALTH', label: 'User Health', icon: Activity },
@@ -659,6 +663,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
             { id: 'CHORA_STREAMS', label: 'Chora Streaming', icon: Music },
             { id: 'MUSIC_LAB', label: 'Music Lab', icon: Music },
             { id: 'MEDIA_HEALTH', label: 'Media Health', icon: HeartPulse },
+            { id: 'BILLING_FLAGS', label: 'Billing flags', icon: BarChart3 },
             { id: 'ASSETS', label: 'User Assets', icon: FolderTree },
             { id: 'ADS', label: 'Ad Platform', icon: Megaphone },
             { id: 'THEMES', label: 'Theme Manager', icon: Palette },
@@ -1442,6 +1447,20 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onBack, onReadBook, cur
             {activeTab === 'CHORA_STREAMS' && (
               <AdminChoraStreams key="choraStreams" />
             )}
+
+            {activeTab === 'THREAT_PROTECTION' && (
+              <motion.div
+                key="threatProtection"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                className="w-full"
+              >
+                <AdminThreatProtection currentUser={currentUser} />
+              </motion.div>
+            )}
+
+            {activeTab === 'BILLING_FLAGS' && <BillingFlagsAdmin key="billingFlags" />}
 
             {activeTab === 'MEDIA_HEALTH' && (
               <AdminMediaHealth key="mediaHealth" />

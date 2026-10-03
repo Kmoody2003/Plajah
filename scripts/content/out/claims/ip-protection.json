@@ -1,0 +1,1377 @@
+{
+ "courseId": "ip-protection",
+ "label": "Protecting Your Ideas: Copyright, Trademarks, Patents and More",
+ "lessons": [
+  {
+   "id": "ip-protection.l01",
+   "title": "What Intellectual Property Is, and Why It Exists",
+   "body": [
+    "Imagine you spend a year designing a board game. You draw the art, write the rules, invent a name, and build a clever dice mechanism. Then a factory copies every part and sells it for less than you can. Without intellectual property law, that would be perfectly legal, and few people would invest a year in making anything.",
+    "Intellectual property (IP) is the set of legal rights over creations of the mind. The U.S. Constitution gives Congress the power to grant authors and inventors exclusive rights for limited times, \"to promote the progress of science and useful arts.\" The deal is a trade: you get a temporary monopoly, and society gets new work and, eventually, the freedom to use it.",
+    "Four main tools do different jobs. Copyright protects original creative expression, such as the game's art and rulebook text. Trademarks protect names, logos and other signs that tell customers who made something, such as the game's title. Patents protect new, useful, non-obvious inventions, such as the dice mechanism. Trade secrets protect valuable confidential information, such as your supplier list, for as long as you keep it secret.",
+    "One product usually involves several of these at once, and each has its own rules, costs and deadlines. This course is about United States law; other countries have similar systems but differ in details, and we flag the big differences as we go. This is education, not legal advice for your situation."
+   ]
+  },
+  {
+   "id": "ip-protection.l02",
+   "title": "What Copyright Protects, and What It Does Not",
+   "body": [
+    "Maya writes a short story about a teenage inventor who builds a robot to find her missing dog. The moment Maya types the story, saves it, or records it, copyright exists. Nothing needs to be filed. U.S. copyright attaches automatically to original works of authorship once they are fixed in a tangible medium of expression: written, recorded, drawn, saved to a drive, and so on.",
+    "Two requirements are doing the work. Originality means the work came from the author and has at least a minimal spark of creativity. Fixation means it exists in a form that can be perceived for more than a moment. An improvised speech that nobody records is not fixed; the same speech recorded is.",
+    "Copyright protects expression, not ideas. Maya owns her specific words, characters and sequence of scenes. She does not own the idea of a girl who builds a robot to find a lost pet, so another writer can tell a different story with that premise. The same split applies to facts, systems, methods, short phrases, titles and names, which copyright does not cover. It also covers the specific code of a program but not the algorithm or idea behind it.",
+    "The notice, the (c) symbol or the word \"Copyright\" with a year and owner's name, is no longer required for works published on or after March 1, 1989, but it is still smart. It tells people who to ask and can defeat a defense that someone innocently copied."
+   ]
+  },
+  {
+   "id": "ip-protection.l03",
+   "title": "Registering Your Copyright, and Why It Matters",
+   "body": [
+    "Dev self-publishes a photo book and later finds a company selling his images on posters. He has owned the copyright since he took the photos, so why is his lawyer asking whether he registered?",
+    "In the U.S., registration with the U.S. Copyright Office is not required for copyright to exist, but it matters a great deal in practice. First, for U.S. works you generally must have a registration (or a refusal) before filing a copyright lawsuit in federal court. Second, timing affects money. If you registered before the infringement began, or within three months of first publication, you can ask a court for statutory damages and attorney's fees. Without that, you are generally limited to proving your actual losses and the infringer's profits, which can be small or hard to show. Statutory damages can range from hundreds of dollars up to $150,000 per work for willful infringement.",
+    "Third, a registration made within five years of publication is treated as prima facie evidence that the copyright is valid. And a registration creates a public record, which helps people find you to ask for a license.",
+    "Applications go through the Copyright Office's online system, with a deposit copy of the work and a fee that starts at tens of dollars. You can register many works in a group in some cases, such as an unpublished collection or a group of photographs. Dev's mistake was waiting; if he had registered when the book came out, his options would be far stronger."
+   ]
+  },
+  {
+   "id": "ip-protection.l04",
+   "title": "Who Owns It: Authors, Joint Works and Work Made for Hire",
+   "body": [
+    "Three friends write and record a song together. A designer is hired to draw a logo for a company. An employee writes a software module on the job. Who owns each?",
+    "The default rule: copyright initially belongs to the author, the person who actually created the work. Two big exceptions matter.",
+    "A joint work is one created by two or more authors who intended their contributions to merge into a single whole. Each joint author co-owns the whole work. In the U.S., any co-owner can generally license the work non-exclusively without the others' permission but must share the profits with them. That is why bands and co-writers sign split agreements early.",
+    "Work made for hire means the employer or commissioning party is treated as the author from the start. There are two routes. First, a work created by an employee within the scope of employment. Second, a specially commissioned work from an independent contractor that falls into one of nine statutory categories (for example, a contribution to a collective work, part of an audiovisual work, or a translation) and is covered by a written agreement signed by both sides saying it is a work made for hire.",
+    "So the employee's software module belongs to the employer. The freelance logo designer, though, usually owns the logo unless the contract includes a work-for-hire clause that fits a category or, more commonly, an assignment of copyright. Always put ownership in writing."
+   ]
+  },
+  {
+   "id": "ip-protection.l05",
+   "title": "Transfers, Licenses and How Long Copyright Lasts",
+   "body": [
+    "A copyright is a bundle: reproduce, distribute, adapt, perform and display. You can sell the whole bundle or hand out single sticks.",
+    "A transfer (assignment) moves ownership. For an exclusive transfer, the U.S. requires a signed written document. A license grants permission without moving ownership. Non-exclusive licenses can even be oral or implied, but exclusive licenses count as transfers and need writing. Licenses can vary by scope: media, territory, time, price. Cora, a photographer, might license a magazine to print one image for a year in North America, while keeping everything else. A well-drafted license says exactly what is allowed and what is not.",
+    "Authors who assign rights in a work they did not create as work made for hire may, under U.S. law, have a right to terminate the transfer after 35 years, with notice, a protection against lopsided early deals.",
+    "Duration, in outline for works created today by individuals: life of the author plus 70 years. For anonymous works, pseudonymous works and works made for hire, the term is 95 years from publication or 120 years from creation, whichever ends first. Older works follow different rules depending on when they were published and whether formalities were observed. Terms elsewhere often differ: many countries use life plus 50 or life plus 70.",
+    "Always write the grant down and check the dates. A short signed license beats a long argument."
+   ]
+  },
+  {
+   "id": "ip-protection.l06",
+   "title": "Fair Use: A Four-Factor Test, Not a Free Pass",
+   "body": [
+    "Sam makes a video essay criticizing a popular movie and includes ten-second clips. A teacher photocopies a chapter. A meme maker remixes a photo. Are these legal without permission? Possibly, under fair use, written into U.S. law at 17 U.S.C. section 107. There is no magic formula, and no amount of text or seconds of video is automatically safe.",
+    "Courts weigh four factors together:",
+    "1. Purpose and character of the use: is it commercial or educational, and is it transformative, adding new meaning or purpose rather than just substituting for the original? Criticism, commentary, news reporting, teaching and research are named examples. The Supreme Court has stressed that the new use needs a purpose that is meaningfully different, especially when it is commercial.\n2. Nature of the original: creative works get stronger protection than factual ones, and unpublished works more than published.\n3. Amount and substantiality: how much was taken, and was it the \"heart\" of the work? Even a small taking can be too much if it is the most memorable part.\n4. Effect on the market: would the use hurt sales or licensing of the original, or could it substitute for it?",
+    "Outcomes are uncertain, and a lawsuit is expensive even if you win. Saying \"I gave credit\" or \"it's for education\" does not settle the matter. When the stakes are high, license the material, pick something in the public domain, or ask an attorney. The Copyright Office's Fair Use Index summarizes real cases."
+   ]
+  },
+  {
+   "id": "ip-protection.l07",
+   "title": "Takedowns: The DMCA and the Copyright Claims Board",
+   "body": [
+    "Priya posts her illustrations on a portfolio site. She later finds them on a merch store. What can she do without hiring a lawyer?",
+    "The Digital Millennium Copyright Act (DMCA), section 512, protects online service providers from liability for users' infringement if they follow a process. As the owner, Priya sends a takedown notice to the site's designated agent (listed in the Copyright Office's directory). It must identify her work and the infringing material, include contact details, state a good-faith belief the use is unauthorized, and include a statement under penalty of perjury that she is the owner or authorized to act, plus a signature. The provider removes or disables access quickly.",
+    "The poster can send a counter-notice, saying under penalty of perjury that the material was removed by mistake or misidentification. The provider then forwards it, and unless Priya files a federal lawsuit within about 10 to 14 business days, the material may be restored. Knowingly false notices can lead to liability, so do not file takedowns for uses that are plainly fair use or licensed.",
+    "For money disputes that do not justify federal court, the Copyright Claims Board (CCB), run through the Copyright Office, handles claims up to $30,000 with a streamlined, lower-cost process. Participation is voluntary: the respondent can opt out within 60 days, in which case the claimant must go to federal court if they want to continue."
+   ]
+  },
+  {
+   "id": "ip-protection.l08",
+   "title": "The Public Domain, Creative Commons and Open Licenses",
+   "body": [
+    "Lena wants to use an old photograph in her documentary. Is it free? Where can she find music she may use without a negotiation?",
+    "The public domain is the set of works not protected by copyright: because the term expired, the work never qualified, or the owner dedicated it. In the U.S., as of 2026, works first published in 1930 or earlier have entered the public domain, and each January 1 another year's worth follows (works from 1931 in 2027). Works created by U.S. federal government employees as part of their jobs are not copyrighted, though they can include third-party material. Ideas, facts and short phrases are also free. Be careful: a new edition, translation, restoration or recording of an old work may carry fresh copyright in the new material, and public domain status can differ by country.",
+    "Creative Commons (CC) licenses are standard, free, public licenses that let owners say \"you may use this if you follow my terms.\" The building blocks are BY (credit the author), SA (share-alike), NC (non-commercial) and ND (no derivatives), plus CC0, a public-domain dedication. The creator keeps copyright; the license only grants permission. CC licenses are generally hard to revoke for people who already used the work, so choose carefully. A work marked CC BY-NC cannot be used in a commercial video, for example.",
+    "Open-source software licenses (MIT, Apache, GPL) do something similar for code. Always read the actual terms and keep a record of where you found the work."
+   ]
+  },
+  {
+   "id": "ip-protection.l09",
+   "title": "Music, Software and AI-Assisted Work",
+   "body": [
+    "Jo records a cover of a hit song and uploads it. Another creator, Kit, builds an app using code snippets generated by an AI tool. Each is walking through special rules.",
+    "Music has two layers. The musical work (the composition: melody, harmony, lyrics) is owned by songwriters and publishers. The sound recording (the particular recorded performance, often called the master) is owned by the artist or label. Jo needs permission for the composition, often through a mechanical license for covers in audio form, which in the U.S. is available at a statutory rate for compositions already released, and the original recording is not used. Performing rights organizations (ASCAP, BMI, SESAC, GMR) license public performance of compositions; The MLC administers mechanical licenses for U.S. streaming and downloads; SoundExchange collects digital performance royalties for recordings. Sampling someone's recording needs permission for both layers. Video platforms use their own deals, so check their terms.",
+    "Software source code is protected as a literary work. Registration can use selected portions of the code as a deposit. Copyright covers the code, not the functionality or ideas, and open-source licenses add conditions to what you can do.",
+    "AI-assisted work: as of the Copyright Office's January 2025 report on copyrightability, copyright requires human authorship. Prompts alone generally do not make the user the author of the output, but human-written text, human selection and arrangement, and human edits to AI output can be protected, and applicants should disclose AI-generated material. Court cases are still developing, so check the Office's AI page for updates."
+   ]
+  },
+  {
+   "id": "ip-protection.l10",
+   "title": "What a Trademark Is, and How Strong a Name Can Be",
+   "body": [
+    "A trademark is any word, name, logo, slogan, sound, color or other sign that tells customers who makes a product or provides a service, and so keeps them from being confused by someone else's. Marks for services are sometimes called service marks. Unlike copyright, a trademark is not about creativity: it lasts as long as it is used to identify a source, and it protects consumers as well as the owner.",
+    "Not all names are equally protectable. Courts and the USPTO sort marks along a spectrum of distinctiveness:",
+    "- Generic: the common name of the thing, such as \"Bike\" for bicycles. Never protectable.\n- Descriptive: describes a quality, such as \"Fast Delivery.\" Protectable only after it acquires secondary meaning through long use and recognition.\n- Suggestive: hints at a quality and needs imagination, such as \"Netflix\" for streaming. Protectable.\n- Arbitrary: a real word unrelated to the goods, such as \"Apple\" for computers. Strong.\n- Fanciful: an invented word, such as \"Kodak.\" Strongest.",
+    "Rae wants to open a bakery named \"Great Bread.\" That is descriptive and weak, and hard to stop others from using. \"Orbit Loaf\" would be stronger, arbitrary for bread. Also consider that strong marks are not protected in every context: what matters is likelihood of confusion with others in related markets. A famous mark like \"Delta\" can be used for faucets and airlines."
+   ]
+  },
+  {
+   "id": "ip-protection.l11",
+   "title": "Searching, Classes of Goods and Services, and Domains",
+   "body": [
+    "Theo is about to print 500 t-shirts for his streetwear label \"Northgate.\" A quick search first could save him thousands.",
+    "A proper clearance search looks for marks that are identical or similar in sound, appearance or meaning, used on the same or related goods or services. Start with the USPTO Trademark Search database for registered and pending applications. Then check state registers and your state's business-entity records, and search the open web, app stores, marketplaces and social media for unregistered users, since those can still have rights. The WIPO Global Brand Database helps with international marks. A search is not a guarantee; for important brands, consider an attorney to review results.",
+    "Applications list goods and services in international classes, a numbered system (45 classes: goods in 1 to 34, services in 35 to 45). Clothing is Class 25; software and apps often fall in Classes 9 and 42; education is Class 41. You pay USPTO fees per class, so only list what you actually sell or sincerely plan to.",
+    "Domains and handles: a domain registration or social handle gives you a technical address, not trademark rights, and someone may still have a better claim to the name. Conversely, a trademark owner can challenge cybersquatters through ICANN's UDRP process. Check that the domain, handles and trademark are all available, and register what you can early."
+   ]
+  },
+  {
+   "id": "ip-protection.l12",
+   "title": "Use in Commerce, Intent-to-Use and the USPTO Process",
+   "body": [
+    "Federal trademark rights in the U.S. rest on use in commerce: actually selling goods or providing services under the mark across state lines or in a way Congress can regulate, which covers most online and interstate business. If you are not selling yet, you can file an intent-to-use (ITU) application, claiming a bona fide intent to use the mark, then file proof of use after the USPTO approves it. Both routes require the application to be filed by the true owner.",
+    "The process in outline:",
+    "1. File through the USPTO's Trademark Center, identifying the owner, the mark (words or design), the goods or services, and the class(es), with a specimen showing real use if you are already using it. The base fee has been about $350 per class; check the current fee page.\n2. Examination: an examining attorney reviews your application for legal problems and likelihood of confusion with earlier marks. If there is an issue, you receive an office action and have a limited time to respond.\n3. Publication: if approved, the mark is published and others have 30 days to oppose.\n4. Registration (or, for ITU, a notice of allowance followed by a statement of use).",
+    "Expect many months, often a year or more. Mistakes in the ownership, goods list or specimen are common reasons for trouble, and fees are not refunded if an application fails. Applicants outside the U.S. need a U.S.-licensed attorney. Beware of unofficial solicitations that mimic USPTO notices."
+   ]
+  },
+  {
+   "id": "ip-protection.l13",
+   "title": "TM and (R), Common-Law Rights, Maintenance and Going Global",
+   "body": [
+    "Ana sells hand-poured candles as \"Ember Lane.\" She has a logo with a small TM next to it, and wants to switch to the registered symbol. Can she?",
+    "The TM symbol (or SM for services) may be used by anyone claiming rights in a mark, registered or not. It is a warning to the public and costs nothing. The circled R may be used only once the USPTO has actually registered the mark, and only for the goods or services covered. Using it earlier can mislead the public and hurt you in a dispute. Ana must wait for her registration.",
+    "Common-law rights arise from use alone. Ana's use in her local area gives her some rights there, but they are limited to where she is known, and she cannot easily show nationwide priority. A federal registration gives nationwide priority from the filing date, a presumption of validity, access to federal court, and the ability to record with Customs.",
+    "Maintenance: a registration only lasts if you keep using the mark and file on time. A declaration of use is due between the fifth and sixth year, and then a combined filing with renewal falls between the ninth and tenth year, repeating every ten years. Missing a deadline can cancel the registration.",
+    "Going global: trademark rights are territorial. The Madrid System, run by WIPO, lets you use one application to seek protection in many member countries, but you need a home-country application or registration as a base, and if that base fails in the first five years the international registration can fall too."
+   ]
+  },
+  {
+   "id": "ip-protection.l14",
+   "title": "Utility, Design and Plant Patents, and What Cannot Be Patented",
+   "body": [
+    "A patent gives its owner the right to exclude others from making, using, selling, offering for sale or importing the invention for a limited term, in exchange for fully disclosing how it works. The U.S. issues three kinds.",
+    "Utility patents protect how something works or is made: processes, machines, manufactured items and compositions of matter, and improvements to them. They generally last 20 years from the filing date, with maintenance fees due after grant. Design patents protect the ornamental appearance of a functional item, like the shape of a bottle or a phone's look; they last 15 years from grant for current applications. Plant patents cover new, asexually reproduced plant varieties and last 20 years from filing.",
+    "Not everything qualifies. The courts have excluded laws of nature, natural phenomena and abstract ideas, which includes some purely mental or business methods and some software claims that merely implement an abstract idea on a computer. Eligible subject matter for software and diagnostics is a complicated area. A new discovery, like a mineral, is not enough; a specific, practical application might be.",
+    "Lee designs a clip that attaches a phone to a bike in a new way. The mechanism might qualify for a utility patent, while the clip's look could get a design patent. His idea of \"holding phones on bikes\" alone could not be patented, because the claim must be specific. Patent rights are also national: a U.S. patent does not protect you in Japan or Germany."
+   ]
+  },
+  {
+   "id": "ip-protection.l15",
+   "title": "Novelty, Non-Obviousness, Grace Periods and Prior-Art Searching",
+   "body": [
+    "Two core tests decide most patent fights. Novelty: nothing identical to your claimed invention can already exist in the \"prior art,\" which includes earlier patents, publications, public sales and public use. Non-obviousness: even if no single earlier item matches, the claimed invention must not have been an obvious combination or modification to a person with ordinary skill in the field. Obviousness is argued, not calculated, and is the usual battleground.",
+    "Disclosure traps. In the U.S., under the America Invents Act, an inventor's own public disclosure (selling, posting, demonstrating, publishing) is excused if you file within one year of it. That is the grace period, and it applies only to the inventor's own disclosures and some derived from the inventor, with limits. Most other countries use absolute novelty: any public disclosure before filing can destroy your rights there. So if you might want protection abroad, file before you go public. Do not rely on the one year as a plan.",
+    "Searching prior art: use the USPTO's Patent Public Search, plus Google Patents and WIPO's PATENTSCOPE, and search by keywords, classifications and the cited references on related patents. A self-search is useful for learning, but it is never complete; patent attorneys and agents can do professional searches.",
+    "Marcus posted a demo video of his device in March. He has until the following March to file in the U.S., but he may already have lost rights in Europe."
+   ]
+  },
+  {
+   "id": "ip-protection.l16",
+   "title": "Provisional vs. Non-Provisional, Cost, Time, Professionals and the PCT",
+   "body": [
+    "A provisional application is a simple filing that establishes an early filing date. It is never examined and expires after 12 months, during which you may say \"patent pending.\" To keep the date, you must file a non-provisional application within 12 months, and the provisional must describe the invention in enough detail that the later claims are supported. A provisional is cheaper at filing, but it is no shortcut to a patent, and a thin one gives false comfort.",
+    "A non-provisional application contains claims (the legal definition of what is protected), a specification and drawings. It is examined, and it is normal to get rejections and respond several times. Grant often takes two to three years or more.",
+    "Cost reality: USPTO filing, search, examination and issue fees are a modest part, with discounts for small and micro entities; attorney drafting is the larger part and commonly runs from several thousand to tens of thousands of dollars per patent in the U.S., and foreign filings multiply it. Enforcing a patent in court can cost hundreds of thousands to millions. Prices change, so confirm before budgeting. Eligible low-income inventors can apply to the USPTO's Patent Pro Bono Program.",
+    "A registered patent attorney (a lawyer) or patent agent (not a lawyer, but passed the USPTO exam) can prosecute your application. Beware of invention-promotion firms that charge large upfront fees.",
+    "The Patent Cooperation Treaty (PCT) lets you file one international application, and decide within about 30 months of your priority date which countries to enter. Patent owners can sue infringers or license the patent for royalties; independent invention is not a defense."
+   ]
+  },
+  {
+   "id": "ip-protection.l17",
+   "title": "Trade Secrets and NDAs",
+   "body": [
+    "The recipe for a famous sauce, a customer list, source code that is never published, a manufacturing process: these can be trade secrets. Trade secrets need no registration. The information must have independent economic value because it is not generally known, and the owner must take reasonable measures to keep it secret. Federal law (the Defend Trade Secrets Act) and state laws provide remedies against misappropriation, meaning acquiring a secret by improper means or using or disclosing it in breach of a duty.",
+    "There is no protection against lawful discovery: reverse engineering a purchased product or independently inventing the same thing is generally fine. And once a secret is public, the protection is gone, forever.",
+    "Reasonable measures include limiting access to need-to-know, passwords and logs, marking documents confidential, exit interviews, and having people sign agreements. A non-disclosure agreement (NDA) is a contract in which a party promises to keep specified information confidential and use it only for a stated purpose. A good NDA defines confidential information, lists exclusions (already public, independently developed, lawfully received from others), states the term and permitted uses, and what happens at the end of the relationship. Some jurisdictions limit overly broad restrictions and non-competes, and U.S. federal law requires employers to give workers notice of whistleblower immunity in confidentiality agreements.",
+    "Choosing between a patent and a secret is strategic: a patent requires disclosure, while a secret can last forever but offers no protection if someone else invents or reverse engineers it."
+   ]
+  },
+  {
+   "id": "ip-protection.l18",
+   "title": "Assignments, Licenses, Employees, Contractors and Forming a Company",
+   "body": [
+    "Sofia and Ben start a game studio. Sofia coded the prototype before they formed an LLC, and they hired a freelance artist and an intern. Who owns the game? Without paperwork, the answer is messy.",
+    "Assignment transfers ownership. A license grants permission while the owner keeps the rights, and can be exclusive or non-exclusive, limited by field, territory and time, with royalties or flat fees. Both should be in writing and signed, and they can be recorded with the Copyright Office or USPTO, which gives notice to third parties.",
+    "Employees: copyright in works created within the scope of the job belongs to the employer as work made for hire. Patent rights generally start with the inventor, so employers use invention assignment agreements. These often cover only job-related work; some states, such as California, limit assignments of inventions made on the employee's own time with their own resources.",
+    "Contractors and freelancers: they usually keep copyright unless the contract assigns it (or fits a work-made-for-hire category). Use a written agreement with a present-tense assignment (\"hereby assigns\"), a license to pre-existing tools, and a confidentiality clause.",
+    "Forming a company: founders should sign IP assignment agreements transferring everything related to the business, including pre-incorporation work, to the company. Investors, buyers and partners will ask for this during due diligence, and gaps can derail a deal. Keep a simple IP register of what exists, who made it, and what paper covers it."
+   ]
+  },
+  {
+   "id": "ip-protection.l19",
+   "title": "Enforcement: Options and Costs in Proportion",
+   "body": [
+    "You discover a competitor using a near-copy of your logo, or a site selling your designs. Your rights exist, but nothing enforces itself. The question is how much effort the problem deserves.",
+    "A ladder of options, roughly cheapest first:",
+    "1. Document everything: screenshots, dates, URLs, sales records, and your registrations.\n2. Direct contact: a polite email or a cease-and-desist letter, ideally reviewed by an attorney, because an aggressive or inaccurate letter can backfire and sometimes prompts a declaratory-judgment suit.\n3. Platform tools: DMCA takedowns for copyright, and trademark and counterfeit complaint forms on marketplaces and social networks, which are quick and often free.\n4. Specialized forums: the Copyright Claims Board for claims up to $30,000; ICANN's UDRP for abusive domain names; the USPTO's Trademark Trial and Appeal Board for oppositions and cancellations; customs recordation of registered trademarks and copyrights.\n5. Federal court: powerful (injunctions, damages, fees in some cases) but expensive, commonly tens or hundreds of thousands of dollars for copyright and trademark, and more for patents. Some attorneys take strong cases on contingency or sell insurance-backed options.",
+    "Also weigh the risk to yourself. A weak claim can lead to counterclaims or fee awards, and a takedown notice that ignores fair use can create liability. Delay can hurt, too, because the longer you tolerate use, the harder it is to object.",
+    "Rule of thumb: spend in proportion to the value at stake, and match the strength of the claim to the strength of the response."
+   ]
+  },
+  {
+   "id": "ip-protection.l20",
+   "title": "Build Your IP Protection Plan",
+   "body": [
+    "Let's plan for \"Pawprint Studio,\" a three-person business that makes illustrated pet-care guides, a companion app, and a branded line of dog toys with a new chew design.",
+    "Step 1, inventory. List everything valuable: the guides' text and art (copyright), the studio name and logo (trademark), the app code (copyright and trade secret), the chew design (possible design or utility patent), and customer data and supplier terms (trade secrets).",
+    "Step 2, ownership. Check that the company owns each item by written assignments from founders, employees and freelancers.",
+    "Step 3, prioritize by value and risk. The name is the brand, so search and file a trademark for the studio name in the right classes (books, apps, toys). Register the guides' copyright soon after publication to preserve statutory damages and fees. Decide on the chew design before any public launch: if a patent matters, file first, mindful of the one-year U.S. grace period and stricter rules abroad; if not, skip the cost.",
+    "Step 4, controls: NDAs for outside partners, access limits for source code and supplier lists, license terms in the app, and an open-source log.",
+    "Step 5, budget and calendar. Estimate filing fees and professional time, and set reminders for deadlines: the 12-month provisional date, trademark use declarations, renewals, and registration windows.",
+    "Step 6, review yearly, or when you raise money, launch in a new country, or hire. Use the Plajah toolkit for the official links, and book an attorney for the pivotal moments."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "ip-protection.l01.q1",
+   "lessonId": "ip-protection.l01",
+   "kind": "tf",
+   "prompt": "Under the U.S. approach, intellectual property rights are granted for limited times to encourage new creative and inventive work.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l01.q2",
+   "lessonId": "ip-protection.l01",
+   "kind": "mcq",
+   "prompt": "A founder wants to protect the name of her new app so customers know it is hers. Which tool is designed for that job?",
+   "choices": [
+    "Trade secret",
+    "Trademark",
+    "Patent",
+    "Copyright in the app code"
+   ]
+  },
+  {
+   "id": "ip-protection.l01.q3",
+   "lessonId": "ip-protection.l01",
+   "kind": "mcq",
+   "prompt": "A bakery keeps a special dough recipe confidential and never publishes it. Which type of IP is the recipe most likely to be?",
+   "choices": [
+    "A trademark",
+    "A design patent",
+    "A trade secret",
+    "A utility patent"
+   ]
+  },
+  {
+   "id": "ip-protection.l01.q4",
+   "lessonId": "ip-protection.l01",
+   "kind": "mcq",
+   "prompt": "A board-game maker has art, a game title, a clever dice mechanism and a supplier list. Which pairing of right to item is correct?",
+   "choices": [
+    "Title: copyright; mechanism: trademark; supplier list: patent",
+    "Title: patent; mechanism: copyright; supplier list: trademark",
+    "Title: trade secret; mechanism: copyright; supplier list: trademark",
+    "Title: trademark; mechanism: patent; supplier list: trade secret"
+   ]
+  },
+  {
+   "id": "ip-protection.l01.q5",
+   "lessonId": "ip-protection.l01",
+   "kind": "mcq",
+   "prompt": "Why does IP law make most rights temporary, with the exception of trademarks and trade secrets that can last as long as they are used or kept secret?",
+   "choices": [
+    "Copyright and patents trade a limited monopoly for public benefit, while trademarks and secrets depend on continuing conduct",
+    "Temporary rights are cheaper for the government to administer",
+    "Trademarks and secrets are not considered property at all",
+    "Patents and copyrights expire because registration must be renewed yearly"
+   ]
+  },
+  {
+   "id": "ip-protection.l02.q1",
+   "lessonId": "ip-protection.l02",
+   "kind": "tf",
+   "prompt": "In the U.S., copyright generally exists automatically once an original work is fixed in a tangible form.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l02.q2",
+   "lessonId": "ip-protection.l02",
+   "kind": "mcq",
+   "prompt": "Which of the following is protected by copyright?",
+   "choices": [
+    "The specific wording of a short story",
+    "The idea of a robot that finds lost pets",
+    "A product name such as a title",
+    "A mathematical formula"
+   ]
+  },
+  {
+   "id": "ip-protection.l02.q3",
+   "lessonId": "ip-protection.l02",
+   "kind": "mcq",
+   "prompt": "A band plays an unplanned jam at a party and nobody records it. What is true about copyright in the jam?",
+   "choices": [
+    "It is protected only after registration",
+    "It is not fixed, so U.S. copyright does not yet attach to it",
+    "It is protected automatically as soon as it is played",
+    "It is protected only if the band uses the (c) symbol"
+   ]
+  },
+  {
+   "id": "ip-protection.l02.q4",
+   "lessonId": "ip-protection.l02",
+   "kind": "mcq",
+   "prompt": "Another author writes a different novel about a girl who builds a robot to find her missing dog. Without copying Maya's words, characters or scenes, what is the likely result?",
+   "choices": [
+    "Infringement unless Maya registered her story",
+    "No infringement only if the new author credits Maya",
+    "Probably no infringement, because only expression is protected, not the idea",
+    "Infringement, because the premise is protected"
+   ]
+  },
+  {
+   "id": "ip-protection.l02.q5",
+   "lessonId": "ip-protection.l02",
+   "kind": "mcq",
+   "prompt": "A software company owns copyright in its program. What does that copyright most likely stop a rival from doing?",
+   "choices": [
+    "Writing different code that does the same job",
+    "Using the same general algorithm idea",
+    "Offering a program with similar features",
+    "Copying the program's actual source code"
+   ]
+  },
+  {
+   "id": "ip-protection.l03.q1",
+   "lessonId": "ip-protection.l03",
+   "kind": "tf",
+   "prompt": "In the U.S., you generally must have registered (or been refused registration) before filing a copyright infringement lawsuit over a U.S. work.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l03.q2",
+   "lessonId": "ip-protection.l03",
+   "kind": "mcq",
+   "prompt": "To preserve the chance for statutory damages and attorney's fees, when should a published work generally be registered?",
+   "choices": [
+    "Any time within five years after infringement",
+    "Only after a lawsuit is filed",
+    "Within 30 days after any copying is discovered",
+    "Before infringement begins, or within three months of first publication"
+   ]
+  },
+  {
+   "id": "ip-protection.l03.q3",
+   "lessonId": "ip-protection.l03",
+   "kind": "mcq",
+   "prompt": "Dev did not register his photo book until after discovering the poster seller. What is the most likely effect on his remedies?",
+   "choices": [
+    "He may be limited to actual damages and profits for infringement that began earlier",
+    "He can still get up to $150,000 per photo",
+    "He loses copyright ownership",
+    "He cannot sue at all, ever"
+   ]
+  },
+  {
+   "id": "ip-protection.l03.q4",
+   "lessonId": "ip-protection.l03",
+   "kind": "mcq",
+   "prompt": "Which statement about registration is accurate?",
+   "choices": [
+    "It makes a work immune from fair use",
+    "It is not required for copyright to exist, but it unlocks a lawsuit and stronger remedies",
+    "It is required before any copyright exists",
+    "It gives you copyright in ideas"
+   ]
+  },
+  {
+   "id": "ip-protection.l03.q5",
+   "lessonId": "ip-protection.l03",
+   "kind": "mcq",
+   "prompt": "A photographer shoots hundreds of photos a month. What is a sensible registration approach?",
+   "choices": [
+    "Print the (c) symbol and never register",
+    "Register only the single best photo per year",
+    "Use the Copyright Office's group options where they fit and register on a regular schedule",
+    "Register nothing until someone infringes"
+   ]
+  },
+  {
+   "id": "ip-protection.l04.q1",
+   "lessonId": "ip-protection.l04",
+   "kind": "tf",
+   "prompt": "Copyright in a work initially belongs to the person who actually created it, unless an exception such as work made for hire applies.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l04.q2",
+   "lessonId": "ip-protection.l04",
+   "kind": "mcq",
+   "prompt": "An employee writes code during their normal job duties. Who is treated as the author?",
+   "choices": [
+    "Nobody until registration",
+    "The employee, unless the code is longer than a page",
+    "The employer, as a work made for hire",
+    "The employee, always"
+   ]
+  },
+  {
+   "id": "ip-protection.l04.q3",
+   "lessonId": "ip-protection.l04",
+   "kind": "mcq",
+   "prompt": "A company hires a freelance designer for a logo with no written agreement. Who most likely owns the copyright?",
+   "choices": [
+    "The company, because it paid",
+    "Both equally",
+    "The USPTO",
+    "The designer"
+   ]
+  },
+  {
+   "id": "ip-protection.l04.q4",
+   "lessonId": "ip-protection.l04",
+   "kind": "mcq",
+   "prompt": "Which requirement must be met for a commissioned work by an independent contractor to be a work made for hire?",
+   "choices": [
+    "It falls in one of nine statutory categories and both parties sign a written work-for-hire agreement",
+    "It is longer than ten pages",
+    "It is registered within a year",
+    "The contractor lives in the same state"
+   ]
+  },
+  {
+   "id": "ip-protection.l04.q5",
+   "lessonId": "ip-protection.l04",
+   "kind": "mcq",
+   "prompt": "Three bandmates co-write a song intending it to be one work. Absent an agreement otherwise, how are rights usually treated?",
+   "choices": [
+    "It belongs to whoever registers first",
+    "Each is a joint author and co-owner who may license non-exclusively but must account to the others",
+    "Only the lead singer owns it",
+    "Each owns only their own lines separately and cannot license the song"
+   ]
+  },
+  {
+   "id": "ip-protection.l05.q1",
+   "lessonId": "ip-protection.l05",
+   "kind": "tf",
+   "prompt": "A transfer of exclusive copyright ownership in the U.S. generally requires a signed writing.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l05.q2",
+   "lessonId": "ip-protection.l05",
+   "kind": "mcq",
+   "prompt": "Cora allows a magazine to print one photo for a year in North America and keeps everything else. This is best described as?",
+   "choices": [
+    "Abandonment",
+    "A limited license",
+    "An assignment of the whole copyright",
+    "A work made for hire"
+   ]
+  },
+  {
+   "id": "ip-protection.l05.q3",
+   "lessonId": "ip-protection.l05",
+   "kind": "mcq",
+   "prompt": "For a work made today by one individual author (not for hire), the copyright term is generally?",
+   "choices": [
+    "28 years with one renewal",
+    "Life plus 20 years",
+    "The author's life plus 70 years",
+    "20 years from filing"
+   ]
+  },
+  {
+   "id": "ip-protection.l05.q4",
+   "lessonId": "ip-protection.l05",
+   "kind": "mcq",
+   "prompt": "A musician signed away her copyright to a label in 1990 in a deal that was not work made for hire. Which statement best fits U.S. law?",
+   "choices": [
+    "The deal is permanent with no exceptions",
+    "The transfer is void because it lasted too long",
+    "She can terminate at any time with no notice",
+    "She may have a statutory right to terminate the transfer after 35 years by following notice rules"
+   ]
+  },
+  {
+   "id": "ip-protection.l05.q5",
+   "lessonId": "ip-protection.l05",
+   "kind": "mcq",
+   "prompt": "A work made for hire by a corporation, published today, has what general term?",
+   "choices": [
+    "95 years from publication or 120 years from creation, whichever ends first",
+    "Life of the corporation plus 70 years",
+    "70 years from the filing date",
+    "Forever while the company exists"
+   ]
+  },
+  {
+   "id": "ip-protection.l06.q1",
+   "lessonId": "ip-protection.l06",
+   "kind": "tf",
+   "prompt": "Using fewer than a set number of seconds or words is always safe under fair use.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l06.q2",
+   "lessonId": "ip-protection.l06",
+   "kind": "mcq",
+   "prompt": "Which is one of the four statutory fair use factors?",
+   "choices": [
+    "The effect of the use on the market for the original",
+    "Whether the user gave credit",
+    "Whether the work was registered",
+    "Whether the user is a well-known person"
+   ]
+  },
+  {
+   "id": "ip-protection.l06.q3",
+   "lessonId": "ip-protection.l06",
+   "kind": "mcq",
+   "prompt": "Sam's review uses short clips to criticize a movie. Which factor most favors him?",
+   "choices": [
+    "Selling the clips alone",
+    "A transformative purpose such as criticism and commentary",
+    "Using the most memorable scene",
+    "Replacing the need to watch the film"
+   ]
+  },
+  {
+   "id": "ip-protection.l06.q4",
+   "lessonId": "ip-protection.l06",
+   "kind": "mcq",
+   "prompt": "A creator copies a small but central, most memorable portion of a song for a commercial ad. Why might this still fail?",
+   "choices": [
+    "Ads are always fair use",
+    "Fair use does not apply to music",
+    "The \"heart of the work\" can make a small amount substantial, and a commercial substituting use weighs against fair use",
+    "Small amounts can never be infringing"
+   ]
+  },
+  {
+   "id": "ip-protection.l06.q5",
+   "lessonId": "ip-protection.l06",
+   "kind": "mcq",
+   "prompt": "A teacher asks, \"If I credit the artist and it is for education, I am safe, right?\" The best answer is?",
+   "choices": [
+    "Yes, credit makes any educational use legal",
+    "Yes, but only for images",
+    "No, education is never fair use",
+    "Not automatically; these points may help but courts weigh all four factors case by case"
+   ]
+  },
+  {
+   "id": "ip-protection.l07.q1",
+   "lessonId": "ip-protection.l07",
+   "kind": "tf",
+   "prompt": "A takedown notice under the DMCA must include a statement, under penalty of perjury, that the sender is the owner or authorized to act for the owner.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l07.q2",
+   "lessonId": "ip-protection.l07",
+   "kind": "mcq",
+   "prompt": "After a poster files a valid counter-notice, what typically happens if the claimant does not file a federal lawsuit within the time allowed?",
+   "choices": [
+    "The poster is automatically fined",
+    "The work becomes public domain",
+    "The provider must permanently ban the claimant",
+    "The provider may restore the material after about 10 to 14 business days"
+   ]
+  },
+  {
+   "id": "ip-protection.l07.q3",
+   "lessonId": "ip-protection.l07",
+   "kind": "mcq",
+   "prompt": "Where do you find a service provider's designated agent for DMCA notices?",
+   "choices": [
+    "The Copyright Office's DMCA Designated Agent Directory",
+    "The USPTO trademark database",
+    "The Library of Congress catalog",
+    "A state business registry"
+   ]
+  },
+  {
+   "id": "ip-protection.l07.q4",
+   "lessonId": "ip-protection.l07",
+   "kind": "mcq",
+   "prompt": "Why is it risky to send a DMCA notice for a use that is plainly licensed or clearly fair use?",
+   "choices": [
+    "Notices can only be sent by attorneys",
+    "Knowingly false claims can lead to liability, and you must consider fair use before sending",
+    "It is always free of consequences",
+    "Platforms ban all users who send notices"
+   ]
+  },
+  {
+   "id": "ip-protection.l07.q5",
+   "lessonId": "ip-protection.l07",
+   "kind": "mcq",
+   "prompt": "A designer's illustration was copied for sale and her damages are about $8,000. Which forum is built for modest claims like this?",
+   "choices": [
+    "The USPTO Patent Trial board",
+    "The WIPO Madrid office",
+    "The Copyright Claims Board",
+    "The Supreme Court"
+   ]
+  },
+  {
+   "id": "ip-protection.l08.q1",
+   "lessonId": "ip-protection.l08",
+   "kind": "tf",
+   "prompt": "Works created by U.S. federal government employees as part of their jobs are generally not protected by U.S. copyright.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l08.q2",
+   "lessonId": "ip-protection.l08",
+   "kind": "mcq",
+   "prompt": "As of 2026, which works first published in the U.S. have entered the public domain by age?",
+   "choices": [
+    "Works published in 2000 or earlier",
+    "Only works published before 1900",
+    "Works published in 1930 or earlier",
+    "Works published in 1960 or earlier"
+   ]
+  },
+  {
+   "id": "ip-protection.l08.q3",
+   "lessonId": "ip-protection.l08",
+   "kind": "mcq",
+   "prompt": "A creator picks a CC BY-NC license for her photo. Which use is NOT allowed without extra permission?",
+   "choices": [
+    "Using it in a free classroom lesson",
+    "Sharing it with credit on a blog without ads or revenue",
+    "Printing it in a free school zine with credit",
+    "Using it in a paid commercial advertisement"
+   ]
+  },
+  {
+   "id": "ip-protection.l08.q4",
+   "lessonId": "ip-protection.l08",
+   "kind": "mcq",
+   "prompt": "A 1920s novel is public domain, but a publisher's 2024 edition has new notes and illustrations. What can Lena freely copy?",
+   "choices": [
+    "The original 1920s text, but not the new notes or illustrations",
+    "Everything in the new edition",
+    "Nothing, because the new edition restarts the whole term",
+    "Only the cover"
+   ]
+  },
+  {
+   "id": "ip-protection.l08.q5",
+   "lessonId": "ip-protection.l08",
+   "kind": "mcq",
+   "prompt": "What is true about a Creative Commons license?",
+   "choices": [
+    "It works only for photographs",
+    "The creator keeps copyright and grants permission under stated conditions",
+    "It transfers ownership to the public",
+    "It cancels all moral rights"
+   ]
+  },
+  {
+   "id": "ip-protection.l09.q1",
+   "lessonId": "ip-protection.l09",
+   "kind": "tf",
+   "prompt": "A song involves two separate copyrights: the musical composition and the sound recording.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l09.q2",
+   "lessonId": "ip-protection.l09",
+   "kind": "mcq",
+   "prompt": "Which organization administers blanket mechanical licenses for U.S. streaming and downloads of compositions?",
+   "choices": [
+    "The Copyright Claims Board",
+    "The MLC",
+    "SoundExchange",
+    "ASCAP"
+   ]
+  },
+  {
+   "id": "ip-protection.l09.q3",
+   "lessonId": "ip-protection.l09",
+   "kind": "mcq",
+   "prompt": "A producer wants to sample two seconds from a commercial recording. What permission is generally needed?",
+   "choices": [
+    "Only the artist's verbal approval",
+    "Only a trademark license",
+    "Permission for the sound recording and for the underlying composition",
+    "None, because two seconds is too short to matter"
+   ]
+  },
+  {
+   "id": "ip-protection.l09.q4",
+   "lessonId": "ip-protection.l09",
+   "kind": "mcq",
+   "prompt": "As of the Copyright Office's January 2025 report, how is AI-generated output generally treated?",
+   "choices": [
+    "All AI output is fully copyrighted by the prompter",
+    "AI output is copyrighted by the AI company",
+    "Any use of AI bars all copyright",
+    "Copyright needs human authorship; human-authored parts, selection and arrangement can be protected, but prompts alone are generally not enough"
+   ]
+  },
+  {
+   "id": "ip-protection.l09.q5",
+   "lessonId": "ip-protection.l09",
+   "kind": "mcq",
+   "prompt": "Kit's app was built partly with AI-generated code. What should Kit do about registration?",
+   "choices": [
+    "Disclose AI-generated material and claim only the human-authored contributions",
+    "Claim all code as human-written regardless",
+    "Never register software",
+    "Register only the app's name"
+   ]
+  },
+  {
+   "id": "ip-protection.l10.q1",
+   "lessonId": "ip-protection.l10",
+   "kind": "tf",
+   "prompt": "Unlike copyright, a trademark protects a sign that identifies the source of goods or services.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l10.q2",
+   "lessonId": "ip-protection.l10",
+   "kind": "mcq",
+   "prompt": "Which name is an example of a fanciful mark?",
+   "choices": [
+    "Kodak",
+    "Apple for computers",
+    "Fast Delivery",
+    "Bicycle"
+   ]
+  },
+  {
+   "id": "ip-protection.l10.q3",
+   "lessonId": "ip-protection.l10",
+   "kind": "mcq",
+   "prompt": "Rae wants to call her bakery \"Great Bread.\" Why is that weak?",
+   "choices": [
+    "Bakeries cannot get trademarks",
+    "It is descriptive of the goods, so it is hard to protect without proof of secondary meaning",
+    "It is too long",
+    "It is arbitrary"
+   ]
+  },
+  {
+   "id": "ip-protection.l10.q4",
+   "lessonId": "ip-protection.l10",
+   "kind": "mcq",
+   "prompt": "Which ordering runs from weakest to strongest protection?",
+   "choices": [
+    "Descriptive, generic, fanciful, arbitrary, suggestive",
+    "Arbitrary, fanciful, generic, descriptive, suggestive",
+    "Generic, descriptive, suggestive, arbitrary, fanciful",
+    "Fanciful, arbitrary, descriptive, suggestive, generic"
+   ]
+  },
+  {
+   "id": "ip-protection.l10.q5",
+   "lessonId": "ip-protection.l10",
+   "kind": "mcq",
+   "prompt": "Why can two companies sometimes use the same word as a mark, such as for faucets and airlines?",
+   "choices": [
+    "Trademarks can only be owned by one person per country",
+    "The USPTO ignores identical words",
+    "Different industries do not use trademarks",
+    "Trademark law focuses on likelihood of confusion in related goods or services"
+   ]
+  },
+  {
+   "id": "ip-protection.l11.q1",
+   "lessonId": "ip-protection.l11",
+   "kind": "tf",
+   "prompt": "Registering a domain name automatically gives you trademark rights in that name.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l11.q2",
+   "lessonId": "ip-protection.l11",
+   "kind": "mcq",
+   "prompt": "What is a good first free step in clearing a trademark name in the U.S.?",
+   "choices": [
+    "File an application and see what happens",
+    "Order business cards",
+    "Register copyright in the logo",
+    "Search the USPTO Trademark Search database"
+   ]
+  },
+  {
+   "id": "ip-protection.l11.q3",
+   "lessonId": "ip-protection.l11",
+   "kind": "mcq",
+   "prompt": "Why do you list goods and services by class on a U.S. application?",
+   "choices": [
+    "USPTO fees are charged per class and it defines your coverage",
+    "Classes decide the length of your copyright",
+    "Classes exist only for patents",
+    "It determines your tax rate"
+   ]
+  },
+  {
+   "id": "ip-protection.l11.q4",
+   "lessonId": "ip-protection.l11",
+   "kind": "mcq",
+   "prompt": "Theo finds no registered \"Northgate\" for clothing but sees a local boutique using it. What does that mean?",
+   "choices": [
+    "The boutique must stop immediately",
+    "The boutique may still have common-law rights in its area, so it is a risk to evaluate",
+    "Nothing, because only registered marks count",
+    "He is safe in all states"
+   ]
+  },
+  {
+   "id": "ip-protection.l11.q5",
+   "lessonId": "ip-protection.l11",
+   "kind": "mcq",
+   "prompt": "If someone registers your brand as a domain only to sell it to you, which route can address it?",
+   "choices": [
+    "A patent infringement suit",
+    "The Copyright Claims Board",
+    "The UDRP process or federal anticybersquatting law, if you have trademark rights",
+    "A DMCA takedown to the registrar"
+   ]
+  },
+  {
+   "id": "ip-protection.l12.q1",
+   "lessonId": "ip-protection.l12",
+   "kind": "tf",
+   "prompt": "An intent-to-use application lets you file before you begin selling, but you must later show actual use.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l12.q2",
+   "lessonId": "ip-protection.l12",
+   "kind": "mcq",
+   "prompt": "What is the correct order of the main U.S. trademark application steps?",
+   "choices": [
+    "Registration, file, publication, examination",
+    "Examination, registration, file, publication",
+    "File, examination, publication for opposition, registration",
+    "Publication, file, registration, examination"
+   ]
+  },
+  {
+   "id": "ip-protection.l12.q3",
+   "lessonId": "ip-protection.l12",
+   "kind": "mcq",
+   "prompt": "An examining attorney finds your mark confusingly similar to an earlier registration. What do you usually receive?",
+   "choices": [
+    "An immediate registration",
+    "A refund of all fees",
+    "A copyright notice",
+    "An office action with a deadline to respond"
+   ]
+  },
+  {
+   "id": "ip-protection.l12.q4",
+   "lessonId": "ip-protection.l12",
+   "kind": "mcq",
+   "prompt": "Why is an application filed by the wrong owner a serious problem?",
+   "choices": [
+    "An application filed by someone who is not the owner of the mark can be void",
+    "It only delays the case by a week",
+    "It is fixed automatically",
+    "Owners do not matter for marks"
+   ]
+  },
+  {
+   "id": "ip-protection.l12.q5",
+   "lessonId": "ip-protection.l12",
+   "kind": "mcq",
+   "prompt": "You receive a letter that looks official offering to \"register your trademark\" for a high fee. What is the best step?",
+   "choices": [
+    "Send your login to the sender",
+    "Check the sender against official USPTO communications; filings and notices come only through uspto.gov accounts and emails",
+    "Pay immediately to avoid cancellation",
+    "Ignore your own application forever"
+   ]
+  },
+  {
+   "id": "ip-protection.l13.q1",
+   "lessonId": "ip-protection.l13",
+   "kind": "tf",
+   "prompt": "Anyone claiming rights in a mark may use the TM symbol, but the circled R may be used only after federal registration.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l13.q2",
+   "lessonId": "ip-protection.l13",
+   "kind": "mcq",
+   "prompt": "Ana has only an application pending for \"Ember Lane.\" Which symbol is appropriate?",
+   "choices": [
+    "The (c) symbol",
+    "TM",
+    "The circled R",
+    "Neither; no marks may appear until registration"
+   ]
+  },
+  {
+   "id": "ip-protection.l13.q3",
+   "lessonId": "ip-protection.l13",
+   "kind": "mcq",
+   "prompt": "What happens if you stop using a registered mark and miss a maintenance deadline?",
+   "choices": [
+    "It converts to a copyright",
+    "It transfers to the USPTO",
+    "The registration can be cancelled",
+    "Nothing, a registration is permanent"
+   ]
+  },
+  {
+   "id": "ip-protection.l13.q4",
+   "lessonId": "ip-protection.l13",
+   "kind": "mcq",
+   "prompt": "Compared with relying only on common-law use, what does federal registration add?",
+   "choices": [
+    "Worldwide protection automatically",
+    "Protection for any similar name in any field",
+    "Permanent rights with no maintenance",
+    "Nationwide priority from the filing date, a presumption of validity and access to federal court"
+   ]
+  },
+  {
+   "id": "ip-protection.l13.q5",
+   "lessonId": "ip-protection.l13",
+   "kind": "mcq",
+   "prompt": "What is the \"dependency\" risk in the Madrid System?",
+   "choices": [
+    "If the home-country basic mark fails within five years, the international registration can fall too",
+    "The Madrid System requires use in every country at once",
+    "Madrid automatically replaces local laws",
+    "It lets you skip the USPTO entirely with no basic mark"
+   ]
+  },
+  {
+   "id": "ip-protection.l14.q1",
+   "lessonId": "ip-protection.l14",
+   "kind": "tf",
+   "prompt": "A U.S. utility patent protects how an invention works, and a design patent protects its ornamental appearance.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l14.q2",
+   "lessonId": "ip-protection.l14",
+   "kind": "mcq",
+   "prompt": "Which is generally NOT patentable subject matter?",
+   "choices": [
+    "An abstract idea or a law of nature",
+    "A new machine",
+    "A new manufacturing process",
+    "A new composition of matter"
+   ]
+  },
+  {
+   "id": "ip-protection.l14.q3",
+   "lessonId": "ip-protection.l14",
+   "kind": "mcq",
+   "prompt": "Lee invents a new phone clip mechanism and also has a distinctive clip shape. Which pairing fits?",
+   "choices": [
+    "Both: only a copyright",
+    "Mechanism: possible utility patent; shape: possible design patent",
+    "Mechanism: copyright; shape: trade secret",
+    "Mechanism: trademark; shape: utility patent"
+   ]
+  },
+  {
+   "id": "ip-protection.l14.q4",
+   "lessonId": "ip-protection.l14",
+   "kind": "mcq",
+   "prompt": "Roughly how long does a utility patent last in the U.S.?",
+   "choices": [
+    "Forever, if renewed every year",
+    "5 years from the first sale",
+    "20 years from the filing date, subject to maintenance fees",
+    "70 years from grant"
+   ]
+  },
+  {
+   "id": "ip-protection.l14.q5",
+   "lessonId": "ip-protection.l14",
+   "kind": "mcq",
+   "prompt": "A founder says, \"I will patent the idea of holding phones on bikes.\" Why is this a problem?",
+   "choices": [
+    "Bikes cannot be patented",
+    "Only corporations can hold patents",
+    "Phone accessories are always design-only",
+    "Claims must define a specific invention, and a broad idea or result alone is not enough"
+   ]
+  },
+  {
+   "id": "ip-protection.l15.q1",
+   "lessonId": "ip-protection.l15",
+   "kind": "tf",
+   "prompt": "To be patentable, an invention must be new (novel) and non-obvious.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l15.q2",
+   "lessonId": "ip-protection.l15",
+   "kind": "mcq",
+   "prompt": "In the U.S., an inventor's own public disclosure is generally excused if the patent application is filed within how long?",
+   "choices": [
+    "Five years",
+    "Thirty days",
+    "It is never excused",
+    "One year"
+   ]
+  },
+  {
+   "id": "ip-protection.l15.q3",
+   "lessonId": "ip-protection.l15",
+   "kind": "mcq",
+   "prompt": "Marcus posted a demo video in March and plans to file in Europe. What is the main risk?",
+   "choices": [
+    "Many countries require absolute novelty, so the video may already bar protection there",
+    "Europe has the same one-year grace period",
+    "Videos are never prior art",
+    "There is no risk if he files in the U.S. within a year"
+   ]
+  },
+  {
+   "id": "ip-protection.l15.q4",
+   "lessonId": "ip-protection.l15",
+   "kind": "mcq",
+   "prompt": "Which is the best use of a self-run patent search?",
+   "choices": [
+    "Obtain a patent",
+    "Learn the landscape and spot problems early, while accepting it will not be complete",
+    "Prove conclusively that no one else has a similar invention",
+    "Replace all professional advice"
+   ]
+  },
+  {
+   "id": "ip-protection.l15.q5",
+   "lessonId": "ip-protection.l15",
+   "kind": "mcq",
+   "prompt": "Two earlier patents each show half of an invention, and combining them is a routine step for someone skilled in the field. Which test might this fail?",
+   "choices": [
+    "Utility",
+    "Copyright originality",
+    "Non-obviousness",
+    "Novelty, because neither patent shows the whole"
+   ]
+  },
+  {
+   "id": "ip-protection.l16.q1",
+   "lessonId": "ip-protection.l16",
+   "kind": "tf",
+   "prompt": "A provisional patent application is examined and turns into a patent on its own.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l16.q2",
+   "lessonId": "ip-protection.l16",
+   "kind": "mcq",
+   "prompt": "How long do you have after filing a provisional to file a non-provisional that claims its date?",
+   "choices": [
+    "5 years",
+    "30 days",
+    "12 months",
+    "3 months"
+   ]
+  },
+  {
+   "id": "ip-protection.l16.q3",
+   "lessonId": "ip-protection.l16",
+   "kind": "mcq",
+   "prompt": "Which professional may be a patent agent rather than a lawyer?",
+   "choices": [
+    "A trademark examiner",
+    "A copyright clerk",
+    "A state notary",
+    "Someone who passed the USPTO registration exam and can prosecute patent applications"
+   ]
+  },
+  {
+   "id": "ip-protection.l16.q4",
+   "lessonId": "ip-protection.l16",
+   "kind": "mcq",
+   "prompt": "What does the PCT mainly provide?",
+   "choices": [
+    "One international application that delays country-by-country decisions for about 30 months",
+    "A single worldwide patent",
+    "Automatic approval in all countries",
+    "A free provisional"
+   ]
+  },
+  {
+   "id": "ip-protection.l16.q5",
+   "lessonId": "ip-protection.l16",
+   "kind": "mcq",
+   "prompt": "A solo inventor with little money gets a pitch from an invention-promotion firm demanding large upfront fees. What is the best step?",
+   "choices": [
+    "Give the firm full ownership",
+    "Be cautious, check the USPTO's guidance, and consider pro bono or low-cost professional help",
+    "Pay immediately, because such firms guarantee patents",
+    "File a provisional with no description"
+   ]
+  },
+  {
+   "id": "ip-protection.l17.q1",
+   "lessonId": "ip-protection.l17",
+   "kind": "tf",
+   "prompt": "A trade secret needs no registration but only stays protected while it is kept secret.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l17.q2",
+   "lessonId": "ip-protection.l17",
+   "kind": "mcq",
+   "prompt": "A rival buys your product and takes it apart to learn how it works. What does trade secret law generally say about reverse engineering?",
+   "choices": [
+    "It requires a patent",
+    "It is generally lawful",
+    "It is always theft",
+    "It is a copyright violation"
+   ]
+  },
+  {
+   "id": "ip-protection.l17.q3",
+   "lessonId": "ip-protection.l17",
+   "kind": "mcq",
+   "prompt": "Which of these is a \"reasonable measure\" to protect a secret?",
+   "choices": [
+    "Telling every customer",
+    "Registering it with the USPTO",
+    "Limiting access to those who need it and requiring confidentiality agreements",
+    "Posting it on the company website"
+   ]
+  },
+  {
+   "id": "ip-protection.l17.q4",
+   "lessonId": "ip-protection.l17",
+   "kind": "mcq",
+   "prompt": "Which clause is a typical exclusion in an NDA?",
+   "choices": [
+    "Everything the recipient ever learns",
+    "Anything older than a week",
+    "Only information typed in capital letters",
+    "Information that was already public or independently developed by the recipient"
+   ]
+  },
+  {
+   "id": "ip-protection.l17.q5",
+   "lessonId": "ip-protection.l17",
+   "kind": "mcq",
+   "prompt": "When would a startup prefer trade-secret protection over a patent for a process?",
+   "choices": [
+    "When the process can be kept hidden and reverse engineering is unlikely",
+    "When everyone can see how it works from the product",
+    "When it must be published in a brochure",
+    "When it is already disclosed"
+   ]
+  },
+  {
+   "id": "ip-protection.l18.q1",
+   "lessonId": "ip-protection.l18",
+   "kind": "tf",
+   "prompt": "A freelancer usually keeps copyright in work they create unless the contract assigns it or a work-made-for-hire category applies.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l18.q2",
+   "lessonId": "ip-protection.l18",
+   "kind": "mcq",
+   "prompt": "What is the main purpose of an invention assignment agreement with employees?",
+   "choices": [
+    "To make sure the company owns inventions made for the job",
+    "To register a trademark",
+    "To waive copyright forever",
+    "To guarantee a patent"
+   ]
+  },
+  {
+   "id": "ip-protection.l18.q3",
+   "lessonId": "ip-protection.l18",
+   "kind": "mcq",
+   "prompt": "Sofia wrote the prototype before the LLC existed. What should happen at formation?",
+   "choices": [
+    "She should keep it and never mention it",
+    "She should sign an assignment transferring the prototype IP to the company",
+    "Nothing, because the LLC owns everything automatically",
+    "She should register an ASCAP account"
+   ]
+  },
+  {
+   "id": "ip-protection.l18.q4",
+   "lessonId": "ip-protection.l18",
+   "kind": "mcq",
+   "prompt": "What is the difference between an exclusive and a non-exclusive license?",
+   "choices": [
+    "Non-exclusive licenses transfer ownership",
+    "There is no difference",
+    "An exclusive license bars others (and sometimes the owner) from the licensed use; a non-exclusive one lets the owner license others too",
+    "Exclusive licenses are free and non-exclusive ones are paid"
+   ]
+  },
+  {
+   "id": "ip-protection.l18.q5",
+   "lessonId": "ip-protection.l18",
+   "kind": "mcq",
+   "prompt": "An investor's due diligence finds that a freelance artist never signed anything. What is the likely consequence?",
+   "choices": [
+    "The deal closes with no issue",
+    "The artist loses copyright automatically",
+    "The art becomes public domain",
+    "The company may not own the art and may need a signed assignment before the deal"
+   ]
+  },
+  {
+   "id": "ip-protection.l19.q1",
+   "lessonId": "ip-protection.l19",
+   "kind": "tf",
+   "prompt": "A DMCA takedown notice is a relatively quick and low-cost first step against online copyright infringement.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l19.q2",
+   "lessonId": "ip-protection.l19",
+   "kind": "mcq",
+   "prompt": "Which is generally the cheapest response when you find a small infringement?",
+   "choices": [
+    "File a federal lawsuit at once",
+    "Hire a team to sue in multiple countries",
+    "Do nothing and register later",
+    "Document it and contact the user or use a platform tool"
+   ]
+  },
+  {
+   "id": "ip-protection.l19.q3",
+   "lessonId": "ip-protection.l19",
+   "kind": "mcq",
+   "prompt": "Which forum handles bad-faith domain registrations of your trademark?",
+   "choices": [
+    "ICANN's UDRP process",
+    "The Copyright Claims Board",
+    "The USPTO patent examiner",
+    "The Library of Congress"
+   ]
+  },
+  {
+   "id": "ip-protection.l19.q4",
+   "lessonId": "ip-protection.l19",
+   "kind": "mcq",
+   "prompt": "Why can a heavy-handed cease-and-desist letter backfire?",
+   "choices": [
+    "It ends your rights automatically",
+    "It can provoke a declaratory suit or counterclaims if the claim is weak or overstated",
+    "Letters are illegal",
+    "It cancels your registration"
+   ]
+  },
+  {
+   "id": "ip-protection.l19.q5",
+   "lessonId": "ip-protection.l19",
+   "kind": "mcq",
+   "prompt": "A $400 infringement affects a product that sells $5,000 a year. Which approach is proportionate?",
+   "choices": [
+    "Hiring five law firms",
+    "Suing in every state",
+    "A low-cost step such as a platform complaint or letter rather than expensive federal litigation",
+    "A multimillion-dollar patent trial"
+   ]
+  },
+  {
+   "id": "ip-protection.l20.q1",
+   "lessonId": "ip-protection.l20",
+   "kind": "tf",
+   "prompt": "A good IP plan starts with an inventory of what the business has created and who owns each piece.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "ip-protection.l20.q2",
+   "lessonId": "ip-protection.l20",
+   "kind": "mcq",
+   "prompt": "Pawprint Studio launches a new chew design publicly next month and may want a patent. What should it do before the launch?",
+   "choices": [
+    "Register the design as a trademark only",
+    "Publish all the details online",
+    "Decide on patent protection first, because public disclosure can start clocks and harm foreign rights",
+    "Launch first and decide later"
+   ]
+  },
+  {
+   "id": "ip-protection.l20.q3",
+   "lessonId": "ip-protection.l20",
+   "kind": "mcq",
+   "prompt": "Which item should the studio protect with a trademark?",
+   "choices": [
+    "The text of its guides",
+    "The chew's inner mechanism",
+    "Its customer list",
+    "Its studio name and logo"
+   ]
+  },
+  {
+   "id": "ip-protection.l20.q4",
+   "lessonId": "ip-protection.l20",
+   "kind": "mcq",
+   "prompt": "Which action best preserves the strongest copyright remedies for a newly published guide?",
+   "choices": [
+    "Register it promptly, within three months of publication",
+    "Wait for an infringer",
+    "Add only a (c) symbol",
+    "Register after five years"
+   ]
+  },
+  {
+   "id": "ip-protection.l20.q5",
+   "lessonId": "ip-protection.l20",
+   "kind": "mcq",
+   "prompt": "Which calendar item belongs in a small business IP plan?",
+   "choices": [
+    "Nothing, because rights are permanent",
+    "The 12-month provisional deadline and trademark maintenance dates",
+    "Only the date of the next product sale",
+    "A reminder to delete all agreements"
+   ]
+  }
+ ]
+}

@@ -9,6 +9,10 @@ export interface AmboAudioPlaylist {
   category?: string;
   trackIds: string[];
   createdAt: number;
+  /** 'chora' = a personal playlist from the Chora service (edits sync back). */
+  source?: 'local' | 'chora';
+  /** Track snapshots, so a playlist resolves before (or without) the catalog — and local files keep their titles. */
+  tracks?: Array<{ id?: string; title: string; artist?: string; url?: string; duration?: number | string; coverImage?: string; key?: string; bpm?: number; category?: string; source?: 'chora' | 'local' | 'audius' }>;
 }
 
 interface AmboNewAudioPlaylistModalProps {

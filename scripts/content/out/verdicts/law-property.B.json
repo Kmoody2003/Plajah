@@ -1,0 +1,1087 @@
+{
+ "courseId": "law-property",
+ "verifier": "B",
+ "note": "WebSearch and WebFetch hit a session limit partway through; remaining checks used curl (Wikipedia, LII, Justia, CourtListener search API). Claims with no opened page are marked unverifiable. Pung v. Isabella County (June 23, 2026) is a new tax-sale takings decision worth adding to l16.",
+ "fetched": 43,
+ "questions": [
+  {
+   "id": "law-property.l01.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l01.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l01.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l01.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l01.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l02.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l02.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l02.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l03.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Prompt has a tense error ('What happened' should be 'What happens')."
+  },
+  {
+   "id": "law-property.l03.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l03.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l03.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l04.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l04.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l04.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l05.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l05.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l05.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l05.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l05.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l06.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l06.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l06.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [],
+   "note": "Stem says 'At O's death' though the analysis is at creation; wording is slightly confusing but the answer is clear."
+  },
+  {
+   "id": "law-property.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l07.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l07.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l07.q4",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": true,
+   "sources": [],
+   "note": "Flawed facts: Kai 'refuses to let Lena move in', and refusing a cotenant's demand to share possession is generally an ouster, which would make Kai liable; also 'two siblings' own the house but a third cotenant Mia appears."
+  },
+  {
+   "id": "law-property.l07.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l08.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l08.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l08.q4",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": true,
+   "sources": [],
+   "note": "Transfer of the LAST six months leaves Lessee no reversion after the transfer, so under the classic test it can look like an assignment of that period; facts also leave unclear whether Subtenant is in possession."
+  },
+  {
+   "id": "law-property.l08.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l09.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l09.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l09.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l09.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l09.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l10.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l10.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l10.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l10.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l11.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l11.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l11.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l11.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l12.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l12.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l12.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l12.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l12.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l13.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l13.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l13.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l13.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l13.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l14.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l14.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l14.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l14.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l15.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l15.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l15.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l15.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l16.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l16.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l16.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l16.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l16.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l17.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l17.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l17.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l17.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-property.l17.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-property.l01",
+   "claim": "Pierson v. Post (N.Y. 1805): mere pursuit gives no property right; capture or mortal wounding required; dissent favored hunters' custom and killing noxious foxes",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Pierson_v._Post"
+   ],
+   "note": "N.Y. Supreme Court of Judicature, 1805."
+  },
+  {
+   "lessonId": "law-property.l01",
+   "claim": "Ghen v. Rich (D. Mass. 1881): whale killed by bomb lance washed ashore; court enforced whalers' custom for the killer",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ghen_v._Rich"
+   ],
+   "note": "Finder (Ellis) sold to Rich; lesson's 'stranger took it and sold the oil' is a slight compression."
+  },
+  {
+   "lessonId": "law-property.l01",
+   "claim": "Rule of capture: driller owns oil/gas/groundwater drained from beneath a neighbor's land; conservation/spacing regulation softened it",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rule_of_capture"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l02",
+   "claim": "Elements: actual, open and notorious, exclusive, hostile, continuous for the statutory period; government land generally immune",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Adverse_possession"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l02",
+   "claim": "Statutory period commonly about five to twenty or more years by state",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Adverse_possession"
+   ],
+   "note": "Source gives a US range of 5 to 40 years; 'twenty or more' is consistent."
+  },
+  {
+   "lessonId": "law-property.l02",
+   "claim": "Howard v. Kunto (Wash. 1970) allowed tacking where deeds did not describe the occupied land",
+   "verdict": "supported",
+   "sources": [
+    "https://law.justia.com/cases/washington/court-of-appeals/1970/3-wash-app-393.html"
+   ],
+   "note": "Court was the Washington Court of Appeals (3 Wn. App. 393), so the citation should read Wash. Ct. App. 1970."
+  },
+  {
+   "lessonId": "law-property.l03",
+   "claim": "Gruen v. Gruen (N.Y. 1986): letter gave present gift of a remainder in a painting with retained life estate; physical delivery not required",
+   "verdict": "supported",
+   "sources": [
+    "https://law.justia.com/cases/new-york/court-of-appeals/1986/68-n-y-2d-48-505-n-y-s-2d-849-496-n-e-2d-869.html"
+   ],
+   "note": "Opinion also states the three gift elements: intent, delivery (actual or constructive), acceptance."
+  },
+  {
+   "lessonId": "law-property.l03",
+   "claim": "Armory v. Delamirie (K.B. 1722): chimney sweep's boy's jewel; apprentice removed stones; finder's title good against all but true owner",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Armory_v_Delamirie"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l03",
+   "claim": "Hannah v. Peel (K.B. 1945): soldier finder of brooch prevailed over house owner who never occupied it or knew of the brooch",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Hannah_v_Peel"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l04",
+   "claim": "Fee simple determinable uses durational words, ends automatically, grantor holds possibility of reverter",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/wex/fee_simple_determinable",
+    "https://en.wikipedia.org/wiki/Fee_simple"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l04",
+   "claim": "Fee simple subject to condition subsequent uses 'but if' and does not end automatically; grantor must act",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Fee_simple"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l04",
+   "claim": "Most states abolished the fee tail",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Fee_tail"
+   ],
+   "note": "Source: abolished in all but four U.S. states."
+  },
+  {
+   "lessonId": "law-property.l05",
+   "claim": "Contingent remainder = created in unascertained person or subject to condition precedent",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/wex/contingent_remainder"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l05",
+   "claim": "Executory interest either shifts (divests another transferee) or springs (divests the grantor)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/wex/executory_interest"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l05",
+   "claim": "Worked example: 'to A for life, then to B if B survives A' gives B an ALTERNATIVE contingent remainder",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.law.cornell.edu/wex/contingent_remainder"
+   ],
+   "note": "An alternative contingent remainder needs two alternative takers; here B has a plain contingent remainder and O a reversion (the lesson's own reversion analysis shows it is not alternative)."
+  },
+  {
+   "lessonId": "law-property.l06",
+   "claim": "Gray's classic formulation (must vest, if at all, within 21 years after a life in being); origin in Duke of Norfolk's Case (1682)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rule_against_perpetuities"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l06",
+   "claim": "USRAP (1986) validates interests that vest within 90 years; some jurisdictions abolished the rule, allowing dynasty trusts",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rule_against_perpetuities"
+   ],
+   "note": "Source: 29 states/territories adopted USRAP or a variant; at least six states repealed the rule entirely; others extend to 360/1000 years (e.g., Florida)."
+  },
+  {
+   "lessonId": "law-property.l06",
+   "claim": "Unborn widow: 'a gift to the widow's children is void'",
+   "verdict": "contradicted",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rule_against_perpetuities"
+   ],
+   "note": "Mis-stated: the classic void gift is to the life tenant's (son's) children living at the widow's death, not to 'the widow's children'. Question l06.q4 states it correctly."
+  },
+  {
+   "lessonId": "law-property.l07",
+   "claim": "Four unities of joint tenancy: time, title, interest, possession; tenancy by the entirety shields property from creditors of one spouse",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Concurrent_estate",
+    "https://www.law.cornell.edu/wex/tenancy_by_the_entirety"
+   ],
+   "note": "LII says tenancy by the entirety is recognized in 'most states'; lesson says 'some states' (minor)."
+  },
+  {
+   "lessonId": "law-property.l07",
+   "claim": "In lien theory states a mortgage by one joint tenant does not sever and the lien fails if the borrower dies first (Harms v. Sprague, Ill. 1984)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Concurrent_estate",
+    "https://www.courtlistener.com/api/rest/v4/search/?type=o&highlight=on&q=caseName%3A%22Harms%20v.%20Sprague%22%20AND%20sever"
+   ],
+   "note": "Harms v. Sprague: Illinois Supreme Court, Nov. 30, 1984."
+  },
+  {
+   "lessonId": "law-property.l07",
+   "claim": "Uniform Partition of Heirs Property Act (2010) gives cotenants a buyout right",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Uniform Law Commission page opened but did not display the year or provisions."
+  },
+  {
+   "lessonId": "law-property.l08",
+   "claim": "Javins v. First National Realty Corp. (D.C. Cir. 1970) implied a warranty of habitability measured by housing code",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Javins_v._First_National_Realty_Corp."
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l08",
+   "claim": "Sommer v. Kridel (N.J. 1977): landlord must make reasonable efforts to relet (mitigate)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.courtlistener.com/api/rest/v4/search/?type=o&highlight=on&q=caseName%3A%22Sommer%20v.%20Kridel%22%20AND%20mitigate"
+   ],
+   "note": "Supreme Court of New Jersey, June 29, 1977."
+  },
+  {
+   "lessonId": "law-property.l08",
+   "claim": "Constructive eviction requires substantial interference, notice and failure to cure, and vacating within a reasonable time",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/wex/constructive_eviction"
+   ],
+   "note": "No 2024-2026 eviction-law changes were checked; lesson states only general rules."
+  },
+  {
+   "lessonId": "law-property.l09",
+   "claim": "Easement by necessity requires strict necessity at division and ends when the necessity ends",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Could not open a source (web tools rate-limited)."
+  },
+  {
+   "lessonId": "law-property.l09",
+   "claim": "Implied easement from prior use requires apparent, continuous, reasonably necessary prior use",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Could not open a source. The lesson says easements are created 'in four ways' but then lists five (adds estoppel)."
+  },
+  {
+   "lessonId": "law-property.l09",
+   "claim": "Common law recognized only a few negative easements (light, air, lateral support, artificial stream flow)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Could not open a source."
+  },
+  {
+   "lessonId": "law-property.l10",
+   "claim": "Spencer's Case (K.B. 1583) is the foundational source on running of leasehold covenants",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Spencer%27s_Case"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l10",
+   "claim": "Tulk v. Moxhay (Ch. 1848) enforced a Leicester Square covenant in equity against a later buyer",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Tulk_v_Moxhay"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l10",
+   "claim": "Sanborn v. McLean (Mich. 1925), Nahrstedt (Cal. 1994), Shelley v. Kraemer (1948, judicial enforcement is state action)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.courtlistener.com/api/rest/v4/search/?type=o&highlight=on&q=caseName%3A%22Sanborn%20v.%20McLean%22",
+    "https://www.courtlistener.com/api/rest/v4/search/?type=o&highlight=on&q=caseName%3ANahrstedt",
+    "https://en.wikipedia.org/wiki/Shelley_v._Kraemer"
+   ],
+   "note": "Dates and courts confirmed (Mich. Sup. Ct. 12/22/1925; Cal. Sup. Ct. 9/2/1994; U.S. 5/3/1948)."
+  },
+  {
+   "lessonId": "law-property.l11",
+   "claim": "Boomer v. Atlantic Cement Co. (N.Y. 1970): injunction conditioned on payment of permanent damages",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Boomer_v._Atlantic_Cement_Co."
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l11",
+   "claim": "Spur Industries v. Del E. Webb (Ariz. 1972): feedlot enjoined, developer must indemnify relocation costs",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Spur_Industries,_Inc._v._Del_E._Webb_Development_Co."
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l11",
+   "claim": "Prah v. Maretti (Wis. 1982) recognized that blocking sunlight can be a private nuisance",
+   "verdict": "supported",
+   "sources": [
+    "https://www.courtlistener.com/api/rest/v4/search/?type=o&highlight=on&q=caseName%3A%22Prah%20v.%20Maretti%22%20AND%20nuisance"
+   ],
+   "note": "Wisconsin Supreme Court, July 2, 1982 (snippet from the dissent confirms the majority allowed a nuisance claim). Fontainebleau (1959) not checked. Lesson lists 'blocked views' as a typical nuisance, which most courts reject."
+  },
+  {
+   "lessonId": "law-property.l12",
+   "claim": "Majority equitable conversion puts risk of loss on buyer; UVPRA puts it on seller until title/possession passes",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Could not open a source (rate-limited)."
+  },
+  {
+   "lessonId": "law-property.l12",
+   "claim": "Johnson v. Davis (Fla. 1985) duty to disclose known latent material defects",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Could not open a source."
+  },
+  {
+   "lessonId": "law-property.l12",
+   "claim": "Merger doctrine exceptions include 'certain terms like the title contract'",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Wording 'the title contract' is unclear/garbled; source not opened."
+  },
+  {
+   "lessonId": "law-property.l13",
+   "claim": "Quitclaim deed makes no covenants and passes whatever interest the grantor has",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/wex/quitclaim_deed"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l13",
+   "claim": "Estoppel by deed: grantor who deeds land he does not own and later acquires it cannot deny grantee's title",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/wex/estoppel_by_deed"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l13",
+   "claim": "Present covenants (seisin, right to convey, against encumbrances) breached at delivery; future covenants run with land",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Could not open a source."
+  },
+  {
+   "lessonId": "law-property.l14",
+   "claim": "Race-notice statute protects a subsequent BFP who records first",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/wex/race-notice_statute"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l14",
+   "claim": "Most states have notice or race-notice statutes",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked against an opened page."
+  },
+  {
+   "lessonId": "law-property.l14",
+   "claim": "Shelter rule; forged deed void even against a BFP",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Could not open a source."
+  },
+  {
+   "lessonId": "law-property.l15",
+   "claim": "Village of Euclid v. Ambler Realty (1926) upheld comprehensive zoning",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Village_of_Euclid_v._Ambler_Realty_Co."
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l15",
+   "claim": "Belle Terre (1974), Moore v. East Cleveland (1977), Cleburne (1985), Inclusive Communities (2015) holdings as described",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Village_of_Belle_Terre_v._Boraas",
+    "https://en.wikipedia.org/wiki/Moore_v._City_of_East_Cleveland",
+    "https://en.wikipedia.org/wiki/City_of_Cleburne_v._Cleburne_Living_Center,_Inc.",
+    "https://en.wikipedia.org/wiki/Texas_Department_of_Housing_and_Community_Affairs_v._Inclusive_Communities_Project,_Inc."
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l15",
+   "claim": "Mount Laurel (N.J. 1975): developing municipalities must provide a realistic opportunity for their fair share of low/moderate income housing",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mount_Laurel_doctrine"
+   ],
+   "note": "New Jersey enacted a 2024 law abolishing COAH and revising fair-share enforcement; lesson does not mention it."
+  },
+  {
+   "lessonId": "law-property.l16",
+   "claim": "Kelo (2005, 5-4): economic development satisfies public use; many states responded with limits",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Kelo_v._City_of_New_London"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l16",
+   "claim": "Cedar Point Nursery v. Hassid (2021): union access regulation is a per se physical taking; inspections treated differently",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Cedar_Point_Nursery_v._Hassid"
+   ],
+   "note": "Access was up to 3 hours/day, 120 days/year."
+  },
+  {
+   "lessonId": "law-property.l16",
+   "claim": "Sheetz v. County of El Dorado (2024): Nollan/Dolan applies to legislatively imposed permit conditions",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Sheetz_v._County_of_El_Dorado"
+   ],
+   "note": "Unanimous; Court did not decide whether the specific fee was a taking."
+  },
+  {
+   "lessonId": "law-property.l16",
+   "claim": "Tyler v. Hennepin County (2023): county may not keep surplus beyond the tax debt; Knick (2019) allows direct federal suit",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Tyler_v._Hennepin_County",
+    "https://en.wikipedia.org/wiki/Knick_v._Township_of_Scott",
+    "https://www.faegredrinker.com/en/insights/publications/2026/6/supreme-court-decides-pung-v-isabella-county-michigan"
+   ],
+   "note": "Update: Pung v. Isabella County (June 23, 2026) held the compensation baseline after a tax sale is the sale price (surplus), not fair market value; the lesson's 'measured generally by fair market value' should note this limit for tax-sale cases."
+  },
+  {
+   "lessonId": "law-property.l16",
+   "claim": "Loretto (1982), Horne (2015), Penn Central (1978) factors, Lucas (1992), Tahoe-Sierra (2002), Murr (2017), Koontz (2013)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Loretto_v._Teleprompter_Manhattan_CATV_Corp.",
+    "https://en.wikipedia.org/wiki/Horne_v._Department_of_Agriculture",
+    "https://en.wikipedia.org/wiki/Penn_Central_Transportation_Co._v._New_York_City",
+    "https://en.wikipedia.org/wiki/Lucas_v._South_Carolina_Coastal_Council",
+    "https://en.wikipedia.org/wiki/Tahoe-Sierra_Preservation_Council,_Inc._v._Tahoe_Regional_Planning_Agency",
+    "https://en.wikipedia.org/wiki/Murr_v._Wisconsin",
+    "https://en.wikipedia.org/wiki/Koontz_v._St._Johns_River_Water_Management_District"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l17",
+   "claim": "Feist (1991) rejected sweat of the brow; minimal creativity required",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Feist_Publications,_Inc.,_v._Rural_Telephone_Service_Co."
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l17",
+   "claim": "Warhol v. Goldsmith (2023), Moore v. Regents (Cal. 1990: no conversion, but fiduciary duty/informed consent), INS v. AP (1918)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Andy_Warhol_Foundation_for_the_Visual_Arts,_Inc._v._Goldsmith",
+    "https://en.wikipedia.org/wiki/Moore_v._Regents_of_the_University_of_California",
+    "https://en.wikipedia.org/wiki/International_News_Service_v._Associated_Press"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-property.l17",
+   "claim": "Chakrabarty (1980), Myriad (2013), Alice (2014 two-step), Defend Trade Secrets Act 2016",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Diamond_v._Chakrabarty",
+    "https://en.wikipedia.org/wiki/Association_for_Molecular_Pathology_v._Myriad_Genetics,_Inc.",
+    "https://en.wikipedia.org/wiki/Alice_Corp._v._CLS_Bank_International",
+    "https://en.wikipedia.org/wiki/Defend_Trade_Secrets_Act"
+   ],
+   "note": "AI-authorship status (Thaler v. Perlmutter) not checked."
+  }
+ ]
+}

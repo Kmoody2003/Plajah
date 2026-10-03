@@ -16,144 +16,88 @@
     <meta http-equiv="Expires" content="0">
     <meta name="msapplication-tap-highlight" content="no">
     <meta name="android-tv-app" content="true">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>Plajah</title>
-    
+    <script>
+      // ── "Log in with Audius" popup bridge ──────────────────────────────────
+      // Audius sends the consent popup back to /audius/callback with ?code&state.
+      // Hand them to the opener and close IMMEDIATELY — booting the whole app inside
+      // a 420px popup just to read two query params would be slow and pointless.
+      // (No opener = a full-page redirect: fall through and let completeAudiusRedirect()
+      // in the app finish the exchange.)
+      (function () {
+        if (window.location.pathname !== '/audius/callback' || !window.opener) return;
+        var q = new URLSearchParams(window.location.search);
+        var h = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+        var get = function (k) { return q.get(k) || h.get(k); };
+        var code = get('code'), state = get('state'), error = get('error');
+        if (!code && !error) return;
+        try {
+          window.opener.postMessage({
+            source: 'plajah-audius-oauth',
+            code: code, state: state,
+            error: error, error_description: get('error_description'),
+          }, get('origin') || window.location.origin);
+        } catch (e) { /* opener gone — nothing to do */ }
+        window.close();
+      })();
+    </script>
+
+    <meta name="description" content="One platform for everything creators make — music, film, video, books, live, games and courses — all from one profile. Fans find it all in one place, and creators keep up to 100%.">
+
     <!-- Open Graph / Social Media Preview -->
-    <meta property="og:title" content="Plajah">
-    <meta property="og:description" content="A high-fidelity music microsite studio with social features, global feed, artist search, site-wide radio, TV channels, game library, and customizable photo gallery experiences.">
+    <meta property="og:title" content="Plajah — everything creators make, one place">
+    <meta property="og:description" content="One platform for everything creators make — music, film, video, books, live, games and courses — all from one profile. Fans find it all in one place, and creators keep up to 100%.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://plajah.com/">
     <meta property="og:image" content="https://plajah.com/og-default.png">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
+    <meta name="twitter:title" content="Plajah — everything creators make, one place">
+    <meta name="twitter:description" content="One platform for everything creators make — music, film, video, books, live, games and courses — all from one profile. Fans find it all in one place, and creators keep up to 100%.">
     <meta name="twitter:image" content="https://plajah.com/og-default.png">
     <meta name="twitter:card" content="summary_large_image">
     
     <link rel="manifest" href="/manifest.json">
-    <link rel="icon" href="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c3/Circle-icons-dev.svg/512px-Circle-icons-dev.svg.png">
+    <link rel="icon" href="/plajah-app-icon-192.png">
+    <!-- iOS home screen: without this, an install gets a screenshot of the page instead. -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/plajah-app-icon-180.png">
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="preconnect" href="https://picsum.photos">
     <link rel="preconnect" href="https://upload.wikimedia.org">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;500;700&family=JetBrains+Mono:wght@300;500;800&display=swap" rel="stylesheet">
-    
-    <style>
-        :root {
-            --bg-primary: #020202;
-            --accent: #ffffff;
-        }
-        html {
-            height: 100%;
-            /* Real viewport height updated by JS — fixes Android URL bar jump */
-            --real-vh: 1dvh;
-        }
-        html, body {
-            overscroll-behavior: none;
-            overscroll-behavior-y: none;
-            touch-action: pan-x pan-y;
-        }
-        body {
-            font-family: 'Inter', sans-serif;
-            background-color: var(--bg-primary);
-            color: #ffffff;
-            overflow-x: hidden;
-            overflow-y: hidden;
-            -webkit-font-smoothing: antialiased;
-            -moz-osx-font-smoothing: grayscale;
-            text-rendering: optimizeLegibility;
-            /* Kill tap highlight flash on Android */
-            -webkit-tap-highlight-color: transparent;
-            /* Prevent text size adjust on orientation change */
-            -webkit-text-size-adjust: 100%;
-            text-size-adjust: 100%;
-        }
-        /* Remove 300ms tap delay on all interactive elements */
-        a, button, [role="button"], input, select, textarea, label {
-            touch-action: manipulation;
-        }
-        /* Prevent input zoom on Android (requires font-size >= 16px) */
-        input, select, textarea {
-            font-size: 16px !important;
-        }
-        /* Smooth momentum scrolling on iOS/Edge iOS */
-        [data-scrollable], .overflow-y-auto, .overflow-y-scroll, .overflow-x-auto, .overflow-x-scroll {
-            -webkit-overflow-scrolling: touch;
-        }
-        /* Hide scrollbars on Android WebView */
-        * {
-            scrollbar-width: none;
-        }
-        *::-webkit-scrollbar {
-            display: none;
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-            display: block;
-            width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-        }
-        .font-display {
-            font-family: 'Space Grotesk', sans-serif;
-        }
-        .font-mono-tech {
-            font-family: 'JetBrains Mono', monospace;
-            text-transform: uppercase;
-            letter-spacing: 0.2em;
-        }
-        
-        /* Custom Scrollbar */
-        ::-webkit-scrollbar {
-            width: 4px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(0,0,0,0.1);
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255,255,255,0.1);
-            border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar {
-            width: 4px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
-        }
-
-        .hud-border {
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            border-left: 4px solid var(--theme-color, #ffffff);
-        }
-
-        /* ── Galaxy Z Fold cover (outer) screen scaling ──────────────────────
-           The outer screen is physically small + dense and overlaps normal
-           phones in CSS width, so the mobile layout renders too small. We
-           magnify the whole app subtree with `zoom` — the only thing that scales
-           this app's heavy arbitrary-px text (text-[9px] etc.; rem-only scaling
-           wouldn't touch it). Viewport-unit utilities are divided by the same
-           factor so the zoomed layout still fits exactly one screen (zoom scales
-           vh/vw against the unzoomed viewport, which would otherwise overflow).
-           Overlays are portaled to <body> (outside #root) so they're unaffected.
-           Detection (JS below) keys on window.screen — the physical aspect,
-           stable to the URL bar — not a fragile viewport media query.
-           Tune the magnitude by changing --cover-zoom. */
-        html.zfold-cover { --cover-zoom: 1.25; }
-        html.zfold-cover #root { zoom: var(--cover-zoom); }
-        html.zfold-cover #root .min-h-screen { min-height: calc(100vh / var(--cover-zoom)); }
-        html.zfold-cover #root .h-screen     { height:     calc(100vh / var(--cover-zoom)); }
-        html.zfold-cover #root .w-screen     { width:      calc(100vw / var(--cover-zoom)); }
-        html.zfold-cover #root .h-dvh        { height:     calc(100dvh / var(--cover-zoom)); }
-        html.zfold-cover #root .min-h-dvh    { min-height: calc(100dvh / var(--cover-zoom)); }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@300;500;700&family=JetBrains+Mono:wght@300;500;800&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&family=Archivo:wght@400;500;600&display=swap" rel="stylesheet">
+    
 
-    <script src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
-  <script type="module" crossorigin src="/assets/index-zE_LLVvK.js"></script>
-  <link rel="stylesheet" crossorigin href="/assets/index-DdLdZycj.css">
+    <script async src="https://www.gstatic.com/cv/js/sender/v1/cast_sender.js?loadCastFramework=1"></script>
+  <script type="module" crossorigin src="/assets/index-DlBbEcPS.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-BhljoN4P.css">
 <link rel="manifest" href="/manifest.webmanifest"></head>
 <body>
+    <!-- Pre-mount splash.
+         #root was empty, so from first paint until the app bundle parsed there was nothing to
+         look at — a white flash on every cold launch, worst on the TV APK, which is a thin shell
+         over the live site and so pays a full network page load behind an already-dismissed
+         native splash. This is plain inline markup with no bundle dependency, so it is on screen
+         as soon as the HTML is parsed, and index.tsx removes it once React has mounted.
+         The mark is components/Logo.tsx's chevron with --pj-grad-warm inlined (the gradient id is
+         hardcoded because the React component derives its own with useId). -->
+    <div id="pj-boot" role="status" aria-label="Loading Plajah">
+      <svg viewBox="0 0 100 100" width="88" height="88" aria-hidden="true">
+        <defs>
+          <linearGradient id="pjBootGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#6B0099"/>
+            <stop offset="50%" stop-color="#D40055"/>
+            <stop offset="100%" stop-color="#FF8C00"/>
+          </linearGradient>
+        </defs>
+        <path d="M30 20 L70 50 L30 80" fill="none" stroke="url(#pjBootGrad)"
+              stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div id="pj-boot-bar"><i></i></div>
+      <div id="pj-boot-ver">v1.0.40</div>
+    </div>
     <div id="root"></div>
     <script>
       // rAF starvation guard: in never-painting webviews (headless previews,

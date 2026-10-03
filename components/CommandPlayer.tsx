@@ -6,6 +6,8 @@ import {
   Radio, Zap, Waves, PaintBucket, Video, HandHeart, ChevronUp,
 } from 'lucide-react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
+import { useUnifiedCasting } from '../hooks/useUnifiedCasting';
+import { CastingHubModal } from './casting/CastingHubModal';
 
 /**
  * CommandPlayer — the redesigned 2026 music player shell.
@@ -33,6 +35,7 @@ export interface CommandPlayerProps {
   onOpenQueue?: () => void;      // navigate to QUEUE
   onExpandFromNano?: () => void; // nano → full player
   onMinimize?: () => void;
+  onOpenCast?: () => void;      // open CastingHubModal
 }
 
 // ── helpers ─────────────────────────────────────────────────────────────────
@@ -237,15 +240,16 @@ interface SheetProps {
   onClose: () => void;
   onOpenQueue?: () => void;
   onOpenStage?: () => void;
+  onOpenCast?: () => void;
 }
-const CommandAudioSheet: React.FC<SheetProps> = ({ onClose, onOpenQueue, onOpenStage }) => {
+const CommandAudioSheet: React.FC<SheetProps> = ({ onClose, onOpenQueue, onOpenStage, onOpenCast }) => {
   const p = useGlobalPlayerState();
+  const { isCasting, activeDevice } = useUnifiedCasting();
   const [query, setQuery] = useState('');
 
   // Local-only visual toggles for controls with no backing context setter.
   const [atmos, setAtmos] = useState(false);
   const [depth3d, setDepth3d] = useState(false);
-  const [cast, setCast] = useState(false);
   const [hdQuality, setHdQuality] = useState(true);
   const [payForward, setPayForward] = useState(false);
 
@@ -300,7 +304,17 @@ const CommandAudioSheet: React.FC<SheetProps> = ({ onClose, onOpenQueue, onOpenS
     { kind: 'chip', group: 'Audio', label: 'Kill FX', keywords: 'kill fx reset dry dj filter clear effects', icon: <Zap size={16} />, active: p.isFxActive, accent: '#D40055', sub: p.isFxActive ? 'FX active' : 'dry', onClick: () => p.resetAudioFx() },
     { kind: 'chip', group: 'Audio', label: 'Spatial', keywords: 'spatial audio eclipsa panner surround 3d sound', icon: <Box size={16} />, active: p.isSpatialAudioEnabled, onClick: () => p.setSpatialAudioEnabled(!p.isSpatialAudioEnabled) },
     { kind: 'chip', group: 'Audio', label: 'Mini video', keywords: 'mini video picture in picture pip floating', icon: <Video size={16} />, active: p.isMiniPlayerActive, onClick: () => p.setIsMiniPlayerActive(!p.isMiniPlayerActive) },
-    { kind: 'chip', group: 'Audio', label: 'Cast', keywords: 'cast airplay chromecast tv external', icon: <Cast size={16} />, active: cast, sub: 'visual', onClick: () => setCast((v) => !v) },
+    { 
+      kind: 'chip', 
+      group: 'Audio', 
+      label: 'Cast', 
+      keywords: 'cast airplay chromecast tv external matter samsung google', 
+      icon: <Cast size={16} />, 
+      active: isCasting, 
+      accent: CYAN, 
+      sub: isCasting ? (activeDevice?.name || 'Casting') : 'Google · Matter · Samsung', 
+      onClick: () => { onOpenCast?.(); onClose(); } 
+    },
     { kind: 'chip', group: 'Audio', label: 'HD Quality', keywords: 'hd quality lossless bitrate hi-res flac', icon: <Sparkles size={16} />, active: hdQuality, accent: '#FF8C00', sub: 'visual', onClick: () => setHdQuality((v) => !v) },
     { kind: 'chip', group: 'Audio', label: 'Auto-Radio', keywords: 'auto radio autoplay continuous up next station', icon: <Radio size={16} />, active: p.autoRadio, onClick: () => p.setAutoRadio(!p.autoRadio) },
 
@@ -420,9 +434,10 @@ const CommandAudioButton: React.FC<{ onClick: () => void; compact?: boolean }> =
 );
 
 // ── FULL: global bottom bar ──────────────────────────────────────────────────
-const FullBar: React.FC<CommandPlayerProps & { onOpenSheet: () => void }> = ({ onOpenStage, onOpenQueue, onMinimize, onOpenSheet }) => {
+const FullBar: React.FC<CommandPlayerProps & { onOpenSheet: () => void; onOpenCast: () => void }> = ({ onOpenStage, onOpenQueue, onMinimize, onOpenSheet, onOpenCast }) => {
   const { p, cover, title, artist } = useNowPlaying();
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
+  const { isCasting, activeDevice } = useUnifiedCasting();
   const muted = p.volume <= 0.001;
 
   const RepeatIcon = p.repeatMode === 'ONE' ? Repeat1 : Repeat;
@@ -484,7 +499,7 @@ const FullBar: React.FC<CommandPlayerProps & { onOpenSheet: () => void }> = ({ o
         <Scrubber currentTime={currentTime} duration={duration} onSeek={seek} />
       </div>
 
-      {/* right: volume, ⌘ Audio, queue, stage, minimize */}
+      {/* right: volume, cast, ⌘ Audio, queue, stage, minimize */}
       <div className="flex items-center gap-1.5 flex-shrink-0">
         <div className="hidden md:flex items-center gap-1.5" style={{ width: 120 }}>
           <IconBtn size={32} title={muted ? 'Unmute' : 'Mute'} onClick={() => p.setVolume(muted ? 0.8 : 0)}>
@@ -498,6 +513,18 @@ const FullBar: React.FC<CommandPlayerProps & { onOpenSheet: () => void }> = ({ o
             style={{ height: 4, borderRadius: 4, background: `linear-gradient(90deg, ${CYAN} ${p.volume * 100}%, rgba(255,255,255,0.15) ${p.volume * 100}%)` }}
           />
         </div>
+        <IconBtn
+          size={36}
+          title={isCasting ? `Casting to ${activeDevice?.name || 'Device'}` : "Cast to TV or Speakers (Google, Matter, Samsung)"}
+          active={isCasting}
+          onClick={onOpenCast}
+          className="relative"
+        >
+          <Cast size={18} />
+          {isCasting && (
+            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+          )}
+        </IconBtn>
         <CommandAudioButton onClick={onOpenSheet} />
         <IconBtn size={36} title="Queue" onClick={onOpenQueue}><ListMusic size={18} /></IconBtn>
         <IconBtn size={36} title="Open stage" onClick={onOpenStage}><Maximize2 size={17} /></IconBtn>
@@ -508,9 +535,10 @@ const FullBar: React.FC<CommandPlayerProps & { onOpenSheet: () => void }> = ({ o
 };
 
 // ── NANO: floating card with a real 3D album flip ────────────────────────────
-const NanoCard: React.FC<CommandPlayerProps & { onOpenSheet: () => void }> = ({ onOpenStage, onOpenQueue, onExpandFromNano, onOpenSheet }) => {
+const NanoCard: React.FC<CommandPlayerProps & { onOpenSheet: () => void; onOpenCast: () => void }> = ({ onOpenStage, onOpenQueue, onExpandFromNano, onOpenSheet, onOpenCast }) => {
   const { p, cover, title, artist, slides } = useNowPlaying();
   const { currentTime, duration, seek } = useGlobalPlayerProgress();
+  const { isCasting, activeDevice } = useUnifiedCasting();
   const reduced = useMemo(() => prefersReducedMotion(), []);
   const [flipped, setFlipped] = useState(false);
   const [slideIdx, setSlideIdx] = useState(0);
@@ -621,9 +649,21 @@ const NanoCard: React.FC<CommandPlayerProps & { onOpenSheet: () => void }> = ({ 
         <IconBtn size={36} title="Next" onClick={() => p.next()}><SkipForward size={18} /></IconBtn>
       </div>
 
-      {/* action row: ⌘ Audio · Queue · Expand */}
-      <div className="flex items-center gap-2 px-4 pb-4 pt-1">
+      {/* action row: ⌘ Audio · Cast · Queue · Expand */}
+      <div className="flex items-center gap-1.5 px-4 pb-4 pt-1">
         <div className="flex-1"><CommandAudioButton onClick={onOpenSheet} compact /></div>
+        <IconBtn
+          size={36}
+          title={isCasting ? `Casting to ${activeDevice?.name || 'Device'}` : "Cast to TV or Speakers (Google, Matter, Samsung)"}
+          active={isCasting}
+          onClick={onOpenCast}
+          className="relative"
+        >
+          <Cast size={17} />
+          {isCasting && (
+            <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+          )}
+        </IconBtn>
         <IconBtn size={36} title="Queue" onClick={onOpenQueue}><ListMusic size={17} /></IconBtn>
         <IconBtn size={36} title="Expand" onClick={() => { p.setIsNanoView(false); onExpandFromNano?.(); }}><ChevronUp size={18} /></IconBtn>
       </div>
@@ -634,15 +674,45 @@ const NanoCard: React.FC<CommandPlayerProps & { onOpenSheet: () => void }> = ({ 
 // ── public component ─────────────────────────────────────────────────────────
 const CommandPlayer: React.FC<CommandPlayerProps> = (props) => {
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [castOpen, setCastOpen] = useState(false);
   const openSheet = useCallback(() => setSheetOpen(true), []);
   const closeSheet = useCallback(() => setSheetOpen(false), []);
+  const openCast = useCallback(() => {
+    if (props.onOpenCast) {
+      props.onOpenCast();
+    } else {
+      setCastOpen(true);
+    }
+  }, [props.onOpenCast]);
+  const closeCast = useCallback(() => setCastOpen(false), []);
+
+  const { p, cover, title, artist } = useNowPlaying();
 
   return (
     <>
       {props.variant === 'full'
-        ? <FullBar {...props} onOpenSheet={openSheet} />
-        : <NanoCard {...props} onOpenSheet={openSheet} />}
-      {sheetOpen && <CommandAudioSheet onClose={closeSheet} onOpenQueue={props.onOpenQueue} onOpenStage={props.onOpenStage} />}
+        ? <FullBar {...props} onOpenSheet={openSheet} onOpenCast={openCast} />
+        : <NanoCard {...props} onOpenSheet={openSheet} onOpenCast={openCast} />}
+      {sheetOpen && (
+        <CommandAudioSheet
+          onClose={closeSheet}
+          onOpenQueue={props.onOpenQueue}
+          onOpenStage={props.onOpenStage}
+          onOpenCast={openCast}
+        />
+      )}
+      <CastingHubModal
+        isOpen={castOpen}
+        onClose={closeCast}
+        media={{
+          title,
+          artist,
+          albumTitle: p.currentAlbum?.title,
+          imageUrl: cover,
+          contentUrl: (p.currentTrack as any)?.audioUrl || (p.currentTrack as any)?.fileUrl || (p.currentTrack as any)?.url,
+          mediaType: p.currentVideo ? 'video' : 'audio',
+        }}
+      />
     </>
   );
 };

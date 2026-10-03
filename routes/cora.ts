@@ -28,8 +28,28 @@ import {
   type PlatformAlbumContext,
   type AudioMetadata,
 } from '../services/coraAnalysisService';
+import { verifyIdToken, fsGet } from '../services/firebaseAdminRest';
 
 export const coraRouter = Router();
+
+// ─── Auth Helpers ─────────────────────────────────────────────────────────────
+
+async function callerUid(req: Request): Promise<string | null> {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return null;
+  return verifyIdToken(auth.slice(7));
+}
+
+async function isCallerAdmin(uid: string): Promise<boolean> {
+  try {
+    const adminDoc = await fsGet(`admins/${uid}`);
+    if (adminDoc) return true;
+    const user = await fsGet(`users/${uid}`);
+    return user?.role === 'admin' || user?.role === 'staff';
+  } catch {
+    return false;
+  }
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -102,9 +122,12 @@ async function fetchMusicAlbums(pageToken?: string): Promise<{ albums: any[]; ne
 // Firestore. Analyzes every track and upserts into the songs table.
 //
 // Body: { albumId, ownerId, genre?, tracks: PlatformTrack[] }
-// Auth: Firebase Bearer token (authMiddleware applied at mount point)
+// Auth: Firebase Bearer token required. Non-admins may only analyze their own albums.
 
 coraRouter.post('/analyze-album', async (req: Request, res: Response) => {
+  const uid = await callerUid(req);
+  if (!uid) return res.status(401).json({ error: 'Sign in to analyze albums.' });
+
   const { albumId, ownerId, genre, tracks } = req.body ?? {};
 
   if (!albumId || typeof albumId !== 'string') {
@@ -114,7 +137,12 @@ coraRouter.post('/analyze-album', async (req: Request, res: Response) => {
     return res.status(400).json({ error: 'tracks array is required' });
   }
 
-  const album: PlatformAlbumContext = { id: albumId, genre, ownerId };
+  const isAdmin = await isCallerAdmin(uid);
+  if (!isAdmin && ownerId && ownerId !== uid) {
+    return res.status(403).json({ error: 'You do not have permission to analyze this album.' });
+  }
+
+  const album: PlatformAlbumContext = { id: albumId, genre, ownerId: ownerId || uid };
   const results: { trackId: string; status: 'analyzed' | 'skipped' | 'error'; tempo?: number; error?: string }[] = [];
 
   for (const t of tracks) {
@@ -157,12 +185,16 @@ coraRouter.post('/detect-beats', (req: Request, res: Response) => {
 // ─── POST /api/cora/backfill ──────────────────────────────────────────────────
 // Retroactive job — queries Firestore for all MUSIC albums, analyzes any tracks
 // not yet in the songs table. Idempotent: skips already-analyzed tracks.
-// Protected by CORA_ADMIN_KEY env var.
+// Protected by CORA_ADMIN_KEY env var or Admin user.
 
 coraRouter.post('/backfill', async (req: Request, res: Response) => {
   const adminKey = process.env.CORA_ADMIN_KEY;
-  if (adminKey && req.headers['x-cora-admin-key'] !== adminKey) {
-    return res.status(403).json({ error: 'Forbidden' });
+  const keyMatches = adminKey && typeof req.headers['x-cora-admin-key'] === 'string' && req.headers['x-cora-admin-key'] === adminKey;
+  const uid = await callerUid(req);
+  const isAdmin = uid ? await isCallerAdmin(uid) : false;
+
+  if (!keyMatches && !isAdmin) {
+    return res.status(403).json({ error: 'Forbidden: admin credentials required' });
   }
 
   const stats = { albumsScanned: 0, tracksScanned: 0, analyzed: 0, skipped: 0, errors: 0 };
@@ -246,6 +278,11 @@ coraRouter.get('/songs/:id', async (req: Request, res: Response) => {
 // ─── PUT /api/cora/songs/:id ──────────────────────────────────────────────────
 
 coraRouter.put('/songs/:id', async (req: Request, res: Response) => {
+  const uid = await callerUid(req);
+  if (!uid) return res.status(401).json({ error: 'Sign in first.' });
+  const isAdmin = await isCallerAdmin(uid);
+  if (!isAdmin) return res.status(403).json({ error: 'Admin privileges required to modify song records.' });
+
   const id = parseInt(String(req.params.id), 10);
   if (!id || id < 1) return res.status(400).json({ error: 'Invalid song id' });
 
@@ -268,6 +305,11 @@ coraRouter.put('/songs/:id', async (req: Request, res: Response) => {
 // ─── DELETE /api/cora/songs/:id ───────────────────────────────────────────────
 
 coraRouter.delete('/songs/:id', async (req: Request, res: Response) => {
+  const uid = await callerUid(req);
+  if (!uid) return res.status(401).json({ error: 'Sign in first.' });
+  const isAdmin = await isCallerAdmin(uid);
+  if (!isAdmin) return res.status(403).json({ error: 'Admin privileges required to delete song records.' });
+
   const id = parseInt(String(req.params.id), 10);
   if (!id || id < 1) return res.status(400).json({ error: 'Invalid song id' });
   try {

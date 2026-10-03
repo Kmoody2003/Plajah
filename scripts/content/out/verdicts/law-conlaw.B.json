@@ -1,0 +1,1104 @@
+{
+ "courseId": "law-conlaw",
+ "verifier": "B",
+ "questions": [
+  {
+   "id": "law-conlaw.l01.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l01.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l01.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l01.q4",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Departmentalism vs. judicial supremacy framing; choice 2 is the only accurate pairing.",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l01.q5",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Limits on jurisdiction stripping are unsettled; choice 1 is the best mainstream statement.",
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l02.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l02.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l02.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l02.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "note": "Note: Humphrey's Executor was later overruled in Trump v. Slaughter (2026), not Seila Law, so choice 2 remains wrong as stated.",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Trump_v._Slaughter"
+   ]
+  },
+  {
+   "id": "law-conlaw.l02.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l03.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l03.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l03.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l03.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l03.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l04.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l04.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l04.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l04.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l04.q5",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Reno v. Condon upheld the DPPA as a generally applicable regulation of states as database owners; 'market participant' is loose wording but choice 0 is the only defensible one.",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/528/141/"
+   ]
+  },
+  {
+   "id": "law-conlaw.l05.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l05.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l05.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l05.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l05.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l06.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l06.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l06.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l06.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l06.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l07.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l07.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l07.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l07.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l07.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l08.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l08.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l08.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l08.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l08.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l09.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l09.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l09.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l09.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l10.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l10.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l10.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l11.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l12.q4",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Under St. Amant v. Thompson reckless disregard needs serious doubts; 'had a doubt' is slightly borderline, but failure to investigate alone is not actual malice.",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/390/727/"
+   ]
+  },
+  {
+   "id": "law-conlaw.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l14.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l14.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l14.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l16.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l17.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-conlaw.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-conlaw.l01",
+   "claim": "Marbury v. Madison (1803): Court could not issue mandamus because the Judiciary Act provision expanded original jurisdiction beyond Article III",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/5/137/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l01",
+   "claim": "Martin v. Hunter's Lessee (1816) upheld Supreme Court review of state court decisions on federal questions",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/14/304/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l01",
+   "claim": "Cooper v. Aaron (1958) held Brown's interpretation binding on the states (Little Rock)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/358/1/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l02",
+   "claim": "Youngstown (1952) invalidated Truman's steel seizure; Jackson's three-zone concurrence",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/343/579/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l02",
+   "claim": "FCC v. Consumers' Research (2025) upheld a delegation under the intelligible principle test; Loper Bright (2024) overruled Chevron",
+   "verdict": "supported",
+   "sources": [
+    "https://www.supremecourt.gov/opinions/24pdf/24-354_2co3.pdf",
+    "https://www.supremecourt.gov/opinions/23pdf/22-451_7m58.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l02",
+   "claim": "Whether Humphrey's Executor survives remains a live question as of this writing",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.venable.com/insights/publications/2026/06/supreme-court-overrules-humphreys-executor",
+    "https://en.wikipedia.org/wiki/Trump_v._Slaughter"
+   ],
+   "note": "Trump v. Slaughter (June 29, 2026, 6-3, Roberts, C.J.) overruled Humphrey's Executor and held the FTC Act's for-cause removal protection unconstitutional. Lesson is stale and should cite Slaughter. Trump v. United States (2024) immunity summary is accurate."
+  },
+  {
+   "lessonId": "law-conlaw.l03",
+   "claim": "McCulloch v. Maryland (1819) upheld the national bank and barred state taxation of it",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/17/316/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l03",
+   "claim": "Lopez (1995): gun possession in a school zone not economic activity, no jurisdictional element",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/514/549/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l03",
+   "claim": "Gonzales v. Raich (2005) upheld the CSA as applied to homegrown medical marijuana; NFIB (2012) held the mandate not authorized by the Commerce Clause",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/545/1/",
+    "https://supreme.justia.com/cases/federal/us/567/519/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l04",
+   "claim": "NFIB (2012): mandate payment valid under taxing power with four dissenters; seven justices found the Medicaid expansion threat coercive",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/567/519/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l04",
+   "claim": "South Dakota v. Dole (1987) upheld withholding a small percentage (5%) of highway funds over drinking age 21, with the listed conditions",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/483/203/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l04",
+   "claim": "New York (1992), Printz (1997), Murphy v. NCAA (2018), Reno v. Condon (2000) as described; Garcia (1985) overruled National League of Cities (1976)",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/505/144/",
+    "https://supreme.justia.com/cases/federal/us/521/898/",
+    "https://supreme.justia.com/cases/federal/us/528/141/",
+    "https://www.supremecourt.gov/opinions/17pdf/16-476_dbfi.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l05",
+   "claim": "City of Philadelphia v. New Jersey (1978) struck down a ban on importing out-of-state waste",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/437/617/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l05",
+   "claim": "Pike v. Bruce Church (1970) clearly-excessive balancing; National Pork Producers v. Ross (2023) rejected the challenge to California's rules without overruling Pike",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/397/137/",
+    "https://www.supremecourt.gov/opinions/22pdf/21-468_5if6.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l05",
+   "claim": "Arizona v. United States (2012) held several provisions of Arizona's immigration law preempted",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/567/387/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l06",
+   "claim": "Barron v. Baltimore (1833) held the Bill of Rights inapplicable to states; Slaughter-House Cases (1873) read Privileges or Immunities narrowly",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/32/243/",
+    "https://supreme.justia.com/cases/federal/us/83/36/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l06",
+   "claim": "Duncan (1968), McDonald (2010), Timbs (2019), Ramos (2020) incorporation holdings as stated",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/391/145/",
+    "https://supreme.justia.com/cases/federal/us/561/742/",
+    "https://www.supremecourt.gov/opinions/18pdf/17-1091_5536.pdf",
+    "https://www.supremecourt.gov/opinions/19pdf/18-5924_n6io.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l06",
+   "claim": "Edwards v. Vannoy (2021) held Ramos not retroactive on federal collateral review",
+   "verdict": "supported",
+   "sources": [
+    "https://www.supremecourt.gov/opinions/20pdf/19-5807_new_4g15.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l07",
+   "claim": "Civil Rights Cases (1883) held the Fourteenth Amendment does not reach private discrimination by inns and theaters",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/109/3/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l07",
+   "claim": "Manhattan Community Access Corp. v. Halleck (2019): private public-access cable operator not a state actor",
+   "verdict": "supported",
+   "sources": [
+    "https://www.supremecourt.gov/opinions/18pdf/17-1702_h315.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l07",
+   "claim": "The Thirteenth Amendment is 'the one provision' that no state action doctrine limits",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/392/409/"
+   ],
+   "note": "Broadly accurate today, though the repealed Eighteenth Amendment also reached private conduct; 'the one provision' slightly overstates."
+  },
+  {
+   "lessonId": "law-conlaw.l08",
+   "claim": "Dobbs (2022) overruled Roe and Casey; abortion regulations reviewed under rational basis",
+   "verdict": "supported",
+   "sources": [
+    "https://www.supremecourt.gov/opinions/21pdf/19-1392_6j37.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l08",
+   "claim": "Washington v. Glucksberg (1997) rejected a right to assisted suicide under the deeply-rooted test",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/521/702/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l08",
+   "claim": "Eisenstadt v. Baird (1972) extended Griswold to unmarried persons; Respect for Marriage Act of 2022 requires recognition of marriages valid where entered",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/405/438/",
+    "https://www.congress.gov/bill/117th-congress/house-bill/8404"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l09",
+   "claim": "Board of Regents v. Roth (1972): legitimate claim of entitlement; Perry v. Sindermann (1972): mutually explicit understandings",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/408/564/",
+    "https://supreme.justia.com/cases/federal/us/408/593/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l09",
+   "claim": "Goldberg v. Kelly (1970) pretermination evidentiary hearing; Mathews v. Eldridge (1976) balancing allowed post-termination hearing for disability benefits",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/397/254/",
+    "https://supreme.justia.com/cases/federal/us/424/319/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l09",
+   "claim": "Daniels v. Williams (1986): negligence is not a deprivation under the Due Process Clause",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/474/327/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l10",
+   "claim": "Bolling v. Sharpe (1954) applied equal protection to the federal government via the Fifth Amendment",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/347/497/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l10",
+   "claim": "United States v. Skrmetti (2025) applied rational basis (classification by age and medical use) and did not decide whether transgender status is a suspect class",
+   "verdict": "supported",
+   "sources": [
+    "https://www.supremecourt.gov/opinions/24pdf/23-477_2cp3.pdf",
+    "https://en.wikipedia.org/wiki/West_Virginia_v._B._P._J."
+   ],
+   "note": "Still accurate after West Virginia v. B.P.J. (June 30, 2026, 6-3), which upheld sex-defined school sports teams under intermediate scrutiny and also left transgender-status scrutiny undecided; lesson could add B.P.J."
+  },
+  {
+   "lessonId": "law-conlaw.l10",
+   "claim": "Craig v. Boren (1976): Oklahoma 3.2% beer law (women 18, men 21) failed intermediate scrutiny",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/429/190/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l11",
+   "claim": "Reed v. Town of Gilbert (2015): facially content-based sign code subject to strict scrutiny regardless of motive",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/576/155/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l11",
+   "claim": "Brandenburg v. Ohio (1969): speech directed to inciting imminent lawless action and likely to produce it",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/395/444/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l11",
+   "claim": "303 Creative v. Elenis (2023) barred Colorado from compelling a website designer to create expressive wedding designs",
+   "verdict": "supported",
+   "sources": [
+    "https://www.supremecourt.gov/opinions/22pdf/21-476_c185.pdf"
+   ],
+   "note": "Consider adding Chiles v. Salazar (Mar. 31, 2026, 8-1), applying strict scrutiny to a viewpoint-based limit on counselors' talk therapy."
+  },
+  {
+   "lessonId": "law-conlaw.l12",
+   "claim": "Counterman v. Colorado (2023) set recklessness as the minimum mental state for true threats",
+   "verdict": "supported",
+   "sources": [
+    "https://www.supremecourt.gov/opinions/22pdf/22-138_43j7.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l12",
+   "claim": "TikTok v. Garland (2025) upheld the divest-or-ban law 'assuming without deciding that intermediate scrutiny applied'",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.law.cornell.edu/supremecourt/text/24-656"
+   ],
+   "note": "Imprecise: the Court assumed without deciding that the Act was subject to First Amendment scrutiny at all, then held it facially content neutral and applied intermediate scrutiny, relying on the data-collection rationale. Outcome stated correctly."
+  },
+  {
+   "lessonId": "law-conlaw.l12",
+   "claim": "Moody v. NetChoice (2024) vacated and remanded the Florida/Texas cases, recognizing feed curation as expressive activity",
+   "verdict": "supported",
+   "sources": [
+    "https://www.supremecourt.gov/opinions/23pdf/22-277_d18f.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l13",
+   "claim": "Lemon v. Kurtzman (1971) three-part test; Kennedy v. Bremerton (2022) said Lemon was abandoned for historical practices and understandings",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/403/602/",
+    "https://www.supremecourt.gov/opinions/21pdf/21-418_i425.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l13",
+   "claim": "Town of Greece (2014), American Legion (2019), Engel (1962), Lee v. Weisman (1992), Edwards v. Aguillard (1987) as described",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/572/565/",
+    "https://www.supremecourt.gov/opinions/18pdf/17-1717_4f14.pdf",
+    "https://supreme.justia.com/cases/federal/us/370/421/",
+    "https://supreme.justia.com/cases/federal/us/505/577/",
+    "https://supreme.justia.com/cases/federal/us/482/578/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l13",
+   "claim": "Worked example: school board meeting prayer by volunteer clergy is 'likely valid' under Town of Greece",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://law.justia.com/cases/federal/appellate-courts/ca9/16-55500/16-55500-2018-07-25.html"
+   ],
+   "note": "Contested: the Ninth Circuit (FFRF v. Chino Valley USD, 2018) held school-board prayer falls under the school-prayer cases, not Marsh/Town of Greece, because students attend. Also, Everson (1947) held, not merely assumed, that the clause binds the states."
+  },
+  {
+   "lessonId": "law-conlaw.l14",
+   "claim": "Employment Division v. Smith (1990); RFRA (1993); City of Boerne (1997) held RFRA inapplicable to states",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/494/872/",
+    "https://supreme.justia.com/cases/federal/us/521/507/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l14",
+   "claim": "Fulton (2021) and Tandon v. Newsom (2021) as described",
+   "verdict": "supported",
+   "sources": [
+    "https://www.supremecourt.gov/opinions/20pdf/19-123_g3bi.pdf",
+    "https://www.supremecourt.gov/opinions/20pdf/20a151_4g15.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l14",
+   "claim": "Mahmoud v. Taylor (2025) held parents entitled to opt children out of storybook instruction (preliminary injunction posture)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.supremecourt.gov/opinions/24pdf/24-297_4f14.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l15",
+   "claim": "Lujan (1992) three standing elements; TransUnion v. Ramirez (2021) concrete-harm requirement",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/504/555/",
+    "https://www.supremecourt.gov/opinions/20pdf/20-297_4g25.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l15",
+   "claim": "Murthy v. Missouri (2024) and FDA v. Alliance for Hippocratic Medicine (2024) found no standing",
+   "verdict": "supported",
+   "sources": [
+    "https://www.supremecourt.gov/opinions/23pdf/23-411_3dq3.pdf",
+    "https://www.supremecourt.gov/opinions/23pdf/23-235_n7ip.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l15",
+   "claim": "Rucho v. Common Cause (2019) partisan gerrymandering nonjusticiable; Trump v. CASA (2025) universal injunctions likely exceed equitable authority",
+   "verdict": "supported",
+   "sources": [
+    "https://www.supremecourt.gov/opinions/18pdf/18-422_9ol1.pdf",
+    "https://www.supremecourt.gov/opinions/24pdf/24a884_8n59.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l16",
+   "claim": "City of Boerne (1997) congruence and proportionality; Hibbs (2003) and Tennessee v. Lane (2004) upheld",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/521/507/",
+    "https://supreme.justia.com/cases/federal/us/538/721/",
+    "https://supreme.justia.com/cases/federal/us/541/509/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l16",
+   "claim": "Allen v. Milligan (2023) applied the Section 2 results test, and 'the Court later considered related questions'",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.congress.gov/crs-product/LSB11431",
+    "https://supreme.justia.com/cases/federal/us/608/24-109/"
+   ],
+   "note": "Stale/misleading: Louisiana v. Callais (Apr. 29, 2026, 6-3) held Louisiana's second majority-Black district an unconstitutional racial gerrymander and sharply narrowed Section 2 vote-dilution claims (strong inference of intentional discrimination required). Lesson should name Callais. Shelby County (2013) summary is correct."
+  },
+  {
+   "lessonId": "law-conlaw.l16",
+   "claim": "Seminole Tribe (1996) and Alden v. Maine (1999): no Article I abrogation; Ex parte Young (1908) prospective relief",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/517/44/",
+    "https://supreme.justia.com/cases/federal/us/527/706/",
+    "https://supreme.justia.com/cases/federal/us/209/123/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l17",
+   "claim": "Bruen (2022) text-and-history test; Rahimi (2024) upheld 922(g)(8), looking to principles, not a historical twin",
+   "verdict": "supported",
+   "sources": [
+    "https://www.supremecourt.gov/opinions/21pdf/20-843_7j80.pdf",
+    "https://www.supremecourt.gov/opinions/23pdf/22-915_8o6b.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l17",
+   "claim": "Janus v. AFSCME (2018) overruled precedent on public-sector union fees",
+   "verdict": "supported",
+   "sources": [
+    "https://www.supremecourt.gov/opinions/17pdf/16-1466_2b3j.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-conlaw.l17",
+   "claim": "Stare decisis strongest in statutory cases, weaker in constitutional cases",
+   "verdict": "supported",
+   "sources": [
+    "https://supreme.justia.com/cases/federal/us/505/833/"
+   ],
+   "note": ""
+  }
+ ]
+}

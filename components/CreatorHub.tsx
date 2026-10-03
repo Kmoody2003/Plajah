@@ -198,13 +198,13 @@ interface StudioDef {
   large?: boolean;         // Melos is the big tile
 }
 const STUDIOS: StudioDef[] = [
-  { key: 'Melos',  tagline: 'Music & releases',      icon: Music2,         navId: 'MELOS',
+  { key: 'Chora Studio',  tagline: 'Music & productions · Powered by Melos',      icon: Music2,         navId: 'MELOS',
     kinds: ['MUSIC'],           grad: 'linear-gradient(135deg,#6B0099,#D40055)', glow: '212,0,85',  large: true },
-  { key: 'Fabula', tagline: 'Film & the timeline',   icon: Film,           navId: 'FABULA',
+  { key: 'Fabula', tagline: '5-Phase Studio OS & Film NLE',   icon: Film,           navId: 'FABULA',
     kinds: ['FILM'],            grad: 'linear-gradient(135deg,#0066FF,#00DAF3)', glow: '0,218,243' },
   { key: 'Tela',   tagline: 'Docs, sheets & canvas', icon: LayoutPanelTop, navId: 'TELA',
     kinds: ['TELA'],            grad: 'linear-gradient(135deg,#6B0099,#00DAF3)', glow: '0,218,243' },
-  { key: 'Lorea',  tagline: 'Books & screenplays',   icon: BookOpen,       navId: 'BOOKS',
+  { key: 'Lorea',  tagline: 'The Writer’s Desk & Library',   icon: BookOpen,       navId: 'BOOKS',
     kinds: ['BOOK', 'SCRIPT'],  grad: 'linear-gradient(135deg,#FBBF24,#FF8C00)', glow: '255,140,0' },
   { key: 'Worlds', tagline: 'Your IP universes',     icon: Globe,          navId: 'WORLDS',
     kinds: ['WORLD'],           grad: 'linear-gradient(135deg,#8B5CF6,#6366F1)', glow: '139,92,246' },
@@ -213,7 +213,7 @@ const STUDIOS: StudioDef[] = [
 /* ── "More tools" — the non-studio tools not given a panel. Ids mirror
    CommandSplitNav's NAV_SECTIONS exactly. ─────────────────────────────────── */
 const MORE_TOOLS: { id: string; label: string; icon: Lucide }[] = [
-  { id: 'ARTIST_MANAGER', label: 'Artist Manager',    icon: Music2 },
+  { id: 'ARTIST_MANAGER', label: 'Chora Artist Manager',    icon: Music2 },
   { id: 'DJ_CONSOLE',     label: 'DJ Console',        icon: Disc3 },
   { id: 'PLAJAH_PIXELS',  label: 'Plajah Pixels',     icon: Grid3x3 },
   { id: 'TV_STUDIO',      label: 'TV Studio',         icon: Clapperboard },
@@ -242,6 +242,15 @@ function openAm(disc: Disc, tab: string | undefined, onNavigate: (v: string) => 
     if (tab) sessionStorage.setItem(AM_INTENT_TAB_KEY, tab);
     else sessionStorage.removeItem(AM_INTENT_TAB_KEY);
   } catch { /* storage disabled — AM opens on its default tab */ }
+
+  if (disc === 'film') {
+    onNavigate('FABULA');
+    return;
+  }
+  if (disc === 'writer') {
+    onNavigate('BOOKS');
+    return;
+  }
   onNavigate('ARTIST_MANAGER');
 }
 
@@ -265,7 +274,7 @@ const DISCIPLINE_DASH: DisciplineDash[] = [
     disc: 'music', name: 'Music Production', desc: 'Artist · Band · Label',
     icon: Music2, hue: '#FF8C00', kinds: ['MUSIC'], overviewTab: 'overview',
     shortcuts: [
-      { label: 'Open Melos', icon: Music2, melos: true },
+      { label: 'Chora Studio', icon: Music2, melos: true },
       { label: 'Boards', icon: ClipboardList, tab: 'boards' },
       { label: 'Events', icon: Calendar, tab: 'events' },
       { label: 'Contracts', icon: FileText, tab: 'contracts' },
@@ -286,6 +295,7 @@ const DISCIPLINE_DASH: DisciplineDash[] = [
       { label: 'Roster', icon: Users, tab: 'film_roster' },
       { label: 'Craft', icon: Coffee, tab: 'film_craft' },
       { label: 'Budget', icon: DollarSign, tab: 'film_budget' },
+      { label: 'Finance & Invoices', icon: Receipt, tab: 'film_finance' },
       { label: 'Schedule', icon: CalendarDays, tab: 'film_schedule' },
       { label: 'Distribution', icon: Flag, tab: 'film_distro' },
     ],

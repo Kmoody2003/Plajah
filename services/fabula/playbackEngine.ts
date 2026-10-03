@@ -99,8 +99,8 @@ export function effectiveTrack(trackId: string, settings: Record<string, any>): 
 
 // ── decoded-buffer cache ─────────────────────────────────────────────────────
 
-const MAX_CACHE_BYTES = 128 * 1024 * 1024;   // leave room for GPU textures and the editor on shared-memory devices
-const MAX_FETCH_BYTES = 64 * 1024 * 1024;    // larger sources use progressive element audio
+const MAX_CACHE_BYTES = 512 * 1024 * 1024;   // 512MB: keep timeline audio and local camera audio warm in memory
+const MAX_FETCH_BYTES = 128 * 1024 * 1024;    // 128MB: bigger sources use progressive element audio (a 256MB decodeAudioData stalls the main thread)
 
 interface CacheEntry { buf: AudioBuffer; bytes: number; at: number; }
 const bufCache = new Map<string, CacheEntry>();
@@ -126,7 +126,7 @@ function releaseDecode() {
 // silent AND the video sync yanks every clip backwards in a few-frame loop (the
 // element runs ahead of a frozen `expected`). The watchdog measures real clock
 // progress against wall time; on a stall it tries resume(), and if the context
-// stays dead it PERMANENTLY demotes the engine for this session: wall-clock
+// stays dead it demotes the engine for this session: wall-clock
 // transport + direct (un-routed) element audio — degraded but always audible.
 let engineDead = false;
 const watchdog = { lastWall: 0, lastCtx: 0, stallMs: 0 };
@@ -134,7 +134,7 @@ export function engineIsDead(): boolean { return engineDead; }
 function declareEngineDead(reason: string) {
   if (engineDead) return;
   engineDead = true;
-  console.warn('[playbackEngine] AudioContext unusable (' + reason + ') — demoting to direct element playback for this session.');
+  console.warn('[playbackEngine] AudioContext unusable (' + reason + ') — demoting to direct element playback.');
   stopPlayback();
   notify(); // re-render: elements mount everywhere, video elements unmute
 }
@@ -147,11 +147,22 @@ export function subscribePlayback(cb: () => void): () => void {
 }
 const notify = () => { for (const cb of [...listeners]) { try { cb(); } catch { /* */ } } };
 
+const timelineUrls = new Set<string>();
+export function pinTimelineAudio(urls: string[]) {
+  timelineUrls.clear();
+  urls.forEach((u) => { if (u) timelineUrls.add(u); });
+}
+
 function cacheBytes(): number { let n = 0; for (const e of bufCache.values()) n += e.bytes; return n; }
 function evictLRU(needed: number) {
   while (cacheBytes() + needed > MAX_CACHE_BYTES && bufCache.size) {
     let oldest: string | null = null; let at = Infinity;
-    for (const [k, e] of bufCache) if (e.at < at) { at = e.at; oldest = k; }
+    for (const [k, e] of bufCache) {
+      // Never evict buffers currently being played by active audio sources or pinned on timeline
+      const isPlaying = state.sources.some((s) => s.node?.buffer === e.buf);
+      if (isPlaying || timelineUrls.has(k)) continue;
+      if (e.at < at) { at = e.at; oldest = k; }
+    }
     if (!oldest) break;
     bufCache.delete(oldest);
   }
@@ -450,7 +461,6 @@ function scheduleEntry(e: PlanEntry, buf: AudioBuffer, lateBy = 0) {
     const live = { node: src, gain: cg, nodes };
     state.sources.push(live);
     ownedClips.add(e.clipId);
-    notify();
     src.onended = () => {
       nodes.forEach((n) => { try { n.disconnect(); } catch { /* */ } });
       state.sources = state.sources.filter((s) => s !== live);
@@ -462,10 +472,17 @@ function scheduleEntry(e: PlanEntry, buf: AudioBuffer, lateBy = 0) {
 /** Start scheduled playback of the whole timeline from t0 (idempotent while running). */
 let stateHookInstalled = false;
 export function startPlayback(opts: { clips: any[]; mediaPool: any[]; trackSettings?: Record<string, any>; t0: number }): boolean {
-  if (engineDead) return false;                        // demoted — wall clock + elements
+  if (engineDead) {
+    const testCtx = getAudioCtx();
+    if (testCtx && testCtx.state === 'running') {
+      engineDead = false;
+    } else {
+      return false;
+    }
+  }
   const now = Date.now();
   if (state.running) return true;
-  if (now - state.lastStartTry < 300) return false;    // restart-guard (tick retries)
+  if (now - state.lastStartTry < 16) return false;    // frame-level dedup guard
   state.lastStartTry = now;
   const ctx = getAudioCtx();
   if (!ctx) return false;
@@ -474,41 +491,75 @@ export function startPlayback(opts: { clips: any[]; mediaPool: any[]; trackSetti
     try { ctx.addEventListener('statechange', () => { if (ctx.state === 'suspended' && state.running) ctx.resume().catch(() => {}); }); } catch { /* */ }
   }
   resumeAudioCtx();
-  if (ctx.state !== 'running') return false;           // no gesture yet — tick will retry
+  if (ctx.state !== 'running') {
+    void ctx.resume().catch(() => {});
+    return false;           // no gesture yet — tick will retry next frame
+  }
   watchdog.lastWall = 0; watchdog.stallMs = 0;
   clockGlide.wall = 0; clockGlide.val = 0; clockGlide.raw = -1; clockGlide.changed = performance.now();
   const session = ++state.session;
   state.running = true;
   state.t0 = Math.max(0, opts.t0);
-  state.ctxStart = ctx.currentTime + 0.06;             // scheduling headroom
+  state.ctxStart = ctx.currentTime + 0.03;             // minimal tight scheduling headroom
   state.trackSettings = opts.trackSettings || {};
   state.sources = [];
+  lastSync = 0;                                        // force immediate video sync on frame 0
+  for (const [, v] of liveVideos) {
+    if (v.el && v.el.paused && v.el.readyState >= 2) {
+      v.el.play().catch(() => {});
+    }
+  }
   const plan = planPlayback(opts.clips, opts.mediaPool, state.t0);
+  pinTimelineAudio(plan.map((e) => e.url));
   state.planned = plan.length; state.scheduled = 0; state.pending = 0;
   const requested = new Set<string>();
   const pump = () => {
-  if (!state.running || state.session !== session) return;
-  const elapsed = Math.max(0, engineClock() - state.t0);
-  for (const e of plan) {
-    if (requested.has(e.clipId) || e.when > elapsed + 12) continue;
-    requested.add(e.clipId);
-    if (e.when + e.dur <= elapsed) continue;
-    const cached = bufCache.get(e.url);
-    if (cached && e.when >= elapsed) { cached.at = Date.now(); scheduleEntry(e, cached.buf); state.scheduled++; continue; }
-    state.pending++;
-    // late-join: decode now, then splice in at the correct source offset for the CURRENT clock
-    void decodeUrl(e.url, e.assetId, opts.mediaPool.find(a => a.id === e.assetId)).then((buf) => {
-      if (state.session === session) state.pending = Math.max(0, state.pending - 1);
-      if (!buf || !state.running || state.session !== session) return;
-      if (state.session === session) state.scheduled++;
-      const nowTl = engineClock();
-      const startTl = state.t0 + e.when;
-      if (nowTl < startTl - 0.05) { scheduleEntry(e, buf); return; }         // still ahead — schedule as planned
-      const missed = Math.max(0, nowTl - startTl);
-      if (missed >= e.dur - 0.05) return;                                     // clip already over
-      scheduleEntry({ ...e, when: Math.max(e.when, nowTl - state.t0), offset: e.offset + missed, dur: e.dur - missed, fadeIn: Math.max(0, e.fadeIn - missed), fadeInFrom: e.fadeIn > 0 ? e.fadeInFrom + (1 - e.fadeInFrom) * clamp(missed / e.fadeIn, 0, 1) : 1 }, buf);
-    });
-  }
+    if (!state.running || state.session !== session) return;
+    const elapsed = Math.max(0, engineClock() - state.t0);
+    let didSchedule = false;
+    for (const e of plan) {
+      if (requested.has(e.clipId) || e.when > elapsed + 12) continue;
+      requested.add(e.clipId);
+      if (e.when + e.dur <= elapsed) continue;
+      const cached = bufCache.get(e.url);
+      if (cached) {
+        cached.at = Date.now();
+        if (e.when >= elapsed) {
+          scheduleEntry(e, cached.buf);
+          state.scheduled++;
+        } else {
+          const missed = Math.max(0, elapsed - e.when);
+          if (missed < e.dur - 0.05) {
+            scheduleEntry({
+              ...e,
+              when: elapsed,
+              offset: e.offset + missed,
+              dur: e.dur - missed,
+              fadeIn: Math.max(0, e.fadeIn - missed),
+              fadeInFrom: e.fadeIn > 0 ? e.fadeInFrom + (1 - e.fadeInFrom) * clamp(missed / e.fadeIn, 0, 1) : 1,
+            }, cached.buf);
+            state.scheduled++;
+          }
+        }
+        didSchedule = true;
+        continue;
+      }
+      state.pending++;
+      // late-join: decode now, then splice in at the correct source offset for the CURRENT clock
+      void decodeUrl(e.url, e.assetId, opts.mediaPool.find(a => a.id === e.assetId)).then((buf) => {
+        if (state.session === session) state.pending = Math.max(0, state.pending - 1);
+        if (!buf || !state.running || state.session !== session) return;
+        if (state.session === session) state.scheduled++;
+        const nowTl = engineClock();
+        const startTl = state.t0 + e.when;
+        if (nowTl < startTl - 0.05) { scheduleEntry(e, buf); notify(); return; }         // still ahead — schedule as planned
+        const missed = Math.max(0, nowTl - startTl);
+        if (missed >= e.dur - 0.05) return;                                     // clip already over
+        scheduleEntry({ ...e, when: Math.max(e.when, nowTl - state.t0), offset: e.offset + missed, dur: e.dur - missed, fadeIn: Math.max(0, e.fadeIn - missed), fadeInFrom: e.fadeIn > 0 ? e.fadeInFrom + (1 - e.fadeInFrom) * clamp(missed / e.fadeIn, 0, 1) : 1 }, buf);
+        notify();
+      });
+    }
+    if (didSchedule) notify();
   };
   pump();
   scheduleTimer = setInterval(pump, 1000);
@@ -518,6 +569,7 @@ export function startPlayback(opts: { clips: any[]; mediaPool: any[]; trackSetti
 export function stopPlayback() {
   if (scheduleTimer) { clearInterval(scheduleTimer); scheduleTimer = null; }
   ownedClips.clear();
+  lastSync = 0;
   if (!state.running) return;
   state.t0 = engineClock();                            // freeze the clock where we stopped
   state.running = false;
@@ -535,7 +587,7 @@ export function setEngineTracks(trackSettings: Record<string, any>) {
 
 // ── video slaving: drift-correct the live <video> elements to the clock ──────
 
-interface LiveVideo { el: HTMLVideoElement; clipStart: number; offset: number; srcDur?: number; }
+interface LiveVideo { el: HTMLVideoElement; clipStart: number; offset: number; srcDur?: number; lastHard?: number; }
 const liveVideos = new Map<string, LiveVideo>();
 let lastSync = 0;
 
@@ -554,10 +606,10 @@ export function syncLiveVideos(clock: number, rate: number) {
       if (watchdog.lastWall > 0) {
         const wallDt = now - watchdog.lastWall;
         const ctxDt = (ctx.currentTime - watchdog.lastCtx) * 1000;
-    if (wallDt > 0 && ctxDt < wallDt * 0.5) {
+        if (wallDt > 0 && wallDt < 500 && ctxDt < wallDt * 0.5) {
           watchdog.stallMs += wallDt;
           if (watchdog.stallMs > 700) resumeAudioCtx();
-          if (watchdog.stallMs > 2500) declareEngineDead('clock stalled ' + Math.round(watchdog.stallMs) + 'ms; state=' + ctx.state);
+          if (watchdog.stallMs > 8000) declareEngineDead('clock stalled ' + Math.round(watchdog.stallMs) + 'ms; state=' + ctx.state);
         } else if (ctxDt >= wallDt * 0.5) watchdog.stallMs = 0;
       }
       watchdog.lastWall = now; watchdog.lastCtx = ctx.currentTime;
@@ -585,10 +637,20 @@ export function syncLiveVideos(clock: number, rate: number) {
     if (el.paused) { el.play().catch(() => { /* retried next pass */ }); }
     const drift = el.currentTime - expected;            // + = video ahead of timeline
     try {
-      if (Math.abs(drift) > 0.4) { el.currentTime = expected + 0.04; el.playbackRate = rate; }
-      else if (drift < -0.08) el.playbackRate = Math.min(4, rate * 1.08);
-      else if (drift > 0.08) el.playbackRate = Math.max(0.25, rate * 0.92);
-      else el.playbackRate = rate;
+      const ad = Math.abs(drift);
+      if (ad > 0.5 && now - (v.lastHard || 0) > 1200) {
+        // Real divergence (post-buffer stall, clip entry, tab throttle): one hard re-anchor, rate-limited
+        // so a slow-to-seek source can never thrash the decoder with back-to-back seeks.
+        v.lastHard = now;
+        el.currentTime = expected + 0.04;
+        el.playbackRate = rate;
+      } else if (ad < 0.04) {
+        if (el.playbackRate !== rate) el.playbackRate = rate;   // in sync — deadband, no jitter
+      } else {
+        // Proportional rate slaving: invisible, never flushes the decoder's GOP pipeline.
+        const targetRate = clamp(rate * (1 - drift * 0.5), rate * 0.85, rate * 1.15);
+        if (Math.abs(el.playbackRate - targetRate) > 0.01) el.playbackRate = targetRate;
+      }
     } catch { /* rate/seek unsupported mid-load — next pass */ }
   }
 }

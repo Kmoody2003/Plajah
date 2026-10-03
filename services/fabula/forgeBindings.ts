@@ -15,6 +15,7 @@ import type { FxEffect } from '../../components/plajahPixels/engine/fx/effects';
 import { sampleTrackAt, type VectorTrackAsset } from './vectorTrack';
 import { samplePlanarAt, type PlanarTrackSequence } from './planarSequence';
 import { transformPoint, invertHomography, multiplyMat3, decomposePlanar, type Mat3, type Point2 } from './planarTrack';
+export type { Point2 } from './planarTrack';
 import { sampleTrack, hasKeys, type KfMap } from './keyframes';
 
 export type MaskShape = 'ellipse' | 'rect' | 'poly';

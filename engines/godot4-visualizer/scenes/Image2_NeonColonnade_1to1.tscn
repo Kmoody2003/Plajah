@@ -1,0 +1,31 @@
+[gd_scene load_steps=4 format=3]
+
+[ext_resource type="Environment" path="res://default_env.tres" id="1_env"]
+[ext_resource type="Script" path="res://scripts/plajah_audio_bridge.gd" id="2_audio"]
+[ext_resource type="Script" path="res://scripts/image2_neon_colonnade_1to1.gd" id="3_controller"]
+
+[node name="Image2_NeonColonnade_1to1" type="Node3D"]
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="."]
+environment = ExtResource("1_env")
+
+[node name="PlajahAudioBridge" type="Node" parent="."]
+script = ExtResource("2_audio")
+
+[node name="Camera3D" type="Camera3D" parent="."]
+transform = Transform3D(0.92388, 0.0990458, -0.369644, 0, 0.965926, 0.258819, 0.382683, -0.239119, 0.892404, 3.8, 0.8, 6.5)
+current = true
+fov = 48.0
+
+[node name="DirectionalKeyLight" type="DirectionalLight3D" parent="."]
+transform = Transform3D(0.707107, -0.5, 0.5, 0, 0.707107, 0.707107, -0.707107, -0.5, 0.5, 6, 12, 8)
+light_color = Color(0.95, 0.92, 1, 1)
+light_energy = 1.2
+shadow_enabled = true
+shadow_bias = 0.002
+
+[node name="NeonColonnadeSystem" type="Node3D" parent="." node_paths=PackedStringArray("audio_bridge")]
+script = ExtResource("3_controller")
+audio_bridge = NodePath("../PlajahAudioBridge")
+slat_count = 48
+spacing = 0.26

@@ -12,7 +12,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { subscribeToComments, postComment, createPost, loginWithGoogle } from '../services/backendService';
 import { cacheExternalBookAssets } from '../services/bookStorageService';
 import { fetchBookBinary, fetchBookText, formatReadableText, parseChaptersFromText, ParsedChapter, stripHtmlToText } from '../services/bookContentService';
+import BookFolioBody from './lorea/BookFolioBody';
+import { adaptEpub, adaptPdf, toParsedChapters, type FolioDoc, type PageExtras } from '../services/bookPageAdapters';
 import CommentSection from './CommentSection';
+import ShareButton from './ShareButton';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import PlajahPlusButton from './PlajahPlusButton';
 import { BookOpeningScene } from './BookOpeningScene';
@@ -263,8 +266,22 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
 
   // Settings State
   const [fontSize, setFontSize] = useState(100);
-  const [readingTheme, setReadingTheme] = useState<'DEFAULT' | 'SEPIA' | 'DARK' | 'PAPER'>('SEPIA');
+  const [readingTheme, setReadingTheme] = useState<'DEFAULT' | 'SEPIA' | 'DARK' | 'PAPER' | 'VIOLET'>('SEPIA');
   const [fontFamily, setFontFamily] = useState<'sans' | 'serif' | 'mono'>('sans');
+  // Page style for text books: FOLIO (the book-page look from Academia lessons) or the original CLASSIC card.
+  const lsGet = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
+  const lsSet = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* private mode */ } };
+  const [pageStyle, setPageStyleState] = useState<'FOLIO' | 'CLASSIC'>(() => (lsGet('lorea_page_style') === 'CLASSIC' ? 'CLASSIC' : 'FOLIO'));
+  const [easyRead, setEasyReadState] = useState(() => lsGet('lorea_easy_read') === '1');
+  const [calmRead, setCalmReadState] = useState(() => lsGet('lorea_calm_read') === '1');
+  // EPUB/PDF adapted into folio pages (text and pictures separated). null = not built, failed, or a scan with no text layer.
+  const [folioDoc, setFolioDoc] = useState<FolioDoc | null>(null);
+  const [folioExtras, setFolioExtras] = useState<PageExtras>({ figures: [] });
+  const [folioFailed, setFolioFailed] = useState(false);
+  const [folioBuilding, setFolioBuilding] = useState<number | null>(null);
+  const setPageStyle = (v: 'FOLIO' | 'CLASSIC') => { setPageStyleState(v); lsSet('lorea_page_style', v); };
+  const setEasyRead = (v: boolean) => { setEasyReadState(v); lsSet('lorea_easy_read', v ? '1' : '0'); };
+  const setCalmRead = (v: boolean) => { setCalmReadState(v); lsSet('lorea_calm_read', v ? '1' : '0'); };
 
   // Display mode scales the whole reading surface for the device class:
   // phone-in-hand, desk monitor, or a TV viewed from across the room.
@@ -402,8 +419,17 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     (currentChapter?.url?.includes('archive.org') && !currentChapter?.url?.includes('.epub') && !currentChapter?.url?.includes('.pdf'))
   );
 
+  const folioActive = pageStyle === 'FOLIO' && !!folioDoc && !folioDoc.textless;
+  // The native EPUB/PDF viewers step aside when the folio page is showing the same book.
+  const isEpubReader = isEpub && !folioActive;
+  const isPdfReader = isPdf && !folioActive;
+
   // Reset per-chapter state when the chapter changes
   useEffect(() => {
+    setFolioDoc(null);
+    setFolioFailed(false);
+    setFolioBuilding(null);
+    setFolioExtras({ figures: [] });
     setReaderError(null);
     setNumPdfPages(undefined);
     setPdfPageNumber(1);
@@ -451,6 +477,48 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       });
     return () => { cancelled = true; };
   }, [isEpub, currentChapter?.url]);
+
+  // Build the folio pages from the EPUB / PDF bytes (same cached bytes the native viewers use).
+  useEffect(() => {
+    if (pageStyle !== 'FOLIO' || folioDoc || folioFailed) return;
+    const wantsEpub = isEpub && !!epubData;
+    const wantsPdf = isPdf && !isEpub && !!proxiedPdfUrl;
+    if (!wantsEpub && !wantsPdf) return;
+    let cancelled = false;
+    setFolioBuilding(0);
+    (async () => {
+      try {
+        const doc = wantsEpub
+          ? await adaptEpub(epubData!)
+          : await adaptPdf(await fetchBookBinary(proxiedPdfUrl!), { onProgress: (d, t) => { if (!cancelled) setFolioBuilding(Math.round((d / t) * 100)); } });
+        if (cancelled || !mountedRef.current) { doc.dispose(); return; }
+        if (doc.textless) { doc.dispose(); setFolioFailed(true); return; } // a scan with no text: keep the page viewer
+        setParsedChapters(toParsedChapters(doc));
+        setActiveParsedChapter(0);
+        setActiveParsedPage(0);
+        setFolioDoc(doc);
+      } catch (e) {
+        console.warn('[BookReader] folio adapter failed, keeping the native viewer:', (e as any)?.message);
+        if (!cancelled) setFolioFailed(true);
+      } finally {
+        if (!cancelled) setFolioBuilding(null);
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pageStyle, isEpub, isPdf, epubData, proxiedPdfUrl, folioDoc, folioFailed]);
+
+  // Release blob URLs and the PDF worker when the adapted book goes away
+  useEffect(() => () => { folioDoc?.dispose(); }, [folioDoc]);
+
+  // Figures for the page on screen (EPUB: known; PDF: cropped from the rendered page on demand)
+  useEffect(() => {
+    if (!folioDoc) { setFolioExtras({ figures: [] }); return; }
+    let cancelled = false;
+    setFolioExtras({ figures: [] });
+    folioDoc.extras(activeParsedChapter, activeParsedPage).then(x => { if (!cancelled) setFolioExtras(x); }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [folioDoc, activeParsedChapter, activeParsedPage]);
 
   // Load content whenever the resolved format changes (including TXT fallback override)
   useEffect(() => {
@@ -560,6 +628,9 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
       } else if (readingTheme === 'DARK') {
         textColor = '#ccc';
         bgColor = '#111';
+      } else if (readingTheme === 'VIOLET') {
+        textColor = '#e6e0f5';
+        bgColor = '#0e0b16';
       } else {
         // Default behavior based on global platform theme
         textColor = theme === 'LIGHT' ? '#000' : '#fff';
@@ -787,7 +858,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   }, [bookmarks, book.id]);
 
   const isCurrentPageBookmarked = bookmarks.some(b =>
-    isEpub
+    isEpubReader
       ? b.epubCfi === epubLocation
       : b.chapterIndex === currentChapterIndex && b.pageIndex === currentPageIndex
   );
@@ -795,20 +866,20 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   const toggleBookmark = () => {
     if (isCurrentPageBookmarked) {
       setBookmarks(prev => prev.filter(b =>
-        isEpub
+        isEpubReader
           ? b.epubCfi !== epubLocation
           : !(b.chapterIndex === currentChapterIndex && b.pageIndex === currentPageIndex)
       ));
     } else {
-      const label = isEpub
+      const label = isEpubReader
         ? `${book.title} — ${epubProgress}%`
         : `${currentChapter?.title || `Chapter ${currentChapterIndex + 1}`} — Page ${currentPageIndex + 1}`;
       setBookmarks(prev => [...prev, {
         id: Math.random().toString(36).substr(2, 9),
         chapterIndex: currentChapterIndex,
         pageIndex: currentPageIndex,
-        epubCfi: isEpub ? (epubLocation || undefined) : undefined,
-        epubProgress: isEpub ? epubProgress : undefined,
+        epubCfi: isEpubReader ? (epubLocation || undefined) : undefined,
+        epubProgress: isEpubReader ? epubProgress : undefined,
         label,
         createdAt: Date.now(),
       }]);
@@ -816,7 +887,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
   };
 
   const jumpToBookmark = (b: BookmarkEntry) => {
-    if (isEpub && b.epubCfi) {
+    if (isEpubReader && b.epubCfi) {
       epubRendition?.display(b.epubCfi);
     } else {
       setCurrentChapterIndex(b.chapterIndex);
@@ -829,12 +900,12 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     if (!currentUser || isSharing) return;
     setIsSharing(true);
     try {
-      const pageRef = isEpub
+      const pageRef = isEpubReader
         ? `epub:${epubProgress}`
         : `chapter:${currentChapterIndex}:page:${currentPageIndex}`;
       const deepLink = buildShareUrl('book', book.id, { ref: pageRef });
       const caption = shareCaption.trim() ||
-        `📖 Reading "${book.title}"${currentChapter?.title ? ` — ${currentChapter.title}` : ''}${!isEpub ? ` — Page ${currentPageIndex + 1}` : ` at ${epubProgress}%`}`;
+        `📖 Reading "${book.title}"${currentChapter?.title ? ` — ${currentChapter.title}` : ''}${!isEpubReader ? ` — Page ${currentPageIndex + 1}` : ` at ${epubProgress}%`}`;
       await createPost({
         text: caption,
         media: [{
@@ -939,15 +1010,18 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
     readingTheme === 'SEPIA' ? 'bg-[#f4ecd8] border border-[#d9c9a3]' :
     readingTheme === 'PAPER' ? 'bg-[#fafaf8] border border-black/10' :
     readingTheme === 'DARK'  ? 'bg-[#111111] border border-white/5' :
+    readingTheme === 'VIOLET' ? 'bg-[#0e0b16] bg-[radial-gradient(ellipse_at_top_left,rgba(169,139,255,0.14),transparent_55%)] border border-[#2a2339]' :
                                'bg-[#1c1c1f] border border-white/5';
   const txtColor =
     readingTheme === 'SEPIA' ? 'text-[#4a3728]' :
     readingTheme === 'PAPER' ? 'text-[#1a1a1a]' :
     readingTheme === 'DARK'  ? 'text-[#c8c8c8]' :
+    readingTheme === 'VIOLET' ? 'text-[#e6e0f5]' :
                                'text-white/85';
   const txtHdColor =
     readingTheme === 'SEPIA' ? 'text-[#7a4f2b]' :
     readingTheme === 'PAPER' ? 'text-black' :
+    readingTheme === 'VIOLET' ? 'text-[#a98bff]' :
                                'text-small-orange';
   const txtFontFamily =
     fontFamily === 'serif' ? 'font-serif' :
@@ -995,14 +1069,14 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               <div className="min-w-0">
                 <h2 className="text-xs sm:text-sm font-black uppercase tracking-widest truncate max-w-[120px] sm:max-w-[220px]">{book.title}</h2>
                 <p className={`text-[8px] sm:text-[10px] font-black uppercase tracking-[0.2em] sm:tracking-[0.3em] truncate max-w-[140px] sm:max-w-none ${theme === 'LIGHT' ? 'text-[#FF8C00]' : 'text-small-orange'}`}>
-                  {isEpub
+                  {isEpubReader
                     ? `Reading: ${epubProgress}%`
                     : parsedChapters.length > 0
                       ? parsedChapters[activeParsedChapter]?.title || `Chapter ${activeParsedChapter + 1}`
                       : (currentChapter?.title || `Chapter ${currentChapterIndex + 1}`)}
-                  {!isEpub && parsedChapters.length > 0
+                  {!isEpubReader && parsedChapters.length > 0
                     ? ` • Page ${activeParsedPage + 1} of ${parsedChapters[activeParsedChapter]?.pages.length || 1}`
-                    : !isEpub && ` • Page ${currentPageIndex + 1} of ${pages.length || 1}`}
+                    : !isEpubReader && ` • Page ${currentPageIndex + 1} of ${pages.length || 1}`}
                 </p>
               </div>
               {book.ownerId && (
@@ -1128,13 +1202,20 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               )}
 
               {book.allowPageSharing && (
-                <button
-                  onClick={() => setShowShareModal(true)}
+                <ShareButton
+                  title={book.title}
+                  artist={book.artist || (book as any).author || 'Lorea Author'}
+                  text={`📖 Reading "${book.title}" on Lorea Literary Press`}
+                  url={buildShareUrl('book', book.id, { ref: isEpubReader ? `epub:${epubProgress}` : `chapter:${currentChapterIndex}:page:${currentPageIndex}` })}
+                  imageUrl={book.coverImage}
+                  contentType="book"
+                  ctaText="📖 READ CHAPTER ON LOREA"
                   className={`p-3 rounded-full transition-all ${s.btnHover}`}
-                  title="Share This Page"
+                  plajahLabel="Post page to feed"
+                  onPostToPlajah={handleSharePage}
                 >
                   <Share2 size={20} />
-                </button>
+                </ShareButton>
               )}
 
               <button
@@ -1255,9 +1336,14 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                   )}
                 </div>
               </div>
-            ) : isEpub && epubData ? (
+            ) : folioBuilding !== null ? (
+              <div className="flex flex-col items-center gap-6">
+                <Loader2 className="animate-spin text-small-orange" size={48} />
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] opacity-40">Setting the pages{folioBuilding > 0 ? ` · ${folioBuilding}%` : ''}</p>
+              </div>
+            ) : isEpubReader && epubData ? (
               <div 
-                className={`w-full h-full max-w-6xl xl:max-w-7xl rounded-2xl shadow-2xl relative ${readingTheme === 'SEPIA' ? 'bg-[#f4ecd8]' : readingTheme === 'PAPER' ? 'bg-[#fdfdfd]' : readingTheme === 'DARK' ? 'bg-[#111]' : (theme === 'LIGHT' ? 'bg-white' : 'bg-[#1a1a1a]')}`}
+                className={`w-full h-full max-w-6xl xl:max-w-7xl rounded-2xl shadow-2xl relative ${readingTheme === 'SEPIA' ? 'bg-[#f4ecd8]' : readingTheme === 'PAPER' ? 'bg-[#fdfdfd]' : readingTheme === 'DARK' ? 'bg-[#111]' : readingTheme === 'VIOLET' ? 'bg-[#0e0b16]' : (theme === 'LIGHT' ? 'bg-white' : 'bg-[#1a1a1a]')}`}
               >
                 <ReaderErrorBoundary
                   resetKey={currentChapter?.url || currentChapter?.id || book.id}
@@ -1320,7 +1406,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                   />
                 </ReaderErrorBoundary>
               </div>
-            ) : isPdf ? (
+            ) : isPdfReader ? (
               <div 
                 className={`w-full h-full max-w-6xl xl:max-w-7xl rounded-2xl shadow-2xl relative overflow-y-auto no-scrollbar flex flex-col items-center p-3 lg:p-6 ${theme === 'LIGHT' ? 'bg-white' : 'bg-[#1a1a1a]'}`}
               >
@@ -1410,6 +1496,30 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                     </div>
                   )}
                   <div className="p-6 sm:p-10 lg:p-12 xl:p-16">
+                    {pageStyle === 'FOLIO' ? (
+                      <BookFolioBody
+                        paras={activePg}
+                        chapterTitle={chTitle}
+                        bookTitle={book.title}
+                        author={book.artist || undefined}
+                        pageNo={activeParsedPage + 1}
+                        pageCount={activeCh.pages.length || 1}
+                        chapterStart={activeParsedPage === 0}
+                        titleShownElsewhere={!!book.coverImage && activeParsedChapter === 0 && activeParsedPage === 0}
+                        readingTheme={readingTheme}
+                        fontFamily={fontFamily}
+                        fontSizePct={Math.round(fontSize * modeScale)}
+                        doubleColumn={viewMode === 'DOUBLE'}
+                        readAlong={readAlongPos}
+                        wordRef={readAlongWordRef}
+                        onReadFrom={startReadAlong}
+                        figures={folioActive ? folioExtras.figures : undefined}
+                        loadScan={folioActive && folioDoc?.scan ? () => folioDoc.scan!(activeParsedChapter, activeParsedPage) : undefined}
+                        easy={easyRead}
+                        calm={calmRead}
+                        seed={book.id}
+                      />
+                    ) : (<>
                     {!(book.coverImage && activeParsedChapter === 0 && activeParsedPage === 0) && (
                       <h3 className={`text-2xl font-black uppercase tracking-tight mb-8 text-center ${txtHdColor}`}>{chTitle}</h3>
                     )}
@@ -1441,6 +1551,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                         </p>
                       ))}
                     </div>
+                    </>)}
                     {/* Page turn hint at bottom */}
                     {(activeParsedPage < activeCh.pages.length - 1 || activeParsedChapter < parsedChapters.length - 1) && (
                       <div className="mt-12 pt-8 border-t border-white/5 text-center">
@@ -1500,7 +1611,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               </div>
 
               <div className={`flex-1 overflow-y-auto ${s.scrollbar} p-4`}>
-                {isEpub ? (
+                {isEpubReader ? (
                   <div className="space-y-1">
                     {toc.map((item, i) => (
                       <button
@@ -1665,6 +1776,40 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                   </div>
                 </section>
 
+                {/* Page style — Folio book page or the original card (plain-text books) */}
+                <section>
+                  <label className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-6 block">Page Style</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {([['FOLIO', 'Folio'], ['CLASSIC', 'Classic']] as const).map(([id, label]) => (
+                      <button
+                        key={id}
+                        onClick={() => setPageStyle(id)}
+                        className={`py-4 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all ${pageStyle === id ? 'bg-white text-black border-white shadow-xl' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'}`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                  {pageStyle === 'FOLIO' && (
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      <button
+                        onClick={() => setEasyRead(!easyRead)}
+                        aria-pressed={easyRead}
+                        className={`py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${easyRead ? 'bg-white text-black border-white' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'}`}
+                      >
+                        Easier to read
+                      </button>
+                      <button
+                        onClick={() => setCalmRead(!calmRead)}
+                        aria-pressed={calmRead}
+                        className={`py-3 rounded-xl text-[9px] font-black uppercase tracking-widest border transition-all ${calmRead ? 'bg-white text-black border-white' : 'bg-white/5 text-white/40 border-white/10 hover:bg-white/10'}`}
+                      >
+                        Calm
+                      </button>
+                    </div>
+                  )}
+                </section>
+
                 {/* Display Mode — device-class scaling (phone / desk / 10-foot TV) */}
                 <section>
                   <label className="text-[10px] font-black uppercase tracking-widest opacity-40 mb-6 block">Display Mode</label>
@@ -1717,6 +1862,12 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                       className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${readingTheme === 'PAPER' ? 'bg-[#fdfdfd] text-[#111] border-black/10' : 'bg-white/5 border-white/10'}`}
                     >
                       <Sun size={16} /> <span className="text-[10px] font-black uppercase tracking-widest">Paper</span>
+                    </button>
+                    <button 
+                      onClick={() => setReadingTheme('VIOLET')}
+                      className={`col-span-2 flex items-center gap-3 p-4 rounded-xl border transition-all ${readingTheme === 'VIOLET' ? 'bg-[#0e0b16] text-[#e6e0f5] border-[#a98bff]' : 'bg-white/5 border-white/10'}`}
+                    >
+                      <Sparkles size={16} className="text-[#a98bff]" /> <span className="text-[10px] font-black uppercase tracking-widest">Violet</span>
                     </button>
                   </div>
                 </section>
@@ -2007,7 +2158,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                         <p className="text-[8px] font-black uppercase tracking-[0.3em] text-[#D0BCFF] mb-1">Sharing a Page From</p>
                         <p className="text-white font-black text-lg leading-tight">{book.title}</p>
                         <p className="text-white/40 text-[9px] font-black uppercase tracking-widest mt-1">
-                          {isEpub ? `${epubProgress}% through` : `${currentChapter?.title || `Chapter ${currentChapterIndex + 1}`} · Page ${currentPageIndex + 1}`}
+                          {isEpubReader ? `${epubProgress}% through` : `${currentChapter?.title || `Chapter ${currentChapterIndex + 1}`} · Page ${currentPageIndex + 1}`}
                         </p>
                       </div>
                     </div>
@@ -2020,7 +2171,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                       <p className="text-[9px] font-black uppercase tracking-[0.3em] text-[#D0BCFF] mb-1">Sharing a Page</p>
                       <p className="text-white font-black text-xl">{book.title}</p>
                       <p className="text-white/40 text-[9px] font-black uppercase tracking-widest mt-1">
-                        {isEpub ? `${epubProgress}% through` : `${currentChapter?.title || `Chapter ${currentChapterIndex + 1}`} · Page ${currentPageIndex + 1}`}
+                        {isEpubReader ? `${epubProgress}% through` : `${currentChapter?.title || `Chapter ${currentChapterIndex + 1}`} · Page ${currentPageIndex + 1}`}
                       </p>
                     </div>
                   )}
@@ -2109,7 +2260,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
               <div className={`flex-1 h-1.5 ${s.progressBg} rounded-full overflow-hidden relative group/progress cursor-pointer`}>
                 <div
                   className="h-full bg-gradient-to-r from-blue-500 to-small-orange"
-                  style={{ width: isEpub
+                  style={{ width: isEpubReader
                     ? `${epubProgress}%`
                     : parsedChapters.length > 0
                       ? `${((activeParsedChapter * parsedChapters[0].pages.length + activeParsedPage + 1) / parsedChapters.reduce((s, c) => s + c.pages.length, 0) * 100).toFixed(1)}%`
@@ -2121,7 +2272,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
                 <button onClick={prevPage} className={`p-1.5 sm:p-2.5 transition-all ${s.btnHover}`} aria-label="Previous page"><ChevronLeft size={18} className="sm:w-5 sm:h-5" /></button>
                 <div className={`px-2.5 sm:px-4 py-1 sm:py-1.5 ${theme === 'LIGHT' ? 'bg-black/5' : 'bg-white/5'} border border-black/10 rounded-full`}>
                   <span className={`text-[8px] sm:text-[10px] font-black uppercase tracking-wider ${s.text} whitespace-nowrap`}>
-                    {isEpub
+                    {isEpubReader
                       ? `${epubProgress}%`
                       : parsedChapters.length > 0
                         ? `CH.${activeParsedChapter + 1} • P.${activeParsedPage + 1}`
@@ -2143,7 +2294,7 @@ const BookReader: React.FC<BookReaderProps> = ({ book, onBack, currentUser, onVi
           <div
             className="h-full bg-gradient-to-r from-[#00DAF3] to-small-orange transition-all duration-300"
             style={{
-              width: isEpub
+              width: isEpubReader
                 ? `${epubProgress}%`
                 : parsedChapters.length > 0
                   ? `${((activeParsedChapter * parsedChapters[0].pages.length + activeParsedPage + 1) / parsedChapters.reduce((s, c) => s + c.pages.length, 0) * 100).toFixed(1)}%`

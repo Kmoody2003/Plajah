@@ -1,0 +1,642 @@
+{
+ "courseId": "music-theory",
+ "verifier": "A",
+ "questions": [
+  {
+   "id": "music-theory.l01.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l01.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l01.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l01.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l02.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l02.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l02.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l02.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l03.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l03.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l03.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l04.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l04.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l04.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l04.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l05.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l05.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l05.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l06.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l06.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l06.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l06.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l07.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l07.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l07.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l08.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l08.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l08.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l08.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l09.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l09.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l09.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l10.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l10.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l10.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l10.q4",
+   "answer": 1,
+   "confidence": "medium",
+   "sources": [],
+   "note": "Answer is implied-harmony via bass line; choice 1 is the only defensible one."
+  },
+  {
+   "id": "music-theory.l11.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l11.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l11.q4",
+   "answer": 2,
+   "confidence": "medium",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l12.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l12.q3",
+   "answer": 2,
+   "confidence": "medium",
+   "sources": [],
+   "ambiguous": true,
+   "note": "Lengthening the tube lowers pitch; choice wording 'lower harmonic series' is acceptable, choice 0 is wrong."
+  },
+  {
+   "id": "music-theory.l12.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l13.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l13.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l13.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l13.q4",
+   "answer": 0,
+   "confidence": "medium",
+   "sources": [],
+   "note": "Only choice 0 fits."
+  },
+  {
+   "id": "music-theory.l14.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l14.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l14.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "music-theory.l14.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "music-theory.l01",
+   "claim": "Piano has 88 keys running A0 to C8",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l01",
+   "claim": "Violin range about G3 to A7; cello C2 to C6; double bass down to E1",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l01",
+   "claim": "C4 is middle C in scientific pitch notation",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l02",
+   "claim": "Twelve distinct pitches per octave; no black key between E-F and B-C",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l02",
+   "claim": "Semitone = adjacent key; sharp raises, flat lowers one semitone",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l02",
+   "claim": "Enharmonic equivalents are two names for one pitch",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l03",
+   "claim": "Staff has five lines and four spaces",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l03",
+   "claim": "Viola reads alto clef (middle C on middle line)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l03",
+   "claim": "Piano uses treble for right hand and bass for left hand",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l04",
+   "claim": "Whole=4, half=2, quarter=1, eighth=0.5 beats",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l04",
+   "claim": "At 120 bpm a beat is 0.5 s; whole note 2 s",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l04",
+   "claim": "At 60 bpm a quarter note lasts one second",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l05",
+   "claim": "4/4 = four quarter-note beats; most common in pop",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l05",
+   "claim": "6/8 felt as two groups of three eighths",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l05",
+   "claim": "Beethoven's Fifth opens with a short-short-short-long motif; rock snare on beats 2 and 4",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l06",
+   "claim": "Major scale pattern W-W-H-W-W-W-H totalling 12 semitones",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l06",
+   "claim": "G major contains F-sharp",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l06",
+   "claim": "Twelve major keys",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l07",
+   "claim": "Perfect intervals are unison, fourth, fifth, octave; major third 4 semitones, minor third 3",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l07",
+   "claim": "Twinkle Twinkle opens with a perfect fifth; Here Comes the Bride with a perfect fourth",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l07",
+   "claim": "Do-Re-Mi begins with a major second; C to A is a sixth",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l08",
+   "claim": "A4=440 Hz; octave 2:1 gives 880/220 Hz",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l08",
+   "claim": "Perfect fifth is 3:2 so 660 Hz above 440 Hz",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l08",
+   "claim": "Violin strings tuned G-D-A-E in fifths",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l09",
+   "claim": "Major triad = major third + perfect fifth (4 then 3 semitones); C-E-G",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l09",
+   "claim": "Diminished triad = two minor thirds, C-Eb-Gb; augmented = two major thirds",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l09",
+   "claim": "G major triad is G-B-D",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l10",
+   "claim": "I tonic, V dominant, IV subdominant; C major roots C, F, G",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l10",
+   "claim": "G7 = G-B-D-F",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l10",
+   "claim": "Pachelbel's Canon ground bass of two bars repeated 28 times",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Widely stated figure (the 8-note bass repeats 28 times); edition-dependent but standard. Not fetched."
+  },
+  {
+   "lessonId": "music-theory.l11",
+   "claim": "Modes are rotations of the major scale: Dorian on 2nd, Phrygian 3rd, Lydian 4th, Mixolydian 5th, Aeolian 6th, Locrian 7th; white-key D-D is Dorian",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l11",
+   "claim": "Kind of Blue released 1959 and uses Dorian and Mixolydian",
+   "verdict": "supported",
+   "sources": [],
+   "note": "So What is Dorian; All Blues is Mixolydian."
+  },
+  {
+   "lessonId": "music-theory.l11",
+   "claim": "Gregorian chant has a static single-chord quality; Hey Jude uses Mixolydian",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Loose: chant is monophonic with no chords, and Hey Jude is Mixolydian mainly in its coda. Wording imprecise but not wrong enough to contradict."
+  },
+  {
+   "lessonId": "music-theory.l12",
+   "claim": "Flute has no reed; oboe uses a double reed",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l12",
+   "claim": "Brass sound source is the player's buzzing lips; slide/valves change tube length",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l12",
+   "claim": "Timpani and marimba definite pitch; snare and cymbals indefinite",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l13",
+   "claim": "B-flat clarinet/trumpet sound a major second below written; horn in F a perfect fifth below",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l13",
+   "claim": "Double bass and guitar sound an octave lower than written; piccolo an octave higher",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l13",
+   "claim": "Saxophones: alto/baritone E-flat, soprano/tenor B-flat; oboe is the orchestra's tuning reference",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l14",
+   "claim": "Mozart Symphony 40 first movement: second subject in B-flat in exposition, G minor in recapitulation",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  },
+  {
+   "lessonId": "music-theory.l14",
+   "claim": "Moonlight Sonata has slow movement first; Goldberg Variations has 30 variations over one bass",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Goldberg has an Aria plus 30 variations over a shared bass line/harmonic scheme; 'unchanging bass' is a slight simplification."
+  },
+  {
+   "lessonId": "music-theory.l14",
+   "claim": "Pachelbel's Canon is a three-voice canon over a 2-bar ground bass repeated 28 times = 56 bars",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Established standard music-theory reference knowledge; no live source fetched."
+  }
+ ]
+}

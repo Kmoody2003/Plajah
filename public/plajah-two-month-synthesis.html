@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Plajah — Two-Month Architectural Synthesis & Untapped Synergies</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=JetBrains+Mono:wght@400;600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --pj-purple: #6B0099;
+      --pj-magenta: #D40055;
+      --pj-orange: #FF8C00;
+      --pj-cyan: #00DAF3;
+      --pj-lilac: #D0BCFF;
+    }
+    * { font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif; }
+    .font-mono { font-family: 'JetBrains Mono', monospace; }
+    .font-cinzel { font-family: 'Cinzel', serif; }
+    
+    .pj-glass {
+      background: rgba(14, 10, 26, 0.65);
+      backdrop-filter: blur(28px);
+      -webkit-backdrop-filter: blur(28px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .pj-glass-card {
+      background: rgba(255, 255, 255, 0.025);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .pj-glass-card:hover {
+      background: rgba(255, 255, 255, 0.045);
+      border-color: rgba(255, 140, 0, 0.3);
+      box-shadow: 0 15px 40px -10px rgba(255, 140, 0, 0.15);
+    }
+    .pj-grad-text-brand {
+      background: linear-gradient(135deg, #FF8C00 0%, #D40055 50%, #905cf6 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .pj-grad-text-cyan {
+      background: linear-gradient(135deg, #00DAF3 0%, #D0BCFF 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .glow-orange {
+      box-shadow: 0 0 50px -10px rgba(255, 140, 0, 0.3);
+    }
+    .glow-purple {
+      box-shadow: 0 0 50px -10px rgba(107, 0, 153, 0.4);
+    }
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #07050e; }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,140,0,0.4); }
+  </style>
+</head>
+<body class="bg-[#07050e] text-white selection:bg-[#ff8c00] selection:text-black min-h-screen relative overflow-x-hidden antialiased pb-32">
+
+  <!-- Ambient Background Mesh Glows -->
+  <div class="fixed top-0 left-1/4 w-[600px] h-[600px] bg-[#6B0099]/20 rounded-full blur-[160px] pointer-events-none -z-10"></div>
+  <div class="fixed top-1/3 right-10 w-[550px] h-[550px] bg-[#D40055]/15 rounded-full blur-[160px] pointer-events-none -z-10"></div>
+  <div class="fixed bottom-20 left-1/3 w-[700px] h-[700px] bg-[#FF8C00]/12 rounded-full blur-[180px] pointer-events-none -z-10"></div>
+  <div class="fixed top-2/3 right-1/4 w-[500px] h-[500px] bg-[#00DAF3]/10 rounded-full blur-[160px] pointer-events-none -z-10"></div>
+
+  <!-- Sticky Platform Brand Header Bar -->
+  <header class="sticky top-0 z-50 pj-glass border-b border-white/10 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#FF8C00] via-[#D40055] to-[#6B0099] flex items-center justify-center shadow-lg shadow-orange-500/25">
+        <span class="font-cinzel text-lg font-black text-white">P</span>
+      </div>
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-[10px] font-black uppercase tracking-[0.35em] text-[#FF8C00]">Plajah Executive Synthesis</span>
+          <span class="text-white/20 text-xs">•</span>
+          <span class="text-[10px] font-mono font-bold text-white/50">Build 2026.09.27-01</span>
+        </div>
+        <h1 class="text-xs sm:text-sm font-black uppercase tracking-widest text-white/90">Platform Architecture &amp; Untapped Synergies</h1>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <button onclick="window.print()" class="hidden sm:flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-black uppercase tracking-wider text-white/70 hover:text-white transition-all">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H7v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+        Print / PDF
+      </button>
+      <button onclick="navigator.clipboard.writeText(window.location.href); alert('Shareable link copied to clipboard!');" class="flex items-center gap-2 px-5 py-2 rounded-full bg-gradient-to-r from-[#FF8C00] to-[#D40055] hover:from-[#ffa024] hover:to-[#e60a63] text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 transition-all hover:scale-105">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z"></path></svg>
+        Share Synthesis
+      </button>
+    </div>
+  </header>
+
+  <!-- Hero Section -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 space-y-16">
+    
+    <section class="space-y-6 text-center max-w-4xl mx-auto">
+      <div class="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/[0.04] border border-white/10 backdrop-blur-xl shadow-inner">
+        <span class="w-2 h-2 rounded-full bg-[#00DAF3] animate-ping"></span>
+        <span class="text-[11px] font-black uppercase tracking-[0.3em] text-[#00DAF3]">Two-Month Epoch Review</span>
+        <span class="text-white/20">•</span>
+        <span class="text-[11px] font-mono text-white/50">August – September 2026</span>
+      </div>
+
+      <h1 class="text-4xl sm:text-6xl lg:text-7xl font-black uppercase tracking-tighter leading-[0.95] text-white">
+        From Streaming Web Portal to <span class="pj-grad-text-brand">Cultural Operating System</span>
+      </h1>
+
+      <p class="text-base sm:text-lg text-white/70 font-medium leading-relaxed max-w-3xl mx-auto">
+        Over the past 60 days, Plajah unified <strong class="text-white">Pro Audio (Melos)</strong>, <strong class="text-white">Hollywood Video NLE (Fabula)</strong>, <strong class="text-white">Smart Stage Lighting (LD)</strong>, <strong class="text-white">Master Live Broadcast (Ambo)</strong>, <strong class="text-white">Brick-and-Mortar Commerce (POS)</strong>, and <strong class="text-white">Civic Real Estate (Terra)</strong> onto a single local-first architecture.
+      </p>
+
+      <!-- Key Macro Metric Badges -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 text-left">
+        <div class="pj-glass-card rounded-2xl p-4 border border-white/10">
+          <div class="text-[10px] font-mono uppercase tracking-widest text-[#FF8C00]">Core Engineering</div>
+          <div class="text-3xl font-black text-white mt-1">14 Pillars</div>
+          <div class="text-[11px] text-white/50 mt-0.5">Hardware &amp; WASM engines</div>
+        </div>
+        <div class="pj-glass-card rounded-2xl p-4 border border-white/10">
+          <div class="text-[10px] font-mono uppercase tracking-widest text-[#D40055]">Real-Time FX</div>
+          <div class="text-3xl font-black text-white mt-1">175+ GPU</div>
+          <div class="text-[11px] text-white/50 mt-0.5">Forge WebGL / WebGPU</div>
+        </div>
+        <div class="pj-glass-card rounded-2xl p-4 border border-white/10">
+          <div class="text-[10px] font-mono uppercase tracking-widest text-[#00DAF3]">Physical Seams</div>
+          <div class="text-3xl font-black text-white mt-1">Zero Latency</div>
+          <div class="text-[11px] text-white/50 mt-0.5">LAN UDP / ESC-POS / NDI</div>
+        </div>
+        <div class="pj-glass-card rounded-2xl p-4 border border-white/10">
+          <div class="text-[10px] font-mono uppercase tracking-widest text-[#D0BCFF]">Untapped Synergies</div>
+          <div class="text-3xl font-black text-white mt-1">7 Cross-Loops</div>
+          <div class="text-[11px] text-white/50 mt-0.5">High-impact unlock vectors</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Interactive Navigation Bar -->
+    <nav class="flex items-center justify-center gap-2 border-y border-white/10 py-4 overflow-x-auto custom-scrollbar">
+      <a href="#macro-architecture" class="px-5 py-2 rounded-full text-xs font-black uppercase tracking-wider bg-white/5 hover:bg-white/10 text-white/80 hover:text-white transition-all whitespace-nowrap">1. Macro Architecture</a>
+      <a href="#fourteen-pillars" class="px-5 py-2 rounded-full text-xs font-black uppercase tracking-wider bg-white/5 hover:bg-white/10 text-white/80 hover:text-white transition-all whitespace-nowrap">2. The 14 Pillars</a>
+      <a href="#untapped-synergies" class="px-5 py-2 rounded-full text-xs font-black uppercase tracking-wider bg-[#FF8C00]/20 border border-[#FF8C00]/40 text-[#FF8C00] hover:bg-[#FF8C00]/30 transition-all whitespace-nowrap font-bold">3. 7 Untapped Synergies</a>
+      <a href="#self-building-tutorials" class="px-5 py-2 rounded-full text-xs font-black uppercase tracking-wider bg-white/5 hover:bg-white/10 text-white/80 hover:text-white transition-all whitespace-nowrap">4. Tutorial Engine</a>
+    </nav>
+
+    <!-- SECTION 1: MACRO ARCHITECTURE -->
+    <section id="macro-architecture" class="space-y-8">
+      <div class="flex items-center justify-between">
+        <div>
+          <span class="text-xs font-mono font-bold uppercase tracking-[0.3em] text-[#FF8C00]">System Blueprint</span>
+          <h2 class="text-3xl font-black uppercase tracking-tight text-white mt-1">The Unified Four-Quadrant Stack</h2>
+        </div>
+        <div class="text-xs font-mono text-white/40">Local-First · Native Bridge · Web Standards</div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Quadrant 1: Pro Creative -->
+        <div class="pj-glass rounded-3xl p-8 border-l-4 border-l-[#FF8C00] space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xl font-black uppercase tracking-wider text-white flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-[#FF8C00]"></span>
+              I. Pro Creative Engine
+            </h3>
+            <span class="text-[10px] font-mono uppercase bg-[#FF8C00]/20 text-[#FF8C00] px-3 py-1 rounded-full border border-[#FF8C00]/30">Workstation Tier</span>
+          </div>
+          <p class="text-sm text-white/70 leading-relaxed">
+            Eliminates dependencies on external single-purpose creative software. Melos provides full DAW composition with Rust WASM synths and VST3 hosting. Fabula operates directly from local drive handles with 175 Forge GPU effects and client-side Segment Anything (SAM) rotoscoping.
+          </p>
+          <div class="flex flex-wrap gap-2 pt-2">
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">Melos DAW</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">ONDA Wavetable (WASM)</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">KERA Soundfonts</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">Fabula NLE</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">Forge FX (175)</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">SAM Rotoscoping</span>
+          </div>
+        </div>
+
+        <!-- Quadrant 2: Distribution -->
+        <div class="pj-glass rounded-3xl p-8 border-l-4 border-l-[#D40055] space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xl font-black uppercase tracking-wider text-white flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-[#D40055]"></span>
+              II. Broadcast &amp; Distribution
+            </h3>
+            <span class="text-[10px] font-mono uppercase bg-[#D40055]/20 text-[#D40055] px-3 py-1 rounded-full border border-[#D40055]/30">Broadcast Tier</span>
+          </div>
+          <p class="text-sm text-white/70 leading-relaxed">
+            From local timeline to global screens. Ambo coordinates live presentation to multi-display LED walls and NDI destinations with persistent auto-save. Live TV+ runs linear 24/7 channels on an epoch wall-clock playout with live-interrupt pre-emption.
+          </p>
+          <div class="flex flex-wrap gap-2 pt-2">
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">Ambo Master Presenter</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">LED Wall Mapping</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">NDI Pro Video</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">Wall-Clock FAST</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">Rolling EPG Dial</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">Sync Party</span>
+          </div>
+        </div>
+
+        <!-- Quadrant 3: Physical & Civic Commerce -->
+        <div class="pj-glass rounded-3xl p-8 border-l-4 border-l-[#00DAF3] space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xl font-black uppercase tracking-wider text-white flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-[#00DAF3]"></span>
+              III. Physical &amp; Civic Commerce
+            </h3>
+            <span class="text-[10px] font-mono uppercase bg-[#00DAF3]/20 text-[#00DAF3] px-3 py-1 rounded-full border border-[#00DAF3]/30">Venue &amp; Civic Tier</span>
+          </div>
+          <p class="text-sm text-white/70 leading-relaxed">
+            The bridge into physical storefronts, venues, and neighborhoods. The Business POS handles physical cash/card sales, ESC-POS receipts, and staff PIN time-clocks, while Terra renders 3D Detroit zoning envelopes and turns video walkthroughs into room-cut listing films.
+          </p>
+          <div class="flex flex-wrap gap-2 pt-2">
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">Touchscreen POS</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">ESC-POS Thermal Print</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">PIN Time-Clock</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">Terra 3D GIS</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">Open Listing Record</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">Auto Listing Films</span>
+          </div>
+        </div>
+
+        <!-- Quadrant 4: Community, Education & Wellbeing -->
+        <div class="pj-glass rounded-3xl p-8 border-l-4 border-l-[#D0BCFF] space-y-4">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xl font-black uppercase tracking-wider text-white flex items-center gap-2">
+              <span class="w-3 h-3 rounded-full bg-[#D0BCFF]"></span>
+              IV. Community &amp; Wellbeing
+            </h3>
+            <span class="text-[10px] font-mono uppercase bg-[#D0BCFF]/20 text-[#D0BCFF] px-3 py-1 rounded-full border border-[#D0BCFF]/30">Ecosystem Tier</span>
+          </div>
+          <p class="text-sm text-white/70 leading-relaxed">
+            Preserves human focus and social vitality. Academia &amp; Museion provide interactive rich worksheets with Socratic AI tutoring; Ora safeguards mental wellness through breathing orbs and voice-guided reflections; Firstlight powers interactive 3D physics sports.
+          </p>
+          <div class="flex flex-wrap gap-2 pt-2">
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">Museion Worksheets</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">Aria Socratic AI</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">Ora Breathing Orb</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">Voice Journal Nudges</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">Firstlight 3D Lab</span>
+            <span class="text-[10px] font-mono bg-white/5 px-2.5 py-1 rounded-md text-white/60">Pew Pew Gyro Aim</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: THE 14 ENGINEERING PILLARS -->
+    <section id="fourteen-pillars" class="space-y-8">
+      <div>
+        <span class="text-xs font-mono font-bold uppercase tracking-[0.3em] text-[#D40055]">Comprehensive Ledger</span>
+        <h2 class="text-3xl font-black uppercase tracking-tight text-white mt-1">The 14 Pillars Shipped in the Last 60 Days</h2>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        
+        <!-- 1. Ambo -->
+        <div class="pj-glass-card rounded-3xl p-6 flex flex-col justify-between space-y-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider text-[#FF8C00]">01 · Broadcast</span>
+              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">Production Ready</span>
+            </div>
+            <h3 class="text-lg font-black uppercase tracking-wide text-white">Ambo Master Broadcast &amp; LED Wall</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              Auto-save presentation loop, slide order stabilization, dedicated LED wall modal rasterizer, and local NDI broadcast video routing.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/10 text-[11px] font-mono text-white/50">
+            <strong>Unlocks:</strong> Houses of worship &amp; event stages run multi-screen projection with zero slide freeze.
+          </div>
+        </div>
+
+        <!-- 2. Melos -->
+        <div class="pj-glass-card rounded-3xl p-6 flex flex-col justify-between space-y-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider text-[#00DAF3]">02 · Pro Audio</span>
+              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">WASM / VST3</span>
+            </div>
+            <h3 class="text-lg font-black uppercase tracking-wide text-white">Melos DAW &amp; Sound Studio</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              ONDA wavetable synthesizer (Rust/WASM), KERA multisampler with SF2/SFZ parsing, Spectra mix-bus EQ, 7-shape Motion modulators, and VST3 host.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/10 text-[11px] font-mono text-white/50">
+            <strong>Unlocks:</strong> Studio-quality music production, sample clearance licensing, and direct "→ Fabula" stem export.
+          </div>
+        </div>
+
+        <!-- 3. Fabula -->
+        <div class="pj-glass-card rounded-3xl p-6 flex flex-col justify-between space-y-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider text-[#D40055]">03 · Video NLE</span>
+              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">175 GPU FX</span>
+            </div>
+            <h3 class="text-lg font-black uppercase tracking-wide text-white">Fabula Local NLE &amp; Forge FX</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              Local disk handles, JKL shuttle, 175 Forge GPU effects, Beat Reactor audio parameters, client-side SAM rotoscoping, and Runway Gen AI.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/10 text-[11px] font-mono text-white/50">
+            <strong>Unlocks:</strong> Zero-cloud-cost editing with instant scrubbing and Hollywood-caliber AI rotoscoping.
+          </div>
+        </div>
+
+        <!-- 4. Lighting Designer -->
+        <div class="pj-glass-card rounded-3xl p-6 flex flex-col justify-between space-y-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider text-[#FF8C00]">04 · Smart Stage</span>
+              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">UDP Zero-Config</span>
+            </div>
+            <h3 class="text-lg font-black uppercase tracking-wide text-white">Lighting Designer (LD) &amp; LAN Sync</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              Zero-friction LAN discovery for Govee and Nanoleaf fixtures via local UDP broadcast, ldBridge creative stage mapping, and Razer Chroma sync.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/10 text-[11px] font-mono text-white/50">
+            <strong>Unlocks:</strong> Physical room lights and gaming peripherals pulsing in frame-accurate lock with music and visualizers.
+          </div>
+        </div>
+
+        <!-- 5. Terra -->
+        <div class="pj-glass-card rounded-3xl p-6 flex flex-col justify-between space-y-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider text-[#00DAF3]">05 · Civic / Real Estate</span>
+              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">3D GIS &amp; OLR</span>
+            </div>
+            <h3 class="text-lg font-black uppercase tracking-wide text-white">Terra Civic &amp; Listing Films</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              Detroit 3D zoning envelope generation, verified property passports, Open Listing Record (OLR), and speech-transcribed room-cut listing films.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/10 text-[11px] font-mono text-white/50">
+            <strong>Unlocks:</strong> Automated video production for architectural listings and transparent urban development planning.
+          </div>
+        </div>
+
+        <!-- 6. Business POS -->
+        <div class="pj-glass-card rounded-3xl p-6 flex flex-col justify-between space-y-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider text-[#6B0099]">06 · Retail POS</span>
+              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">ESC-POS Hardware</span>
+            </div>
+            <h3 class="text-lg font-black uppercase tracking-wide text-white">Plajah Business &amp; In-Store Live</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              Touchscreen POS register on Stripe Connect, ESC-POS thermal receipt printing, cash drawer kick, PIN time-clock, and In-Store Live music broadcasting.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/10 text-[11px] font-mono text-white/50">
+            <strong>Unlocks:</strong> Physical shops operate checkout, employee shifts, and interactive customer phone check-ins without third-party POS fees.
+          </div>
+        </div>
+
+        <!-- 7. Firstlight -->
+        <div class="pj-glass-card rounded-3xl p-6 flex flex-col justify-between space-y-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider text-[#D0BCFF]">07 · Sports 3D</span>
+              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">WebGL Physics</span>
+            </div>
+            <h3 class="text-lg font-black uppercase tracking-wide text-white">Project Firstlight &amp; Pew Pew</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              3D football passing simulation with aerodynamic physics, stadium aurora shaders, Stitch design menu, and Pew Pew phone motion-sensor gyro aiming.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/10 text-[11px] font-mono text-white/50">
+            <strong>Unlocks:</strong> Merges broadcast sports with interactive gameplay, enabling instant trajectory prediction during live games.
+          </div>
+        </div>
+
+        <!-- 8. Academia -->
+        <div class="pj-glass-card rounded-3xl p-6 flex flex-col justify-between space-y-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider text-[#FF8C00]">08 · Education</span>
+              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">Socratic AI</span>
+            </div>
+            <h3 class="text-lg font-black uppercase tracking-wide text-white">Plajah Museion &amp; Academia</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              Role-based school portals, worksheet digitization pipeline (OCR + vector trace), Socratic AI tutor (Aria), and Praxis venture-school modeling.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/10 text-[11px] font-mono text-white/50">
+            <strong>Unlocks:</strong> Accredited and homeschool classrooms where assignments are filled, tutored, and transformed into commercial student ventures.
+          </div>
+        </div>
+
+        <!-- 9. Chora Next -->
+        <div class="pj-glass-card rounded-3xl p-6 flex flex-col justify-between space-y-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider text-[#00DAF3]">09 · Music Experience</span>
+              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">60fps FLUX</span>
+            </div>
+            <h3 class="text-lg font-black uppercase tracking-wide text-white">Chora Next &amp; Gatefold 3D</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              PersonalArtistPage glass canvas, single-scroll Music Locker, 3D Gatefold album view with particle cloud visualizers, and Audius library sync.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/10 text-[11px] font-mono text-white/50">
+            <strong>Unlocks:</strong> Elevates digital music listening into a tactile, vinyl-like interactive 3D visual journey.
+          </div>
+        </div>
+
+        <!-- 10. Live TV+ -->
+        <div class="pj-glass-card rounded-3xl p-6 flex flex-col justify-between space-y-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider text-[#D40055]">10 · Linear TV</span>
+              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">Epoch Playout</span>
+            </div>
+            <h3 class="text-lg font-black uppercase tracking-wide text-white">Live TV+ Wall-Clock Playout</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              Epoch-anchored wall-clock linear playout eliminating ad loops, rolling channel dial, 24/7 EPG guide, and automated live-interrupt pre-emption.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/10 text-[11px] font-mono text-white/50">
+            <strong>Unlocks:</strong> Any creator or institution runs an authentic 24/7 FAST television station with automatic live breaking cut-ins.
+          </div>
+        </div>
+
+        <!-- 11. Ora -->
+        <div class="pj-glass-card rounded-3xl p-6 flex flex-col justify-between space-y-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider text-[#D0BCFF]">11 · Wellbeing</span>
+              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">Mindful Rhythm</span>
+            </div>
+            <h3 class="text-lg font-black uppercase tracking-wide text-white">Ora Creator Wellbeing Suite</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              Daily habit rhythm tracker, voice-transcribed journal with AI empathy nudges, interactive biofeedback breathing orb, and generative ambient audio.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/10 text-[11px] font-mono text-white/50">
+            <strong>Unlocks:</strong> Prevents creator burnout by integrating restorative rest and biofeedback breathwork directly inside the production shell.
+          </div>
+        </div>
+
+        <!-- 12. Signature Shaders -->
+        <div class="pj-glass-card rounded-3xl p-6 flex flex-col justify-between space-y-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider text-[#FF8C00]">12 · Visualizers</span>
+              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">139 Works</span>
+            </div>
+            <h3 class="text-lg font-black uppercase tracking-wide text-white">Series VI–VIII Signature Shaders</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              139 contiguous procedural masterwork installations with real-time note reactivity, volumetric raymarched particles, and Beat Reactor bindings.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/10 text-[11px] font-mono text-white/50">
+            <strong>Unlocks:</strong> High-end stage visuals and interactive museum-grade generative art generated live on consumer hardware.
+          </div>
+        </div>
+
+        <!-- 13. Windows Native -->
+        <div class="pj-glass-card rounded-3xl p-6 flex flex-col justify-between space-y-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider text-[#00DAF3]">13 · Native Shell</span>
+              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">WinUI 3 / NDI</span>
+            </div>
+            <h3 class="text-lg font-black uppercase tracking-wide text-white">Windows Native Pro Studio</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              Native WinUI 3 desktop shell, Windows Hello biometric sign-in, Windows Ink pen latency bypass, native 64-bit VST3 hosting, and NDI pro video stack.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/10 text-[11px] font-mono text-white/50">
+            <strong>Unlocks:</strong> Bypasses all browser sandbox constraints on Windows PCs for broadcast-grade video and latency-critical audio.
+          </div>
+        </div>
+
+        <!-- 14. Tutorial Engine -->
+        <div class="pj-glass-card rounded-3xl p-6 flex flex-col justify-between space-y-4">
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider text-[#D40055]">14 · Automation</span>
+              <span class="text-[10px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">Self-Building</span>
+            </div>
+            <h3 class="text-lg font-black uppercase tracking-wide text-white">Self-Building Tutorial Engine</h3>
+            <p class="text-xs text-white/70 leading-relaxed">
+              Declarative tutorial registry, interactive in-app player with dynamic SVG vector spotlight markups, and headless Puppeteer screenshot generator.
+            </p>
+          </div>
+          <div class="pt-3 border-t border-white/10 text-[11px] font-mono text-white/50">
+            <strong>Unlocks:</strong> The platform builds its own feature tutorials automatically as engineers push code, eliminating documentation staleness.
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SECTION 3: 7 OVERLOOKED SYNERGIES & UNTAPPED CAPABILITIES -->
+    <section id="untapped-synergies" class="space-y-12">
+      <div class="border-t border-white/10 pt-12">
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FF8C00]/15 border border-[#FF8C00]/30 text-[#FF8C00] text-xs font-black uppercase tracking-widest mb-3">
+          ✨ The Multiplier Effect
+        </div>
+        <h2 class="text-4xl sm:text-5xl font-black uppercase tracking-tight text-white">
+          7 Untapped Synergies &amp; Hidden Superpowers
+        </h2>
+        <p class="text-white/60 text-sm max-w-3xl mt-2 leading-relaxed">
+          These seven workflows exist natively in the code today, but have not yet been packaged as front-facing commercial solutions. Each represents an enormous multiplier for creators, schools, and local businesses.
+        </p>
+      </div>
+
+      <div class="space-y-8">
+        
+        <!-- Synergy 1 -->
+        <div class="pj-glass rounded-3xl p-8 border border-white/10 space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <span class="text-xs font-mono font-bold uppercase tracking-[0.25em] text-[#FF8C00]">Synergy 01 · Local Commerce &amp; Smart Ambience</span>
+              <h3 class="text-2xl font-black uppercase tracking-wide text-white mt-1">The "Living Storefront" Loop</h3>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Business POS</span>
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">In-Store Live</span>
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Lighting Designer</span>
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Melos Ambience</span>
+            </div>
+          </div>
+
+          <p class="text-white/70 text-sm leading-relaxed">
+            A boutique, coffee shop, or church bookstore runs <strong>Plajah POS</strong> on a tablet. The background music streams from a curated <strong>Melos Ambient Soundscape</strong> or local artist channel. Over the store's Wi-Fi, <strong>Lighting Designer</strong> auto-detects Govee light strips and Nanoleaf panels, gently pulsing room lighting to the music. Customers walking in receive an automatic geofence notification opening <strong>In-Store Live</strong>: they see the song playing, can tip the musician or save it to their locker, and order items with instant loyalty discounts from their phone.
+          </p>
+
+          <div class="p-4 rounded-2xl bg-black/40 border border-white/5 font-mono text-xs text-white/80 space-y-1">
+            <div class="text-[#FF8C00] font-bold">// The Physical Venue Revenue Loop</div>
+            <div>[Walk In] → Geofence triggers In-Store Live on customer phone</div>
+            <div>[In Store] → LD pulses Govee lights in sync with Melos soundscape</div>
+            <div>[Purchase] → POS register tenders cash/card + customer tips artist</div>
+          </div>
+        </div>
+
+        <!-- Synergy 2 -->
+        <div class="pj-glass rounded-3xl p-8 border border-white/10 space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <span class="text-xs font-mono font-bold uppercase tracking-[0.25em] text-[#00DAF3]">Synergy 02 · Spatial Media &amp; Architecture</span>
+              <h3 class="text-2xl font-black uppercase tracking-wide text-white mt-1">Walkthrough to Spatial 3D Virtual Tour</h3>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Terra Listing Films</span>
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Depth Anything V2</span>
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Spatial DIBR Shaders</span>
+            </div>
+          </div>
+
+          <p class="text-white/70 text-sm leading-relaxed">
+            A real estate agent walks through a newly completed Detroit building taking simple smartphone video while speaking aloud. <strong>Terra's listing film pipeline</strong> transcribes speech, identifies kitchen/living/bedroom rooms, and cuts an edited showcase. Passing this cut into <strong>Fabula's Depth Anything V2 engine</strong> generates a depth channel. <strong>Fabula's Spatial DIBR shader</strong> turns the flat video into a stereoscopic 3D experience playable directly on Apple Vision Pro and Meta Quest via WebXR.
+          </p>
+
+          <div class="p-4 rounded-2xl bg-black/40 border border-white/5 font-mono text-xs text-white/80 space-y-1">
+            <div class="text-[#00DAF3] font-bold">// Automated Spatial Tour Pipeline</div>
+            <div>[Capture] → Smartphone video walkthrough with spoken narration</div>
+            <div>[Cut] → Terra room-detection cuts polished listing scenes</div>
+            <div>[Spatial 3D] → Depth Anything V2 + DIBR shader outputs WebXR headset tour</div>
+          </div>
+        </div>
+
+        <!-- Synergy 3 -->
+        <div class="pj-glass rounded-3xl p-8 border border-white/10 space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <span class="text-xs font-mono font-bold uppercase tracking-[0.25em] text-[#D40055]">Synergy 03 · Community Broadcast &amp; Multicast</span>
+              <h3 class="text-2xl font-black uppercase tracking-wide text-white mt-1">The Civic Sanctuary Broadcast</h3>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Ambo LED Wall</span>
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">NDI Routing</span>
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">FAST Live-Interrupt</span>
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Sync Party</span>
+            </div>
+          </div>
+
+          <p class="text-white/70 text-sm leading-relaxed">
+            A church service or community forum runs in <strong>Ambo Pro</strong>. Slides, scripture, and lyrics auto-save and project to the sanctuary's LED wall. An <strong>NDI cleanfeed</strong> routes camera feeds into the broadcast switcher. When the speaker begins, a <strong>Live Interruption</strong> pre-empts the church's 24/7 FAST TV channel, while remote congregants join a <strong>Synchronized Party</strong> where lyrics and slide notes advance on their phones in frame-accurate lockstep with live prayer requests.
+          </p>
+
+          <div class="p-4 rounded-2xl bg-black/40 border border-white/5 font-mono text-xs text-white/80 space-y-1">
+            <div class="text-[#D40055] font-bold">// One-Operator Multicast Architecture</div>
+            <div>[In-House] → Ambo drives multi-display LED walls + confidence monitors</div>
+            <div>[Airwaves] → NDI feeds Live TV+ FAST channel with live-interrupt pre-emption</div>
+            <div>[Living Room] → Remote fans join Synchronized Party with locked lyrics &amp; chat</div>
+          </div>
+        </div>
+
+        <!-- Synergy 4 -->
+        <div class="pj-glass rounded-3xl p-8 border border-white/10 space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <span class="text-xs font-mono font-bold uppercase tracking-[0.25em] text-[#D0BCFF]">Synergy 04 · Sports &amp; Interactive Gaming</span>
+              <h3 class="text-2xl font-black uppercase tracking-wide text-white mt-1">Interactive Stadium Fan-Cast &amp; Micro-Gaming</h3>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Firstlight 3D Engine</span>
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Pew Pew Gyro Sensors</span>
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Match Fan Rooms</span>
+            </div>
+          </div>
+
+          <p class="text-white/70 text-sm leading-relaxed">
+            During a live football game on <strong>Live Hub</strong>, fans toggle the <strong>Firstlight 3D Companion</strong> on mobile. On a crucial 3rd-and-goal, viewers physically aim their phone using the <strong>Pew Pew gyro-motion sensor</strong> to predict the quarterback's pass arc, velocity, and receiver route before the real play occurs. Accurate predictions score <strong>PlajahBucks</strong> and climb the leaderboard in <strong>Match Fan Rooms</strong>.
+          </p>
+
+          <div class="p-4 rounded-2xl bg-black/40 border border-white/5 font-mono text-xs text-white/80 space-y-1">
+            <div class="text-[#D0BCFF] font-bold">// Real-Time Predictive Gameplay Loop</div>
+            <div>[Watch] → Live football stream broadcasts on Live Hub</div>
+            <div>[Aim] → Fan physically aims phone with gyro sensor to predict pass trajectory</div>
+            <div>[Reward] → Synchronized score updates leaderboard + awards PlajahBucks</div>
+          </div>
+        </div>
+
+        <!-- Synergy 5 -->
+        <div class="pj-glass rounded-3xl p-8 border border-white/10 space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <span class="text-xs font-mono font-bold uppercase tracking-[0.25em] text-[#FF8C00]">Synergy 05 · Academic Commercialization</span>
+              <h3 class="text-2xl font-black uppercase tracking-wide text-white mt-1">Classroom Coursework to Commercial Venture</h3>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Museion Worksheets</span>
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Praxis Venture School</span>
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">SeedRaiser Crowdfunding</span>
+            </div>
+          </div>
+
+          <p class="text-white/70 text-sm leading-relaxed">
+            High school or university students complete scientific or design problem sets using <strong>Museion Rich Worksheets</strong> with Socratic AI hints. The class advances into the <strong>Praxis Venture School</strong> module: students use interactive "Form" and "Validate" chapters to build business plans and register IP. With one click, projects publish directly to <strong>SeedRaiser Crowdfunding</strong> or the <strong>Plajah Storefront</strong> on the Stripe Connect direct order spine.
+          </p>
+
+          <div class="p-4 rounded-2xl bg-black/40 border border-white/5 font-mono text-xs text-white/80 space-y-1">
+            <div class="text-[#FF8C00] font-bold">// Student Economic Empowerment Loop</div>
+            <div>[Learn] → Students complete research worksheets with Socratic AI</div>
+            <div>[Incubate] → Praxis venture modules structure business models &amp; IP</div>
+            <div>[Monetize] → Direct launch to SeedRaiser crowdfunding with real payouts</div>
+          </div>
+        </div>
+
+        <!-- Synergy 6 -->
+        <div class="pj-glass rounded-3xl p-8 border border-white/10 space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <span class="text-xs font-mono font-bold uppercase tracking-[0.25em] text-[#00DAF3]">Synergy 06 · Rights &amp; Automated Micro-Licensing</span>
+              <h3 class="text-2xl font-black uppercase tracking-wide text-white mt-1">Audio Sample Clearance to Video Revenue Splits</h3>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Melos Rights Engine</span>
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Fabula Timeline</span>
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Stripe Order Spine</span>
+            </div>
+          </div>
+
+          <p class="text-white/70 text-sm leading-relaxed">
+            A beatmaker in <strong>Melos</strong> flags a custom drum pattern as cleared for sampling. A filmmaker in <strong>Fabula</strong> searches the Universal Library, finds the groove, and drops it into their film timeline. The license is automatically bonded. When the movie premieres on <strong>Live TV+ FAST</strong> or PPV, the <strong>Stripe order spine</strong> splits revenue automatically: 70% to the director, 20% to the music producer, and 10% platform fee—zero DMCA strikes or lawyer retainers.
+          </p>
+
+          <div class="p-4 rounded-2xl bg-black/40 border border-white/5 font-mono text-xs text-white/80 space-y-1">
+            <div class="text-[#00DAF3] font-bold">// Frictionless Derivative Licensing</div>
+            <div>[Publish] → Beatmaker clears sample in Melos with predefined split rate</div>
+            <div>[Sync] → Video creator drops stem into Fabula with automated rights bond</div>
+            <div>[Payout] → Ad/ticket revenue splits automatically on the Stripe spine</div>
+          </div>
+        </div>
+
+        <!-- Synergy 7 -->
+        <div class="pj-glass rounded-3xl p-8 border border-white/10 space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <span class="text-xs font-mono font-bold uppercase tracking-[0.25em] text-[#D0BCFF]">Synergy 07 · Creator Wellbeing &amp; Ambient Ergonomics</span>
+              <h3 class="text-2xl font-black uppercase tracking-wide text-white mt-1">The Mindful Creator Ergonomic Loop</h3>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Ora Wellbeing</span>
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Lighting Designer</span>
+              <span class="text-[10px] font-mono bg-white/10 px-3 py-1 rounded-full text-white/80">Ambient Soundscapes</span>
+            </div>
+          </div>
+
+          <p class="text-white/70 text-sm leading-relaxed">
+            When a creator spends 3+ continuous hours in <strong>Fabula</strong> or <strong>Melos</strong>, <strong>Ora's fatigue monitor</strong> triggers an ergonomic break. Room smart lights smoothly dim via <strong>Lighting Designer</strong> to a warm amber glow. Production audio transitions into an <strong>Ora procedural vocal soundscape</strong>, and the <strong>breathing orb</strong> expands on screen for a 2-minute restorative biofeedback pause before returning the creator refreshed.
+          </p>
+
+          <div class="p-4 rounded-2xl bg-black/40 border border-white/5 font-mono text-xs text-white/80 space-y-1">
+            <div class="text-[#D0BCFF] font-bold">// Autonomous Fatigue Mitigation Loop</div>
+            <div>[Detect] → Ora detects 3 hours of continuous NLE timeline editing</div>
+            <div>[Shift] → LD dims physical room fixtures to warm sunset color temperature</div>
+            <div>[Restore] → Headphones switch to vocal soundscape + 2-minute breathing orb</div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- SECTION 4: THE SELF-BUILDING TUTORIAL ENGINE -->
+    <section id="self-building-tutorials" class="space-y-8 border-t border-white/10 pt-12">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <span class="text-xs font-mono font-bold uppercase tracking-[0.3em] text-[#FF8C00]">Autonomous Documentation</span>
+          <h2 class="text-3xl font-black uppercase tracking-tight text-white mt-1">The Self-Building Feature Tutorial Engine</h2>
+        </div>
+        <div class="flex items-center gap-2">
+          <span class="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-mono border border-emerald-500/40">npm run tutorial:generate</span>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div class="pj-glass-card rounded-2xl p-6 space-y-3">
+          <div class="w-8 h-8 rounded-xl bg-[#FF8C00]/20 text-[#FF8C00] flex items-center justify-center font-bold text-sm">1</div>
+          <h4 class="font-black uppercase tracking-wider text-white text-sm">Feature Registry</h4>
+          <p class="text-xs text-white/60 leading-relaxed">
+            Developers define feature steps in <code class="text-orange-300">tutorialRegistry.ts</code> with DOM selectors, action types, hotkeys, and coordinate markups.
+          </p>
+        </div>
+        <div class="pj-glass-card rounded-2xl p-6 space-y-3">
+          <div class="w-8 h-8 rounded-xl bg-[#D40055]/20 text-[#D40055] flex items-center justify-center font-bold text-sm">2</div>
+          <h4 class="font-black uppercase tracking-wider text-white text-sm">Interactive Modal</h4>
+          <p class="text-xs text-white/60 leading-relaxed">
+            <code class="text-pink-300">FeatureTutorialModal.tsx</code> mounts in Help Center. Features live vector spotlight masks, pulsing beacons, and directional arrow callouts.
+          </p>
+        </div>
+        <div class="pj-glass-card rounded-2xl p-6 space-y-3">
+          <div class="w-8 h-8 rounded-xl bg-[#00DAF3]/20 text-[#00DAF3] flex items-center justify-center font-bold text-sm">3</div>
+          <h4 class="font-black uppercase tracking-wider text-white text-sm">Headless Generator</h4>
+          <p class="text-xs text-white/60 leading-relaxed">
+            <code class="text-cyan-300">generateTutorialPack.mjs</code> runs Puppeteer to capture pixel-perfect annotated screenshots into <code class="text-white/80">/public/tutorials/</code> automatically.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer Summary Banner -->
+    <footer class="pj-glass rounded-3xl p-8 border border-white/10 flex flex-col sm:flex-row items-center justify-between gap-6 text-center sm:text-left">
+      <div>
+        <div class="flex items-center justify-center sm:justify-start gap-2 mb-1">
+          <span class="w-2.5 h-2.5 rounded-full bg-[#FF8C00]"></span>
+          <span class="font-cinzel font-black tracking-widest text-sm text-white">PLAJAH PLATFORM</span>
+        </div>
+        <p class="text-xs text-white/50 max-w-xl">
+          Engineered for cultural institutions, indie creators, school districts, and retail spaces. All systems verified and persistent in codebase.
+        </p>
+      </div>
+      <div class="flex items-center gap-3">
+        <a href="#macro-architecture" class="px-5 py-2.5 rounded-full bg-white/5 hover:bg-white/10 text-xs font-black uppercase tracking-wider text-white/70 hover:text-white transition-all">Back to Top</a>
+        <button onclick="navigator.clipboard.writeText(window.location.href); alert('Shareable link copied to clipboard!');" class="px-6 py-2.5 rounded-full bg-gradient-to-r from-[#FF8C00] to-[#D40055] text-black font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/20 transition-all hover:scale-105">Copy Share Link</button>
+      </div>
+    </footer>
+
+  </main>
+</body>
+</html>

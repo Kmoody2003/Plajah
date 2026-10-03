@@ -1,0 +1,822 @@
+{
+ "courseId": "music-figures",
+ "label": "Music Figures",
+ "lessons": [
+  {
+   "id": "music-figures.l01",
+   "title": "Monteverdi: The Bridge to Opera",
+   "body": [
+    "Claudio Monteverdi (1567-1643) was an Italian composer working at the start of the Baroque era, a period that runs from about 1600 to 1750 and is marked by counterpoint, the basso continuo and the birth of tonal harmony. He is often described as the bridge from Renaissance polyphony to opera itself.",
+    "His most important achievement was composing the first enduring opera, L'Orfeo. Opera existed before him, but his work showed how music could carry drama on a grand scale. His other major works include the Vespers of 1610 and L'incoronazione di Poppea.",
+    "Monteverdi also pioneered what he called the seconda pratica, a second practice in which dissonance was freed to serve the meaning of the words. Earlier rules had treated dissonance strictly; Monteverdi argued that a composer could break them if the text called for strong emotion. He also developed the stile concitato, an agitated style that used rapid repeated notes to depict anger and conflict.",
+    "Why it matters: the idea that music should follow the drama and emotion of words became one of the central ideas of Western music. Later Baroque composers, including Handel, built on the operatic world he helped establish."
+   ]
+  },
+  {
+   "id": "music-figures.l02",
+   "title": "Bach: The Summit of Counterpoint",
+   "body": [
+    "Johann Sebastian Bach (1685-1750) was a German composer of the Baroque era, often described as the summit of counterpoint. Counterpoint is the art of weaving several independent melodies together so that they make sense both separately and as a whole.",
+    "Bach perfected the fugue, in which a short theme is introduced and then imitated by other voices, and invertible counterpoint, in which melodic lines can swap positions and still work. He also codified functional harmony, the system of chords and keys that underpins Western music, so that his works became textbooks for later generations.",
+    "His landmark works include The Well-Tempered Clavier, the Mass in B minor, the St Matthew Passion and the Goldberg Variations. The Well-Tempered Clavier contains preludes and fugues in every key, and the museum notes that his forty-eight preludes and fugues championed an equal-ish temperament, a tuning approach that lets a keyboard play in any key.",
+    "Bach's music was not always fashionable in his own century, but composers from Mozart to Brahms studied it closely. When musicians say that a piece has strong inner voices, or that a harmony makes logical sense, they are using ideas that Bach made concrete."
+   ]
+  },
+  {
+   "id": "music-figures.l03",
+   "title": "Vivaldi and Handel: Concerto and Oratorio",
+   "body": [
+    "Antonio Vivaldi (1678-1741) and George Frideric Handel (1685-1759) show two different sides of the Baroque.",
+    "Vivaldi was an Italian composer and violinist, known as the red-haired priest who taught the concerto to sing. He standardised the three-movement solo concerto form, a structure of fast, slow, fast that remains familiar today. He also pioneered programmatic, pictorial writing, in which music paints scenes; the most famous example is The Four Seasons. His other works include L'estro armonico and Gloria in D. He directly influenced Bach's concerto style.",
+    "Handel was German-British and became the grand public voice of the Baroque. He elevated the English oratorio, a large-scale work for chorus, soloists and orchestra, to a national form. His best-known pieces include Messiah, Water Music, Music for the Royal Fireworks and Zadok the Priest. He mastered choral grandeur and the da capo aria, and he fused Italian, German and English idioms into one style.",
+    "Comparing them is useful: Vivaldi's innovation lay in instrumental form and vivid imagery, while Handel's lay in public, choral drama. Both pieces of work helped make music a shared experience for large audiences."
+   ]
+  },
+  {
+   "id": "music-figures.l04",
+   "title": "Haydn and Mozart: The Classical Balance",
+   "body": [
+    "The Classical period, roughly 1730 to 1820, valued clarity, balance and form. Two Austrian composers define it.",
+    "Joseph Haydn (1732-1809) is called the father of the symphony and the string quartet. He established the four-movement templates for both, mastered thematic development, the art of growing a whole movement from a small idea, and wrote music full of wit. His works include The Creation, the Symphony No. 94, nicknamed the Surprise, The Seven Last Words and the Emperor Quartet. He mentored Beethoven and taught the generation that included Mozart.",
+    "Wolfgang Amadeus Mozart (1756-1791) combined effortless melody with dramatic truth in perfect proportion. He perfected Classical operatic characterisation in works such as The Marriage of Figaro and Don Giovanni, where each character has a distinct musical voice. He balanced formal clarity with chromatic depth, as in the Symphony No. 41, nicknamed the Jupiter, and the Requiem. He also elevated the piano concerto to a symphonic scale.",
+    "Between them, Haydn supplied the structural frameworks and Mozart showed how much feeling they could hold. Their techniques became the standard against which later composers, from Beethoven onward, measured themselves."
+   ]
+  },
+  {
+   "id": "music-figures.l05",
+   "title": "Beethoven: The Hinge of Music History",
+   "body": [
+    "Ludwig van Beethoven (1770-1827) is described as the hinge of music history. He stands between the Classical order of Haydn and Mozart and the emotional freedom of the Romantic era, and he made the composer a hero.",
+    "He expanded symphonic form and duration dramatically, so that a symphony could become an epic statement rather than an elegant entertainment. In the Symphony No. 9 he introduced the chorus into the symphony, an idea that surprised audiences and has been imitated ever since. His other landmark works include the Symphony No. 5, the Moonlight Sonata and the late string quartets.",
+    "Beethoven achieved this while going deaf. The loss of hearing deepened his inwardness; the late quartets are some of the most profound and demanding works in the repertoire, written when he could no longer hear ordinary conversation.",
+    "He studied with Haydn, whose four-movement structures he inherited and stretched. From Beethoven onward, composers felt free, and perhaps obliged, to express individual vision. Schubert, Brahms and Wagner all lived in his shadow, and the idea of music as personal struggle and triumph remains a central picture of what a composer is."
+   ]
+  },
+  {
+   "id": "music-figures.l06",
+   "title": "Schubert and Chopin: Song and Piano Poetry",
+   "body": [
+    "Franz Schubert (1797-1828) and Frederic Chopin (1810-1849) both died young but changed the scope of what intimate music could be.",
+    "Schubert was Austrian and is called the supreme songwriter. He perfected the German Lied, or art song, in which a poem is set to music with a piano partner that paints the scene. He wrote over 600 songs in a life of only 31 years. His works include Winterreise, Ave Maria, the Symphony No. 8, known as the Unfinished, and the Trout Quintet. His harmonic colour pointed toward Romanticism.",
+    "Chopin was Polish-French, and the museum calls him the poet of the piano. He redefined idiomatic piano writing and pedalling. He used rubato, an expressive freedom of tempo over a steady pulse. He also elevated national dances such as the mazurka and the polonaise into art. His works include the Nocturnes, Ballade No. 1 in G minor, the Etudes Op. 10 and the Heroic Polonaise.",
+    "Both composers show Romanticism's turn toward the personal. Schubert made poetry sing, while Chopin made the piano speak. Their music remains central to recitals because it asks performers for individual expression instead of just precision."
+   ]
+  },
+  {
+   "id": "music-figures.l07",
+   "title": "Wagner and Brahms: Two Roads for the Romantic",
+   "body": [
+    "In the nineteenth century, two German composers took very different routes.",
+    "Richard Wagner (1813-1883) dissolved the edges of tonality and rebuilt opera as total art. He introduced the leitmotif, recurring themes that track character and idea so that the orchestra tells the audience what a figure is thinking or remembering. His chromatic harmony opened the door to modernism. He also pursued the Gesamtkunstwerk, a unified work in which music, drama and staging combine. His works include Der Ring des Nibelungen, Tristan und Isolde, Die Meistersinger and Parsifal.",
+    "Johannes Brahms (1833-1897) poured classical rigour into Romantic warmth. He used developing variation, growing whole movements from tiny cells. He kept the Classical forms alive against the so-called music of the future, and his music shows rich cross-rhythm and metric ambiguity. His works include A German Requiem, Symphony No. 4, Hungarian Dances and the Violin Concerto in D.",
+    "Pyotr Ilyich Tchaikovsky (1840-1893) offers a third path: long-breathed melody, as in Swan Lake and The Nutcracker, that elevated ballet music to symphonic status.",
+    "The contrast matters. Wagner pushed harmony toward breakdown of the key; Brahms showed that older forms could still be fresh."
+   ]
+  },
+  {
+   "id": "music-figures.l08",
+   "title": "Debussy and Ravel: Colour and Precision",
+   "body": [
+    "Claude Debussy (1862-1918) and Maurice Ravel (1875-1937) are the two great French voices of the turn into the twentieth century.",
+    "Debussy is associated with Impressionism. He painted with sound and loosened tonality's grip. He used whole-tone and modal scales that blurred the sense of key, treated timbre and colour as structure, and freed rhythm and form from Germanic development. His works include Prelude a l'apres-midi d'un faune, Clair de Lune, La Mer and the Preludes for piano.",
+    "Ravel, in the museum's phrase, combined a Swiss watchmaker's precision with a sensualist's ear. His orchestration was dazzling and exact. In the 1920s his harmony took on a jazz tinge, and in Bolero he used ostinato and a gradual crescendo as the form of the whole piece. His works also include Daphnis et Chloe, Pavane pour une infante defunte and the Piano Concerto in G.",
+    "Both composers show that after Wagner, music could move away from German-style development without falling into chaos. Colour, atmosphere and exact craft became organising principles. The way film composers use shimmering orchestral colour today owes much to their example."
+   ]
+  },
+  {
+   "id": "music-figures.l09",
+   "title": "Stravinsky and Schoenberg: Rebuilding the Language",
+   "body": [
+    "Two composers rebuilt the language of music in the early twentieth century, in opposite directions.",
+    "Igor Stravinsky (1882-1971) was Russian. He is called the riot-starter who rewrote rhythm for the twentieth century. His explosive, irregular rhythm and driving ostinato are heard in The Rite of Spring, and his other works include The Firebird, Petrushka and Symphony of Psalms. He used bitonality and dissonant harmonic blocks, and he reinvented himself across primitivism, neoclassicism and serialism.",
+    "Arnold Schoenberg (1874-1951) was Austrian-American. The museum says he set music free from the key. He emancipated dissonance in atonality, invented the twelve-tone method (also called serialism), in which all twelve pitches are ordered into a row, and used Sprechstimme, a speech-song style of vocal delivery. His works include Pierrot Lunaire, Verklarte Nacht and A Survivor from Warsaw.",
+    "Stravinsky changed how music moves; Schoenberg changed what notes mean. Their approaches define the major debates of twentieth-century concert music: whether to organise sound through rhythm and ostinato or through systems of pitch.",
+    "Aaron Copland (1900-1990) offers another lesson from the same era: an accessible modernism, with open Americana harmony in Appalachian Spring, that reached a broad public."
+   ]
+  },
+  {
+   "id": "music-figures.l10",
+   "title": "Jazz: Armstrong and Ellington",
+   "body": [
+    "Jazz is described as America's classical music, a world of swing, bebop and the improvised line as composition. Two early giants set its direction.",
+    "Louis Armstrong (1901-1971) was a trumpeter and vocalist from the early jazz and swing era. He made the improvised solo the heart of jazz, popularised scat singing, and gave the music its rhythmic swing phrasing. Among his works are West End Blues, the Hot Fives and Hot Sevens recordings and What a Wonderful World. The museum sums him up as the man who taught jazz to swing and the soloist to sing.",
+    "Duke Ellington (1899-1974) was a composer and bandleader. The museum calls him the greatest composer American music has produced. He wrote for individual players' voices, not just instruments, extended jazz into suites and concert-length works such as Black, Brown and Beige, and achieved peerless orchestral colour within the big band. His famous pieces include Take the A Train and Mood Indigo.",
+    "Between them they show two complementary ideas: Armstrong placed the individual voice at the centre, while Ellington built larger structures around many individual voices. Later musicians such as Miles Davis, Coltrane and Monk worked in the space they opened."
+   ]
+  },
+  {
+   "id": "music-figures.l11",
+   "title": "Blues and Gospel: From the Delta to the Electric Guitar",
+   "body": [
+    "The blues and gospel tradition sits at the root of nearly everything in popular music that followed. It grew out of the Delta and the church, and it often used a twelve-bar structure.",
+    "Robert Johnson (1911-1938) is the crossroads legend at the root of the blues family tree. His intricate Delta fingerpicking and slide guitar are heard in Cross Road Blues and Hellhound on My Trail, and his songbook seeded rock and roll. He directly influenced Clapton, the Rolling Stones and Led Zeppelin.",
+    "Muddy Waters (1913-1983) plugged the Delta blues in. He electrified the country blues into Chicago blues and created a full-band template later borrowed by rock. His song Rollin' Stone gave the Rolling Stones their name.",
+    "B.B. King (1925-2015) made blues guitar a lead melodic voice with singing, sustained vibrato and a call-and-response between voice and guitar.",
+    "In gospel, Mahalia Jackson (1911-1972), the Queen of Gospel, brought the form to concert halls and sang at the March on Washington before the I Have a Dream speech. Sister Rosetta Tharpe (1915-1973), the godmother of rock and roll, played distorted, driving electric-guitar gospel and fused sacred song with secular showmanship, a direct forerunner of Chuck Berry."
+   ]
+  },
+  {
+   "id": "music-figures.l12",
+   "title": "Soul: Ray Charles, Aretha Franklin and James Brown",
+   "body": [
+    "Soul and R&B bring gospel fervour into secular music, combining rhythm, blues and the human cry.",
+    "Ray Charles (1930-2004) was the Genius who fused gospel and blues into soul itself. He merged sacred gospel fervour with secular R&B, crossed genres from soul to country, and treated voice and piano as a single expressive instrument. His works include What'd I Say, Georgia on My Mind and Hit the Road Jack.",
+    "Aretha Franklin (1942-2018) was the Queen of Soul. Her church-rooted melisma and improvisation, plus her dynamic and emotional range, turned Respect into a civil-rights and feminist anthem. Her works include Chain of Fools and Amazing Grace.",
+    "James Brown (1933-2006), the Godfather of Soul, invented funk. He shifted the emphasis to the One, the downbeat groove, and treated the whole band as rhythm. He became the most-sampled artist in hip-hop history. His works include Papa's Got a Brand New Bag and I Got You (I Feel Good).",
+    "Later soul artists extended the form: Stevie Wonder pioneered the synthesizer in soul and funk and wrote, played and produced entire albums himself, while Marvin Gaye's What's Going On made the socially conscious concept album part of soul.",
+    "The lesson to take away is how a sacred musical language, gospel, supplied the techniques of a secular revolution."
+   ]
+  },
+  {
+   "id": "music-figures.l13",
+   "title": "Rock: Berry, The Beatles, Hendrix and Dylan",
+   "body": [
+    "Rock grew from electrified blues into a music where the studio became an instrument and the album became an art form.",
+    "Chuck Berry (1926-2017) was the architect of rock and roll guitar and its storytelling. He defined the rock guitar riff and double-stop lick, wrote teen-life lyrics that set the template for the genre, and gave the Beatles and the Stones a blueprint. Johnny B. Goode and Maybellene are among his best-known songs.",
+    "The Beatles (1960-1970) turned the pop song into a limitless art form. They made the recording studio a compositional instrument, expanded harmony and form within the pop song, and redefined the album as a unified artistic statement, as in Sgt. Pepper's Lonely Hearts Club Band, Revolver and Abbey Road.",
+    "Jimi Hendrix (1942-1970) reimagined what an electric guitar could be, using feedback, wah and distortion as an expressive palette and pushing blues vocabulary into new sonic territory.",
+    "Bob Dylan (born 1941) proved that a song could carry the weight of literature, writing poetic, allusive lyrics and bridging folk protest and electric rock. He won the Nobel Prize in Literature in 2016. Joni Mitchell (born 1943), meanwhile, invented dozens of open guitar tunings and brought jazz-influenced harmony to confessional song."
+   ]
+  },
+  {
+   "id": "music-figures.l14",
+   "title": "Hip-Hop: The Break, the Sample and the Voice",
+   "body": [
+    "Hip-hop is described as a new music built from records themselves: the break, the sample and the voice.",
+    "Grandmaster Flash (born 1958) is the turntable pioneer who made the DJ an instrumentalist. He developed the backspin, punch-phrasing and the Quick Mix Theory, and he turned two turntables into a single instrument. The Message, with the Furious Five, is among his best-known works.",
+    "Rakim (born 1968) turned rap into internal-rhyme poetry. He introduced complex internal rhyme and enjambment, and he delivered a cool, jazz-influenced flow off the beat. Paid in Full is one of his key albums.",
+    "Public Enemy (1985-present) made hip-hop a weapon of social conscience. Their dense, layered sample collage, produced by the Bomb Squad, and their politically charged lyricism produced Fight the Power and It Takes a Nation of Millions to Hold Us Back.",
+    "J Dilla (1974-2006) taught machines to breathe, using deliberately off-grid drum programming and lush, unquantised sampling.",
+    "Kendrick Lamar (born 1987) is the first rapper to win the Pulitzer Prize for Music, which he won in 2018. His concept-driven albums, such as To Pimp a Butterfly, draw on jazz and funk and use shifting vocal personas."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "music-figures.l01.q1",
+   "lessonId": "music-figures.l01",
+   "kind": "mcq",
+   "prompt": "Which opera is described as the first enduring opera?",
+   "choices": [
+    "Don Giovanni",
+    "L'Orfeo",
+    "Parsifal",
+    "Messiah"
+   ]
+  },
+  {
+   "id": "music-figures.l01.q2",
+   "lessonId": "music-figures.l01",
+   "kind": "mcq",
+   "prompt": "What was Monteverdi's \"seconda pratica\"?",
+   "choices": [
+    "A rule banning dissonance",
+    "A kind of keyboard tuning",
+    "A type of dance suite",
+    "A practice freeing dissonance to serve the text"
+   ]
+  },
+  {
+   "id": "music-figures.l01.q3",
+   "lessonId": "music-figures.l01",
+   "kind": "mcq",
+   "prompt": "A composer wants rapid repeated notes to depict anger in a dramatic scene. Which Monteverdi device would they use?",
+   "choices": [
+    "Leitmotif",
+    "Twelve-tone row",
+    "Stile concitato",
+    "Sprechstimme"
+   ]
+  },
+  {
+   "id": "music-figures.l01.q4",
+   "lessonId": "music-figures.l01",
+   "kind": "mcq",
+   "prompt": "Why is Monteverdi described as a \"bridge\"?",
+   "choices": [
+    "He linked Renaissance polyphony to the opera of the Baroque",
+    "He linked Baroque to jazz",
+    "He linked Romantic to modern music",
+    "He linked folk songs to hip-hop"
+   ]
+  },
+  {
+   "id": "music-figures.l02.q1",
+   "lessonId": "music-figures.l02",
+   "kind": "mcq",
+   "prompt": "Which musical form did Bach perfect?",
+   "choices": [
+    "Fugue",
+    "Scat",
+    "Rap",
+    "Sonata only"
+   ]
+  },
+  {
+   "id": "music-figures.l02.q2",
+   "lessonId": "music-figures.l02",
+   "kind": "mcq",
+   "prompt": "Which work is by Bach?",
+   "choices": [
+    "The Four Seasons",
+    "Messiah",
+    "The Well-Tempered Clavier",
+    "Symphony No. 9"
+   ]
+  },
+  {
+   "id": "music-figures.l02.q3",
+   "lessonId": "music-figures.l02",
+   "kind": "tf",
+   "prompt": "Bach's forty-eight preludes and fugues championed an equal-ish temperament.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-figures.l02.q4",
+   "lessonId": "music-figures.l02",
+   "kind": "mcq",
+   "prompt": "Why do later composers study Bach's counterpoint and harmony?",
+   "choices": [
+    "It banned all improvisation",
+    "It introduced the chorus into the symphony",
+    "It replaced the concerto",
+    "It codified functional harmony underpinning Western music"
+   ]
+  },
+  {
+   "id": "music-figures.l03.q1",
+   "lessonId": "music-figures.l03",
+   "kind": "mcq",
+   "prompt": "Which work is by Vivaldi?",
+   "choices": [
+    "Messiah",
+    "Water Music",
+    "Zadok the Priest",
+    "The Four Seasons"
+   ]
+  },
+  {
+   "id": "music-figures.l03.q2",
+   "lessonId": "music-figures.l03",
+   "kind": "mcq",
+   "prompt": "Which form did Handel elevate to a national form in England?",
+   "choices": [
+    "String quartet",
+    "Oratorio",
+    "Piano concerto",
+    "Lied"
+   ]
+  },
+  {
+   "id": "music-figures.l03.q3",
+   "lessonId": "music-figures.l03",
+   "kind": "mcq",
+   "prompt": "A composer writes a solo concerto in the standard three-movement shape. Whose standard are they following?",
+   "choices": [
+    "Vivaldi",
+    "Haydn",
+    "Chopin",
+    "Schoenberg"
+   ]
+  },
+  {
+   "id": "music-figures.l03.q4",
+   "lessonId": "music-figures.l03",
+   "kind": "mcq",
+   "prompt": "How do Vivaldi and Handel mainly differ in their contribution?",
+   "choices": [
+    "Vivaldi invented opera; Handel invented the symphony",
+    "Both wrote only solo piano music",
+    "Vivaldi shaped the instrumental concerto and picture-painting; Handel shaped public choral works",
+    "Handel invented programme music; Vivaldi wrote oratorios"
+   ]
+  },
+  {
+   "id": "music-figures.l04.q1",
+   "lessonId": "music-figures.l04",
+   "kind": "mcq",
+   "prompt": "Who is called the father of the symphony and the string quartet?",
+   "choices": [
+    "Mozart",
+    "Schubert",
+    "Haydn",
+    "Bach"
+   ]
+  },
+  {
+   "id": "music-figures.l04.q2",
+   "lessonId": "music-figures.l04",
+   "kind": "mcq",
+   "prompt": "Which opera is by Mozart?",
+   "choices": [
+    "The Marriage of Figaro",
+    "Der Ring des Nibelungen",
+    "L'Orfeo",
+    "Parsifal"
+   ]
+  },
+  {
+   "id": "music-figures.l04.q3",
+   "lessonId": "music-figures.l04",
+   "kind": "mcq",
+   "prompt": "A composer grows an entire movement from a small musical idea and adds wit. Whose strength is this?",
+   "choices": [
+    "Wagner",
+    "Stravinsky",
+    "Monteverdi",
+    "Haydn"
+   ]
+  },
+  {
+   "id": "music-figures.l04.q4",
+   "lessonId": "music-figures.l04",
+   "kind": "mcq",
+   "prompt": "What is the relationship between Haydn and Beethoven?",
+   "choices": [
+    "Beethoven taught Haydn",
+    "Haydn mentored Beethoven",
+    "They were rivals who never met",
+    "Beethoven was Haydn's librettist"
+   ]
+  },
+  {
+   "id": "music-figures.l05.q1",
+   "lessonId": "music-figures.l05",
+   "kind": "mcq",
+   "prompt": "Which Beethoven symphony introduced a chorus?",
+   "choices": [
+    "No. 5",
+    "No. 9",
+    "No. 1",
+    "No. 4"
+   ]
+  },
+  {
+   "id": "music-figures.l05.q2",
+   "lessonId": "music-figures.l05",
+   "kind": "tf",
+   "prompt": "Beethoven was going deaf while writing some of his greatest works.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-figures.l05.q3",
+   "lessonId": "music-figures.l05",
+   "kind": "mcq",
+   "prompt": "Which work is NOT by Beethoven?",
+   "choices": [
+    "Moonlight Sonata",
+    "Symphony No. 5",
+    "The Creation",
+    "Late String Quartets"
+   ]
+  },
+  {
+   "id": "music-figures.l05.q4",
+   "lessonId": "music-figures.l05",
+   "kind": "mcq",
+   "prompt": "Why is Beethoven called the \"hinge\" of music history?",
+   "choices": [
+    "He connected Classical order with Romantic expression",
+    "He invented opera",
+    "He abolished harmony",
+    "He wrote only for piano"
+   ]
+  },
+  {
+   "id": "music-figures.l06.q1",
+   "lessonId": "music-figures.l06",
+   "kind": "mcq",
+   "prompt": "What is a Lied?",
+   "choices": [
+    "A German art song",
+    "A fast dance",
+    "A type of fugue",
+    "A jazz solo"
+   ]
+  },
+  {
+   "id": "music-figures.l06.q2",
+   "lessonId": "music-figures.l06",
+   "kind": "mcq",
+   "prompt": "Roughly how many songs did Schubert write?",
+   "choices": [
+    "About 60",
+    "About 6",
+    "Over 600",
+    "Exactly 100"
+   ]
+  },
+  {
+   "id": "music-figures.l06.q3",
+   "lessonId": "music-figures.l06",
+   "kind": "mcq",
+   "prompt": "A pianist plays with flexible tempo over a steady pulse. Which composer's technique is this?",
+   "choices": [
+    "Bach",
+    "Chopin",
+    "Handel",
+    "Monteverdi"
+   ]
+  },
+  {
+   "id": "music-figures.l06.q4",
+   "lessonId": "music-figures.l06",
+   "kind": "mcq",
+   "prompt": "What do the mazurka and polonaise show about Chopin?",
+   "choices": [
+    "He wrote only for orchestra",
+    "He rejected folk traditions",
+    "He wrote only operas",
+    "He elevated national dances to art"
+   ]
+  },
+  {
+   "id": "music-figures.l07.q1",
+   "lessonId": "music-figures.l07",
+   "kind": "mcq",
+   "prompt": "What is a leitmotif?",
+   "choices": [
+    "A type of drum",
+    "A twelve-tone row",
+    "A stage cue",
+    "A recurring theme tied to a character or idea"
+   ]
+  },
+  {
+   "id": "music-figures.l07.q2",
+   "lessonId": "music-figures.l07",
+   "kind": "mcq",
+   "prompt": "Which work is by Brahms?",
+   "choices": [
+    "Tristan und Isolde",
+    "A German Requiem",
+    "Swan Lake",
+    "Boléro"
+   ]
+  },
+  {
+   "id": "music-figures.l07.q3",
+   "lessonId": "music-figures.l07",
+   "kind": "mcq",
+   "prompt": "A composer unites music, drama and staging into a single work. Which concept is this?",
+   "choices": [
+    "Gesamtkunstwerk",
+    "Developing variation",
+    "Rubato",
+    "Scat"
+   ]
+  },
+  {
+   "id": "music-figures.l07.q4",
+   "lessonId": "music-figures.l07",
+   "kind": "mcq",
+   "prompt": "How do Brahms and Wagner differ?",
+   "choices": [
+    "Brahms invented opera; Wagner wrote only quartets",
+    "Both abandoned harmony",
+    "Brahms kept Classical forms alive; Wagner pushed chromatic harmony toward modernism",
+    "Wagner avoided drama; Brahms avoided melody"
+   ]
+  },
+  {
+   "id": "music-figures.l08.q1",
+   "lessonId": "music-figures.l08",
+   "kind": "mcq",
+   "prompt": "Which composer is associated with Impressionism?",
+   "choices": [
+    "Ravel",
+    "Copland",
+    "Debussy",
+    "Bach"
+   ]
+  },
+  {
+   "id": "music-figures.l08.q2",
+   "lessonId": "music-figures.l08",
+   "kind": "mcq",
+   "prompt": "Which piece uses ostinato and gradual crescendo as form?",
+   "choices": [
+    "Boléro",
+    "La Mer",
+    "Parsifal",
+    "Winterreise"
+   ]
+  },
+  {
+   "id": "music-figures.l08.q3",
+   "lessonId": "music-figures.l08",
+   "kind": "tf",
+   "prompt": "Debussy used whole-tone and modal scales that blurred the sense of key.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-figures.l08.q4",
+   "lessonId": "music-figures.l08",
+   "kind": "mcq",
+   "prompt": "How does Ravel's approach differ from Debussy's emphasis?",
+   "choices": [
+    "Ravel wrote only songs",
+    "Ravel stressed exact orchestration; Debussy stressed colour and loosened key",
+    "Debussy wrote only fugues",
+    "Both avoided orchestration"
+   ]
+  },
+  {
+   "id": "music-figures.l09.q1",
+   "lessonId": "music-figures.l09",
+   "kind": "mcq",
+   "prompt": "Which work by Stravinsky provoked a famous riot?",
+   "choices": [
+    "Pierrot Lunaire",
+    "The Rite of Spring",
+    "Boléro",
+    "Appalachian Spring"
+   ]
+  },
+  {
+   "id": "music-figures.l09.q2",
+   "lessonId": "music-figures.l09",
+   "kind": "mcq",
+   "prompt": "What did Schoenberg invent?",
+   "choices": [
+    "The leitmotif",
+    "The scat solo",
+    "The fugue",
+    "The twelve-tone method"
+   ]
+  },
+  {
+   "id": "music-figures.l09.q3",
+   "lessonId": "music-figures.l09",
+   "kind": "mcq",
+   "prompt": "A vocalist delivers music halfway between speech and song. Which technique?",
+   "choices": [
+    "Melisma",
+    "Scat",
+    "Sprechstimme",
+    "Bel canto"
+   ]
+  },
+  {
+   "id": "music-figures.l09.q4",
+   "lessonId": "music-figures.l09",
+   "kind": "mcq",
+   "prompt": "Which contrast best describes Stravinsky and Schoenberg?",
+   "choices": [
+    "Stravinsky changed rhythm; Schoenberg changed the role of the key",
+    "Stravinsky invented opera; Schoenberg invented jazz",
+    "Both wrote only film music",
+    "Stravinsky used no rhythm"
+   ]
+  },
+  {
+   "id": "music-figures.l10.q1",
+   "lessonId": "music-figures.l10",
+   "kind": "mcq",
+   "prompt": "Who made the improvised solo the heart of jazz?",
+   "choices": [
+    "Louis Armstrong",
+    "Duke Ellington",
+    "Bach",
+    "Monk"
+   ]
+  },
+  {
+   "id": "music-figures.l10.q2",
+   "lessonId": "music-figures.l10",
+   "kind": "mcq",
+   "prompt": "Which work is by Duke Ellington?",
+   "choices": [
+    "West End Blues",
+    "Kind of Blue",
+    "Take the \"A\" Train",
+    "A Love Supreme"
+   ]
+  },
+  {
+   "id": "music-figures.l10.q3",
+   "lessonId": "music-figures.l10",
+   "kind": "mcq",
+   "prompt": "A bandleader writes music that suits each soloist's individual sound. Which jazz figure is known for this?",
+   "choices": [
+    "Armstrong",
+    "Ellington",
+    "Hendrix",
+    "Berry"
+   ]
+  },
+  {
+   "id": "music-figures.l10.q4",
+   "lessonId": "music-figures.l10",
+   "kind": "mcq",
+   "prompt": "How do Armstrong and Ellington complement each other?",
+   "choices": [
+    "Both wrote only operas",
+    "Armstrong avoided improvisation",
+    "Ellington avoided composition",
+    "Armstrong centred the individual voice; Ellington built larger works around many voices"
+   ]
+  },
+  {
+   "id": "music-figures.l11.q1",
+   "lessonId": "music-figures.l11",
+   "kind": "mcq",
+   "prompt": "Whose song gave the Rolling Stones their name?",
+   "choices": [
+    "B.B. King",
+    "Robert Johnson",
+    "Chuck Berry",
+    "Muddy Waters"
+   ]
+  },
+  {
+   "id": "music-figures.l11.q2",
+   "lessonId": "music-figures.l11",
+   "kind": "mcq",
+   "prompt": "Who is called the godmother of rock and roll?",
+   "choices": [
+    "Mahalia Jackson",
+    "Sister Rosetta Tharpe",
+    "Aretha Franklin",
+    "Ella Fitzgerald"
+   ]
+  },
+  {
+   "id": "music-figures.l11.q3",
+   "lessonId": "music-figures.l11",
+   "kind": "mcq",
+   "prompt": "A musician electrifies the country blues into a full-band sound. Whose achievement is this?",
+   "choices": [
+    "Muddy Waters",
+    "Robert Johnson",
+    "B.B. King",
+    "Mahalia Jackson"
+   ]
+  },
+  {
+   "id": "music-figures.l11.q4",
+   "lessonId": "music-figures.l11",
+   "kind": "mcq",
+   "prompt": "What was notable about Mahalia Jackson's role at the March on Washington?",
+   "choices": [
+    "She gave the speech",
+    "She conducted the orchestra",
+    "She sang before the I Have a Dream speech",
+    "She played electric guitar"
+   ]
+  },
+  {
+   "id": "music-figures.l12.q1",
+   "lessonId": "music-figures.l12",
+   "kind": "mcq",
+   "prompt": "Who is known as the Queen of Soul?",
+   "choices": [
+    "Billie Holiday",
+    "Ella Fitzgerald",
+    "Aretha Franklin",
+    "Mahalia Jackson"
+   ]
+  },
+  {
+   "id": "music-figures.l12.q2",
+   "lessonId": "music-figures.l12",
+   "kind": "mcq",
+   "prompt": "Whose emphasis on \"the One\" helped invent funk?",
+   "choices": [
+    "James Brown",
+    "Ray Charles",
+    "Marvin Gaye",
+    "Stevie Wonder"
+   ]
+  },
+  {
+   "id": "music-figures.l12.q3",
+   "lessonId": "music-figures.l12",
+   "kind": "mcq",
+   "prompt": "A musician merges gospel intensity with secular R&B. Who is credited?",
+   "choices": [
+    "Duke Ellington",
+    "Robert Johnson",
+    "Rakim",
+    "Ray Charles"
+   ]
+  },
+  {
+   "id": "music-figures.l12.q4",
+   "lessonId": "music-figures.l12",
+   "kind": "mcq",
+   "prompt": "Why is James Brown important to hip-hop?",
+   "choices": [
+    "He invented the DJ backspin",
+    "He is the most-sampled artist in hip-hop history",
+    "He won a Pulitzer Prize",
+    "He founded Public Enemy"
+   ]
+  },
+  {
+   "id": "music-figures.l13.q1",
+   "lessonId": "music-figures.l13",
+   "kind": "mcq",
+   "prompt": "Who won the Nobel Prize in Literature in 2016?",
+   "choices": [
+    "Chuck Berry",
+    "Bob Dylan",
+    "Jimi Hendrix",
+    "Joni Mitchell"
+   ]
+  },
+  {
+   "id": "music-figures.l13.q2",
+   "lessonId": "music-figures.l13",
+   "kind": "mcq",
+   "prompt": "What did the Beatles make a compositional instrument?",
+   "choices": [
+    "The bagpipe",
+    "The harpsichord",
+    "The turntable",
+    "The recording studio"
+   ]
+  },
+  {
+   "id": "music-figures.l13.q3",
+   "lessonId": "music-figures.l13",
+   "kind": "mcq",
+   "prompt": "A guitarist uses feedback, wah and distortion as an expressive palette. Who is this?",
+   "choices": [
+    "B.B. King",
+    "Chuck Berry",
+    "Jimi Hendrix",
+    "Joni Mitchell"
+   ]
+  },
+  {
+   "id": "music-figures.l13.q4",
+   "lessonId": "music-figures.l13",
+   "kind": "mcq",
+   "prompt": "How did Chuck Berry's work influence later rock bands?",
+   "choices": [
+    "His riffs and teen-life lyrics became a blueprint for the Beatles and Stones",
+    "He banned the guitar solo",
+    "He wrote only symphonies",
+    "He taught Bach"
+   ]
+  },
+  {
+   "id": "music-figures.l14.q1",
+   "lessonId": "music-figures.l14",
+   "kind": "mcq",
+   "prompt": "Who made the DJ an instrumentalist by turning two turntables into one instrument?",
+   "choices": [
+    "Grandmaster Flash",
+    "Rakim",
+    "J Dilla",
+    "Kendrick Lamar"
+   ]
+  },
+  {
+   "id": "music-figures.l14.q2",
+   "lessonId": "music-figures.l14",
+   "kind": "mcq",
+   "prompt": "What did Kendrick Lamar win in 2018?",
+   "choices": [
+    "The Nobel Prize",
+    "The Booker Prize",
+    "The Pulitzer Prize for Music",
+    "The Oscar for Best Score"
+   ]
+  },
+  {
+   "id": "music-figures.l14.q3",
+   "lessonId": "music-figures.l14",
+   "kind": "mcq",
+   "prompt": "An MC introduces complex internal rhyme and enjambment. Who is credited with this?",
+   "choices": [
+    "Public Enemy",
+    "Rakim",
+    "Grandmaster Flash",
+    "J Dilla"
+   ]
+  },
+  {
+   "id": "music-figures.l14.q4",
+   "lessonId": "music-figures.l14",
+   "kind": "mcq",
+   "prompt": "How do J Dilla and Public Enemy differ in approach?",
+   "choices": [
+    "Dilla wrote opera; Public Enemy wrote hymns",
+    "Both avoided samples",
+    "Dilla invented the backspin; Public Enemy invented scat",
+    "Dilla used off-grid drum feel; Public Enemy used dense sample collage for protest"
+   ]
+  }
+ ]
+}

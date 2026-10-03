@@ -1,0 +1,1436 @@
+{
+ "courseId": "med-immuno",
+ "label": "Immunology",
+ "lessons": [
+  {
+   "id": "med-immuno.l01",
+   "title": "Innate Versus Adaptive Immunity",
+   "body": [
+    "The immune system has two cooperating arms. Innate immunity is present from birth, responds within minutes to hours, and recognizes broad molecular patterns shared by many microbes. Adaptive immunity depends on lymphocytes whose antigen receptors are assembled by somatic gene rearrangement, so each clone recognizes one specific epitope. It takes days to mount a first response, but it creates memory, so a second encounter is faster, larger and better targeted.",
+    "The innate arm begins with barriers: intact skin, mucus and cilia, low gastric pH, lysozyme in tears and saliva, defensins, and the competing normal flora. When barriers are breached, innate cells take over. Neutrophils are the most numerous circulating leukocytes and are short-lived professional phagocytes. Monocytes leave the blood and become tissue macrophages, which clear debris, kill microbes and secrete cytokines. Dendritic cells are the bridge to adaptive immunity because they carry antigen to lymph nodes. Natural killer cells, mast cells, eosinophils and basophils round out the group. Innate lymphoid cells mirror T helper subsets but lack antigen-specific receptors.",
+    "Innate cells recognize pathogen-associated molecular patterns, such as lipopolysaccharide, peptidoglycan, flagellin, unmethylated CpG DNA and double-stranded RNA, through germline-encoded pattern recognition receptors. They also sense damage-associated molecular patterns released by injured host cells. Because these receptors are not rearranged, the innate response is fast but has no classical clonal memory, although the idea of trained innate immunity, in which epigenetic changes in monocytes and NK cells alter later responses, is an active research area.",
+    "The arms are not independent. Dendritic cells that sense a pathogen upregulate costimulatory molecules and migrate to lymph nodes, which determines whether and how T cells are activated. Antibodies, in turn, recruit complement and phagocytes, directing innate effectors at targets they would otherwise miss. A common exam distinction: the innate response determines the quality of the adaptive response, and the adaptive response amplifies innate killing.",
+    "Worked example. A patient steps on a rusty nail. Within minutes, tissue macrophages and mast cells release cytokines, local vessels dilate, and neutrophils arrive within hours. Dendritic cells carry bacterial peptides to a draining lymph node, and by about one week specific T cells and antibody are present. If the patient is exposed again years later, memory B and T cells respond much faster, which is the practical benefit of the adaptive arm and the reason booster vaccination works."
+   ]
+  },
+  {
+   "id": "med-immuno.l02",
+   "title": "The Complement System",
+   "body": [
+    "Complement is a cascade of plasma and cell-surface proteins, mostly made in the liver, that tags microbes for destruction, recruits phagocytes and can punch holes in membranes. Most components circulate as inactive zymogens and are activated by sequential proteolytic cleavage.",
+    "Three pathways converge on cleavage of C3. The classical pathway is started when C1q binds the Fc portions of IgM or clustered IgG that is bound to antigen, so it links adaptive immunity to complement. C1r and C1s then cleave C4 and C2 to form the classical C3 convertase, C4b2a. The lectin pathway is triggered when mannose-binding lectin binds mannose residues on microbes and uses the same C4b2a convertase. The alternative pathway runs continuously at a low level through spontaneous hydrolysis of C3. Factor B and factor D build the convertase C3bBb on microbial surfaces, and properdin stabilizes it. Host cells are protected by regulators such as factor H, decay-accelerating factor (DAF, CD55) and CD59.",
+    "C3 convertases cleave C3 into C3a and C3b. C3b is the major opsonin, because phagocytes carry receptors for it, and it also joins the convertase to form C5 convertase. C5 is cleaved into C5a and C5b. C3a and C5a are anaphylatoxins that degranulate mast cells and increase vascular permeability, and C5a is also a strong neutrophil chemoattractant. C5b nucleates assembly of C6, C7, C8 and multiple C9 molecules into the membrane attack complex, which lyses cells. The MAC is particularly important for killing Neisseria species.",
+    "The deficiency pattern is a favorite exam topic. C3 deficiency causes severe recurrent pyogenic infections. Deficiency of early classical components (C1, C2, C4) predisposes to immune-complex disease such as lupus, because complement normally helps clear complexes. Deficiency of terminal components C5 through C9 causes recurrent Neisseria infections. C1 esterase inhibitor deficiency causes hereditary angioedema, with episodes of swelling without urticaria, low C4, and bradykinin as the mediator, so it does not respond to antihistamines or steroids. Loss of DAF and CD59 on red cells in paroxysmal nocturnal hemoglobinuria (PNH), due to an acquired PIGA mutation, allows complement lysis. The C5 inhibitor eculizumab treats PNH but raises the risk of meningococcal disease, so patients need vaccination.",
+    "Worked example. A young adult has a second episode of meningococcal meningitis. A total hemolytic complement (CH50) assay is near zero, and C3 and C4 are normal. This pattern points to a terminal component deficiency, because the MAC cannot form even though opsonization works."
+   ]
+  },
+  {
+   "id": "med-immuno.l03",
+   "title": "Phagocytes and the Inflammatory Response",
+   "body": [
+    "Acute inflammation is the coordinated delivery of plasma proteins and leukocytes to a site of injury or infection. Resident macrophages and mast cells sense the insult and release TNF-alpha, IL-1 and IL-6, plus histamine and prostaglandins. These cause vasodilation, increased vascular permeability, and expression of adhesion molecules on endothelium. The classic signs are rubor, calor, tumor, dolor and loss of function.",
+    "Neutrophil extravasation follows a sequence. First, selectins (E-selectin and P-selectin on activated endothelium) bind sialyl Lewis X on neutrophils and cause rolling. Chemokines such as IL-8 (CXCL8) then activate the neutrophil, and integrins (LFA-1 and Mac-1) bind ICAM-1 for firm adhesion. Finally the cell squeezes through the endothelium by diapedesis, called transmigration, and follows chemotactic gradients (C5a, IL-8, bacterial formylated peptides). Leukocyte adhesion deficiency type 1 results from absent CD18, the common integrin beta-2 chain. It causes delayed umbilical cord separation, recurrent infections without pus, and marked neutrophilia, because cells cannot leave the vessel.",
+    "Phagocytosis is enhanced by opsonins, mainly IgG and C3b, which bind Fc receptors and complement receptors. The phagosome fuses with lysosomes. The oxidative burst depends on NADPH oxidase, which converts oxygen to superoxide. Superoxide dismutase converts it to hydrogen peroxide, and myeloperoxidase uses hydrogen peroxide and chloride to make hypochlorous acid. Chronic granulomatous disease is caused by defects in NADPH oxidase, most often X-linked CYBB. Patients suffer catalase-positive infections (Staphylococcus aureus, Aspergillus, Burkholderia cepacia, Serratia, Nocardia) and granulomas. The nitroblue tetrazolium test or the dihydrorhodamine flow cytometry assay shows failure of the burst. Catalase-negative organisms are usually handled because they supply their own hydrogen peroxide.",
+    "Neutrophils can also extrude chromatin as neutrophil extracellular traps that trap microbes. Systemically, IL-1, IL-6 and TNF-alpha act on the hypothalamus to cause fever through prostaglandin E2, and IL-6 drives hepatic synthesis of acute-phase proteins such as C-reactive protein, fibrinogen, serum amyloid A and hepcidin. The ESR rises mainly because fibrinogen promotes red cell stacking (rouleaux formation), so a high ESR is a nonspecific marker of inflammation rather than a diagnosis. Persistent elevation of serum amyloid A can cause AA amyloidosis.",
+    "Worked example. A 6-year-old has recurrent abscesses from Staphylococcus aureus and a liver abscess. Neutrophil counts are normal, and the dihydrorhodamine assay shows no oxidation after stimulation. This is chronic granulomatous disease, and the neutrophils cannot produce superoxide, so intracellular killing of catalase-positive organisms fails even though chemotaxis and phagocytosis are normal."
+   ]
+  },
+  {
+   "id": "med-immuno.l04",
+   "title": "Pattern Recognition, Interferons and NK Cells",
+   "body": [
+    "Pattern recognition receptors let innate cells detect conserved microbial structures. Toll-like receptors (TLRs) are transmembrane proteins. TLR4, with MD-2 and CD14, senses lipopolysaccharide from Gram-negative bacteria. TLR2 pairs with TLR1 or TLR6 to detect lipoproteins and peptidoglycan, and TLR5 senses flagellin. Endosomal TLRs detect nucleic acids: TLR3 double-stranded RNA, TLR7 and TLR8 single-stranded RNA, and TLR9 unmethylated CpG DNA. Most TLRs signal through MyD88 to activate NF-kappa B and drive transcription of inflammatory cytokines. TLR3 signals through TRIF, and TLR4 can use both adaptors.",
+    "Cytosolic sensors extend this surveillance. NOD1 and NOD2 recognize bacterial peptidoglycan fragments, and NOD2 variants are associated with Crohn disease. RIG-I and MDA5 detect viral RNA and signal through MAVS to induce type I interferons. The cGAS-STING pathway senses cytosolic DNA. Inflammasomes, such as NLRP3, assemble in response to danger signals, activate caspase-1, and cleave pro-IL-1 beta and pro-IL-18 into active forms, and can trigger pyroptosis. Gain-of-function mutations in inflammasome components cause autoinflammatory diseases, and colchicine or IL-1 blockade (anakinra, canakinumab) may be used. Gout is an NLRP3-related example because urate crystals activate the inflammasome.",
+    "Type I interferons (IFN-alpha and IFN-beta) are made by infected cells and plasmacytoid dendritic cells. They bind the IFNAR receptor, signal through JAK1 and TYK2 with STAT1 and STAT2, and induce an antiviral state: shutdown of protein synthesis, degradation of viral RNA, and upregulation of MHC class I. IFN-gamma, a type II interferon, is made by NK cells and Th1 cells and activates macrophages.",
+    "Natural killer cells are large granular lymphocytes that kill virus-infected and tumor cells without prior sensitization. Their activity is balanced between activating receptors and inhibitory receptors, such as KIRs and NKG2A, that recognize self MHC class I. Cells that lose MHC class I, as many viruses and tumors do to escape CD8 T cells, therefore lose the inhibitory signal and become targets. This is the missing self hypothesis. NK cells kill by releasing perforin and granzymes, and they perform antibody-dependent cellular cytotoxicity through CD16, the Fc gamma receptor III. IL-2, IL-12 and IL-15 activate them, and they are identified by CD56 and CD16 without CD3.",
+    "Worked example. A virus downregulates MHC class I to avoid CD8 T cells. CD8 killing falls, but NK cells sense the absent self signal and kill the infected cell, which shows why the two systems complement each other and why viral evasion of one arm often exposes the virus to the other."
+   ]
+  },
+  {
+   "id": "med-immuno.l05",
+   "title": "MHC and Antigen Presentation",
+   "body": [
+    "T cells cannot see free antigen. Their receptors recognize short peptides displayed on major histocompatibility complex (MHC) molecules, a property called MHC restriction. In humans the MHC is the HLA region on chromosome 6, and its genes are highly polymorphic, codominantly expressed and inherited together as a haplotype. Siblings have a one in four chance of being HLA identical.",
+    "MHC class I (HLA-A, B and C) is expressed on all nucleated cells and on platelets, but not on mature red cells. It presents peptides from proteins made inside the cell, of about 8 to 10 amino acids, to CD8 T cells. The class I heavy chain pairs with beta-2 microglobulin, which is encoded outside the MHC on chromosome 15. Cytosolic proteins are cut by the proteasome, and the peptides are carried into the endoplasmic reticulum by TAP, the transporter associated with antigen processing. Chaperones such as calnexin and tapasin assist loading, and the complex travels to the surface. Interferon gamma enhances this pathway. CD8 binds the alpha-3 domain of class I.",
+    "MHC class II (HLA-DP, DQ and DR) is normally expressed only on professional antigen-presenting cells: dendritic cells, macrophages and B cells, plus thymic epithelium. It presents peptides of about 13 to 25 amino acids, derived from extracellular proteins taken up by endocytosis, to CD4 T cells. Newly made class II molecules carry the invariant chain, which blocks the peptide groove in the endoplasmic reticulum. In the acidified endosome the invariant chain is cut to leave a fragment called CLIP, and HLA-DM exchanges CLIP for antigenic peptide. CD4 binds the beta-2 domain of class II. A mnemonic is the rule of eight: CD8 times MHC class I equals 8, and CD4 times MHC class II equals 8.",
+    "Cross-presentation lets some dendritic cells load exogenous antigen on class I, which is how CD8 T cells are primed against viruses that do not infect dendritic cells and against tumors. Superantigens bypass normal processing by binding class II and the T cell receptor beta chain outside the peptide groove, activating many T cells and causing cytokine storms, as in toxic shock syndrome.",
+    "HLA type affects disease and transplant matching. Well-known associations include HLA-B27 with ankylosing spondylitis and reactive arthritis, HLA-DR3 and DR4 with type 1 diabetes, HLA-DR4 with rheumatoid arthritis, HLA-DQ2 and DQ8 with celiac disease, and HLA-B*57:01 with abacavir hypersensitivity. Associations are risk modifiers, not diagnoses.",
+    "Worked example. A virus blocks TAP. Class I molecules cannot get peptide, surface class I falls, CD8 recognition fails, and NK cells may become active through missing self. Class II presentation remains intact because it does not use TAP."
+   ]
+  },
+  {
+   "id": "med-immuno.l06",
+   "title": "T Cell Development and the T Cell Receptor",
+   "body": [
+    "T cell precursors leave the bone marrow and enter the thymus, where they develop as thymocytes. Early thymocytes lack CD4 and CD8 (double negative) and then express both (double positive) before becoming single positive CD4 or CD8 cells. Thymic cortex supports early rearrangement and positive selection, and the medulla supports negative selection.",
+    "The T cell receptor (TCR) is a heterodimer, most often alpha and beta chains, each with variable and constant regions, associated with the CD3 complex that transmits signals. A minority of T cells use gamma and delta chains. Diversity comes from V(D)J recombination, in which gene segments are joined by the RAG1 and RAG2 recombinases, plus junctional diversity from random nucleotide addition by terminal deoxynucleotidyl transferase and imprecise joining. The beta chain rearranges first and is tested through the pre-TCR. Allelic exclusion ensures that one cell expresses one receptor specificity. Defects in RAG cause severe combined immunodeficiency, and the less severe hypomorphic variants cause Omenn syndrome.",
+    "Positive selection occurs in the cortex. Double positive thymocytes whose TCRs bind self MHC with at least modest affinity receive survival signals, and those that cannot bind self MHC die by neglect. This selection produces MHC-restricted cells and decides lineage: recognition of class I produces CD8 cells, and recognition of class II produces CD4 cells. Negative selection occurs largely at the corticomedullary junction and in the medulla. Thymocytes that bind self peptide-MHC with high affinity undergo apoptosis. Medullary thymic epithelial cells express many tissue-specific antigens, such as insulin, under control of the transcription factor AIRE. Loss of AIRE causes autoimmune polyendocrinopathy with candidiasis and ectodermal dystrophy because self-reactive cells escape. Some self-reactive CD4 cells instead become regulatory T cells expressing FOXP3.",
+    "Only a small minority of thymocytes survive. Thymic development depends on the thymic epithelium, which arises from the third pharyngeal pouch, together with the parathyroids, so 22q11.2 deletion (DiGeorge syndrome) can cause thymic hypoplasia, hypocalcemia from absent parathyroids, and cardiac outflow defects. Mature naive T cells, with markers such as CD45RA and CCR7, recirculate through lymph nodes and spleen, searching for the rare antigen that matches their receptor, and they depend on homeostatic signals such as IL-7 and weak contact with self MHC to survive until they meet it.",
+    "Worked example. A newborn has a conotruncal cardiac defect, seizures from hypocalcemia, and low T cell counts on a newborn screen. This points to 22q11.2 deletion, with reduced thymic output and normal B cell numbers."
+   ]
+  },
+  {
+   "id": "med-immuno.l07",
+   "title": "T Cell Activation and Effector Subsets",
+   "body": [
+    "Full activation of a naive T cell needs three signals. Signal 1 is TCR engagement of peptide-MHC, with CD4 or CD8 as coreceptor. Signal 2 is costimulation, chiefly CD28 on the T cell binding B7 (CD80 and CD86) on the antigen-presenting cell. Signal 3 is cytokines that direct differentiation. Signal 1 without signal 2 leaves the cell anergic, which is one way of maintaining peripheral tolerance. Proximal TCR signaling uses Lck, ZAP-70, calcium and calcineurin, and the transcription factor NFAT drives interleukin 2 gene expression. IL-2 supports proliferation of activated T cells through the high-affinity receptor containing CD25.",
+    "Inhibitory receptors tune the response. CTLA-4 is induced after activation and competes with CD28 for B7 with higher affinity, so it dampens early priming. PD-1 is upregulated on activated and exhausted T cells and, when it engages PD-L1 or PD-L2 in tissues and tumors, restrains effector function. These are the targets of checkpoint inhibitor drugs.",
+    "CD4 T helper subsets are defined by cytokine environment and master transcription factors. Th1 cells arise with IL-12 and IFN-gamma, use T-bet, and secrete IFN-gamma to activate macrophages against intracellular pathogens such as mycobacteria. Th2 cells arise with IL-4, use GATA3, and secrete IL-4, IL-5 and IL-13, supporting IgE switching, eosinophils and defense against helminths, and they drive allergic disease. Th17 cells arise with TGF-beta, IL-6 and IL-23, use RORgamma-t, and secrete IL-17 and IL-22 to recruit neutrophils and defend mucosal surfaces against extracellular bacteria and fungi. T follicular helper cells use BCL6 and IL-21 to help B cells in germinal centers. Regulatory T cells use FOXP3, require IL-2, and suppress other cells through IL-10, TGF-beta and CTLA-4. IFN-gamma inhibits Th2 development, and IL-4 inhibits Th1 development.",
+    "CD8 cytotoxic T cells recognize class I and kill target cells by delivering perforin and granzymes, which trigger apoptosis through caspases, and by Fas ligand binding Fas on the target. After infection, most effector cells die, and a small pool survives as memory cells. Naive T cells display CD45RA, whereas memory cells express CD45RO. Central memory cells home to lymph nodes, and effector memory cells patrol tissues.",
+    "Worked example. A patient has a mutation in IL12RB1 and develops disseminated infection with a nontuberculous mycobacterium after BCG vaccination. Without the IL-12 to IFN-gamma axis, Th1 responses and macrophage activation are weak, so intracellular mycobacteria are not controlled."
+   ]
+  },
+  {
+   "id": "med-immuno.l08",
+   "title": "B Cells and Antibodies",
+   "body": [
+    "B cells develop in the bone marrow. Heavy chain genes rearrange first, the pre-B receptor tests the heavy chain with surrogate light chains, and light chain genes then rearrange. The result is surface IgM, and later IgD, on immature and mature naive B cells. Bruton tyrosine kinase (BTK) is needed for pre-B receptor signaling, so X-linked agammaglobulinemia stops development at the pre-B stage and leaves very few circulating B cells.",
+    "An immunoglobulin is made of two identical heavy chains and two identical light chains linked by disulfide bonds. Each chain has variable and constant regions. The antigen-binding fragment (Fab) contains the variable regions, and the crystallizable fragment (Fc) mediates effector functions through Fc receptors and complement. Hypervariable segments in the variable region, called complementarity-determining regions, form the antigen contact surface.",
+    "The isotypes have distinct roles. IgM is a pentamer, the first antibody made, and the best complement activator. IgG is the most abundant in serum, crosses the placenta through the neonatal Fc receptor, opsonizes microbes and activates complement. IgA is dimeric in secretions, carried across epithelium by the polymeric immunoglobulin receptor, and protects mucosal surfaces and milk. IgE binds mast cells and eosinophils and mediates immediate hypersensitivity and antiparasitic defense. IgD is mainly a B cell surface receptor.",
+    "After activation in a lymph node follicle, B cells form germinal centers. There, activation-induced cytidine deaminase (AID) drives two processes. Somatic hypermutation introduces point mutations in the variable genes, and cells with higher affinity are selected by follicular dendritic cells and T follicular helper cells, giving affinity maturation. Class switch recombination replaces the constant region of the heavy chain while preserving the variable region, so antigen specificity stays the same but the isotype changes. Switching requires CD40 on the B cell binding CD40 ligand on T helper cells, plus cytokines: IL-4 for IgE and IgG4, IFN-gamma for IgG subclasses, and TGF-beta for IgA. Defects in CD40 ligand or AID cause hyper-IgM syndrome. Plasma cells secrete antibody at high rates, and memory B cells persist. T-independent antigens, such as polysaccharide capsules, trigger mostly IgM with limited memory, which is why conjugate vaccines were developed.",
+    "Worked example. A boy has recurrent sinopulmonary infections, normal IgM, and very low IgG, IgA and IgE. Lymph nodes lack germinal centers, and his T cells fail to express CD40 ligand. His B cells cannot class switch, which fits hyper-IgM syndrome from CD40L deficiency."
+   ]
+  },
+  {
+   "id": "med-immuno.l09",
+   "title": "Cytokines and Their Receptors",
+   "body": [
+    "Cytokines are small secreted proteins that act on nearby or distant cells through specific receptors. They can act on the cell that made them (autocrine), on neighbors (paracrine), or throughout the body (endocrine). Individual cytokines are pleiotropic, meaning one cytokine has several effects, and redundant, meaning several cytokines can produce the same effect. Chemokines are a related family that direct cell migration.",
+    "You should know a core set. IL-1, IL-6 and TNF-alpha, made mainly by macrophages, drive fever and acute-phase responses, and TNF-alpha also maintains granulomas and causes septic shock when released in excess. IL-2, made by activated T cells, drives T cell proliferation and supports regulatory T cells. IL-4 drives Th2 differentiation and IgE switching. IL-5 recruits and activates eosinophils and supports IgA production. IL-10 and TGF-beta are anti-inflammatory. IL-12 from macrophages and dendritic cells drives Th1 cells and NK activity. IFN-gamma activates macrophages and promotes class I and II expression. IL-17 recruits neutrophils. IL-3 and GM-CSF support hematopoiesis, and IL-7 supports lymphocyte development. Type I interferons induce an antiviral state.",
+    "Many cytokine receptors lack intrinsic enzyme activity and signal through Janus kinases (JAKs) that phosphorylate STAT transcription factors, which dimerize and move into the nucleus. The common gamma chain is shared by receptors for IL-2, IL-4, IL-7, IL-9, IL-15 and IL-21, and it signals through JAK3. Mutations in the common gamma chain cause X-linked severe combined immunodeficiency, and JAK3 mutations cause an autosomal recessive form with the same T-negative, NK-negative, B-positive pattern. IL-12 and IFN-gamma signal through STAT4 and STAT1 respectively. Small molecule JAK inhibitors, such as tofacitinib, are used in rheumatoid arthritis and other diseases. Because they dampen many cytokine signals, they raise the risk of infections such as herpes zoster and require attention to cardiovascular and thrombotic risk as stated in drug labeling.",
+    "Biologics block specific cytokines. TNF inhibitors (infliximab, adalimumab, etanercept) treat rheumatoid arthritis, inflammatory bowel disease and psoriasis, but impair granuloma maintenance and so can reactivate latent tuberculosis, so patients are screened before treatment. Anakinra blocks the IL-1 receptor. Tocilizumab blocks the IL-6 receptor. Ustekinumab blocks the shared p40 subunit of IL-12 and IL-23. Secukinumab blocks IL-17A. Dupilumab blocks the IL-4 receptor alpha chain, which blocks IL-4 and IL-13 signaling, and mepolizumab targets IL-5. Recombinant IL-2 and interferons are used therapeutically in selected diseases.",
+    "Worked example. A patient with rheumatoid arthritis on a TNF inhibitor develops fever, night sweats and an upper lobe cavitary lesion. Loss of TNF-dependent granuloma integrity reactivated latent tuberculosis, which explains why screening precedes treatment."
+   ]
+  },
+  {
+   "id": "med-immuno.l10",
+   "title": "Immunologic Tolerance",
+   "body": [
+    "Immunologic tolerance is the ability to avoid reacting to self antigens and harmless foreign antigens such as food and commensals. Because receptor generation is random, many lymphocytes are self-reactive, so tolerance has to be actively built and maintained at several checkpoints.",
+    "Central tolerance occurs in the primary lymphoid organs. In the thymus, T cells that bind self peptide-MHC strongly are eliminated by negative selection, helped by AIRE-driven display of tissue antigens in the medulla. Some become natural regulatory T cells. In the bone marrow, immature B cells that bind self antigen strongly are handled by receptor editing, in which light chain rearrangement is repeated to change specificity, and, if that fails, by clonal deletion or anergy. Central tolerance is incomplete, since the thymus and marrow cannot display every self antigen.",
+    "Peripheral tolerance backs up central tolerance. Anergy occurs when a T cell encounters antigen without costimulation, so it becomes unresponsive, and costimulation is normally absent on resting tissue cells and immature dendritic cells. Activation-induced cell death occurs through Fas and Fas ligand, and defects in Fas cause autoimmune lymphoproliferative syndrome, with lymphadenopathy, splenomegaly and autoimmune cytopenias. Inhibitory receptors, CTLA-4 and PD-1, limit activation. Regulatory T cells, which express CD4, CD25 and the transcription factor FOXP3, suppress effector cells through IL-10, TGF-beta, CTLA-4 and consumption of IL-2. Mutations in FOXP3 cause IPEX syndrome (immune dysregulation, polyendocrinopathy, enteropathy, X-linked), a disease of infancy with severe diarrhea, early-onset diabetes and eczema. Immune privileged sites, such as the eye, testis and brain, limit immune access, and if sequestered antigens are released after trauma, as in sympathetic ophthalmia, tolerance can fail.",
+    "Oral tolerance is the tendency of the gut-associated immune system to respond to dietary antigens with regulatory T cells and IgA instead of inflammation. B cell tolerance has similar mechanisms, but B cells that are anergic have a shortened life span. Tolerance also needs periodic reinforcement, and a breakdown can be triggered by infection, tissue damage, molecular mimicry, or genetic risk.",
+    "Molecular mimicry means that a microbial antigen resembles a self antigen, so a response to the microbe cross-reacts with the host. Rheumatic fever after group A streptococcal pharyngitis, with antibodies to M protein cross-reacting with cardiac myosin, is the classic example. Epitope spreading is the broadening of an immune response from an initial target to others on the same tissue.",
+    "Worked example. A male infant has watery diarrhea, eczema and type 1 diabetes in the first months of life. He has an FOXP3 mutation. Without regulatory T cells, peripheral tolerance fails and autoreactive effector cells attack multiple organs."
+   ]
+  },
+  {
+   "id": "med-immuno.l11",
+   "title": "Hypersensitivity Types I and II",
+   "body": [
+    "Hypersensitivity reactions are immune responses that cause tissue injury. The Gell and Coombs scheme sorts them into four types by mechanism. Types I, II and III are antibody mediated, and type IV is T cell mediated.",
+    "Type I (immediate) hypersensitivity depends on IgE. In sensitization, a first exposure to allergen drives a Th2 response with IL-4 and IL-13, and B cells switch to IgE. IgE binds the high-affinity receptor FcεRI on mast cells and basophils. On re-exposure, allergen cross-links IgE on the cell, which triggers degranulation within minutes. Preformed mediators, such as histamine and tryptase, cause vasodilation, increased permeability, bronchoconstriction and gut smooth muscle contraction. Newly made mediators, including leukotrienes C4, D4 and E4 and prostaglandin D2, sustain the response, and a late-phase reaction hours later is driven by eosinophils and Th2 cells. Clinical forms include allergic rhinitis, atopic dermatitis, allergic asthma, urticaria, food allergy and anaphylaxis. Anaphylaxis is a systemic reaction with hypotension, airway involvement and urticaria, and epinephrine is first-line treatment. Elevated serum tryptase supports mast cell activation. Diagnosis uses skin prick testing and specific IgE assays. Allergen immunotherapy shifts the response toward IgG4 and regulatory T cells. Omalizumab binds free IgE, and a nonallergic mechanism of mast cell activation, such as with opioids or radiocontrast, produces anaphylactoid reactions without IgE.",
+    "Type II hypersensitivity involves IgG or IgM binding antigens on the surface of cells or the extracellular matrix. Injury arises through complement activation and the membrane attack complex, opsonization and phagocytosis (such as splenic removal of antibody-coated cells), and antibody-dependent cellular cytotoxicity. Examples include autoimmune hemolytic anemia, immune thrombocytopenia, hemolytic disease of the fetus and newborn from maternal antibodies against Rh D, and transfusion reactions with ABO incompatibility. Goodpasture syndrome has antibodies to the alpha-3 chain of type IV collagen in glomerular and alveolar basement membranes, and produces linear immunofluorescence. Not all type II diseases kill cells. In Graves disease, antibodies stimulate the TSH receptor, and in myasthenia gravis, antibodies block or deplete the acetylcholine receptor. Pemphigus vulgaris, with antibodies to desmoglein 3, shows intercellular deposition of IgG on immunofluorescence.",
+    "A direct Coombs test detects antibody or complement on the patient's own red cells, and an indirect Coombs test detects free antibody in serum that binds reagent red cells.",
+    "Worked example. A 22-year-old develops fever, back pain and dark urine minutes into a transfusion. Preformed anti-A or anti-B IgM bound donor cells and activated complement, causing intravascular hemolysis, a type II reaction. The transfusion is stopped immediately."
+   ]
+  },
+  {
+   "id": "med-immuno.l12",
+   "title": "Hypersensitivity Types III and IV",
+   "body": [
+    "Type III hypersensitivity is caused by antigen-antibody complexes that are not cleared and deposit in tissues. The complexes activate complement through the classical pathway and recruit neutrophils, which release enzymes and oxygen radicals that injure vessel walls, a process producing vasculitis, glomerulonephritis and arthritis. Deposition is favored where blood is filtered under pressure, such as glomeruli and synovium. Injury needs slight antigen excess, because complexes that are very large are removed by the mononuclear phagocyte system and very small ones are not pathogenic. Histology shows fibrinoid necrosis, and immunofluorescence shows granular deposits of immunoglobulin and complement. Complement is consumed, so C3 and C4 are low during active disease.",
+    "Systemic forms include serum sickness, which appears 1 to 2 weeks after exposure to a foreign protein or drug such as antithymocyte globulin or some antibiotics, with fever, rash, arthralgia and low complement. Systemic lupus erythematosus, poststreptococcal glomerulonephritis and polyarteritis nodosa associated with hepatitis B are further examples. The Arthus reaction is a local type III reaction at a site of antigen injection in a previously sensitized person, appearing over hours with edema and necrosis, and it can occur after repeated tetanus booster vaccines given too frequently.",
+    "Type IV (delayed-type) hypersensitivity is mediated by T cells, not antibody, and appears 48 to 72 hours after exposure. It has no role for complement in its core mechanism and it cannot be transferred by serum but only by cells. There are several forms. In delayed-type hypersensitivity, Th1 cells release IFN-gamma that activates macrophages, and chronic activation produces granulomas, as in tuberculosis, sarcoidosis, Crohn disease and tuberculin skin reactions. In contact dermatitis, haptens such as nickel, poison ivy urushiol or latex bind self proteins and are presented to sensitized T cells, causing eczematous inflammation at the site of contact. In direct cytotoxic reactions, CD8 cells kill target cells, and this mechanism contributes to graft rejection, some drug eruptions, and type 1 diabetes. Severe cutaneous reactions, such as Stevens-Johnson syndrome, have a T cell mediated component, and HLA associations exist, such as HLA-B*15:02 with carbamazepine in people of Han Chinese ancestry.",
+    "The tuberculin skin test and interferon-gamma release assays use this immune memory. A positive tuberculin test shows prior sensitization and does not distinguish latent infection from active disease and may be positive after BCG, while a release assay is not affected by BCG vaccination.",
+    "Worked example. A 30-year-old develops an itchy, vesicular rash on the wrist and under the watch clasp 2 days after wearing a new watch. Nickel acts as a hapten, sensitized T cells respond on re-exposure, and the delayed timing with eczematous skin changes identifies a type IV reaction."
+   ]
+  },
+  {
+   "id": "med-immuno.l13",
+   "title": "Autoimmune Disease: Mechanisms and Markers",
+   "body": [
+    "Autoimmune disease results when the adaptive immune system attacks self tissue. It requires a combination of genetic susceptibility, an environmental trigger and failed tolerance. Women are affected far more often than men in most systemic autoimmune diseases. HLA alleles are the strongest single genetic contributors, although other genes, such as PTPN22, CTLA4 and complement genes, also matter. Triggers include infections (molecular mimicry, epitope spreading, bystander activation), tissue injury that exposes sequestered antigens, drugs, and hormones. Mechanistically, tissue damage may be caused by autoantibodies (types II and III) or by autoreactive T cells (type IV). Organ-specific diseases target one tissue, and systemic diseases involve many.",
+    "The autoantibody profile is central to diagnosis. Antinuclear antibodies (ANA) are sensitive for systemic lupus erythematosus but are not specific, since they occur in other connective tissue disease and in healthy people, especially at low titer. Anti-double-stranded DNA and anti-Smith antibodies are specific for lupus, and anti-dsDNA titers track with nephritis. Anti-histone antibodies suggest drug-induced lupus, with drugs such as hydralazine and procainamide. Antiphospholipid antibodies cause thrombosis and pregnancy loss, and they can prolong aPTT in vitro. Rheumatoid arthritis shows rheumatoid factor (IgM against the Fc of IgG) and, more specifically, anti-citrullinated protein antibodies. Anti-centromere antibodies are associated with limited scleroderma (CREST), and anti-topoisomerase I (Scl-70) with diffuse scleroderma. Anti-SSA (Ro) and anti-SSB (La) occur in Sjogren syndrome, and anti-SSA is linked to neonatal lupus with congenital heart block. Anti-Jo-1 is associated with antisynthetase syndrome and myositis. ANCA types separate vasculitides: c-ANCA (proteinase 3) in granulomatosis with polyangiitis and p-ANCA (myeloperoxidase) in microscopic polyangiitis and eosinophilic granulomatosis with polyangiitis. Anti-mitochondrial antibodies identify primary biliary cholangitis. Anti-tissue transglutaminase and anti-endomysial IgA identify celiac disease, and IgA deficiency can cause false negatives. Anti-smooth muscle antibodies are seen in autoimmune hepatitis.",
+    "Organ-specific examples illustrate mechanisms. In Graves disease, stimulating antibodies to the TSH receptor cause hyperthyroidism. In Hashimoto thyroiditis, T cell infiltration and anti-thyroid peroxidase antibodies cause hypothyroidism. In myasthenia gravis, antibodies to the acetylcholine receptor cause fatigable weakness, and thymoma or thymic hyperplasia may be present. In type 1 diabetes, T cell destruction of beta cells occurs with autoantibodies to insulin, GAD65 and islet antigens. Multiple sclerosis involves T cell mediated attack on CNS myelin. Pernicious anemia involves antibodies to intrinsic factor and parietal cells.",
+    "Treatment strategies aim to remove the cause, replace the lost function, and suppress the response with corticosteroids, antimetabolites, B cell depletion with rituximab, or cytokine blockade.",
+    "Worked example. A 30-year-old woman has a malar rash, arthralgias, proteinuria and low C3 and C4. Anti-dsDNA is high. Her antibodies form complexes that deposit in the kidney, so a renal biopsy is needed to define the class of lupus nephritis and guide therapy."
+   ]
+  },
+  {
+   "id": "med-immuno.l14",
+   "title": "Primary Antibody and B Cell Deficiencies",
+   "body": [
+    "Primary immunodeficiencies are inherited disorders of immune function, and a first step in diagnosis is to match the infection pattern to the arm of the immune system that is failing. Antibody deficiencies, the most common group, typically present after maternal IgG wanes at about 6 months of age, with recurrent sinopulmonary infections caused by encapsulated bacteria such as Streptococcus pneumoniae and Haemophilus influenzae, plus enteroviruses and Giardia. Fungal and intracellular infections are less prominent because T cells are intact.",
+    "X-linked agammaglobulinemia (Bruton) arises from BTK mutations that block pre-B cell maturation, so there are few or no CD19 positive B cells, and all immunoglobulin classes are low. Lymph nodes and tonsils are small because follicles lack B cells. Affected boys are well until about 6 months, then develop recurrent bacterial infections. Treatment is lifelong immunoglobulin replacement, and live vaccines such as oral polio are avoided. Intact T cell function means that most viral infections are handled, but enteroviral disease can be severe.",
+    "Common variable immunodeficiency (CVID) is a heterogeneous group of disorders with low IgG and low IgA or IgM, normal or low B cell numbers and impaired vaccine responses. Presentation is usually in the second or third decade, with sinopulmonary infections, autoimmunity such as cytopenias, granulomatous disease and lymphoid hyperplasia, an increased risk of lymphoma and gastric cancer, and chronic giardiasis. It is a diagnosis of exclusion after other causes of hypogammaglobulinemia are removed. Management includes immunoglobulin replacement.",
+    "Selective IgA deficiency is the most common primary immunodeficiency. Many patients are asymptomatic, whereas others have sinopulmonary and gastrointestinal infections, giardiasis, celiac disease and allergy. Patients with anti-IgA antibodies may have anaphylaxis when given blood products containing IgA, so washed cells or IgA-deficient donors may be used.",
+    "Hyper-IgM syndrome is most often caused by CD40 ligand mutations on T cells, which is X-linked, or CD40 or AID defects, which are autosomal. IgM is normal or high while IgG, IgA and IgE are low. The T cell defect also impairs macrophage activation, so patients have opportunistic infections with Pneumocystis jirovecii and Cryptosporidium in addition to bacterial infections.",
+    "Transient hypogammaglobulinemia of infancy reflects delayed onset of the infant's own antibody production and resolves on its own, and it is distinguished from permanent defects by normal vaccine responses over time.",
+    "Worked example. A 14-month-old boy has had four episodes of otitis media and two pneumonias. His mother's brother died of infection in childhood. Flow cytometry shows no CD19 positive cells, and total IgG is very low. A BTK mutation is the likely finding, and immunoglobulin replacement lowers his infection rate."
+   ]
+  },
+  {
+   "id": "med-immuno.l15",
+   "title": "Primary T Cell, Combined and Phagocyte Defects",
+   "body": [
+    "T cell defects present earlier than antibody defects, often in the first months, with failure to thrive, chronic diarrhea, persistent thrush, and opportunistic infections with Pneumocystis jirovecii, cytomegalovirus and other viruses and fungi. Live vaccines can cause disease. Because B cells depend on T cell help, combined defects follow.",
+    "Severe combined immunodeficiency (SCID) is a pediatric emergency, with absent or very poor T cell function and impaired antibody production. The most common form is X-linked, from a common gamma chain mutation, giving T-negative, B-positive, NK-negative cells. Adenosine deaminase deficiency causes accumulation of toxic metabolites in lymphocytes and gives T-negative, B-negative, NK-negative cells with skeletal abnormalities. RAG1 and RAG2 defects give T-negative, B-negative, NK-positive cells. A thymic shadow is usually absent, and the lymphocyte count is very low. Newborn screening uses T cell receptor excision circles, which are lower when thymic output is poor. The treatment is hematopoietic stem cell transplantation, gene therapy in selected types, and enzyme replacement for adenosine deaminase deficiency. Irradiated blood products and avoidance of live vaccines are required.",
+    "Other syndromes have recognizable features. DiGeorge syndrome (22q11.2 deletion) presents with hypocalcemia, cardiac defects and thymic hypoplasia. Wiskott-Aldrich syndrome is X-linked, with eczema, thrombocytopenia with small platelets, and recurrent infections, and it is caused by WAS gene mutations affecting actin cytoskeleton. Ataxia-telangiectasia is caused by ATM mutations that impair DNA double-strand break repair, producing cerebellar ataxia, telangiectasias, sinopulmonary infections, low IgA and raised alpha-fetoprotein, with a risk of lymphoid malignancy and radiosensitivity. Chronic mucocutaneous candidiasis can reflect Th17 or IL-17 pathway defects. Hyper-IgE syndrome (Job syndrome, STAT3 mutation) shows coarse facies, retained primary teeth, cold staphylococcal abscesses, eczema and fractures, with very high IgE. Mendelian susceptibility to mycobacterial disease reflects defects in the IL-12 to IFN-gamma axis. Bare lymphocyte syndrome type II lacks MHC class II expression and leads to a CD4 deficiency.",
+    "Phagocyte defects present with skin and organ abscesses, delayed wound healing and fungal infection. Chronic granulomatous disease (NADPH oxidase), leukocyte adhesion deficiency (CD18) and Chediak-Higashi syndrome (LYST mutation, defective lysosomal trafficking with giant granules, partial albinism, neuropathy and infections) are the key examples. Complement and asplenia are other branches of the work-up.",
+    "Worked example. A 5-year-old boy has eczema, recurrent ear infections and easy bruising. His platelet count is low, with small platelets on smear. Wiskott-Aldrich syndrome is the diagnosis, and bleeding, infection and autoimmunity are managed until stem cell transplant is considered."
+   ]
+  },
+  {
+   "id": "med-immuno.l16",
+   "title": "Secondary Immunodeficiency and HIV",
+   "body": [
+    "Secondary (acquired) immunodeficiency is far more common than primary disease. Causes include malnutrition, the most common worldwide, diabetes mellitus, chronic kidney disease, liver cirrhosis, hematologic malignancy, splenectomy or functional asplenia in sickle cell disease, protein-losing states such as nephrotic syndrome and enteropathy, and drugs. Glucocorticoids, cytotoxic drugs, anti-CD20 antibodies, TNF inhibitors and calcineurin inhibitors each leave a characteristic pattern of risk. Asplenia predisposes to infection with encapsulated organisms, so vaccination against pneumococcus, meningococcus and Haemophilus influenzae type b is recommended.",
+    "HIV is a retrovirus that infects cells carrying CD4 and a coreceptor, either CCR5 or CXCR4. Early infection typically uses CCR5, which explains why people homozygous for a CCR5 deletion are relatively resistant. The envelope glycoproteins gp120 and gp41 mediate binding and fusion. Reverse transcriptase makes DNA from the viral RNA, integrase inserts it into the host genome, and protease cleaves viral polyproteins into functional proteins. The virus establishes latent reservoirs in resting memory CD4 T cells. Progressive loss of CD4 T cells, from direct viral killing and chronic immune activation, impairs cell-mediated immunity.",
+    "Acute infection may produce a mononucleosis-like illness with fever, rash and lymphadenopathy 2 to 4 weeks after exposure. After a clinically quiet phase, falling CD4 counts bring opportunistic disease. Risk categories are approximate, but Pneumocystis pneumonia appears below about 200 cells per microliter, and Mycobacterium avium complex and disseminated cytomegalovirus below about 50. AIDS is defined by a CD4 count below 200 cells per microliter or by an AIDS-defining illness.",
+    "Diagnosis uses a fourth-generation antigen and antibody combination assay, which detects p24 antigen as well as antibodies, followed by a differentiation assay and nucleic acid testing when needed. In the window period, RNA testing detects infection earlier than antibody tests. In infants born to infected mothers, antibody tests are unreliable because of maternal IgG, so nucleic acid tests are used. Antiretroviral therapy, combining agents from classes such as integrase strand transfer inhibitors, nucleoside reverse transcriptase inhibitors, non-nucleoside reverse transcriptase inhibitors, protease inhibitors, entry inhibitors and CCR5 antagonists, suppresses viral load, restores CD4 counts, and prevents transmission when sustained viral suppression is achieved. Current guidelines recommend treatment for all people with HIV, regardless of CD4 count, and HLA-B*57:01 testing before abacavir. Immune reconstitution inflammatory syndrome can occur after starting therapy, when recovering immunity reacts to an existing infection.",
+    "Worked example. A 35-year-old man has weeks of dry cough, exertional dyspnea and oral thrush. His CD4 count is 90 cells per microliter, and chest imaging shows bilateral interstitial infiltrates. Pneumocystis pneumonia is likely, and prophylaxis and antiretroviral therapy are indicated as part of treatment."
+   ]
+  },
+  {
+   "id": "med-immuno.l17",
+   "title": "Transplantation Immunology",
+   "body": [
+    "Transplant rejection is an adaptive immune response to allogeneic antigens, mainly polymorphic HLA molecules. Recipient T cells recognize donor HLA in two ways. In direct allorecognition, recipient T cells bind intact donor HLA on donor antigen-presenting cells, and a large fraction of T cells cross-react, which explains the intensity of the early response. In indirect allorecognition, recipient antigen-presenting cells process donor HLA peptides and present them on recipient MHC, and this route dominates chronic rejection.",
+    "Rejection is classified by timing and mechanism. Hyperacute rejection occurs within minutes to hours because the recipient has preformed antibodies, from earlier transfusion, pregnancy or transplant, or from ABO incompatibility. Complement activation and thrombosis in graft vessels cause rapid ischemic necrosis. Crossmatching and ABO matching are designed to prevent it. Acute rejection occurs days to months after transplant. Acute cellular rejection is T cell mediated, with lymphocytic infiltrate and tubulitis in a kidney graft, and it responds to increased immunosuppression. Acute antibody-mediated rejection is a type II reaction with donor-specific antibodies, complement deposition (C4d staining) and vascular injury. Chronic rejection develops over months to years and shows graft arteriosclerosis, interstitial fibrosis, and, in kidney grafts, glomerulopathy, bronchiolitis obliterans in lungs, and vasculopathy in hearts. It responds poorly to treatment.",
+    "Matching has several layers. ABO compatibility is required for solid organs in most cases. HLA matching counts most for HLA-A, HLA-B and HLA-DR in kidney transplantation. The crossmatch tests recipient serum against donor cells to detect donor-specific antibodies, and panel reactive antibody testing estimates how broadly sensitized a recipient is. Some sites, including the cornea and brain, are immune privileged, so grafts often succeed without matching.",
+    "Graft-versus-host disease (GVHD) occurs when donor immune cells, mostly in bone marrow or stem cell transplants, attack recipient tissue. It needs an immunocompetent graft, a recipient unable to reject it, and HLA disparity. Acute GVHD typically damages skin (maculopapular rash), liver (cholestasis) and gut (diarrhea), and chronic GVHD resembles scleroderma-like or lupus-like autoimmune disease. A modest graft-versus-leukemia effect is therapeutically useful.",
+    "Immunosuppressants target pathways in T cell activation. Cyclosporine and tacrolimus inhibit calcineurin and so reduce IL-2 transcription, and they cause nephrotoxicity, hypertension and, for tacrolimus, new-onset diabetes. Sirolimus and everolimus inhibit mTOR and block IL-2 signaling. Mycophenolate inhibits inosine monophosphate dehydrogenase, which impairs purine synthesis in proliferating lymphocytes. Azathioprine is a purine analog, and its toxicity is increased by allopurinol and affected by TPMT activity. Corticosteroids reduce cytokine gene expression. Basiliximab blocks CD25, and antithymocyte globulin depletes T cells. Belatacept blocks CD28 costimulation. All raise infection and cancer risk.",
+    "Worked example. A kidney recipient has a rising creatinine 5 months after transplant. Biopsy shows lymphocytic tubulitis without C4d, so acute cellular rejection is likely, and treatment is pulse corticosteroids with consideration of T cell depleting therapy if severe."
+   ]
+  },
+  {
+   "id": "med-immuno.l18",
+   "title": "Tumor Immunology and Immunotherapy",
+   "body": [
+    "The immune system can recognize and eliminate some tumors, a process called immunosurveillance. The more complete concept is cancer immunoediting, with three phases: elimination, in which immune cells destroy transformed cells, equilibrium, in which the tumor is held in check while variants arise, and escape, in which resistant clones grow. Evidence that immunity matters includes the higher cancer risk in people with immunodeficiency or long-term immunosuppression, especially virus-associated cancers and skin cancers, the presence of tumor-infiltrating lymphocytes, and the efficacy of immunotherapy.",
+    "Tumor antigens include tumor-specific neoantigens from mutations, tumor-associated antigens that are overexpressed normal proteins such as HER2, oncofetal antigens (alpha-fetoprotein and carcinoembryonic antigen), cancer-testis antigens, and viral antigens from oncogenic viruses such as HPV and EBV. Neoantigen burden helps explain why tumors with many mutations, such as melanoma and mismatch-repair-deficient cancers, often respond to immunotherapy. Oncofetal antigens are useful as markers for monitoring but not for screening or diagnosis alone.",
+    "Tumors escape in several ways. They downregulate MHC class I or antigen processing machinery, which hides them from CD8 T cells, although this may expose them to NK cells. They express PD-L1, secrete TGF-beta and IL-10, recruit regulatory T cells and myeloid-derived suppressor cells, and lose antigens under selective pressure.",
+    "Immune checkpoint inhibitors release natural brakes on T cells. Ipilimumab blocks CTLA-4. Pembrolizumab and nivolumab block PD-1, and atezolizumab, durvalumab and avelumab block PD-L1. They are used in melanoma, non-small cell lung cancer, renal cell carcinoma, Hodgkin lymphoma and tumors with mismatch repair deficiency, among others. Their characteristic toxicities are immune-related adverse events, including colitis, pneumonitis, hepatitis, dermatitis, and endocrinopathies such as thyroiditis, hypophysitis and adrenal insufficiency. These are managed by holding the drug and giving corticosteroids, and hormone replacement is needed for endocrine failure.",
+    "Other immunotherapies include monoclonal antibodies that mediate antibody-dependent cellular cytotoxicity, such as rituximab against CD20 and trastuzumab against HER2, and bispecific antibodies that link T cells to tumor cells. Chimeric antigen receptor (CAR) T cells are the patient's own T cells engineered to express a receptor combining an antibody-derived binding domain with signaling domains. CD19-directed CAR T cells are used in some B cell leukemias and lymphomas. Toxicities include cytokine release syndrome, with fever and hypotension that may be treated with tocilizumab, neurotoxicity, and prolonged B cell aplasia that requires immunoglobulin replacement. Intravesical BCG for bladder cancer is an older immunotherapy.",
+    "Worked example. A patient on pembrolizumab for lung cancer develops profuse diarrhea and abdominal pain 8 weeks after starting treatment. Immune-related colitis is likely, and infection is excluded while corticosteroids are started."
+   ]
+  },
+  {
+   "id": "med-immuno.l19",
+   "title": "Vaccines and Passive Immunity",
+   "body": [
+    "A vaccine trains adaptive immunity to recognize a pathogen without causing disease, so that memory cells respond rapidly on real exposure. The first (primary) response to an antigen appears after about one to two weeks and is mostly IgM with a modest IgG component. The secondary (anamnestic) response is faster, larger, higher in affinity, and dominated by IgG and, at mucosal sites, IgA, because memory B cells have already undergone switching and affinity maturation.",
+    "Vaccine types differ in their immunology. Live attenuated vaccines, such as measles, mumps, rubella, varicella, yellow fever, rotavirus and the intranasal influenza vaccine, replicate and stimulate strong humoral and cellular responses, often with a single or few doses. They are generally contraindicated in pregnancy and severe immunodeficiency because the vaccine organism could cause disease. Inactivated vaccines (injected polio, hepatitis A, rabies) and subunit, toxoid and recombinant vaccines (hepatitis B surface antigen, tetanus and diphtheria toxoids, human papillomavirus virus-like particles) cannot replicate, so they are safe in immunocompromised people but may need boosters and adjuvants. Polysaccharide vaccines elicit T-independent responses with poor memory and weak responses in young children. Conjugate vaccines link the polysaccharide to a carrier protein, so T helper cells enable class switching and memory, which is the principle behind Haemophilus influenzae type b, pneumococcal conjugate and meningococcal conjugate vaccines. Messenger RNA vaccines deliver nucleic acid encoding an antigen, and adjuvants such as aluminum salts activate innate pathways and promote uptake by antigen-presenting cells.",
+    "Herd immunity occurs when enough of a population is immune that transmission chains break, protecting those who cannot be vaccinated. The threshold depends on how contagious the disease is, so it is higher for measles than for diseases with lower transmissibility. Vaccination policy is contested at the margins of mandates and schedules, but scientific consensus supports the safety and effectiveness of the routine schedules recommended by national advisory bodies, and, as of this writing, the details of schedules should be checked against current official recommendations.",
+    "Passive immunity is the transfer of ready-made antibody. Natural passive immunity comes from maternal IgG across the placenta and IgA in breast milk, and it wanes over months. Artificial passive immunity uses immunoglobulin products such as hepatitis B immune globulin, rabies immune globulin, tetanus immune globulin, and monoclonal antibodies. It gives immediate but temporary protection and no memory. Post-exposure prophylaxis for rabies combines passive antibody and active vaccine because the vaccine takes time to work.",
+    "Worked example. An unvaccinated child has a deep contaminated wound. Tetanus immune globulin provides immediate antitoxin, while tetanus toxoid vaccine starts active immunity at a different injection site, because the toxoid alone would take days to produce protective antibody."
+   ]
+  },
+  {
+   "id": "med-immuno.l20",
+   "title": "Laboratory Methods in Clinical Immunology",
+   "body": [
+    "Immunologic laboratory tests rely on the specificity of antibody-antigen binding, and a good clinician understands what each assay measures and how it can mislead.",
+    "The enzyme-linked immunosorbent assay (ELISA) detects an antigen or antibody in a sample. In a direct or sandwich format, a capture antibody on a plate binds antigen, and a labeled detection antibody gives a color change proportional to the amount present. In an indirect format, antigen on the plate captures patient antibody, which is detected with an enzyme-linked anti-human antibody. ELISA is used for HIV screening, hormone levels and cytokine measurement. False positives can arise from cross-reactivity, and false negatives from the window period or the hook effect, in which extreme antigen excess saturates both antibodies and lowers the signal.",
+    "Flow cytometry labels cells with fluorescent antibodies and measures them one at a time as they pass a laser, so it counts and phenotypes cells by surface markers. It is used for CD4 counts in HIV, to identify leukemia and lymphoma by marker pattern, to detect CD55 and CD59 loss in paroxysmal nocturnal hemoglobinuria, and to run the dihydrorhodamine test for chronic granulomatous disease. Immunofluorescence on tissue sections shows patterns: linear staining along basement membranes in anti-GBM disease, and granular staining in immune complex disease. Immunohistochemistry uses enzyme-labeled antibodies on tissue.",
+    "Blotting methods separate molecules by size. Southern blotting detects DNA, northern blotting detects RNA, and western blotting detects proteins with antibodies. Western blotting has been used to confirm HIV antibody results, though current algorithms use differentiation immunoassays and nucleic acid tests. Polymerase chain reaction amplifies nucleic acid sequences and is used to detect pathogens and to type HLA alleles.",
+    "Serum protein electrophoresis separates proteins by charge and shows a sharp spike in the gamma region when a single plasma cell clone produces a monoclonal protein. Immunofixation identifies the heavy and light chain type, and serum free light chain assays add sensitivity. A polyclonal increase appears as a broad gamma band in chronic inflammation and cirrhosis. Complement tests include C3 and C4 levels and the CH50 total hemolytic complement assay, which screens the classical pathway and terminal components. Low C3 and C4 suggest classical pathway consumption, as in lupus nephritis, and low C3 with normal C4 suggests alternative pathway activation, as in some forms of glomerulonephritis. Absent CH50 with normal C3 and C4 suggests a terminal component defect.",
+    "Transfusion and transplant testing includes ABO and Rh typing, antibody screens (indirect Coombs), and crossmatching. Direct Coombs detects antibody on a patient's own red cells. HLA typing uses PCR-based sequencing methods, and the flow or bead-based crossmatch detects donor-specific antibody. Skin prick and intradermal testing detect IgE sensitization, and patch testing evaluates contact (type IV) allergy. Tryptase measurement after a suspected reaction supports mast cell activation.",
+    "Worked example. A 60-year-old has anemia, back pain and renal failure. Serum protein electrophoresis shows a gamma spike, and immunofixation identifies an IgG kappa band, which fits a plasma cell neoplasm and prompts bone marrow evaluation."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-immuno.l01.q1",
+   "lessonId": "med-immuno.l01",
+   "kind": "mcq",
+   "prompt": "Which feature best distinguishes adaptive from innate immunity?",
+   "choices": [
+    "Immediate activation within minutes of contact with a pathogen",
+    "Dependence on neutrophils as the dominant effector cell type",
+    "Antigen receptors built by somatic gene rearrangement in each clone",
+    "Recognition of conserved microbial patterns by germline-encoded receptors"
+   ]
+  },
+  {
+   "id": "med-immuno.l01.q2",
+   "lessonId": "med-immuno.l01",
+   "kind": "mcq",
+   "prompt": "Which cell is the main link that carries antigen from tissues to lymph nodes to start a T cell response?",
+   "choices": [
+    "Eosinophil that has degranulated near a parasite surface",
+    "Mast cell that has released histamine into local tissue",
+    "Neutrophil that has ingested bacteria at the site of injury",
+    "Dendritic cell that has matured and migrated to the node"
+   ]
+  },
+  {
+   "id": "med-immuno.l01.q3",
+   "lessonId": "med-immuno.l01",
+   "kind": "mcq",
+   "prompt": "A 30-year-old man has a deep puncture wound. Within hours the wound is red and swollen, and neutrophils fill the tissue. Which finding most directly explains why a second exposure years later will yield a faster antibody response?",
+   "choices": [
+    "Persistence of memory B and T cells from the first infection",
+    "Permanent enlargement of the neutrophil pool in the bone marrow",
+    "Retention of pathogen-associated patterns on the endothelial surface",
+    "Increased expression of germline pattern receptors on macrophages"
+   ]
+  },
+  {
+   "id": "med-immuno.l01.q4",
+   "lessonId": "med-immuno.l01",
+   "kind": "mcq",
+   "prompt": "A research team infects mice lacking RAG1 with a virus. Compared with normal mice, which response would still occur normally in the first hours?",
+   "choices": [
+    "Production of virus-specific neutralizing IgG by plasma cells",
+    "Cytokine release from macrophages after sensing viral RNA",
+    "Expansion of virus-specific cytotoxic CD8 T cell clones",
+    "Generation of memory B cells in the splenic follicles"
+   ]
+  },
+  {
+   "id": "med-immuno.l01.q5",
+   "lessonId": "med-immuno.l01",
+   "kind": "mcq",
+   "prompt": "Which feature of natural killer cells and innate lymphoid cells separates them from T and B cells?",
+   "choices": [
+    "Complete dependence on prior exposure to the same antigen",
+    "Development only after birth in response to commensal flora",
+    "Lack of receptors made by somatic gene rearrangement",
+    "Absence of any ability to secrete cytokines after activation"
+   ]
+  },
+  {
+   "id": "med-immuno.l02.q1",
+   "lessonId": "med-immuno.l02",
+   "kind": "mcq",
+   "prompt": "Which complement component is the major opsonin and the central convergence point of all three pathways?",
+   "choices": [
+    "C9 polymerized into a transmembrane pore on membranes",
+    "C3b produced by cleavage of C3 by a convertase enzyme",
+    "C5a produced by cleavage of C5 by the C5 convertase",
+    "C1q that binds immunoglobulin Fc regions on antigen"
+   ]
+  },
+  {
+   "id": "med-immuno.l02.q2",
+   "lessonId": "med-immuno.l02",
+   "kind": "mcq",
+   "prompt": "Which pair correctly matches a complement fragment with its main function?",
+   "choices": [
+    "C5a is a potent neutrophil chemoattractant and anaphylatoxin",
+    "C3b is the main anaphylatoxin that degranulates mast cells",
+    "C1 inhibitor is the major opsonin bound by phagocyte receptors",
+    "C5b-C9 is the main activator of the alternative pathway"
+   ]
+  },
+  {
+   "id": "med-immuno.l02.q3",
+   "lessonId": "med-immuno.l02",
+   "kind": "mcq",
+   "prompt": "A 22-year-old has had two episodes of meningococcal meningitis. CH50 is nearly absent, while C3 and C4 levels are normal. Which deficiency is most likely?",
+   "choices": [
+    "Deficiency of the early classical component C4 itself",
+    "Deficiency of C3 causing failure of all opsonization",
+    "Deficiency of decay-accelerating factor on red cells",
+    "Deficiency of a late component such as C7 or C8"
+   ]
+  },
+  {
+   "id": "med-immuno.l02.q4",
+   "lessonId": "med-immuno.l02",
+   "kind": "mcq",
+   "prompt": "A 28-year-old has recurrent episodes of facial and laryngeal swelling without urticaria or itching. C4 is low between attacks, and antihistamines and steroids do not help. Which mechanism underlies the attacks?",
+   "choices": [
+    "Immune complex deposition in postcapillary venules of the skin",
+    "Excess C5a generation from loss of CD59 on endothelial cells",
+    "Unchecked bradykinin from loss of C1 inhibitor activity",
+    "Mast cell degranulation triggered by IgE cross-linking of FcεRI"
+   ]
+  },
+  {
+   "id": "med-immuno.l02.q5",
+   "lessonId": "med-immuno.l02",
+   "kind": "mcq",
+   "prompt": "A 35-year-old has episodic dark morning urine, anemia and venous thrombosis. Flow cytometry shows red cells lacking CD55 and CD59. Treatment with a C5 inhibitor is started. Which risk must be addressed beforehand?",
+   "choices": [
+    "Vaccination against hepatitis B before therapy begins",
+    "Vaccination against Neisseria meningitidis before therapy begins",
+    "Prophylaxis against Pneumocystis jirovecii before therapy begins",
+    "Screening for latent tuberculosis before therapy begins"
+   ]
+  },
+  {
+   "id": "med-immuno.l03.q1",
+   "lessonId": "med-immuno.l03",
+   "kind": "mcq",
+   "prompt": "Which molecule on neutrophils binds ICAM-1 on endothelium during firm adhesion?",
+   "choices": [
+    "Integrins such as LFA-1 and Mac-1 on the neutrophil surface",
+    "Selectin ligands such as sialyl Lewis X on the neutrophil",
+    "Chemokine receptors such as CXCR2 for interleukin 8 binding",
+    "Fc receptors such as CD16 that bind IgG on opsonized cells"
+   ]
+  },
+  {
+   "id": "med-immuno.l03.q2",
+   "lessonId": "med-immuno.l03",
+   "kind": "mcq",
+   "prompt": "Which cytokine is the principal inducer of hepatic acute-phase proteins such as C-reactive protein?",
+   "choices": [
+    "Interleukin 2 acting on T cells to promote clonal expansion",
+    "Interleukin 6 acting on hepatocytes via gp130 signaling",
+    "Interferon gamma acting on macrophages via STAT1 signaling",
+    "Interleukin 4 acting on B cells to switch to IgE secretion"
+   ]
+  },
+  {
+   "id": "med-immuno.l03.q3",
+   "lessonId": "med-immuno.l03",
+   "kind": "mcq",
+   "prompt": "A newborn has delayed umbilical cord separation, recurrent skin infections without pus and a neutrophil count of 40,000/µL. Which defect is most likely?",
+   "choices": [
+    "Absence of lysosomal trafficking regulator in granules",
+    "Absence of sialyl Lewis X expression on endothelium",
+    "Absence of the CD18 integrin subunit on leukocytes",
+    "Absence of NADPH oxidase activity in phagocytes"
+   ]
+  },
+  {
+   "id": "med-immuno.l03.q4",
+   "lessonId": "med-immuno.l03",
+   "kind": "mcq",
+   "prompt": "A 5-year-old boy has recurrent lymphadenitis and a liver abscess from Staphylococcus aureus. Dihydrorhodamine oxidation is absent after stimulation. Which organism would be least likely to cause infection in this child?",
+   "choices": [
+    "Aspergillus fumigatus that produces its own catalase enzyme",
+    "Burkholderia cepacia that produces its own catalase enzyme",
+    "Serratia marcescens that produces its own catalase enzyme",
+    "Streptococcus pneumoniae that produces no catalase of its own"
+   ]
+  },
+  {
+   "id": "med-immuno.l03.q5",
+   "lessonId": "med-immuno.l03",
+   "kind": "mcq",
+   "prompt": "Why is the erythrocyte sedimentation rate elevated in systemic inflammation?",
+   "choices": [
+    "Fibrinogen promotes stacking of red cells so they settle faster",
+    "Increased albumin coats red cells and increases their buoyancy",
+    "Hepcidin binds the red cell surface and induces its aggregation",
+    "Elevated erythropoietin produces larger and heavier red cells"
+   ]
+  },
+  {
+   "id": "med-immuno.l04.q1",
+   "lessonId": "med-immuno.l04",
+   "kind": "mcq",
+   "prompt": "Which Toll-like receptor recognizes bacterial lipopolysaccharide?",
+   "choices": [
+    "TLR3 located within endosomes and detecting dsRNA",
+    "TLR9 located within endosomes and detecting CpG DNA",
+    "TLR5 located at the surface and detecting flagellin",
+    "TLR4 with MD-2 and CD14 at the cell surface"
+   ]
+  },
+  {
+   "id": "med-immuno.l04.q2",
+   "lessonId": "med-immuno.l04",
+   "kind": "mcq",
+   "prompt": "Which enzyme is activated by the NLRP3 inflammasome to process pro-IL-1 beta into its active form?",
+   "choices": [
+    "Caspase-9 which initiates the mitochondrial apoptotic path",
+    "Caspase-8 which transmits signals from death receptors",
+    "Caspase-1 which cleaves pro-IL-1 beta and pro-IL-18",
+    "Caspase-3 which executes apoptosis by cleaving substrates"
+   ]
+  },
+  {
+   "id": "med-immuno.l04.q3",
+   "lessonId": "med-immuno.l04",
+   "kind": "mcq",
+   "prompt": "A virus infects hepatocytes and sharply reduces surface MHC class I. CD8 T cell recognition falls. Which innate mechanism is most likely to detect and kill these cells?",
+   "choices": [
+    "Mast cell degranulation due to cross-linking of surface FcεRI",
+    "NK cell activation due to loss of inhibitory self MHC class I signals",
+    "Complement lysis due to binding of C1q to viral surface proteins",
+    "Neutrophil phagocytosis due to opsonization with IgE antibodies"
+   ]
+  },
+  {
+   "id": "med-immuno.l04.q4",
+   "lessonId": "med-immuno.l04",
+   "kind": "mcq",
+   "prompt": "A child has recurrent fever, rash and joint pain from infancy. Serum IL-1 beta is high, and genetic testing shows a gain-of-function variant in an inflammasome component. Which therapy targets the dysregulated pathway?",
+   "choices": [
+    "Anakinra, an antagonist of the interleukin 1 receptor",
+    "Eculizumab, an antibody against the complement C5 protein",
+    "Omalizumab, an antibody against circulating IgE molecules",
+    "Abatacept, a CTLA-4 fusion that blocks costimulation"
+   ]
+  },
+  {
+   "id": "med-immuno.l04.q5",
+   "lessonId": "med-immuno.l04",
+   "kind": "mcq",
+   "prompt": "A patient with a nonsense mutation in MyD88 has severe recurrent pyogenic infections in childhood. Which signaling step is impaired in this patient?",
+   "choices": [
+    "STAT1 phosphorylation downstream of the interferon gamma receptor",
+    "Calcium flux downstream of the T cell receptor complex",
+    "JAK3 activation downstream of the common gamma chain",
+    "NF-kappa B activation downstream of most Toll-like receptors"
+   ]
+  },
+  {
+   "id": "med-immuno.l05.q1",
+   "lessonId": "med-immuno.l05",
+   "kind": "mcq",
+   "prompt": "Which cells express MHC class II molecules under normal conditions?",
+   "choices": [
+    "Erythrocytes, platelets and plasma cells that circulate widely",
+    "Cardiac myocytes, adipocytes and keratinocytes in resting tissue",
+    "Dendritic cells, macrophages and B cells that present antigen",
+    "Hepatocytes, neurons and fibroblasts that are nucleated cells"
+   ]
+  },
+  {
+   "id": "med-immuno.l05.q2",
+   "lessonId": "med-immuno.l05",
+   "kind": "mcq",
+   "prompt": "Which step is specific to loading peptides onto MHC class II molecules?",
+   "choices": [
+    "Transport of cytosolic peptides into the ER by the TAP transporter",
+    "Pairing of the heavy chain with beta-2 microglobulin in the ER",
+    "Trimming of peptides by the proteasome before ER entry",
+    "Exchange of the CLIP fragment for peptide by HLA-DM in the endosome"
+   ]
+  },
+  {
+   "id": "med-immuno.l05.q3",
+   "lessonId": "med-immuno.l05",
+   "kind": "mcq",
+   "prompt": "A virus-infected cell fails to express surface MHC class I, and peptide loading is defective. Cytosolic peptides are present at normal levels. Which defect best explains this?",
+   "choices": [
+    "Loss of TAP so peptides cannot enter the endoplasmic reticulum",
+    "Loss of HLA-DM function so CLIP cannot be removed in endosomes",
+    "Loss of the invariant chain so class II grooves remain unblocked",
+    "Loss of CD4 expression on helper cells that recognize class II"
+   ]
+  },
+  {
+   "id": "med-immuno.l05.q4",
+   "lessonId": "med-immuno.l05",
+   "kind": "mcq",
+   "prompt": "A 24-year-old man has low back pain and morning stiffness for 6 months, with sacroiliac joint inflammation on imaging. Which HLA allele is most strongly associated with his condition?",
+   "choices": [
+    "HLA-DR4, which is a class II allele linked to joint erosions",
+    "HLA-B27, which is a class I allele and a risk modifier",
+    "HLA-DR3, which is a class II allele linked to thyroid disease",
+    "HLA-DQ2, which is a class II allele linked to celiac disease"
+   ]
+  },
+  {
+   "id": "med-immuno.l05.q5",
+   "lessonId": "med-immuno.l05",
+   "kind": "mcq",
+   "prompt": "A 20-year-old woman has fever, diffuse erythroderma, hypotension and multiorgan dysfunction while using a tampon. Which mechanism explains the massive cytokine release?",
+   "choices": [
+    "Toxin blocking TAP so that class I molecules lose their peptide cargo",
+    "Toxin cleaving the invariant chain so class II is loaded with self peptides",
+    "Toxin cross-linking class II with the TCR beta chain outside the groove",
+    "Toxin binding class I and delivering a peptide to CD8 cells for killing"
+   ]
+  },
+  {
+   "id": "med-immuno.l06.q1",
+   "lessonId": "med-immuno.l06",
+   "kind": "mcq",
+   "prompt": "Which enzymes carry out V(D)J recombination in developing lymphocytes?",
+   "choices": [
+    "Calcineurin and NFAT that activate interleukin 2 transcription",
+    "RAG1 and RAG2 recombinases that cut gene segments for joining",
+    "AID and uracil glycosylase that deaminate cytidine residues",
+    "BTK and ZAP-70 kinases that phosphorylate signaling adaptors"
+   ]
+  },
+  {
+   "id": "med-immuno.l06.q2",
+   "lessonId": "med-immuno.l06",
+   "kind": "mcq",
+   "prompt": "What is the outcome for a double-positive thymocyte whose TCR cannot bind self MHC at all?",
+   "choices": [
+    "Death by neglect in the cortex because survival signals are absent",
+    "Clonal deletion in the medulla because self binding is too strong",
+    "Differentiation into regulatory T cells expressing the FOXP3 factor",
+    "Export to the periphery in an anergic state without costimulation"
+   ]
+  },
+  {
+   "id": "med-immuno.l06.q3",
+   "lessonId": "med-immuno.l06",
+   "kind": "mcq",
+   "prompt": "A 3-year-old with chronic mucocutaneous candidiasis develops hypoparathyroidism and adrenal insufficiency. The child has autoantibodies to several endocrine tissues. Which defect best explains the disease?",
+   "choices": [
+    "Failure of FOXP3 expression so regulatory T cells do not develop at all",
+    "Failure of RAG function so lymphocytes cannot rearrange receptor genes",
+    "Failure of the pre-TCR so beta chain rearrangement cannot be tested",
+    "Failure of AIRE-driven tissue antigen display in thymic epithelium"
+   ]
+  },
+  {
+   "id": "med-immuno.l06.q4",
+   "lessonId": "med-immuno.l06",
+   "kind": "mcq",
+   "prompt": "A newborn has a conotruncal heart defect, tetany with low calcium, and a very small thymic shadow. Which finding is most likely on further testing?",
+   "choices": [
+    "Mutation in BTK with absent B cells and very low immunoglobulin levels",
+    "Mutation in CD40 ligand with normal IgM and absent germinal centers",
+    "Deletion at 22q11.2 with low T cell counts and normal B cell counts",
+    "Deletion at chromosome 7q11.23 with elastin loss and supravalvular stenosis"
+   ]
+  },
+  {
+   "id": "med-immuno.l06.q5",
+   "lessonId": "med-immuno.l06",
+   "kind": "mcq",
+   "prompt": "An infant has absent T cells and B cells, recurrent infections and failure to thrive. Genetic testing finds a null mutation in RAG1. Which feature would be expected on the immunologic work-up?",
+   "choices": [
+    "Normal T and B cell numbers with defective phagocyte killing assays",
+    "Very low or absent T and B cells with NK cells present",
+    "Very low or absent T and NK cells with a normal B cell population",
+    "Normal T cell numbers with absent B cells and absent immunoglobulins"
+   ]
+  },
+  {
+   "id": "med-immuno.l07.q1",
+   "lessonId": "med-immuno.l07",
+   "kind": "mcq",
+   "prompt": "Which receptor-ligand pair provides the classic second signal for naive T cell activation?",
+   "choices": [
+    "CD28 on the T cell binding B7 on the antigen-presenting cell",
+    "CD4 on the T cell binding MHC class II on the presenting cell",
+    "CD40 on the B cell binding CD40 ligand on the T cell",
+    "PD-1 on the T cell binding PD-L1 on the presenting cell"
+   ]
+  },
+  {
+   "id": "med-immuno.l07.q2",
+   "lessonId": "med-immuno.l07",
+   "kind": "mcq",
+   "prompt": "Which Th subset and transcription factor drive IgE class switching and eosinophil recruitment?",
+   "choices": [
+    "Treg cells, which depend on the transcription factor FOXP3",
+    "Th2 cells, which depend on the transcription factor GATA3",
+    "Th1 cells, which depend on the transcription factor T-bet",
+    "Th17 cells, which depend on the transcription factor RORgamma-t"
+   ]
+  },
+  {
+   "id": "med-immuno.l07.q3",
+   "lessonId": "med-immuno.l07",
+   "kind": "mcq",
+   "prompt": "A 6-month-old develops disseminated infection with BCG after vaccination. IFN-gamma levels are low and a mutation in the IL-12 receptor beta-1 chain is found. Which process is most directly impaired?",
+   "choices": [
+    "Class switching to IgE in germinal center B cell populations",
+    "Neutrophil recruitment by Th17 cytokines at mucosal surfaces",
+    "Th1 differentiation and macrophage activation against mycobacteria",
+    "Th2 differentiation and eosinophil activation against helminths"
+   ]
+  },
+  {
+   "id": "med-immuno.l07.q4",
+   "lessonId": "med-immuno.l07",
+   "kind": "mcq",
+   "prompt": "A patient with metastatic melanoma is given an antibody that blocks CTLA-4. Which immunologic effect most directly explains the antitumor action?",
+   "choices": [
+    "Direct lysis of tumor cells by complement bound to the antibody",
+    "Depletion of CD8 T cells that have become exhausted in tumors",
+    "Blockade of tumor PD-L1 so effector function is restored in tissue",
+    "Greater CD28 access to B7 so that T cell priming is enhanced"
+   ]
+  },
+  {
+   "id": "med-immuno.l07.q5",
+   "lessonId": "med-immuno.l07",
+   "kind": "mcq",
+   "prompt": "A culture of naive CD4 T cells is stimulated in the presence of IL-12 and IFN-gamma. Which result is expected?",
+   "choices": [
+    "T-bet expression and IFN-gamma secretion by the differentiating cells",
+    "GATA3 expression and IL-4 secretion by the differentiating cells",
+    "BCL6 expression and IL-21 secretion by the differentiating cells",
+    "RORgamma-t expression and IL-17 secretion by the differentiating cells"
+   ]
+  },
+  {
+   "id": "med-immuno.l08.q1",
+   "lessonId": "med-immuno.l08",
+   "kind": "mcq",
+   "prompt": "Which immunoglobulin isotype crosses the placenta?",
+   "choices": [
+    "IgM, through the polymeric immunoglobulin receptor",
+    "IgA, through the secretory component in epithelial cells",
+    "IgE, through the high-affinity receptor on mast cells",
+    "IgG, through the neonatal Fc receptor on the placenta"
+   ]
+  },
+  {
+   "id": "med-immuno.l08.q2",
+   "lessonId": "med-immuno.l08",
+   "kind": "mcq",
+   "prompt": "Which enzyme is required for both somatic hypermutation and class switch recombination?",
+   "choices": [
+    "Bruton tyrosine kinase in developing pre-B cells in marrow",
+    "Recombination-activating gene products in developing thymocytes",
+    "Activation-induced cytidine deaminase in germinal center B cells",
+    "Terminal deoxynucleotidyl transferase in developing lymphocytes"
+   ]
+  },
+  {
+   "id": "med-immuno.l08.q3",
+   "lessonId": "med-immuno.l08",
+   "kind": "mcq",
+   "prompt": "A 4-year-old boy has recurrent pyogenic sinopulmonary infections. IgM is normal, IgG, IgA and IgE are very low, and lymph nodes lack germinal centers. Which defect is most likely?",
+   "choices": [
+    "A mutation in NADPH oxidase that prevents phagocyte killing activity",
+    "A CD40 ligand mutation on helper T cells impairing class switching",
+    "A mutation in BTK that blocks development at the pre-B cell stage",
+    "A mutation in the common gamma chain causing absent T and NK cells"
+   ]
+  },
+  {
+   "id": "med-immuno.l08.q4",
+   "lessonId": "med-immuno.l08",
+   "kind": "mcq",
+   "prompt": "A 1-year-old with a polysaccharide capsule infection has poor antibody responses to the plain polysaccharide vaccine but responds well to a protein-conjugated version. What explains the improved response?",
+   "choices": [
+    "Conjugation recruits T helper cells so B cells class switch",
+    "Conjugation increases complement activation by IgM against the capsule",
+    "Conjugation lets the polysaccharide bind MHC class I on infected cells",
+    "Conjugation prevents Toll-like receptor binding of the capsule antigen"
+   ]
+  },
+  {
+   "id": "med-immuno.l08.q5",
+   "lessonId": "med-immuno.l08",
+   "kind": "mcq",
+   "prompt": "Which feature explains why IgA is effective at mucosal surfaces?",
+   "choices": [
+    "It is a pentamer that fixes complement at very low concentrations",
+    "It is a monomer that binds mast cells to trigger degranulation",
+    "It is a monomer that crosses the placenta by the neonatal Fc receptor",
+    "It is a dimer carried across epithelium by the polymeric Ig receptor"
+   ]
+  },
+  {
+   "id": "med-immuno.l09.q1",
+   "lessonId": "med-immuno.l09",
+   "kind": "mcq",
+   "prompt": "Which signaling pathway is used by the common gamma chain cytokine receptors?",
+   "choices": [
+    "Bruton tyrosine kinase phosphorylating phospholipase C gamma",
+    "Calcineurin dephosphorylating NFAT within the cytoplasm",
+    "JAK3 phosphorylating STAT proteins that move to the nucleus",
+    "Lck and ZAP-70 phosphorylating CD3 immunoreceptor motifs"
+   ]
+  },
+  {
+   "id": "med-immuno.l09.q2",
+   "lessonId": "med-immuno.l09",
+   "kind": "mcq",
+   "prompt": "Which cytokine is most responsible for maintaining granuloma integrity against intracellular infection?",
+   "choices": [
+    "IL-5, produced by Th2 cells that recruit eosinophils",
+    "IL-17, produced by Th17 cells that recruit neutrophils",
+    "IL-10, produced by regulatory T cells that dampen responses",
+    "TNF-alpha, produced by activated macrophages and T cells"
+   ]
+  },
+  {
+   "id": "med-immuno.l09.q3",
+   "lessonId": "med-immuno.l09",
+   "kind": "mcq",
+   "prompt": "A 45-year-old with rheumatoid arthritis begins a monoclonal antibody against TNF-alpha. Three months later she has fever, weight loss and an upper lobe cavity. Which preventive step would most likely have lowered this risk?",
+   "choices": [
+    "Screening for latent tuberculosis infection before treatment began",
+    "Measuring serum IgE concentration before treatment began",
+    "Typing the HLA-B allele before the first dose was given",
+    "Checking CH50 complement activity before treatment began"
+   ]
+  },
+  {
+   "id": "med-immuno.l09.q4",
+   "lessonId": "med-immuno.l09",
+   "kind": "mcq",
+   "prompt": "A 7-month-old has persistent thrush, chronic diarrhea and failure to thrive. Flow cytometry shows absent T and NK cells and normal B cell counts. Sequencing shows a mutation in JAK3. Which statement best explains the finding?",
+   "choices": [
+    "Receptors for IL-4 and IL-13 alone cannot signal, impairing only IgE switching",
+    "Receptors for IL-2, IL-7 and IL-15 cannot signal, impairing T and NK development",
+    "Receptors for IL-12 and IFN-gamma cannot signal, impairing macrophage activation",
+    "Receptors for IL-1 and TNF cannot signal, impairing acute-phase responses"
+   ]
+  },
+  {
+   "id": "med-immuno.l09.q5",
+   "lessonId": "med-immuno.l09",
+   "kind": "mcq",
+   "prompt": "A 38-year-old with severe eosinophilic asthma, with frequent exacerbations, is started on a biologic that blocks the IL-5 pathway. Which change would most likely follow?",
+   "choices": [
+    "A fall in neutrophil counts that increases bacterial infection risk",
+    "A fall in IFN-gamma that predisposes to mycobacterial infection",
+    "A fall in blood and tissue eosinophil counts that reduces exacerbations",
+    "A fall in serum IgE concentration that prevents mast cell sensitization"
+   ]
+  },
+  {
+   "id": "med-immuno.l10.q1",
+   "lessonId": "med-immuno.l10",
+   "kind": "mcq",
+   "prompt": "What is the role of AIRE in tolerance?",
+   "choices": [
+    "It drives medullary expression of tissue-restricted self antigens",
+    "It drives development of regulatory T cells through FOXP3 expression",
+    "It mediates apoptosis of lymphocytes through Fas ligand binding",
+    "It mediates receptor editing of light chains in immature B cells"
+   ]
+  },
+  {
+   "id": "med-immuno.l10.q2",
+   "lessonId": "med-immuno.l10",
+   "kind": "mcq",
+   "prompt": "An immature B cell in bone marrow binds a multivalent self antigen strongly. Which first response is typical?",
+   "choices": [
+    "Class switching to IgE to neutralize the antigen in tissues",
+    "Receptor editing by new light chain rearrangement to change specificity",
+    "Differentiation into plasma cells that secrete large amounts of IgG",
+    "Migration to germinal centers for somatic hypermutation and selection"
+   ]
+  },
+  {
+   "id": "med-immuno.l10.q3",
+   "lessonId": "med-immuno.l10",
+   "kind": "mcq",
+   "prompt": "A male infant has intractable watery diarrhea, eczema and early insulin-dependent diabetes. Which abnormality is most likely?",
+   "choices": [
+    "Mutation in Fas causing impaired activation-induced cell death",
+    "Mutation in CD40 ligand causing impaired class switching",
+    "Mutation in FOXP3 causing absent regulatory T cell function",
+    "Mutation in AIRE causing failed thymic display of self antigen"
+   ]
+  },
+  {
+   "id": "med-immuno.l10.q4",
+   "lessonId": "med-immuno.l10",
+   "kind": "mcq",
+   "prompt": "A 9-year-old has persistent lymphadenopathy and splenomegaly with autoimmune hemolytic anemia and thrombocytopenia. Lymphocyte counts are elevated with unusual double-negative T cells. Which pathway is most likely defective?",
+   "choices": [
+    "AIRE-mediated expression of antigens in thymic medullary cells",
+    "FOXP3-mediated suppression by regulatory T cells in tissues",
+    "CTLA-4 competition with CD28 for B7 ligands on presenting cells",
+    "Fas-mediated apoptosis that normally deletes activated lymphocytes"
+   ]
+  },
+  {
+   "id": "med-immuno.l10.q5",
+   "lessonId": "med-immuno.l10",
+   "kind": "mcq",
+   "prompt": "A 12-year-old develops fever, migratory arthritis and a new heart murmur 3 weeks after untreated streptococcal pharyngitis. Which mechanism best explains the cardiac injury?",
+   "choices": [
+    "Antibodies to streptococcal M protein cross-reacting with the heart",
+    "Superantigen activation of T cells causing a cytokine storm in the heart",
+    "Direct bacterial invasion of the myocardium causing suppurative damage",
+    "Immune complexes of streptococcal antigen depositing in glomeruli"
+   ]
+  },
+  {
+   "id": "med-immuno.l11.q1",
+   "lessonId": "med-immuno.l11",
+   "kind": "mcq",
+   "prompt": "Which mediator is preformed in mast cell granules and responsible for early vasodilation in anaphylaxis?",
+   "choices": [
+    "Major basic protein released from degranulating eosinophils",
+    "Histamine released within minutes of IgE cross-linking",
+    "Leukotriene C4 synthesized from membrane arachidonic acid",
+    "Interleukin 5 secreted by Th2 cells over several hours"
+   ]
+  },
+  {
+   "id": "med-immuno.l11.q2",
+   "lessonId": "med-immuno.l11",
+   "kind": "mcq",
+   "prompt": "Which test uses a patient's serum to detect free antibody that binds reagent red cells?",
+   "choices": [
+    "Indirect Coombs test used in prenatal and transfusion screening",
+    "Direct Coombs test used in evaluation of autoimmune hemolysis",
+    "Tuberculin skin test used in assessment of latent infection",
+    "Skin prick test used in assessment of IgE-mediated allergy"
+   ]
+  },
+  {
+   "id": "med-immuno.l11.q3",
+   "lessonId": "med-immuno.l11",
+   "kind": "mcq",
+   "prompt": "A 19-year-old develops urticaria, wheeze and hypotension 10 minutes after eating a shrimp dish. Which immediate treatment is correct, and which mediator drives the event?",
+   "choices": [
+    "Intravenous antihistamine alone, with IgG-mediated complement activation",
+    "Oral corticosteroid alone, with T cell mediated cytokine release",
+    "Subcutaneous omalizumab, with deposition of immune complexes",
+    "Intramuscular epinephrine, with histamine from IgE-activated mast cells"
+   ]
+  },
+  {
+   "id": "med-immuno.l11.q4",
+   "lessonId": "med-immuno.l11",
+   "kind": "mcq",
+   "prompt": "A 26-year-old has hemoptysis and hematuria. Biopsy of the kidney shows crescentic glomerulonephritis with linear IgG deposition along the basement membrane. Which target antigen is most likely involved?",
+   "choices": [
+    "The acetylcholine receptor at the neuromuscular junction",
+    "The TSH receptor on thyroid follicular epithelial cells",
+    "The alpha-3 chain of type IV collagen in basement membranes",
+    "Desmoglein 3 in the intercellular junctions of keratinocytes"
+   ]
+  },
+  {
+   "id": "med-immuno.l11.q5",
+   "lessonId": "med-immuno.l11",
+   "kind": "mcq",
+   "prompt": "A newborn develops jaundice within 24 hours of birth, with anemia and a positive direct Coombs test. The mother is Rh D negative, and this is her second pregnancy. Which mechanism explains the neonatal hemolysis?",
+   "choices": [
+    "Fetal immune complexes depositing in the glomeruli and causing hemolysis",
+    "Maternal IgG against fetal Rh D antigen crossing the placenta and coating cells",
+    "Maternal IgM against fetal Rh D antigen crossing the placenta and coating cells",
+    "Fetal T cells attacking maternal red cells that enter the fetal circulation"
+   ]
+  },
+  {
+   "id": "med-immuno.l12.q1",
+   "lessonId": "med-immuno.l12",
+   "kind": "mcq",
+   "prompt": "Which feature characterizes a type IV hypersensitivity reaction?",
+   "choices": [
+    "Immune complex deposition appearing 1 to 2 weeks after exposure",
+    "Antibody mediated cell lysis appearing within hours of exposure",
+    "T cell mediated injury appearing 48 to 72 hours after exposure",
+    "IgE mediated degranulation appearing within minutes of exposure"
+   ]
+  },
+  {
+   "id": "med-immuno.l12.q2",
+   "lessonId": "med-immuno.l12",
+   "kind": "mcq",
+   "prompt": "Which finding best supports active type III hypersensitivity in lupus nephritis?",
+   "choices": [
+    "High serum C3 and C4 with linear IgG along basement membranes",
+    "Eosinophilia with elevated total IgE and positive skin prick tests",
+    "Positive tuberculin test with granulomas and caseating necrosis",
+    "Low serum C3 and C4 with granular immune deposits in glomeruli"
+   ]
+  },
+  {
+   "id": "med-immuno.l12.q3",
+   "lessonId": "med-immuno.l12",
+   "kind": "mcq",
+   "prompt": "A 35-year-old receives equine antithymocyte globulin. Ten days later she has fever, rash, joint pain and low serum C3. Which process explains these findings?",
+   "choices": [
+    "Circulating immune complexes that deposit and activate complement",
+    "IgE cross-linking on mast cells causing rapid release of histamine",
+    "CD8 T cell killing of keratinocytes after hapten presentation",
+    "Antibody binding to red cell surface antigens causing hemolysis"
+   ]
+  },
+  {
+   "id": "med-immuno.l12.q4",
+   "lessonId": "med-immuno.l12",
+   "kind": "mcq",
+   "prompt": "A 28-year-old nurse develops a pruritic, vesicular eruption on her hands 2 days after beginning use of a new glove type. Patch testing is positive for a rubber additive. Which cell type mediates the reaction?",
+   "choices": [
+    "Plasma cells secreting IgG against basement membrane antigens",
+    "Sensitized T cells reacting to a hapten bound to skin proteins",
+    "Mast cells carrying IgE specific for the rubber additive",
+    "Neutrophils responding to deposited immune complexes in dermis"
+   ]
+  },
+  {
+   "id": "med-immuno.l12.q5",
+   "lessonId": "med-immuno.l12",
+   "kind": "mcq",
+   "prompt": "A 40-year-old immigrant from a country with routine BCG vaccination has a 12 mm tuberculin skin test induration, with no symptoms and a normal chest film. Which test best clarifies whether the result reflects infection rather than vaccination?",
+   "choices": [
+    "Serum total IgE assay, which measures mast cell sensitization",
+    "Repeat tuberculin skin test, which boosts a waning memory response",
+    "Interferon-gamma release assay, which is not affected by BCG vaccination",
+    "Direct Coombs test, which detects antibody on circulating red cells"
+   ]
+  },
+  {
+   "id": "med-immuno.l13.q1",
+   "lessonId": "med-immuno.l13",
+   "kind": "mcq",
+   "prompt": "Which autoantibody is most specific for systemic lupus erythematosus?",
+   "choices": [
+    "Anti-centromere, which is typical of the limited scleroderma form",
+    "Anti-mitochondrial, which is typical of primary biliary cholangitis",
+    "Anti-Jo-1, which is typical of the antisynthetase syndrome",
+    "Anti-double-stranded DNA, which also tracks with nephritis activity"
+   ]
+  },
+  {
+   "id": "med-immuno.l13.q2",
+   "lessonId": "med-immuno.l13",
+   "kind": "mcq",
+   "prompt": "Which pairing of autoantibody and disease is correct?",
+   "choices": [
+    "Anti-topoisomerase I in limited cutaneous systemic sclerosis",
+    "Anti-histone antibodies in primary Sjogren syndrome",
+    "c-ANCA against proteinase 3 in granulomatosis with polyangiitis",
+    "p-ANCA against myeloperoxidase in granulomatosis with polyangiitis"
+   ]
+  },
+  {
+   "id": "med-immuno.l13.q3",
+   "lessonId": "med-immuno.l13",
+   "kind": "mcq",
+   "prompt": "A 52-year-old woman with fatigue and pruritus has elevated alkaline phosphatase and a normal bile duct on ultrasound. Which autoantibody is most likely positive?",
+   "choices": [
+    "Anti-parietal cell antibody directed against gastric proton pumps",
+    "Anti-mitochondrial antibody directed against pyruvate dehydrogenase",
+    "Anti-smooth muscle antibody directed against actin filaments",
+    "Anti-tissue transglutaminase antibody directed against gluten complexes"
+   ]
+  },
+  {
+   "id": "med-immuno.l13.q4",
+   "lessonId": "med-immuno.l13",
+   "kind": "mcq",
+   "prompt": "A 28-year-old woman with lupus is pregnant. Her baby is born with a heart rate of 55 beats per minute and complete heart block. Which maternal antibody is most likely responsible?",
+   "choices": [
+    "Anti-SSA (Ro) antibody crossing the placenta to the fetal heart",
+    "Anti-Smith antibody crossing the placenta to the fetal conduction system",
+    "Anti-histone antibody crossing the placenta to the fetal conduction system",
+    "Anti-dsDNA antibody crossing the placenta to the fetal glomeruli"
+   ]
+  },
+  {
+   "id": "med-immuno.l13.q5",
+   "lessonId": "med-immuno.l13",
+   "kind": "mcq",
+   "prompt": "A 31-year-old woman has heat intolerance, weight loss, a diffuse goiter and exophthalmos. Which mechanism explains the hyperthyroidism?",
+   "choices": [
+    "Antibodies that block the TSH receptor on follicular cells",
+    "Cytotoxic T cell destruction of follicular cells with fibrosis",
+    "Antibodies that bind thyroid peroxidase and lyse thyroid cells",
+    "Antibodies that activate the TSH receptor on follicular cells"
+   ]
+  },
+  {
+   "id": "med-immuno.l14.q1",
+   "lessonId": "med-immuno.l14",
+   "kind": "mcq",
+   "prompt": "Which gene is mutated in X-linked agammaglobulinemia?",
+   "choices": [
+    "BTK, the gene for Bruton tyrosine kinase in pre-B cell signaling",
+    "CD40LG, the gene for the ligand needed for B cell class switching",
+    "IL2RG, the gene for the common cytokine receptor gamma chain",
+    "WAS, the gene for the actin regulating protein in hematopoietic cells"
+   ]
+  },
+  {
+   "id": "med-immuno.l14.q2",
+   "lessonId": "med-immuno.l14",
+   "kind": "mcq",
+   "prompt": "Which complication is a recognized risk of selective IgA deficiency?",
+   "choices": [
+    "Recurrent Neisseria infection from absence of terminal complement",
+    "Anaphylaxis after transfusion of blood products that contain IgA",
+    "Severe disseminated infection after live attenuated virus vaccines",
+    "Recurrent mycobacterial infection from a defect in IFN-gamma signaling"
+   ]
+  },
+  {
+   "id": "med-immuno.l14.q3",
+   "lessonId": "med-immuno.l14",
+   "kind": "mcq",
+   "prompt": "A 9-month-old boy has three episodes of pneumococcal otitis media and pneumonia. Tonsils are not visible, CD19 positive cells are absent, and all immunoglobulin classes are very low. Which statement is correct?",
+   "choices": [
+    "Treatment centers on interferon gamma given to restore macrophages",
+    "Treatment centers on enzyme replacement to lower toxic metabolites",
+    "Lifelong immunoglobulin replacement is the mainstay of treatment",
+    "Treatment centers on stem cell transplantation in the first month"
+   ]
+  },
+  {
+   "id": "med-immuno.l14.q4",
+   "lessonId": "med-immuno.l14",
+   "kind": "mcq",
+   "prompt": "A 26-year-old has recurrent sinusitis and pneumonia, chronic diarrhea with Giardia, and immune thrombocytopenia. IgG and IgA are low, and vaccine responses are poor. B cell numbers are normal. Which diagnosis is most likely?",
+   "choices": [
+    "X-linked agammaglobulinemia, a disorder of pre-B cells",
+    "Selective IgA deficiency, an isolated IgA disorder",
+    "Transient hypogammaglobulinemia, a disorder of infancy",
+    "Common variable immunodeficiency, a diagnosis of exclusion"
+   ]
+  },
+  {
+   "id": "med-immuno.l14.q5",
+   "lessonId": "med-immuno.l14",
+   "kind": "mcq",
+   "prompt": "A 3-year-old boy has pneumonia from Pneumocystis jirovecii, normal IgM and very low IgG, IgA and IgE. Which pathogenic mechanism is most likely?",
+   "choices": [
+    "T cell CD40 ligand deficiency impairing switching and macrophage help",
+    "Absent BTK activity preventing B cell development in the bone marrow",
+    "Absent NADPH oxidase preventing the respiratory burst in neutrophils",
+    "Absent C1 inhibitor activity permitting unregulated bradykinin release"
+   ]
+  },
+  {
+   "id": "med-immuno.l15.q1",
+   "lessonId": "med-immuno.l15",
+   "kind": "mcq",
+   "prompt": "What is the characteristic cell pattern in X-linked SCID due to common gamma chain deficiency?",
+   "choices": [
+    "T-positive, B-positive, NK-positive with defective phagocytosis",
+    "T-negative, B-positive, NK-negative with nonfunctional B cells",
+    "T-negative, B-negative, NK-positive with absent rearrangement",
+    "T-positive, B-negative, NK-positive with absent BTK activity"
+   ]
+  },
+  {
+   "id": "med-immuno.l15.q2",
+   "lessonId": "med-immuno.l15",
+   "kind": "mcq",
+   "prompt": "Which triad characterizes Wiskott-Aldrich syndrome?",
+   "choices": [
+    "Eczema, small-platelet thrombocytopenia and recurrent infections",
+    "Ataxia, telangiectasias, and low IgA with recurrent infections",
+    "Eczema, cold abscesses, and high IgE with retained primary teeth",
+    "Albinism, giant granules, and neuropathy with recurrent infections"
+   ]
+  },
+  {
+   "id": "med-immuno.l15.q3",
+   "lessonId": "med-immuno.l15",
+   "kind": "mcq",
+   "prompt": "A 4-year-old has gait ataxia, small vascular malformations on the conjunctivae, recurrent sinopulmonary infections and a low IgA. Alpha-fetoprotein is elevated. Which process is defective?",
+   "choices": [
+    "Joining of V, D and J segments owing to RAG enzyme mutation",
+    "Signaling through the IL-12 receptor owing to IL12RB1 mutation",
+    "Trafficking of lysosomes owing to LYST protein mutation",
+    "Repair of DNA double-strand breaks owing to ATM kinase mutation"
+   ]
+  },
+  {
+   "id": "med-immuno.l15.q4",
+   "lessonId": "med-immuno.l15",
+   "kind": "mcq",
+   "prompt": "A 6-year-old has cold staphylococcal skin abscesses, eczema, coarse facial features, retained primary teeth and multiple fractures. IgE is markedly elevated. Which gene is most likely mutated?",
+   "choices": [
+    "CYBB, causing absent NADPH oxidase in the phagocytes",
+    "ITGB2, causing absent CD18 on leukocyte surfaces",
+    "STAT3, causing impaired Th17 differentiation and IL-17 production",
+    "STAT1, causing impaired response to interferon gamma signals"
+   ]
+  },
+  {
+   "id": "med-immuno.l15.q5",
+   "lessonId": "med-immuno.l15",
+   "kind": "mcq",
+   "prompt": "A newborn screened with T cell receptor excision circle testing has very low values. The infant has persistent thrush and no thymic shadow on chest radiograph. Which management step is most appropriate?",
+   "choices": [
+    "Begin IFN-gamma prophylaxis and follow serial neutrophil counts",
+    "Avoid live vaccines, give irradiated blood and refer for transplant",
+    "Give live rotavirus vaccine at the usual age and monitor for diarrhea",
+    "Give routine live vaccines on schedule and follow antibody titers"
+   ]
+  },
+  {
+   "id": "med-immuno.l16.q1",
+   "lessonId": "med-immuno.l16",
+   "kind": "mcq",
+   "prompt": "Which coreceptor is used by HIV in early infection, and mutated in some resistant people?",
+   "choices": [
+    "CD8, which allows entry into cytotoxic T cells",
+    "CD40, which allows entry into B cells in follicles",
+    "CCR5, which allows entry into CD4 T cells and macrophages",
+    "CXCR4, which allows entry mainly later in infection"
+   ]
+  },
+  {
+   "id": "med-immuno.l16.q2",
+   "lessonId": "med-immuno.l16",
+   "kind": "mcq",
+   "prompt": "Which test best detects HIV in the window period soon after exposure?",
+   "choices": [
+    "Western blot confirmation of antibodies to viral proteins",
+    "Rapid antibody test performed on oral fluid samples",
+    "CD4 count by flow cytometry in peripheral blood",
+    "Nucleic acid amplification for viral RNA in plasma"
+   ]
+  },
+  {
+   "id": "med-immuno.l16.q3",
+   "lessonId": "med-immuno.l16",
+   "kind": "mcq",
+   "prompt": "A 38-year-old man with HIV has CD4 count 80 cells per microliter, fever, headache and a positive serum cryptococcal antigen. Which statement best reflects the reason for his susceptibility?",
+   "choices": [
+    "Loss of CD4 T cell help impairs macrophage activation against fungi",
+    "Loss of terminal complement impairs lysis of encapsulated yeast",
+    "Loss of NADPH oxidase impairs neutrophil killing of fungal hyphae",
+    "Loss of B cells impairs production of antibody against capsules"
+   ]
+  },
+  {
+   "id": "med-immuno.l16.q4",
+   "lessonId": "med-immuno.l16",
+   "kind": "mcq",
+   "prompt": "A 33-year-old man starts antiretroviral therapy for HIV with CD4 count of 30. Four weeks later he has new fever and enlarging cervical lymph nodes with caseating granulomas. Viral load has fallen. Which explanation is most likely?",
+   "choices": [
+    "Primary acquisition of a new opportunistic infection from the clinic",
+    "Immune reconstitution syndrome unmasking an existing infection",
+    "Drug-induced serum sickness due to complexes of the drug and antibody",
+    "Failure of therapy due to resistance of the virus to the new drugs"
+   ]
+  },
+  {
+   "id": "med-immuno.l16.q5",
+   "lessonId": "med-immuno.l16",
+   "kind": "mcq",
+   "prompt": "A 6-year-old with sickle cell disease and autosplenectomy has fever of 39.8 C and appears toxic. Which organism group poses the greatest risk because of his immune defect?",
+   "choices": [
+    "Intracellular organisms, including Mycobacterium and Salmonella species",
+    "Opportunistic fungi, including Pneumocystis and Cryptococcus species",
+    "Encapsulated bacteria such as pneumococcus and Haemophilus influenzae",
+    "Catalase-positive organisms, including Staphylococcus aureus and Serratia"
+   ]
+  },
+  {
+   "id": "med-immuno.l17.q1",
+   "lessonId": "med-immuno.l17",
+   "kind": "mcq",
+   "prompt": "What causes hyperacute rejection of a transplanted kidney?",
+   "choices": [
+    "Recipient CD8 T cells infiltrating the graft over several weeks",
+    "Gradual arterial narrowing from chronic indirect allorecognition",
+    "Donor lymphocytes attacking recipient skin, liver and gut tissue",
+    "Preformed recipient antibodies to donor antigens fixing complement"
+   ]
+  },
+  {
+   "id": "med-immuno.l17.q2",
+   "lessonId": "med-immuno.l17",
+   "kind": "mcq",
+   "prompt": "Which drug inhibits calcineurin and so reduces IL-2 gene transcription in T cells?",
+   "choices": [
+    "Sirolimus, which blocks mTOR signaling after IL-2 binding",
+    "Basiliximab, which blocks the alpha chain of the IL-2 receptor",
+    "Tacrolimus, which binds FKBP12 and blocks calcineurin activity",
+    "Mycophenolate, which blocks inosine monophosphate dehydrogenase"
+   ]
+  },
+  {
+   "id": "med-immuno.l17.q3",
+   "lessonId": "med-immuno.l17",
+   "kind": "mcq",
+   "prompt": "A 45-year-old kidney recipient has a rising creatinine 8 months after transplant. Biopsy shows peritubular capillaritis with C4d deposition and circulating donor-specific antibodies. Which type of rejection is most likely?",
+   "choices": [
+    "Graft-versus-host disease, a process from donor T cells in the host",
+    "Acute antibody-mediated rejection, a complement-fixing type II process",
+    "Acute cellular rejection, a T cell mediated tubulointerstitial process",
+    "Hyperacute rejection, a process from preformed antibodies in minutes"
+   ]
+  },
+  {
+   "id": "med-immuno.l17.q4",
+   "lessonId": "med-immuno.l17",
+   "kind": "mcq",
+   "prompt": "A 30-year-old has a bone marrow transplant for leukemia. Three weeks later he has a maculopapular rash, cholestatic jaundice and watery diarrhea. Which mechanism best explains this?",
+   "choices": [
+    "Donor T cells recognizing recipient HLA antigens in skin, liver and gut",
+    "Recipient antibodies against donor ABO antigens activating complement",
+    "Recipient CD8 cells recognizing donor HLA on the new marrow cells",
+    "Donor immune complexes depositing in vessels and activating complement"
+   ]
+  },
+  {
+   "id": "med-immuno.l17.q5",
+   "lessonId": "med-immuno.l17",
+   "kind": "mcq",
+   "prompt": "A kidney transplant recipient on azathioprine is started on allopurinol for gout. Within weeks, he develops marked leukopenia. Which mechanism is most likely?",
+   "choices": [
+    "Increased calcineurin inhibition from reduced tacrolimus clearance in the liver",
+    "Increased complement activation from immune complexes of the xanthine drug",
+    "Reduced activation of IL-2 signaling from mTOR blockade in lymphocytes",
+    "Reduced breakdown of the metabolite 6-mercaptopurine raising marrow toxicity"
+   ]
+  },
+  {
+   "id": "med-immuno.l18.q1",
+   "lessonId": "med-immuno.l18",
+   "kind": "mcq",
+   "prompt": "Which monoclonal antibody blocks the PD-1 receptor on T cells?",
+   "choices": [
+    "Pembrolizumab, used in melanoma and lung cancer",
+    "Ipilimumab, used in melanoma and renal cell carcinoma",
+    "Rituximab, used in B cell lymphoma and rheumatoid arthritis",
+    "Trastuzumab, used in HER2 positive breast cancer"
+   ]
+  },
+  {
+   "id": "med-immuno.l18.q2",
+   "lessonId": "med-immuno.l18",
+   "kind": "mcq",
+   "prompt": "Which feature would predict a good response of a tumor to checkpoint inhibitors?",
+   "choices": [
+    "A tumor type that never expresses PD-L1 in the microenvironment",
+    "A high burden of mutation-derived neoantigens",
+    "A complete loss of the tumor cell machinery for antigen processing",
+    "A dense infiltrate of regulatory T cells with no effector cells"
+   ]
+  },
+  {
+   "id": "med-immuno.l18.q3",
+   "lessonId": "med-immuno.l18",
+   "kind": "mcq",
+   "prompt": "A 62-year-old with metastatic melanoma on combination checkpoint therapy develops fatigue, hypotension, hyponatremia and low cortisol. ACTH is low. Which process is most likely?",
+   "choices": [
+    "Cytokine release syndrome caused by infusion of CAR T cells",
+    "Tumor lysis syndrome causing hyperkalemia and acute kidney injury",
+    "Immune-related hypophysitis causing secondary adrenal insufficiency",
+    "Immune-related colitis causing volume loss from watery diarrhea"
+   ]
+  },
+  {
+   "id": "med-immuno.l18.q4",
+   "lessonId": "med-immuno.l18",
+   "kind": "mcq",
+   "prompt": "A 28-year-old with refractory B cell lymphoma receives CD19-directed CAR T cells. Two days later he has fever of 39.5 C, hypotension and elevated IL-6 and ferritin. Which therapy targets the likely mechanism?",
+   "choices": [
+    "Omalizumab, an antibody that blocks circulating IgE molecules",
+    "Eculizumab, an antibody that blocks the complement C5 protein",
+    "Abatacept, a fusion protein that blocks CD28 costimulation",
+    "Tocilizumab, an antibody that blocks the interleukin 6 receptor"
+   ]
+  },
+  {
+   "id": "med-immuno.l18.q5",
+   "lessonId": "med-immuno.l18",
+   "kind": "mcq",
+   "prompt": "A tumor biopsy shows markedly reduced surface MHC class I expression. Which statement about immune escape is correct?",
+   "choices": [
+    "CD8 cells cannot see the cells, but NK cells may be activated",
+    "CD4 T cells cannot recognize the cells, but NK cells are inhibited by missing self",
+    "B cells cannot recognize the cells, but complement lyses them through CD59",
+    "Neutrophils cannot recognize the cells, but eosinophils kill them with IgE"
+   ]
+  },
+  {
+   "id": "med-immuno.l19.q1",
+   "lessonId": "med-immuno.l19",
+   "kind": "mcq",
+   "prompt": "Why are conjugate vaccines more immunogenic than plain polysaccharide vaccines in infants?",
+   "choices": [
+    "The carrier protein blocks complement and prolongs antigen availability",
+    "The carrier protein recruits T helper cells for switching and memory",
+    "The carrier protein binds MHC class I and activates cytotoxic cells directly",
+    "The carrier protein replicates in host cells and mimics natural infection"
+   ]
+  },
+  {
+   "id": "med-immuno.l19.q2",
+   "lessonId": "med-immuno.l19",
+   "kind": "mcq",
+   "prompt": "Which vaccine type is most likely to be contraindicated in a person with severe combined immunodeficiency?",
+   "choices": [
+    "A live attenuated vaccine, such as measles, mumps and rubella",
+    "A toxoid vaccine, such as the tetanus and diphtheria toxoid vaccine",
+    "A recombinant subunit vaccine, such as the hepatitis B vaccine",
+    "An inactivated vaccine, such as the injected poliovirus vaccine"
+   ]
+  },
+  {
+   "id": "med-immuno.l19.q3",
+   "lessonId": "med-immuno.l19",
+   "kind": "mcq",
+   "prompt": "A 26-year-old unvaccinated man has a deep puncture wound from a rusty nail. Which management provides both immediate and lasting protection against tetanus?",
+   "choices": [
+    "Tetanus toxoid vaccine alone given into the site of the wound",
+    "Tetanus immune globulin alone, without any toxoid vaccine given",
+    "Oral antibiotic alone, with tetanus vaccination deferred until healing",
+    "Tetanus immune globulin together with tetanus toxoid at a separate site"
+   ]
+  },
+  {
+   "id": "med-immuno.l19.q4",
+   "lessonId": "med-immuno.l19",
+   "kind": "mcq",
+   "prompt": "A 2-year-old is bitten by a stray dog, and rabies is a concern. Which is correct about the preventive approach?",
+   "choices": [
+    "Rabies immune globulin alone, because the vaccine has no role after exposure",
+    "Observation alone, because the virus is cleared by innate immunity in all cases",
+    "Rabies immune globulin and vaccine together, since vaccine antibody lags",
+    "Rabies vaccine alone, because passive antibody would block the vaccine response"
+   ]
+  },
+  {
+   "id": "med-immuno.l19.q5",
+   "lessonId": "med-immuno.l19",
+   "kind": "mcq",
+   "prompt": "A 3-month-old infant is exposed to an adult with measles. Compared with an older child with no vaccine history, which feature best explains why the infant may have partial protection?",
+   "choices": [
+    "Complement deposition from a classical pathway primed by vaccines",
+    "Maternal IgG transferred across the placenta that wanes in months",
+    "Memory B cells formed from earlier infection in the infant",
+    "Secretory IgA in the infant gut that is made by plasma cells there"
+   ]
+  },
+  {
+   "id": "med-immuno.l20.q1",
+   "lessonId": "med-immuno.l20",
+   "kind": "mcq",
+   "prompt": "Which laboratory method detects proteins using specific antibodies after size separation on a gel?",
+   "choices": [
+    "Flow cytometry, in which cells are passed singly past a laser beam",
+    "Western blot, in which proteins are transferred to a membrane and probed",
+    "Southern blot, in which DNA fragments are transferred and probed",
+    "Northern blot, in which RNA fragments are transferred and probed"
+   ]
+  },
+  {
+   "id": "med-immuno.l20.q2",
+   "lessonId": "med-immuno.l20",
+   "kind": "mcq",
+   "prompt": "Which finding on serum protein electrophoresis suggests a monoclonal gammopathy?",
+   "choices": [
+    "A narrow gamma-region spike that immunofixation assigns to one clone",
+    "A broad, diffuse increase in the gamma region from many antibody clones",
+    "A decrease in the albumin band alone with normal gamma proteins",
+    "A flat gamma region with absent immunoglobulin in all classes"
+   ]
+  },
+  {
+   "id": "med-immuno.l20.q3",
+   "lessonId": "med-immuno.l20",
+   "kind": "mcq",
+   "prompt": "A 34-year-old has fever, malar rash and hematuria. CH50 is low, with low C3 and low C4. Which interpretation fits best?",
+   "choices": [
+    "Isolated terminal component deficiency, with normal C3 and normal C4 levels",
+    "Isolated deficiency of C1 inhibitor with normal C3 and normal CH50",
+    "Alternative pathway activation alone, with normal C4 and low C3",
+    "Classical pathway consumption by immune complexes, as in lupus nephritis"
+   ]
+  },
+  {
+   "id": "med-immuno.l20.q4",
+   "lessonId": "med-immuno.l20",
+   "kind": "mcq",
+   "prompt": "A 20-year-old with recurrent infections has flow cytometry showing absent CD19 positive B cells with normal T cell counts. Which assay would best confirm the diagnosis at the genetic level?",
+   "choices": [
+    "Tuberculin skin test with measurement of induration at 48 hours",
+    "Serum tryptase measurement after an acute allergic reaction",
+    "Sequencing of the BTK gene on the X chromosome",
+    "Dihydrorhodamine oxidation assay of stimulated neutrophils"
+   ]
+  },
+  {
+   "id": "med-immuno.l20.q5",
+   "lessonId": "med-immuno.l20",
+   "kind": "mcq",
+   "prompt": "A newborn of an O-positive mother has jaundice, and the infant is A-positive. The direct Coombs test is positive. What does this result indicate?",
+   "choices": [
+    "Presence of IgE sensitization on infant mast cells",
+    "Maternal antibody bound to the infant red cells",
+    "Free antibody in the infant serum without any cell binding",
+    "Absence of any maternal antibody against infant cells"
+   ]
+  }
+ ]
+}

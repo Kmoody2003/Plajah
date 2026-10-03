@@ -1,0 +1,1181 @@
+{
+ "courseId": "law-contracts",
+ "verifier": "B",
+ "fetched": 46,
+ "note": "WebSearch and WebFetch hit a session limit partway through the run. The remaining sources were opened with curl: Cornell LII UCC/USC/Wex pages, Caselaw Access Project static JSON, Justia, Wikipedia raw and California leginfo. CourtListener blocked curl. Restatement (Second) section text could not be opened, so those claims are marked unverifiable. No cut-off option text was found.",
+ "questions": [
+  {
+   "id": "law-contracts.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-205"
+   ]
+  },
+  {
+   "id": "law-contracts.l02.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l02.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-205"
+   ]
+  },
+  {
+   "id": "law-contracts.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l03.q5",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Consistent with Restatement s.40 (first to arrive controls); could not open the Restatement text.",
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-207"
+   ]
+  },
+  {
+   "id": "law-contracts.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-207"
+   ]
+  },
+  {
+   "id": "law-contracts.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l04.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-209"
+   ]
+  },
+  {
+   "id": "law-contracts.l06.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l06.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-201"
+   ]
+  },
+  {
+   "id": "law-contracts.l07.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-201"
+   ]
+  },
+  {
+   "id": "law-contracts.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l07.q5",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Keeping a son employed is arguably a family motive rather than the surety's own economic interest; choice 2 is best because it is hedged (\"could\").",
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l08.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l10.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-302"
+   ]
+  },
+  {
+   "id": "law-contracts.l10.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l10.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l10.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l10.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l11.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l11.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l11.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-202"
+   ]
+  },
+  {
+   "id": "law-contracts.l11.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l11.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l12.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l12.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l12.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l13.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-601"
+   ]
+  },
+  {
+   "id": "law-contracts.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l13.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-609"
+   ]
+  },
+  {
+   "id": "law-contracts.l13.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-508"
+   ]
+  },
+  {
+   "id": "law-contracts.l13.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l14.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l14.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-712"
+   ]
+  },
+  {
+   "id": "law-contracts.l14.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l14.q4",
+   "answer": 1,
+   "confidence": "low",
+   "ambiguous": true,
+   "note": "Choice 1 is the intended answer, but its wording is wrong. Under 2-708(2) salvage is subtracted, not added: 10,000 profit plus 20,000 cost incurred less 2,000 salvage gives 28,000.",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-708"
+   ]
+  },
+  {
+   "id": "law-contracts.l14.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l15.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l15.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l15.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-718"
+   ]
+  },
+  {
+   "id": "law-contracts.l15.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l15.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l16.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l16.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l16.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l17.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l17.q3",
+   "answer": 3,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "The answer is correct. The \"the contract\" construction is 2-210(3) in the LII (pre-1999) text but 2-210(4) in the current official text that most states use.",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-210"
+   ]
+  },
+  {
+   "id": "law-contracts.l17.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l17.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l18.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l18.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l18.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l18.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-contracts.l18.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-615",
+    "https://www.law.cornell.edu/ucc/2/2-616"
+   ]
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-contracts.l01",
+   "claim": "Lucy v. Zehmer was a 1954 Supreme Court of Virginia case enforcing a farm sale despite claimed jest (objective theory).",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Lucy_v._Zehmer"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l01",
+   "claim": "UCC 1-103: common-law and equitable principles supplement the Code unless displaced.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/1/1-103"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l01",
+   "claim": "Article 2 applies to transactions in goods; mixed contracts use the predominant purpose test (majority).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-102"
+   ],
+   "note": "LII shows the pre-2022 text of 2-102. The 2022 UCC amendments add a hybrid-transaction rule to 2-102 that follows predominant purpose in adopting states. The lesson does not mention this; worth a sentence."
+  },
+  {
+   "lessonId": "law-contracts.l02",
+   "claim": "Lefkowitz v. Great Minneapolis Surplus Store (Minn. 1957): a clear, definite, explicit ad leaving nothing open for negotiation is an offer (fur stole for $1).",
+   "verdict": "supported",
+   "sources": [
+    "https://law.justia.com/cases/minnesota/supreme-court/1957/37-220.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l02",
+   "claim": "UCC 2-205 firm offer: merchant signed writing, irrevocable for the stated or a reasonable time up to three months; an assurance on the offeree's form must be separately signed.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-205"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l02",
+   "claim": "Carlill v. Carbolic Smoke Ball Co. (English Court of Appeal 1893) treated the advertised reward as a unilateral offer accepted by performance.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Carlill_v_Carbolic_Smoke_Ball_Co"
+   ],
+   "note": "Reported [1893] 1 QB 256; decided December 1892."
+  },
+  {
+   "lessonId": "law-contracts.l03",
+   "claim": "Adams v. Lindsell (England 1818) established the mailbox/postal rule.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Adams_v_Lindsell"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l03",
+   "claim": "Dickinson v. Dodds (1876): a revocation is effective when the offeree learns of it from a reliable third party.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Dickinson_v_Dodds"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l03",
+   "claim": "Restatement s.40: if a rejection is sent and then an acceptance arrives first, there is a contract \"unless the offeree detrimentally relied on the rejection\".",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Could not open the Restatement text. As written this looks wrong: the person who could rely on a rejection is the OFFEROR, not the offeree who sent it, and the lesson's own q5 uses the offeror. Suggest changing to \"offeror\". Also, LII Wex says some states (e.g. California) apply the mailbox rule to option contracts."
+  },
+  {
+   "lessonId": "law-contracts.l04",
+   "claim": "UCC 2-207(1): an acceptance with additional or different terms is still an acceptance unless it is expressly made conditional on assent to them.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-207"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l04",
+   "claim": "2-207(2): between merchants, additional terms become part of the contract unless the offer limits acceptance, they materially alter it, or objection is timely.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-207"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l04",
+   "claim": "The knockout rule for conflicting \"different\" terms is the majority position.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Commonly stated as the majority rule; no source opened."
+  },
+  {
+   "lessonId": "law-contracts.l05",
+   "claim": "Hamer v. Sidway (New York 1891): forbearance from lawful habits until 21 was consideration.",
+   "verdict": "supported",
+   "sources": [
+    "https://static.case.law/ny/124/cases/0538-01.json",
+    "https://en.wikipedia.org/wiki/Hamer_v._Sidway"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l05",
+   "claim": "Mills v. Wyman (Massachusetts 1825): a father's later promise to pay for care of his adult son was unenforceable.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mills_v._Wyman"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l05",
+   "claim": "UCC 2-306 measures output/requirements quantity by actual good-faith output or requirements.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-306"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l06",
+   "claim": "Alaska Packers' Ass'n v. Domenico (9th Cir. 1902): promise of extra wages for pre-existing duty lacked consideration.",
+   "verdict": "supported",
+   "sources": [
+    "https://static.case.law/f/117/cases/0099-01.json"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l06",
+   "claim": "Hoffman v. Red Owl Stores (Wis. 1965): promissory estoppel liability where franchisee sold bakery on assurances, with no complete agreement.",
+   "verdict": "supported",
+   "sources": [
+    "https://law.justia.com/cases/wisconsin/supreme-court/1965/26-wis-2d-683-6.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l06",
+   "claim": "Webb v. McGowin (Alabama Court of Appeals 1935) enforced a promise made in recognition of a material benefit (life saved).",
+   "verdict": "supported",
+   "sources": [
+    "https://static.case.law/ala-app/27/cases/0082-02.json"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l06",
+   "claim": "UCC 2-209(1): a modification needs no consideration (good-faith test).",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-209"
+   ],
+   "note": "The good-faith requirement comes from Official Comment 2, not the text of 2-209(1)."
+  },
+  {
+   "lessonId": "law-contracts.l06",
+   "claim": "UCC 1-306: a claim arising from breach may be discharged without consideration by a signed written waiver.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/1/1-306"
+   ],
+   "note": "LII text says \"authenticated record\". Under the 2022 amendments it is a \"signed record\", which may be electronic, so \"written\" is slightly narrow."
+  },
+  {
+   "lessonId": "law-contracts.l07",
+   "claim": "UCC 2-201: $500 threshold; merchant confirmation binds recipient absent written objection within 10 days; specially manufactured goods exception.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-201"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l07",
+   "claim": "Electronic signatures can satisfy signing requirements under federal e-signature law.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/uscode/text/15/7001"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l07",
+   "claim": "Restatement s.139 promissory estoppel can overcome the statute of frauds.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Did not open the Restatement text."
+  },
+  {
+   "lessonId": "law-contracts.l08",
+   "claim": "Austin Instrument v. Loral (New York 1971): economic duress let Loral avoid the coerced price increase.",
+   "verdict": "supported",
+   "sources": [
+    "https://static.case.law/ny-2d/29/cases/0124-01.json"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l08",
+   "claim": "Restatement s.15 cognitive and volitional tests for mental incapacity.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Did not open the Restatement text."
+  },
+  {
+   "lessonId": "law-contracts.l08",
+   "claim": "Minor's liability for necessaries is in quasi-contract for reasonable value.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Standard rule; no source opened."
+  },
+  {
+   "lessonId": "law-contracts.l09",
+   "claim": "Sherwood v. Walker (Michigan 1887): rescission for mutual mistake about a cow thought barren.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Sherwood_v._Walker"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l09",
+   "claim": "Raffles v. Wichelhaus (England 1864): two ships named Peerless, so no meeting of the minds.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Raffles_v_Wichelhaus"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l09",
+   "claim": "Restatement s.152 mutual mistake elements (basic assumption, material effect, risk not borne); s.153 unilateral mistake.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/wex/mistake"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l10",
+   "claim": "UCC 2-302 lets the court refuse to enforce, strike the clause, or limit it, judged at the time the contract was made.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-302"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l10",
+   "claim": "Williams v. Walker-Thomas Furniture (D.C. Cir. 1965): absence of meaningful choice plus unreasonably favourable terms; cross-collateral clause.",
+   "verdict": "supported",
+   "sources": [
+    "https://static.case.law/f2d/350/cases/0445-01.json"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l10",
+   "claim": "UCC 2-719(3) consumer personal-injury limitation prima facie unconscionable; California voids most noncompetes; FAA savings clause.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-719",
+    "https://leginfo.legislature.ca.gov/faces/codes_displaySection.xhtml?lawCode=BPC&sectionNum=16600",
+    "https://www.law.cornell.edu/uscode/text/9/2"
+   ],
+   "note": "Current as stated. Minnesota (2023) also bans most noncompetes. The 2024 FTC noncompete rule was vacated and the lesson does not rely on it."
+  },
+  {
+   "lessonId": "law-contracts.l11",
+   "claim": "UCC 2-202: a final writing may be explained or supplemented by course of dealing, usage of trade, course of performance and consistent additional terms unless it is complete and exclusive.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-202"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l11",
+   "claim": "PG&E v. G.W. Thomas Drayage (California 1968, Traynor): provisionally receive extrinsic evidence to test whether language is reasonably susceptible to a meaning.",
+   "verdict": "supported",
+   "sources": [
+    "https://law.justia.com/cases/california/supreme-court/2d/69/33.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l11",
+   "claim": "Frigaliment v. B.N.S. (S.D.N.Y. 1960, Friendly): buyer failed to carry burden that \"chicken\" meant only young birds.",
+   "verdict": "supported",
+   "sources": [
+    "https://static.case.law/f-supp/190/cases/0116-01.json"
+   ],
+   "note": "Friendly was a Second Circuit judge sitting by designation."
+  },
+  {
+   "lessonId": "law-contracts.l12",
+   "claim": "Jacob & Youngs v. Kent (New York 1921, Cardozo): non-wilful substitution of pipe brand; damages measured by difference in value, nominal.",
+   "verdict": "supported",
+   "sources": [
+    "https://static.case.law/ny/230/cases/0239-01.json",
+    "https://en.wikipedia.org/wiki/Jacob_%26_Youngs,_Inc._v._Kent"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l12",
+   "claim": "Restatement s.229 excuses a condition to avoid disproportionate forfeiture; s.224 defines a condition.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Did not open the Restatement text."
+  },
+  {
+   "lessonId": "law-contracts.l12",
+   "claim": "A condition may be excused by ... substantial performance.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Substantial performance applies to constructive conditions, not express ones. Listing it as a general excuse conflicts with the lesson's own point that express conditions must be strictly met."
+  },
+  {
+   "lessonId": "law-contracts.l13",
+   "claim": "Britton v. Turner (New Hampshire 1834): a farmhand who quit after about nine and a half months recovered the value of his labour less damages.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Britton_v._Turner"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l13",
+   "claim": "Hochster v. De La Tour (England 1853): suit allowed immediately on anticipatory repudiation.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Hochster_v_De_La_Tour"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l13",
+   "claim": "UCC 2-609 thirty-day limit; 2-610 suspension; 2-601 perfect tender; 2-508(2) further reasonable time to cure; 2-612 and 2-608 substantial impairment.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-609",
+    "https://www.law.cornell.edu/ucc/2/2-610",
+    "https://www.law.cornell.edu/ucc/2/2-601",
+    "https://www.law.cornell.edu/ucc/2/2-508",
+    "https://www.law.cornell.edu/ucc/2/2-612",
+    "https://www.law.cornell.edu/ucc/2/2-608"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l14",
+   "claim": "Peevyhouse v. Garland Coal (Oklahoma 1962) awarded diminution in value rather than the cost of restoration.",
+   "verdict": "supported",
+   "sources": [
+    "https://static.case.law/p2d/382/cases/0109-01.json"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l14",
+   "claim": "UCC remedy measures in 2-712, 2-713, 2-706, 2-708(2) (lost profit including overhead), 2-714.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-712",
+    "https://www.law.cornell.edu/ucc/2/2-713",
+    "https://www.law.cornell.edu/ucc/2/2-706",
+    "https://www.law.cornell.edu/ucc/2/2-708",
+    "https://www.law.cornell.edu/ucc/2/2-714"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l14",
+   "claim": "Restatement s.347 expectation formula.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Did not open the Restatement text."
+  },
+  {
+   "lessonId": "law-contracts.l15",
+   "claim": "Hadley v. Baxendale (Court of Exchequer 1854): consequential loss from a delayed mill crankshaft not recoverable without notice of special circumstances.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Hadley_v_Baxendale"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l15",
+   "claim": "UCC 2-715(2) reason-to-know limit; 2-716 specific performance for unique goods or other proper circumstances; 2-718(1) liquidated damages reasonableness.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-715",
+    "https://www.law.cornell.edu/ucc/2/2-716",
+    "https://www.law.cornell.edu/ucc/2/2-718"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l15",
+   "claim": "Mitigation (avoidable consequences) bars recovery of losses that could have been avoided.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/wex/mitigation_of_damages"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l16",
+   "claim": "Lawrence v. Fox (New York 1859): creditor beneficiary Lawrence recovered $300 from Fox on a promise made to Holly.",
+   "verdict": "supported",
+   "sources": [
+    "https://static.case.law/ny/20/cases/0268-01.json"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l16",
+   "claim": "Intended beneficiaries may enforce; incidental beneficiaries may not.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/wex/third-party_beneficiary",
+    "https://www.law.cornell.edu/wex/incidental_beneficiary"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l16",
+   "claim": "Restatement s.311 vesting events (material change of position, suit, assent at request).",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Did not open the Restatement text."
+  },
+  {
+   "lessonId": "law-contracts.l17",
+   "claim": "UCC 2-210(3): a prohibition of assignment of \"the contract\" bars only delegation of performance.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-210"
+   ],
+   "note": "Cornell LII numbers it (3). The current official text after the 1999 Article 9 conforming amendments numbers it 2-210(4), as most state codes do."
+  },
+  {
+   "lessonId": "law-contracts.l17",
+   "claim": "UCC 2-210(2): rights are assignable unless the assignment materially changes the other party's duty or burden.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-210"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l17",
+   "claim": "Restatement s.317 assignability limits; first-in-time is the majority American rule for successive assignments.",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Did not open sources."
+  },
+  {
+   "lessonId": "law-contracts.l18",
+   "claim": "Taylor v. Caldwell (Queen's Bench 1863): destruction of a music hall by fire discharged both parties.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Taylor_v_Caldwell"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l18",
+   "claim": "Krell v. Henry (English Court of Appeal 1903): coronation procession of Edward VII cancelled; flat-hire excused for frustration.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Krell_v_Henry"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-contracts.l18",
+   "claim": "UCC 2-613 casualty to identified goods; 2-615 fair and reasonable allocation with notice; 2-616 buyer options.",
+   "verdict": "supported",
+   "sources": [
+    "https://www.law.cornell.edu/ucc/2/2-613",
+    "https://www.law.cornell.edu/ucc/2/2-615",
+    "https://www.law.cornell.edu/ucc/2/2-616"
+   ],
+   "note": ""
+  }
+ ]
+}

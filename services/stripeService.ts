@@ -220,6 +220,8 @@ export async function startChurchDonation(opts: {
   fund?: string;
   recurring?: boolean;
   message?: string;
+  /** Donor pays the processing fee on top so the church receives 100% (default on; server decides eligibility). */
+  coverFees?: boolean;
   userIdToken: string;
 }): Promise<void> {
   const res = await fetch('/api/stripe/church-donation', {

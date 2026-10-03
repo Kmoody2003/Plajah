@@ -1,0 +1,1140 @@
+{
+  "courseId": "med-clin-psych",
+  "verifier": "B",
+  "note": "Rerun with web access. NCBI/StatPearls returned a bot-check page and drugs.com returned 403; claims resting only on those or on memory are marked unverifiable. Some sources were found via WebSearch and then opened with WebFetch.",
+  "fetched": 39,
+  "questions": [
+    {
+      "id": "med-clin-psych.l01.q1",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l01.q2",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l01.q3",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l01.q4",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l01.q5",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l02.q1",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l02.q2",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l02.q3",
+      "answer": 0,
+      "confidence": "low",
+      "ambiguous": true,
+      "sources": [
+        "https://www.psychiatrictimes.com/view/mania-and-hypomania-latest-thinking-on-diagnosis-and-duration-of-episodes"
+      ],
+      "note": "Five days without hospitalization cannot meet the DSM-5-TR 7-day mania criterion, and bipolar II also needs a major depressive episode (not stated), so neither 0 nor 1 is cleanly right; 0 is hedged (\"if criteria are met\")."
+    },
+    {
+      "id": "med-clin-psych.l02.q4",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l02.q5",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l03.q1",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l03.q2",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l03.q3",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l03.q4",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l03.q5",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l04.q1",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l04.q2",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://istss.org/using-the-2023-va-dod-clinical-practice-guideline-for-management-of-posttraumatic-stress-disorder-and-acute-stress-disorder-ariel-j-lang-jessica-l-hamblen-paul-holtzheimer-ursula-kelly-sonya-b/"
+      ]
+    },
+    {
+      "id": "med-clin-psych.l04.q3",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l04.q4",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l04.q5",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l05.q1",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l05.q2",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l05.q3",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l05.q4",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l05.q5",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l06.q1",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l06.q2",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l06.q3",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l06.q4",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l06.q5",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l07.q1",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.psychdb.com/psychosis/schizophrenia-scz"
+      ]
+    },
+    {
+      "id": "med-clin-psych.l07.q2",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l07.q3",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.fda.gov/drugs/drug-safety-communications/fda-removes-risk-evaluation-and-mitigation-strategy-rems-program-antipsychotic-drug-clozapine"
+      ],
+      "note": "Still correct: FDA removed the clozapine REMS effective June 13, 2025 but still recommends ANC monitoring per the label."
+    },
+    {
+      "id": "med-clin-psych.l07.q4",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l07.q5",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l08.q1",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l08.q2",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.psychiatry.org/getattachment/bd1b5149-2c2e-472c-8fa9-1e5e79aeb4d5/Resource-Document-on-Catatonia.pdf"
+      ]
+    },
+    {
+      "id": "med-clin-psych.l08.q3",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC11911952/"
+      ]
+    },
+    {
+      "id": "med-clin-psych.l08.q4",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l08.q5",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l09.q1",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l09.q2",
+      "answer": 0,
+      "confidence": "medium",
+      "ambiguous": false,
+      "sources": [],
+      "note": "Normal pupils and obstacle avoidance show inconsistency but do not by themselves separate conversion from malingering; the argument trigger and absence of incentive point to conversion."
+    },
+    {
+      "id": "med-clin-psych.l09.q3",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.psychdb.com/somatic/dsm-5/somatic-symptom"
+      ]
+    },
+    {
+      "id": "med-clin-psych.l09.q4",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l09.q5",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l10.q1",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l10.q2",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.accessdata.fda.gov/drugsatfda_docs/label/2017/021411s048lbl.pdf"
+      ]
+    },
+    {
+      "id": "med-clin-psych.l10.q3",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l10.q4",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l10.q5",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.adolescenciasema.org/ficheros/articulosparaprofesionales/documentos/Neurologiaysaludmental/GPC%20ADHD%20AAP2019%20e20192528.full.pdf"
+      ]
+    },
+    {
+      "id": "med-clin-psych.l11.q1",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l11.q2",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l11.q3",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l11.q4",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l11.q5",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l12.q1",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l12.q2",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l12.q3",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l12.q4",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l12.q5",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l13.q1",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l13.q2",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l13.q3",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l13.q4",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.accessdata.fda.gov/drugsatfda_docs/label/2022/020822s041lbl.pdf"
+      ]
+    },
+    {
+      "id": "med-clin-psych.l13.q5",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l14.q1",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l14.q2",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l14.q3",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l14.q4",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l14.q5",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l15.q1",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.acponline.org/acp-newsroom/acp-recommends-cognitive-behavioral-therapy-as-initial-treatment-for-chronic-insomnia"
+      ]
+    },
+    {
+      "id": "med-clin-psych.l15.q2",
+      "answer": 3,
+      "confidence": "medium",
+      "ambiguous": false,
+      "sources": [],
+      "note": "Acknowledging harm while not ready to quit is usually taught as contemplation, though some sources would call \"not ready\" precontemplation (not offered as a choice)."
+    },
+    {
+      "id": "med-clin-psych.l15.q3",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l15.q4",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l15.q5",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l16.q1",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l16.q2",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.oregonsuicideprevention.org/wp-content/uploads/2019/11/Stanley-2012-Safety-Planning-Intervention-Updated-Safety-Plan.pdf"
+      ]
+    },
+    {
+      "id": "med-clin-psych.l16.q3",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l16.q4",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l16.q5",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l17.q1",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l17.q2",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l17.q3",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l17.q4",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l17.q5",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l18.q1",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l18.q2",
+      "answer": 2,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://caselaw.findlaw.com/court/ca-supreme-court/1830445.html"
+      ]
+    },
+    {
+      "id": "med-clin-psych.l18.q3",
+      "answer": 1,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l18.q4",
+      "answer": 0,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": []
+    },
+    {
+      "id": "med-clin-psych.l18.q5",
+      "answer": 3,
+      "confidence": "high",
+      "ambiguous": false,
+      "sources": [
+        "https://www.law.cornell.edu/supremecourt/text/441/418"
+      ]
+    }
+  ],
+  "claims": [
+    {
+      "lessonId": "med-clin-psych.l01",
+      "claim": "In 2023 the USPSTF recommended screening adults for depression, including pregnant and postpartum people.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/screening-depression-suicide-risk-adults"
+      ],
+      "note": "Final recommendation June 20, 2023, grade B. The 2023 statement itself has no \"when systems exist\" qualifier (that wording was the 2016 version); follow-up is discussed under implementation."
+    },
+    {
+      "lessonId": "med-clin-psych.l01",
+      "claim": "Prolonged grief disorder was added in DSM-5-TR.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.psychiatry.org/patients-families/prolonged-grief-disorder"
+      ],
+      "note": "DSM-5-TR released March 2022; adults need loss at least 12 months earlier."
+    },
+    {
+      "lessonId": "med-clin-psych.l01",
+      "claim": "Esketamine is an additional option for treatment-resistant depression.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.hcplive.com/view/fda-approves-esketamine-first-monotherapy-treatment-resistant-depression"
+      ],
+      "note": "Still true; note that since January 21, 2025 esketamine is FDA approved as monotherapy for TRD, not only with an oral antidepressant (see l15)."
+    },
+    {
+      "lessonId": "med-clin-psych.l02",
+      "claim": "Manic episode lasts at least one week (any duration if hospitalized); hypomanic episode four days or more.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.psychiatrictimes.com/view/mania-and-hypomania-latest-thinking-on-diagnosis-and-duration-of-episodes"
+      ],
+      "note": "DSM-5-TR: 7 days mania, 4 days hypomania."
+    },
+    {
+      "lessonId": "med-clin-psych.l02",
+      "claim": "The CANMAT/ISBD 2018 guideline lists lithium and quetiapine among first-line maintenance options.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.canmat.org/wp-content/uploads/2019/07/Yatham-LN-2018-CANMAT-ISBD-guidelines-for-bipolar-disorder-Bipol-Disord.pdf"
+      ],
+      "note": "First-line maintenance: lithium, quetiapine, divalproex, lamotrigine, asenapine, aripiprazole."
+    },
+    {
+      "lessonId": "med-clin-psych.l02",
+      "claim": "Thiazides, ACE inhibitors, ARBs, NSAIDs and dehydration raise lithium levels; lamotrigine has a boxed warning for serious rash.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Standard pharmacology; not checked against an opened page this run."
+    },
+    {
+      "lessonId": "med-clin-psych.l03",
+      "claim": "In 2023 the USPSTF recommended screening for anxiety disorders in adults 64 years or younger, including pregnant and postpartum people.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/anxiety-adults-screening"
+      ],
+      "note": "June 20, 2023, grade B; grade I for 65 and older."
+    },
+    {
+      "lessonId": "med-clin-psych.l03",
+      "claim": "GAD requires excessive worry most days for at least six months; panic disorder requires at least a month of persistent worry or behavior change.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Matches DSM-5-TR from knowledge; no page opened (NCBI blocked by a bot check)."
+    },
+    {
+      "lessonId": "med-clin-psych.l03",
+      "claim": "OCD compulsions are time-consuming (more than one hour a day) or impairing; clomipramine is second-line.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Matches DSM-5-TR from knowledge; no page opened."
+    },
+    {
+      "lessonId": "med-clin-psych.l04",
+      "claim": "The 2023 VA/DoD guideline prefers trauma-focused psychotherapy (PE, CPT, EMDR) over medication for most patients.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.healthquality.va.gov/guidelines/MH/ptsd/",
+        "https://istss.org/using-the-2023-va-dod-clinical-practice-guideline-for-management-of-posttraumatic-stress-disorder-and-acute-stress-disorder-ariel-j-lang-jessica-l-hamblen-paul-holtzheimer-ursula-kelly-sonya-b/",
+        "https://www.emdria.org/resource/the-management-of-posttraumatic-stress-disorder-and-acute-stress-disorder-synopsis-of-the-2023-u-s-department-of-veterans-affairs-and-u-s-department-of-defense-clinical-practice-guideline-annals/"
+      ],
+      "note": "Current VA/DoD PTSD CPG is 2023."
+    },
+    {
+      "lessonId": "med-clin-psych.l04",
+      "claim": "Sertraline and paroxetine are FDA approved for PTSD; venlafaxine is also recommended; benzodiazepines are not recommended.",
+      "verdict": "supported",
+      "sources": [
+        "https://istss.org/using-the-2023-va-dod-clinical-practice-guideline-for-management-of-posttraumatic-stress-disorder-and-acute-stress-disorder-ariel-j-lang-jessica-l-hamblen-paul-holtzheimer-ursula-kelly-sonya-b/",
+        "https://www.emdria.org/resource/the-management-of-posttraumatic-stress-disorder-and-acute-stress-disorder-synopsis-of-the-2023-u-s-department-of-veterans-affairs-and-u-s-department-of-defense-clinical-practice-guideline-annals/"
+      ],
+      "note": "VA/DoD 2023 recommends paroxetine, sertraline or venlafaxine and recommends against benzodiazepines; FDA-approval point itself rests on general knowledge."
+    },
+    {
+      "lessonId": "med-clin-psych.l04",
+      "claim": "Prazosin is used for trauma nightmares though evidence is mixed and recommendations differ.",
+      "verdict": "supported",
+      "sources": [
+        "https://istss.org/using-the-2023-va-dod-clinical-practice-guideline-for-management-of-posttraumatic-stress-disorder-and-acute-stress-disorder-ariel-j-lang-jessica-l-hamblen-paul-holtzheimer-ursula-kelly-sonya-b/"
+      ],
+      "note": "VA/DoD 2023 suggests prazosin for nightmares but against it as monotherapy for global PTSD symptoms."
+    },
+    {
+      "lessonId": "med-clin-psych.l05",
+      "claim": "DBT, developed by Marsha Linehan, combines individual therapy, skills training (mindfulness, distress tolerance, emotion regulation, interpersonal effectiveness) and phone coaching.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.psychiatrictimes.com/view/marsha-linehan-dialectic-behavioral-therapy"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "med-clin-psych.l05",
+      "claim": "No medication is approved for personality disorders.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Consistent with knowledge (no FDA-approved drug for BPD); no authoritative page opened."
+    },
+    {
+      "lessonId": "med-clin-psych.l05",
+      "claim": "Antisocial personality disorder requires age 18 or more and evidence of conduct disorder before age 15.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Matches DSM-5-TR from knowledge; no page opened."
+    },
+    {
+      "lessonId": "med-clin-psych.l06",
+      "claim": "Lisdexamfetamine is FDA approved for moderate to severe binge-eating disorder.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.takeda.com/newsroom/shire-news-releases/2015/vyvanse-lisdexamfetamine-dimesylate-capsules-cii-becomes-first-and-only-treatment-approved-by/"
+      ],
+      "note": "Approved January 30, 2015 for adults."
+    },
+    {
+      "lessonId": "med-clin-psych.l06",
+      "claim": "Fluoxetine is the FDA-approved medication for bulimia nervosa.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Consistent with knowledge; label not opened this run."
+    },
+    {
+      "lessonId": "med-clin-psych.l06",
+      "claim": "Refeeding drives phosphate, potassium and magnesium into cells, causing hypophosphatemia.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Standard physiology; no page opened."
+    },
+    {
+      "lessonId": "med-clin-psych.l07",
+      "claim": "Schizophrenia requires signs for at least six months including at least one month of active symptoms.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.psychdb.com/psychosis/schizophrenia-scz"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "med-clin-psych.l07",
+      "claim": "Concordance in identical twins is around 40 to 50 percent.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.psychdb.com/psychosis/schizophrenia-scz"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "med-clin-psych.l07",
+      "claim": "Clozapine needs absolute neutrophil count monitoring because of agranulocytosis risk.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.fda.gov/drugs/drug-safety-communications/fda-removes-risk-evaluation-and-mitigation-strategy-rems-program-antipsychotic-drug-clozapine"
+      ],
+      "note": "Current as of 2025: FDA eliminated the clozapine REMS (effective June 13, 2025), so ANC results no longer have to be reported before dispensing, but FDA still recommends ANC monitoring per the label. The lesson could note the REMS change. Separately, the course says antipsychotics act at D2; xanomeline-trospium (Cobenfy, approved Sept 26, 2024) is a muscarinic antipsychotic without D2 blockade."
+    },
+    {
+      "lessonId": "med-clin-psych.l08",
+      "claim": "Anti-NMDA receptor encephalitis, often in young women and linked to ovarian teratoma, starts with psychiatric symptoms then seizures, dyskinesias and autonomic instability; diagnosed by CSF antibodies; treated with immunotherapy and tumor resection.",
+      "verdict": "supported",
+      "sources": [
+        "https://pmc.ncbi.nlm.nih.gov/articles/PMC11911952/"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "med-clin-psych.l08",
+      "claim": "DSM-5 catatonia requires three or more of twelve features; lorazepam challenge is first-line and ECT is highly effective.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.psychiatry.org/getattachment/bd1b5149-2c2e-472c-8fa9-1e5e79aeb4d5/Resource-Document-on-Catatonia.pdf"
+      ],
+      "note": "APA resource document: DSM-5-TR requires 3 of 12; benzodiazepines and/or ECT; ICD-11 uses 3 of 15."
+    },
+    {
+      "lessonId": "med-clin-psych.l08",
+      "claim": "Postpartum blues resolve within two weeks; postpartum psychosis usually represents bipolar spectrum illness.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Consistent with knowledge; no page opened."
+    },
+    {
+      "lessonId": "med-clin-psych.l09",
+      "claim": "Somatic symptom disorder symptoms persist for more than six months.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.psychdb.com/somatic/dsm-5/somatic-symptom"
+      ],
+      "note": "DSM-5 says \"typically more than 6 months\"."
+    },
+    {
+      "lessonId": "med-clin-psych.l09",
+      "claim": "Management focuses on scheduled rather than symptom-driven visits with one clinician and avoiding unnecessary testing.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.psychdb.com/somatic/dsm-5/somatic-symptom"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "med-clin-psych.l09",
+      "claim": "Malingering is not a mental disorder; factitious disorder seeks the sick role without external reward.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Consistent with DSM-5-TR from knowledge; no page opened."
+    },
+    {
+      "lessonId": "med-clin-psych.l10",
+      "claim": "The 2019 AAP guideline recommends medication plus parent training and classroom interventions for ages 6 to 11, and parent training first for ages 4 to 5 with methylphenidate if inadequate.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.adolescenciasema.org/ficheros/articulosparaprofesionales/documentos/Neurologiaysaludmental/GPC%20ADHD%20AAP2019%20e20192528.full.pdf"
+      ],
+      "note": "KAS 5a/5b of the 2019 AAP guideline (Pediatrics 144(4):e20192528)."
+    },
+    {
+      "lessonId": "med-clin-psych.l10",
+      "claim": "The AAP recommends M-CHAT-R/F screening at 18 and 24 months.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.psychhq.com/asd/tools/asd-mchat-screening-schedule"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "med-clin-psych.l10",
+      "claim": "Atomoxetine is a norepinephrine reuptake inhibitor with a boxed warning for suicidal ideation in young patients.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.accessdata.fda.gov/drugsatfda_docs/label/2017/021411s048lbl.pdf"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "med-clin-psych.l10",
+      "claim": "Vaccines do not cause autism; the original claim was a retracted fraudulent study; this is established consensus.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.pbs.org/newshour/health/cdc-vaccine-safety-webpage-changed-to-contradict-scientific-conclusion-that-vaccines-dont-cause-autism"
+      ],
+      "note": "Scientific consensus unchanged, but note that on Nov 20, 2025 the CDC vaccine-safety page was altered to call \"vaccines do not cause autism\" not evidence-based; AAP and researchers reject this. Retraction detail not checked on an opened page."
+    },
+    {
+      "lessonId": "med-clin-psych.l11",
+      "claim": "Alzheimer drug therapy is presented only as cholinesterase inhibitors and memantine, which give modest symptomatic benefit without altering the course.",
+      "verdict": "contradicted",
+      "sources": [
+        "https://www.alz.org/alzheimers-dementia/treatments/lecanemab-leqembi"
+      ],
+      "note": "Out of date by omission: anti-amyloid antibodies lecanemab (traditional approval July 6, 2023) and donanemab (July 2, 2024) are FDA approved for early symptomatic Alzheimer disease and slow decline; the lesson never mentions them. The statement about cholinesterase inhibitors/memantine themselves is fine."
+    },
+    {
+      "lessonId": "med-clin-psych.l11",
+      "claim": "Alzheimer pathology shows extracellular beta-amyloid plaques and intracellular tau tangles; APOE4, presenilin, APP and Down syndrome raise risk.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Consistent with knowledge; no page opened."
+    },
+    {
+      "lessonId": "med-clin-psych.l11",
+      "claim": "Normal pressure hydrocephalus causes gait disturbance, urinary incontinence and cognitive decline and is potentially reversible with shunting.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Consistent with knowledge; no page opened."
+    },
+    {
+      "lessonId": "med-clin-psych.l12",
+      "claim": "DSM-5 grades substance use disorder by criteria count: 2-3 mild, 4-5 moderate, 6+ severe, within twelve months.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.addictionpolicy.org/post/dsm-5-facts-and-figures"
+      ],
+      "note": "Severity bands confirmed; 12-month window and abuse/dependence merger not stated on the opened page."
+    },
+    {
+      "lessonId": "med-clin-psych.l12",
+      "claim": "Alcohol withdrawal timeline: seizures 12-48 h, delirium tremens 48-96 h; thiamine before glucose.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Standard teaching; no page opened."
+    },
+    {
+      "lessonId": "med-clin-psych.l12",
+      "claim": "Buprenorphine is a partial agonist with a ceiling on respiratory depression, started once withdrawal has begun; methadone is dispensed through certified programs.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Consistent with knowledge; no page opened. (Not stated in lesson, but the DATA-2000 X-waiver for buprenorphine was eliminated in 2023.)"
+    },
+    {
+      "lessonId": "med-clin-psych.l13",
+      "claim": "A boxed warning describes increased suicidal thinking in patients under 25 starting antidepressants.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.accessdata.fda.gov/drugsatfda_docs/label/2022/020822s041lbl.pdf"
+      ],
+      "note": "Current label wording is \"pediatric and young adult patients\"."
+    },
+    {
+      "lessonId": "med-clin-psych.l13",
+      "claim": "Citalopram causes QT prolongation at higher doses; SSRIs can cause hyponatremia via SIADH.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.accessdata.fda.gov/drugsatfda_docs/label/2022/020822s041lbl.pdf"
+      ],
+      "note": "Celexa label: dose-dependent QTc prolongation, max 40 mg/day (20 mg if over 60); hyponatremia with SIADH."
+    },
+    {
+      "lessonId": "med-clin-psych.l13",
+      "claim": "A washout of about two weeks (five weeks after fluoxetine) is needed between MAOIs and serotonergic agents.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.accessdata.fda.gov/drugsatfda_docs/label/2022/020822s041lbl.pdf"
+      ],
+      "note": "Celexa label confirms 14 days around MAOIs; the five-week fluoxetine figure was not checked on an opened page."
+    },
+    {
+      "lessonId": "med-clin-psych.l14",
+      "claim": "Antipsychotics block dopamine D2 receptors.",
+      "verdict": "contradicted",
+      "sources": [
+        "https://news.bms.com/news/details/2024/U.S.-Food-and-Drug-Administration-Approves-Bristol-Myers-Squibbs-COBENFY-xanomeline-and-trospium-chloride-a-First-In-Class-Muscarinic-Agonist-for-the-Treatment-of-Schizophrenia-in-Adults/default.aspx"
+      ],
+      "note": "No longer true as a blanket statement: xanomeline-trospium (Cobenfy), FDA approved Sept 26, 2024, is a muscarinic M1/M4 agonist antipsychotic that does not block D2. Correct for the first- and second-generation agents listed."
+    },
+    {
+      "lessonId": "med-clin-psych.l14",
+      "claim": "Combining benzodiazepines with opioids carries a boxed warning for profound respiratory depression.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.fda.gov/drugs/drug-safety-and-availability/fda-requiring-boxed-warning-updated-improve-safe-use-benzodiazepine-drug-class"
+      ],
+      "note": "Added 2016; the benzodiazepine boxed warning was broadened in 2020 to cover abuse, dependence and withdrawal too."
+    },
+    {
+      "lessonId": "med-clin-psych.l14",
+      "claim": "VMAT2 inhibitors valbenazine and deutetrabenazine are used for tardive dyskinesia.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Consistent with knowledge (both approved 2017); the source page I tried returned 404."
+    },
+    {
+      "lessonId": "med-clin-psych.l15",
+      "claim": "Esketamine nasal spray is approved with an antidepressant for treatment-resistant depression under supervised administration.",
+      "verdict": "contradicted",
+      "sources": [
+        "https://www.hcplive.com/view/fda-approves-esketamine-first-monotherapy-treatment-resistant-depression"
+      ],
+      "note": "Out of date: on January 21, 2025 FDA approved Spravato as monotherapy for TRD (adults who failed at least two oral antidepressants); it is no longer limited to use with an oral antidepressant. REMS-supervised administration still applies."
+    },
+    {
+      "lessonId": "med-clin-psych.l15",
+      "claim": "CBT-I is first-line over hypnotics for chronic insomnia.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.acponline.org/acp-newsroom/acp-recommends-cognitive-behavioral-therapy-as-initial-treatment-for-chronic-insomnia"
+      ],
+      "note": "ACP 2016 guideline (strong recommendation)."
+    },
+    {
+      "lessonId": "med-clin-psych.l15",
+      "claim": "ECT is among the most effective treatments for severe, psychotic or treatment-resistant depression and catatonia; TMS targets the dorsolateral prefrontal cortex with rare seizure risk.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Consistent with knowledge; no page opened for ECT/TMS specifics."
+    },
+    {
+      "lessonId": "med-clin-psych.l16",
+      "claim": "The 2023 USPSTF found insufficient evidence to assess suicide-risk screening in adults while recommending depression screening.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.uspreventiveservicestaskforce.org/uspstf/recommendation/screening-depression-suicide-risk-adults"
+      ],
+      "note": "June 20, 2023: depression grade B, suicide risk grade I."
+    },
+    {
+      "lessonId": "med-clin-psych.l16",
+      "claim": "The Stanley-Brown safety plan is a written collaborative list of warning signs, internal coping, social contacts, people to ask for help, professionals and means safety; no-suicide contracts lack evidence.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.oregonsuicideprevention.org/wp-content/uploads/2019/11/Stanley-2012-Safety-Planning-Intervention-Updated-Safety-Plan.pdf"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "med-clin-psych.l16",
+      "claim": "Structured tools such as the C-SSRS and the ASQ help organize inquiry.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.nimh.nih.gov/research/research-conducted-at-nimh/asq-toolkit-materials"
+      ],
+      "note": "NIMH ASQ is four brief questions; C-SSRS not checked on an opened page. 988 crisis number not checked."
+    },
+    {
+      "lessonId": "med-clin-psych.l17",
+      "claim": "In Schloendorff v. Society of New York Hospital (1914), Cardozo wrote that every adult of sound mind may determine what is done with their body and an unconsented operation is an assault.",
+      "verdict": "supported",
+      "sources": [
+        "https://en.wikipedia.org/wiki/Schloendorff_v._Society_of_New_York_Hospital"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "med-clin-psych.l17",
+      "claim": "Cruzan (1990): constitutionally protected interest in refusing treatment; a state may require clear and convincing evidence of an incompetent patient's wishes.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.law.cornell.edu/supremecourt/text/497/261"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "med-clin-psych.l17",
+      "claim": "Appelbaum and Grisso's four abilities: understanding, appreciation, reasoning, expressing a choice.",
+      "verdict": "unverifiable",
+      "sources": [],
+      "note": "Consistent with knowledge; no page opened."
+    },
+    {
+      "lessonId": "med-clin-psych.l18",
+      "claim": "O'Connor v. Donaldson (1975): a state cannot confine a non-dangerous person capable of surviving safely in freedom; Addington v. Texas (1979): clear and convincing evidence required.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.law.cornell.edu/supremecourt/text/422/563",
+        "https://www.law.cornell.edu/supremecourt/text/441/418"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "med-clin-psych.l18",
+      "claim": "Tarasoff (1976): a therapist who determines a patient presents a serious danger of violence to another must use reasonable care to protect the intended victim.",
+      "verdict": "supported",
+      "sources": [
+        "https://caselaw.findlaw.com/court/ca-supreme-court/1830445.html"
+      ],
+      "note": ""
+    },
+    {
+      "lessonId": "med-clin-psych.l18",
+      "claim": "CMS rules require a face-to-face assessment within one hour of restraint or seclusion; HIPAA permits disclosure to prevent a serious and imminent threat.",
+      "verdict": "supported",
+      "sources": [
+        "https://www.law.cornell.edu/cfr/text/42/482.13",
+        "https://www.law.cornell.edu/cfr/text/45/164.512"
+      ],
+      "note": "42 CFR 482.13(e)(12) applies to restraint/seclusion for violent or self-destructive behavior; 45 CFR 164.512(j)."
+    }
+  ]
+}

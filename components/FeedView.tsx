@@ -34,6 +34,7 @@ import { useFediverse } from '../contexts/FediverseContext';
 import MiniMusicPlayer from './MiniMusicPlayer';
 import UniversalPostComposer from './UniversalPostComposer';
 import { useActiveIdentity, IdentitySwitcher } from '../contexts/ActiveIdentityContext';
+import OrgAudienceToggle, { type OrgPostAudience } from './elevate/OrgAudienceToggle';
 import StoriesBar from './StoriesBar';
 import StoryCreator from './StoryCreator';
 import DualPanelTimeline from './DualPanelTimeline';
@@ -52,34 +53,64 @@ import '../styles/plajah-social-signal.css';
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 const LiveTalkView = lazy(() => import('./LiveTalkView'));
 
-type ResolvedMedia = { type: 'PHOTO' | 'VIDEO' | 'AUDIO' | 'GIF' | 'MODEL3D'; url: string; title?: string; thumbnail?: string };
-/** Shared composer → post media pipeline: uploads any local blobs and, for VIDEO
- *  attachments, captures + uploads a real poster frame so the feed shows a
- *  thumbnail instead of a blank/black box. Used by every composer on this page. */
+type ResolvedMedia = {
+  type: 'PHOTO' | 'VIDEO' | 'AUDIO' | 'GIF' | 'MODEL3D';
+  url: string;
+  title?: string;
+  thumbnail?: string;
+  width?: number;
+  height?: number;
+  aspectRatio?: number;
+};
+/** Shared composer → post media pipeline: optimizes images to high-efficiency WebP/JPEG,
+ *  captures video posters, and uploads companion thumbnails so the feed loads instantly. */
 export async function resolveComposerMedia(attachments: any[], uid: string): Promise<ResolvedMedia[]> {
   const out = await Promise.all(attachments.map(async (att): Promise<ResolvedMedia | null> => {
     if (att.file && typeof att.url === 'string' && att.url.startsWith('blob:')) {
       try {
         const { uploadFile } = await import('../services/backendService');
         const { uploadOrReuse } = await import('../services/mediaDedup');
+
+        let uploadPayload = att.file;
+        let thumbnail: string | undefined = att.thumbnail;
+        let metaDims: { width?: number; height?: number; aspectRatio?: number } = {};
+
+        // High-efficiency image compression (Instagram/X grade: auto-resizes to 1440px max, WebP 82% quality)
+        if (att.type === 'PHOTO' || (att.file.type && att.file.type.startsWith('image/'))) {
+          try {
+            const { compressSocialImage } = await import('../services/socialImageOptimizer');
+            const opt = await compressSocialImage(att.file);
+            uploadPayload = opt.file;
+            if (opt.width && opt.height) {
+              metaDims = { width: opt.width, height: opt.height, aspectRatio: opt.aspectRatio };
+            }
+            if (opt.thumbnail && !thumbnail) {
+              try {
+                thumbnail = await uploadFile(`posts/${uid}/thumb_${Date.now()}_${opt.thumbnail.name}`, opt.thumbnail);
+              } catch { /* thumbnail is companion/best-effort */ }
+            }
+          } catch (compErr) {
+            console.warn('[resolveComposerMedia] Image compression error, using raw file:', compErr);
+          }
+        }
+
         const { url } = await uploadOrReuse(
           uid,
-          `posts/${uid}/${Date.now()}_${att.file.name}`,
-          att.file, uploadFile,
+          `posts/${uid}/${Date.now()}_${uploadPayload.name}`,
+          uploadPayload, uploadFile,
           { type: att.type, title: att.title, forceNew: (att as any).forceNew },
         );
-        let thumbnail: string | undefined = att.thumbnail;
+
         if (att.type === 'VIDEO' && !thumbnail) {
           try {
             const { captureVideoPoster } = await import('../services/videoPoster');
             const poster = await captureVideoPoster(att.file);
             if (poster) {
-              const { uploadFile } = await import('../services/backendService');
               thumbnail = await uploadFile(`posts/${uid}/poster_${Date.now()}.jpg`, poster);
             }
           } catch { /* poster is best-effort — the <video> still renders without it */ }
         }
-        return { type: att.type, url, title: att.title, ...(thumbnail ? { thumbnail } : {}) };
+        return { type: att.type, url, title: att.title, ...(thumbnail ? { thumbnail } : {}), ...metaDims };
       } catch (e) {
         // Don't drop media silently — a failed upload here is why "pictures/videos don't post."
         console.error('[composer] media upload failed', e);
@@ -1161,14 +1192,8 @@ const FeedItemComponent: React.FC<{
                 <PostMediaCarousel items={item.media.filter(m => (m.url || m.id || (m as any).muxPlaybackId) && (m.type === 'PHOTO' || m.type === 'GIF' || m.type === 'STICKER' || m.type === 'VIDEO')).map(m => ({ type: m.type, url: m.url, thumbnail: m.thumbnail, title: m.title, id: m.id, muxPlaybackId: (m as any).muxPlaybackId }))} />
               </div>
             ) : item.imageUrl ? (
-              <div className={`relative ${item.aspectRatio === 'VERTICAL' ? 'aspect-[3/4] md:aspect-[9/16]' : 'aspect-video'} rounded-[3rem] md:rounded-[4rem] overflow-hidden mb-12 shadow-[0_40px_80px_rgba(0,0,0,0.4)] ring-1 ring-white/10 group-hover/item:scale-[1.01] transition-transform duration-700`}>
-                <img
-                  src={item.imageUrl || undefined}
-                  alt="Post content"
-                  className={`w-full h-full ${item.autoCrop ? 'object-cover' : 'object-contain'}`}
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+              <div className="mb-12">
+                <PostMediaCarousel items={[{ type: 'PHOTO', url: item.imageUrl, title: item.content?.split('\n')[0] }]} />
               </div>
             ) : null)}
 
@@ -1382,6 +1407,7 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   // the composer open (bumping this key remounts the composer with autoExpand).
   const [composeSignal, setComposeSignal] = useState(0);
   const { activeOrg } = useActiveIdentity();
+  const [orgPostAudience, setOrgPostAudience] = useState<OrgPostAudience>('PUBLIC');
   const [plajahFilter, setPlajahFilter] = useState<'ALL' | 'FOLLOWING' | 'LIKED'>('ALL');
   const [showNowOnboarding, setShowNowOnboarding] = useState(false);
   const [showNowBanner, setShowNowBanner] = useState(() => {
@@ -2763,6 +2789,7 @@ const toggleFavoriteTeam = async (team: string) => {
             <span className="text-[10px] font-black uppercase tracking-widest text-[#FF8C00]">Go live →</span>
           </button>
           <div className="mb-2"><IdentitySwitcher selfName={currentUser?.displayName} selfPhoto={currentUser?.photoURL} /></div>
+          {activeOrg && <OrgAudienceToggle value={orgPostAudience} onChange={setOrgPostAudience} className="px-1 pb-2" />}
           <UniversalPostComposer
             key={`composer-${composeSignal}`}
             autoExpand={composeSignal > 0}
@@ -2781,8 +2808,10 @@ const toggleFavoriteTeam = async (team: string) => {
                 ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
                 ...(data.contentLabels?.length ? { contentLabels: data.contentLabels } : {}),
                 ...(data.sanctuaryGate ? { sanctuaryGate: data.sanctuaryGate } : {}),
+                ...(data.poll ? { poll: data.poll } : {}),
+                ...(data.dataViz ? { dataViz: data.dataViz } : {}),
                 ...embedFields,
-                ...(activeOrg ? { authorName: activeOrg.name, authorPhoto: activeOrg.logoUrl || '', authorOrgId: activeOrg.id } : {}),
+                ...(activeOrg ? { authorName: activeOrg.name, authorPhoto: activeOrg.logoUrl || '', authorOrgId: activeOrg.id, orgAudience: orgPostAudience } : {}),
                 ...todayFields(),
               } as any);
               setPostToToday(false);
@@ -3231,6 +3260,7 @@ const toggleFavoriteTeam = async (team: string) => {
                 )}
               </AnimatePresence>
             </div>
+            {activeOrg && <OrgAudienceToggle value={orgPostAudience} onChange={setOrgPostAudience} className="px-1 pb-2" />}
             <UniversalPostComposer
               currentUser={currentUser}
               placeholder={postToToday ? 'Share a Today — gone in 24 hours…' : "What's on your mind?"}
@@ -3244,8 +3274,10 @@ const toggleFavoriteTeam = async (team: string) => {
                   isPublic: true,
                   ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
                   ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
+                  ...(data.poll ? { poll: data.poll } : {}),
+                  ...(data.dataViz ? { dataViz: data.dataViz } : {}),
                   ...embedFields,
-                  ...(activeOrg ? { authorName: activeOrg.name, authorPhoto: activeOrg.logoUrl || '', authorOrgId: activeOrg.id } : {}),
+                  ...(activeOrg ? { authorName: activeOrg.name, authorPhoto: activeOrg.logoUrl || '', authorOrgId: activeOrg.id, orgAudience: orgPostAudience } : {}),
                   ...todayFields(),
                 } as any);
                 setPostToToday(false);

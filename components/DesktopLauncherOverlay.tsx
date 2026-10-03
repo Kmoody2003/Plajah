@@ -29,7 +29,7 @@ import {
   Play, Clock, Store, ShoppingBag, Megaphone, DollarSign,
   ShieldCheck, Presentation, Compass, Check, FileText,
   UserCheck, Heart, Headphones, Share2, Mail, ExternalLink,
-  Briefcase, User, Camera
+  Briefcase, User, Camera, Home
 } from 'lucide-react';
 import type { UserProfile, Album, BusinessPage } from '../types';
 import { fetchUserAlbums } from '../services/backendService';
@@ -1014,6 +1014,30 @@ export const DesktopLauncherOverlay: React.FC<DesktopLauncherOverlayProps> = ({
                       <p className="text-xs text-white/60 mt-0.5">
                         STEM courses, world history & peer discussion modules
                       </p>
+                    </div>
+
+                    {/* Plajah Home / Smart Living Space */}
+                    <div
+                      onClick={() => handleOpenItem('PLAJAH_HOME')}
+                      className="p-4 rounded-2xl bg-black/45 border border-[#FF8C00]/40 hover:border-[#FF8C00] transition-all cursor-pointer group shadow-lg shadow-[#FF8C00]/10"
+                    >
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-[#FF8C00] font-display flex items-center gap-1.5">
+                          <Home size={13} className="text-[#FF8C00]" />
+                          <span>PLAJAH HOME</span>
+                        </span>
+                        <span className="text-[#06D6A0] font-mono text-[10px] font-bold">● REAL LAN DISCOVERY</span>
+                      </div>
+                      <h4 className="text-sm font-bold text-white mt-1 group-hover:text-[#FF8C00] transition-colors">
+                        Atmospheric Command Lounge & Matter Hub
+                      </h4>
+                      <p className="text-xs text-white/60 mt-0.5">
+                        Interactive 2D home blueprint, real LAN hardware discovery, Chora visualizer & smart lighting
+                      </p>
+                      <div className="mt-2.5 pt-2 border-t border-white/10 flex items-center justify-between text-[11px]">
+                        <span className="text-white/40">Windows Smart Space</span>
+                        <span className="text-[#FF8C00] font-bold">Launch Conductor →</span>
+                      </div>
                     </div>
                   </div>
 

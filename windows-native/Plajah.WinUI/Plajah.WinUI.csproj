@@ -13,9 +13,11 @@
     <!-- Single-project MSIX: the modern packaging target — no separate .wapproj needed. -->
     <EnableMsixTooling>true</EnableMsixTooling>
     <WindowsPackageType>MSIX</WindowsPackageType>
-    <PublishProfile>win-$(Platform).pubxml</PublishProfile>
-    <AppxPackageSigningEnabled>false</AppxPackageSigningEnabled>
+    <AppxPackageSigningEnabled>true</AppxPackageSigningEnabled>
+    <PackageCertificateThumbprint>129FDFBD536732010E512F6F30F73E38410CEB7F</PackageCertificateThumbprint>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+    <!-- Program.cs owns Main so single-instance redirection runs before XAML starts (no UI-thread deadlock). -->
+    <DefineConstants>$(DefineConstants);DISABLE_XAML_GENERATED_MAIN</DefineConstants>
   </PropertyGroup>
 
   <ItemGroup>
@@ -28,5 +30,15 @@
   <ItemGroup>
     <Content Include="Assets\**" />
     <Manifest Include="$(ApplicationManifest)" />
+    <Content Include="Processing.NDI.Lib.x64.dll" Condition="Exists('Processing.NDI.Lib.x64.dll')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup Condition="Exists('..\..\dist')">
+    <Content Include="..\..\dist\**\*.*">
+      <Link>wwwroot\%(RecursiveDir)%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 </Project>

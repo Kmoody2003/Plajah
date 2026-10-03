@@ -1,0 +1,1301 @@
+{
+ "courseId": "med-clin-fm",
+ "label": "Family and Preventive Medicine",
+ "lessons": [
+  {
+   "id": "med-clin-fm.l01",
+   "title": "The Primary Care Approach",
+   "body": [
+    "Primary care is organized around first contact, continuity (which Barbara Starfield called longitudinality), comprehensiveness and coordination, often summarized as the four pillars she described. A family physician cares for people of all ages and for the whole range of problems, and sees patients at a much earlier and less differentiated stage of illness than a hospital specialist does. That setting changes diagnostic reasoning. The pretest probability of a serious disease is lower in primary care than in a referral clinic, so common conditions are most likely even when symptoms are alarming: chest pain in a young primary care patient is more often musculoskeletal than ischemic, and headache is more often tension-type or migraine than a mass. Bayesian reasoning, combining the prior probability with the strength of a test result, explains why a test with good sensitivity and specificity can still produce mostly false positives when the condition is rare.",
+    "Useful concepts include the likelihood ratio, which lets a clinician move from pretest to posttest probability, and the idea of a test-treatment threshold: a test is worth doing only if its result could cross a threshold that changes management. Watchful waiting, time as a diagnostic test and safety-netting (telling the patient exactly what findings should prompt return) are legitimate tools. Red flags remain essential. A patient with low back pain and new urinary retention or saddle anesthesia needs urgent evaluation for cauda equina syndrome, regardless of how common benign back pain is.",
+    "Visits often involve several concerns, so the clinician sets an agenda with the patient, addresses the most pressing problems, and schedules the rest. The biopsychosocial model recognizes that depression, stress, health literacy, poverty, housing, food insecurity, transportation and safety shape outcomes as much as medication does. Social determinants of health are screened with brief tools, and clinics link patients with community resources. Health literacy is assessed indirectly; teach-back, plain language and written materials at an appropriate reading level reduce errors. Cultural humility, interpreters (a professional interpreter rather than a family member, particularly for sensitive information) and trauma-informed practice improve communication.",
+    "Shared decision-making is a structured conversation in which the clinician presents the options and the evidence, the patient states values and preferences, and they reach a decision together. It is especially valuable when evidence is balanced, as in prostate cancer screening, or when the benefits accrue far in the future. Motivational interviewing, with open questions, affirmations, reflections and summaries (OARS), helps patients with ambivalence about behavior change; the five A's (ask, advise, assess, assist, arrange) organize brief counseling.",
+    "Prevention is classified into primary (preventing disease onset, such as vaccination), secondary (detecting disease early in an asymptomatic person, such as screening), tertiary (reducing complications of established disease, such as diabetic foot care) and quaternary (protecting patients from unnecessary medical interventions and overdiagnosis). Quality care also means avoiding low-value testing, such as imaging for uncomplicated low back pain in the first six weeks.",
+    "Worked example: a 25-year-old woman presents with a week of palpitations and no other symptoms. Her pretest probability of dangerous arrhythmia is low, so the reasonable approach is history, examination, ECG, thyroid testing and possibly ambulatory monitoring, with explicit return precautions, rather than a broad batch of tests."
+   ]
+  },
+  {
+   "id": "med-clin-fm.l02",
+   "title": "Principles of Screening and Cancer Screening Recommendations",
+   "body": [
+    "A screening test is applied to people without symptoms to detect disease earlier, and it helps only if early treatment improves outcomes. The Wilson and Jungner criteria ask that the condition be an important health problem with a recognized latent stage, that an acceptable test and an effective accepted treatment exist, and that benefits exceed harms. Screening programs are judged by reduced disease-specific and, ideally, all-cause mortality in randomized trials, not by survival time from diagnosis. Lead-time bias occurs when earlier detection lengthens apparent survival without postponing death. Length-time bias occurs because slow-growing indolent tumors are more likely to be detected between scheduled screens. Overdiagnosis is the detection of a cancer that would never have caused symptoms, and it produces treatment harms with no benefit. Selection (healthy volunteer) bias also inflates apparent benefit in observational studies. Harms include false positives, anxiety, invasive follow-up and radiation.",
+    "The United States Preventive Services Task Force (USPSTF) grades recommendations: A (high certainty of substantial net benefit), B (moderate-to-high certainty of a moderate benefit), C (selective offering based on individual circumstances), D (recommends against) and I (insufficient evidence). The Affordable Care Act requires most insurers to cover A and B recommendations without cost sharing.",
+    "Breast cancer: in 2024 the USPSTF recommended biennial screening mammography for women aged 40 to 74 (grade B), extending the start from 50 to 40; evidence is insufficient for routine supplemental ultrasound or MRI in women with dense breasts. Higher-risk women (BRCA carriers, prior chest radiation) follow separate high-risk pathways with MRI. Cervical cancer: the final USPSTF recommendation remains the 2018 one (a draft update was posted in December 2024 and is not final), which is cytology every three years at ages 21 to 29, and for ages 30 to 65 cytology every three years, high-risk HPV testing alone every five years, or cotesting every five years; screening is not recommended below 21, and stops after 65 with adequate prior negative screening and no high-grade history. Screening is unnecessary after hysterectomy with cervix removal for benign disease. Colorectal cancer: the 2021 recommendation is screening at ages 45 to 49 (B) and 50 to 75 (A), with selective screening at 76 to 85; options include colonoscopy every ten years, annual fecal immunochemical test, multi-target stool DNA every one to three years, CT colonography and flexible sigmoidoscopy every five years. A positive stool test must be followed by colonoscopy. Lung cancer: the 2021 recommendation is annual low-dose CT for adults aged 50 to 80 with at least a 20 pack-year smoking history who currently smoke or",
+    "quit within the past 15 years, stopping when there is a health problem limiting life expectancy or ability to have surgery. The National Lung Screening Trial showed lower lung cancer mortality with low-dose CT than with chest radiography. Prostate cancer: the final 2018 statement (an update is in progress and a draft is not final) is that men aged 55 to 69 should make an individual decision with their clinician about PSA screening (C), and screening is not recommended at 70 and older (D). The ERSPC and PLCO trials produced conflicting results, and overdiagnosis and treatment complications (incontinence, erectile dysfunction) are the main harms.",
+    "Worked example: a 52-year-old woman has smoked one pack a day for 30 years and quit last year. She meets criteria for annual low-dose CT lung screening, and she is also due for colorectal screening, so both are discussed along with smoking relapse prevention."
+   ]
+  },
+  {
+   "id": "med-clin-fm.l03",
+   "title": "Cardiometabolic Screening and Risk Assessment",
+   "body": [
+    "Cardiovascular risk assessment starts with the question of whom to screen and whom to treat. For hypertension, the USPSTF (2021) recommends screening all adults aged 18 and older, with confirmation of elevated office readings by out-of-office measurement (ambulatory or home blood pressure monitoring) before diagnosis. Proper technique matters: a seated, rested patient, correct cuff size and an arm at heart level. A cuff that is too small overestimates pressure. White coat hypertension (elevated office but normal out-of-office readings) and masked hypertension (the reverse) are distinguished with ambulatory monitoring.",
+    "For lipids, the USPSTF (2022) recommends a statin for adults aged 40 to 75 who have at least one cardiovascular risk factor (dyslipidemia, diabetes, hypertension or smoking) and an estimated 10-year cardiovascular risk of 10 percent or more (grade B), with selective offering at 7.5 to under 10 percent (grade C), and finds insufficient evidence for those 76 and older. The USPSTF estimates risk with the pooled cohort equations, whereas the 2026 ACC/AHA dyslipidemia guideline, which replaced the 2018 cholesterol guideline, uses the PREVENT equations (statin therapy reasonable at 3 to under 5 percent, recommended after discussion at 5 to under 10 percent) and sets LDL goals; a coronary artery calcium score can refine borderline decisions, since a score of zero supports deferral of a statin while a high score favors treatment. Patients with established atherosclerotic disease, a low-density lipoprotein of 190 mg/dL or higher, or diabetes aged 40 to 75 have statin indications by those guidelines.",
+    "For diabetes, the USPSTF (2021) recommends screening for prediabetes and type 2 diabetes in adults aged 35 to 70 who are overweight or obese, and the American Diabetes Association recommends testing for adults with a body mass index at or above 25 with risk factors and, regardless of risk, beginning at age 35, and for people with a history of gestational diabetes. Tests include fasting plasma glucose (126 mg/dL or higher indicates diabetes), a two-hour glucose after a 75-g oral glucose tolerance test (200 mg/dL or higher), hemoglobin A1c (6.5 percent or higher) and a random glucose of 200 mg/dL or higher with classic symptoms; abnormal results ordinarily require confirmation. Prediabetes is a fasting glucose of 100 to 125, A1c of 5.7 to 6.4 percent. The Diabetes Prevention Program showed that intensive lifestyle change reduced progression by about 58 percent and metformin by about 31 percent, with greater effect from lifestyle.",
+    "An abdominal aortic aneurysm is an aortic diameter of 3.0 cm or more. The USPSTF (2019) recommends one-time ultrasound screening in men aged 65 to 75 who have ever smoked (grade B), selective screening for men of that age who never smoked (grade C), recommends against screening women who never smoked (grade D), and finds insufficient evidence for women aged 65 to 75 who have smoked. Aspirin for primary prevention: the 2022 USPSTF recommends an individual decision for adults aged 40 to 59 with a 10 percent or greater 10-year risk (grade C) and recommends against initiating it at age 60 or older (grade D), because bleeding risk grows with age.",
+    "Worked example: a 58-year-old man with a body mass index of 31 and no symptoms has an elevated reading in the office. Before diagnosing hypertension, home or ambulatory monitoring confirms it, and a diabetes screen is ordered because of age and weight."
+   ]
+  },
+  {
+   "id": "med-clin-fm.l04",
+   "title": "Immunization Across the Lifespan",
+   "body": [
+    "Vaccines work by priming adaptive immunity so that a later exposure meets a faster and stronger response. Live attenuated vaccines (measles, mumps and rubella; varicella; the live intranasal influenza vaccine; yellow fever; oral typhoid; rotavirus) replicate and typically give durable protection, but they are contraindicated in pregnancy and in severe immunocompromise, such as advanced HIV, high-dose corticosteroids, chemotherapy and many biologic therapies. Inactivated, subunit, conjugate, toxoid and messenger RNA vaccines cannot cause the disease they prevent and are safe in immunocompromise, although the response may be lower. Polysaccharide vaccines elicit T-cell-independent responses, which are weak in infants and lack memory, and conjugation to a protein carrier (as in Haemophilus influenzae type b and pneumococcal conjugate vaccines) converts them into T-cell-dependent responses.",
+    "The United States Advisory Committee on Immunization Practices (ACIP) recommends schedules that the Centers for Disease Control and Prevention publishes, and they change often, so clinicians check the current schedule. The childhood schedule published by the American Academy of Pediatrics (AAP), updated September 2, 2026 and endorsed by several other professional societies, continues to recommend hepatitis B at birth (within 24 hours for a medically stable infant weighing at least 2000 grams whose mother is surface-antigen negative), then a series of diphtheria-tetanus-acellular pertussis, inactivated polio, Haemophilus influenzae type b, pneumococcal conjugate and rotavirus vaccines in infancy; measles-mumps-rubella and varicella at 12 to 15 months with a second dose at 4 to 6 years; hepatitis A from age 12 months; annual influenza vaccination from 6 months; Tdap at 11 to 12 years; meningococcal vaccines in adolescence; and human papillomavirus (HPV) vaccine beginning at ages 9 to 12 (two doses when started before age 15 and three doses when started at 15 or older or in immunocompromised persons), with catch-up through age 26 and shared decision-making for some adults aged 27 to 45. Catch-up scheduling does not restart a series: doses given are counted, and minimum intervals apply.",
+    "Status of the federal childhood schedule is fast-moving (facts as of early October 2026; check before relying on them). In June 2025 HHS replaced the ACIP membership. On January 5, 2026 HHS issued a revised CDC childhood schedule that, according to the Congressional Research Service, moved six vaccines (reported as hepatitis B, rotavirus, influenza, hepatitis A, meningococcal and RSV) from a universal recommendation to shared clinical decision-making or risk-based use. The AAP did not adopt those changes and continues to recommend the vaccines above for all children. On March 16, 2026, in American Academy of Pediatrics v. Kennedy, the federal district court in Massachusetts stayed the January schedule, finding the plaintiffs likely to succeed on their claim that it was arbitrary and capricious under the Administrative Procedure Act, and also stayed the appointments of ACIP members named since June 2025 and their votes. The stay returns the CDC schedule to its earlier form (the CDC page opened for this lesson shows the version updated July 2, 2025). The government has appealed to the First Circuit, so the legal status could change. Whatever the status, clinicians should know both the CDC and the AAP positions and document shared decision-making where a family declines a vaccine.",
+    "Adults need Tdap once and then a Td or Tdap booster every ten years, and Tdap in every pregnancy (ideally at 27 to 36 weeks) to protect the newborn from pertussis through passive antibody transfer. Annual influenza vaccination is recommended for everyone aged 6 months and older. Recombinant zoster vaccine (Shingrix, two doses) is recommended for adults aged 50 and over, regardless of previous shingles or zoster vaccine, and for immunocompromised adults aged 19 and older. Pneumococcal conjugate vaccination (PCV20 or PCV21 alone, or PCV15 followed by polysaccharide vaccine) is recommended for older adults and for younger adults with risk conditions; the age threshold has been lowered over time, so clinicians check the current schedule. Respiratory syncytial virus vaccines are recommended for older adults and for pregnant people in a defined window or infants through a monoclonal antibody, under evolving ACIP guidance. COVID-19 vaccination recommendations have changed repeatedly and should be checked. Hepatitis B vaccination is recommended for adults up to age 59 and for older adults with risk factors. Measles-mumps-rubella needs documented immunity for adults born in 1957 or later, and rubella-susceptible people who may become pregnant need vaccination before conception, since live vaccines are avoided during pregnancy.",
+    "True contraindications are few: a severe allergic reaction (anaphylaxis) to a previous dose or to a vaccine component, and for live vaccines, pregnancy or severe immunodeficiency; for pertussis-containing vaccines, encephalopathy within seven days of a previous dose. A moderate or severe acute illness is a precaution. Minor illness with a low-grade fever, antibiotic use, prematurity, mild reactions and a family history of adverse events are not contraindications. Vaccine safety is monitored by the Vaccine Adverse Event Reporting System and by active surveillance systems. Vaccines do not cause autism, as large studies have shown repeatedly. Vaccine policy is contested politically, and clinicians help parents by listening to concerns, using presumptive but respectful recommendations and addressing risks and benefits with accurate data.",
+    "Worked example: an unvaccinated 16-year-old arrives for a sports physical. Catch-up includes Tdap, meningococcal vaccines, HPV (three doses if started at 15 or older), and any missing series such as hepatitis B, MMR and varicella, using minimum intervals without restarting."
+   ]
+  },
+  {
+   "id": "med-clin-fm.l05",
+   "title": "Screening for Infectious Disease and Preconception Care",
+   "body": [
+    "Infectious disease screening in primary care targets treatable conditions whose early detection prevents harm to the patient and onward transmission. The USPSTF (2019) recommends HIV screening for adolescents and adults aged 15 to 65 and for older and younger people at increased risk, and for all pregnant people; the Centers for Disease Control and Prevention supports routine opt-out testing at least once. The 2019 statement is still the final USPSTF recommendation; an update is in progress, so treat any draft as provisional until it is finalized. Antiretroviral therapy that suppresses viral load to undetectable prevents sexual transmission (undetectable equals untransmittable). Preexposure prophylaxis (PrEP) with daily tenofovir-based oral regimens, or long-acting injectable agents, is recommended by the USPSTF (2023) for people at increased risk of HIV, with monitoring of renal function and periodic testing for HIV and other sexually transmitted infections. Postexposure prophylaxis is started within 72 hours.",
+    "Hepatitis C screening is recommended once for all adults aged 18 to 79 (USPSTF 2020), since direct-acting antivirals cure more than 95 percent of patients, and repeat testing is advised for those with ongoing risk such as injection drug use. Hepatitis B screening of at-risk adolescents and adults, and of all pregnant people at the first prenatal visit, uses hepatitis B surface antigen; the CDC also recommends one-time universal adult screening using a triple panel (surface antigen, surface antibody and core antibody). Chronic hepatitis B and C are both major causes of cirrhosis and hepatocellular carcinoma, and patients with cirrhosis need surveillance for liver cancer with ultrasound.",
+    "For chlamydia and gonorrhea, the USPSTF (2021) recommends screening in sexually active women aged 24 and younger and in older women at increased risk, using nucleic acid amplification tests on urine or vaginal swabs; evidence is insufficient for men in general, though clinicians test men with risk factors or symptoms, including men who have sex with men at exposed anatomic sites. Syphilis screening is recommended in people at increased risk and in all pregnant people (USPSTF 2022 for the former, grade A in a statement reaffirmed in May 2025 for the latter), with a nontreponemal test (RPR or VDRL) confirmed by a treponemal test; penicillin is the treatment of choice, including in pregnancy, where desensitization is used for allergy. Untreated chlamydia and gonorrhea cause pelvic inflammatory disease, infertility and ectopic pregnancy. Expedited partner therapy is permitted in many states. Doxycycline postexposure prophylaxis can reduce bacterial STIs in selected men who have sex with men and transgender women according to current CDC guidance.",
+    "Tuberculosis screening is targeted: people born in or from high-incidence countries, close contacts, residents and employees of congregate settings, people with HIV or immunosuppression, and healthcare workers. Both the tuberculin skin test and the interferon-gamma release assay detect infection; the latter is not affected by prior BCG vaccination, so it is favored in those who have received BCG. A positive result requires a chest radiograph to exclude active disease before treating latent infection, with shorter regimens such as three months of weekly isoniazid and rifapentine or four months of daily rifampin now preferred to nine months of isoniazid.",
+    "Preconception and prenatal care includes folic acid supplementation (USPSTF 2023 recommends 0.4 to 0.8 mg daily for anyone planning or capable of pregnancy), review of teratogenic medications, immunization, genetic screening and optimization of chronic diseases. Screening of pregnant people includes blood type and Rh status, rubella immunity, syphilis, HIV, hepatitis B, bacteriuria, and gestational diabetes at 24 to 28 weeks; low-dose aspirin starting after 12 weeks is recommended for those at high risk of preeclampsia.",
+    "Worked example: a 23-year-old sexually active woman presents for a periodic visit. She should be offered chlamydia and gonorrhea testing, HIV testing, HPV vaccination catch-up if incomplete, one-time hepatitis C screening and counseling about contraception."
+   ]
+  },
+  {
+   "id": "med-clin-fm.l06",
+   "title": "Outpatient Management of Hypertension and Dyslipidemia",
+   "body": [
+    "Hypertension is defined by the AHA/ACC guideline (2017, retained in the 2025 update) as an average blood pressure at or above 130/80 mmHg (stage 1 at 130 to 139 systolic or 80 to 89 diastolic; stage 2 at 140/90 or higher), whereas some other guidelines retain a threshold of 140/90. The 2025 guideline keeps a treatment goal below 130/80 for adults, with encouragement to reach below 120/80 where feasible. It replaces the Pooled Cohort Equations with the PREVENT equations for 10-year cardiovascular risk: drug treatment is recommended at 130/80 or higher for people with cardiovascular disease, diabetes, chronic kidney disease or a PREVENT risk of 7.5 percent or more, whereas lower-risk people at 130 to 139 systolic or 80 to 89 diastolic start with three to six months of lifestyle change and add medication if blood pressure stays at or above 130/80. The term hypertensive urgency was replaced by severe hypertension (above 180/120 without acute organ damage). SPRINT showed that targeting a systolic pressure of 120 using automated office measurements lowered cardiovascular events and mortality compared with a target of 140 in high-risk adults without diabetes, though with more adverse events such as hypotension, syncope and acute kidney injury.",
+    "Lifestyle measures lower pressure: weight loss, the DASH diet, sodium restriction, potassium-rich foods (when kidney function permits), regular aerobic exercise and limiting alcohol. First-line drugs are thiazide or thiazide-like diuretics (chlorthalidone, indapamide), ACE inhibitors, angiotensin receptor blockers and dihydropyridine calcium channel blockers. The 2025 guideline gives no race-specific drug advice; earlier guidance and some other guidelines favored a thiazide or calcium channel blocker as initial therapy in Black patients, based on trial data such as ALLHAT. Single-pill combination therapy of two drug classes improves adherence and is preferred for stage 2 hypertension. ACE inhibitors and ARBs are preferred in patients with diabetic or chronic kidney disease with albuminuria and in heart failure with reduced ejection fraction; they are contraindicated in pregnancy (fetal renal injury) and are never combined with each other. ACE inhibitors cause cough from bradykinin accumulation and rarely angioedema; both drugs cause hyperkalemia and can raise creatinine. Thiazides cause hypokalemia, hyponatremia, hyperuricemia, hypercalcemia and glucose elevation. Dihydropyridine calcium channel blockers cause peripheral edema. Beta-blockers are not first-line for uncomplicated hypertension but are used for compelling indications such as coronary disease and heart failure.",
+    "Resistant hypertension (above goal on three drugs including a diuretic) prompts checking adherence, measurement technique, drug interference (NSAIDs, decongestants, oral contraceptives), sleep apnea and secondary causes, and adding spironolactone.",
+    "Secondary hypertension is suspected with onset before age 30 or after 55, severe or resistant disease, a sudden worsening, hypokalemia (primary aldosteronism, tested by the aldosterone-to-renin ratio, which the 2025 guideline now advises for all adults with stage 2 or resistant hypertension regardless of potassium), an abdominal bruit and flash pulmonary edema (renal artery stenosis), paroxysms with headache and sweating (pheochromocytoma, tested with plasma metanephrines), hypertension in the arms with weak femoral pulses (coarctation) and evidence of renal disease. In young women, fibromuscular dysplasia is a cause of renal artery stenosis. Obstructive sleep apnea is a common contributor.",
+    "For lipids, the 2026 ACC/AHA dyslipidemia guideline retired and replaced the 2018 cholesterol guideline. It organizes therapy by risk group and restores LDL and non-HDL goals (below 100 mg/dL for borderline and intermediate risk, below 70 for high risk, below 55 in very-high-risk secondary prevention): patients with clinical atherosclerotic cardiovascular disease receive high-intensity statins (with ezetimibe or a PCSK9 monoclonal antibody added if LDL remains above goal in very-high-risk patients); adults with an LDL of 190 mg/dL or more are considered for early drug therapy; adults aged 40 to 75 with diabetes are recommended statin therapy; and others are treated by PREVENT risk estimate (statin therapy reasonable at 3 to under 5 percent, recommended after discussion at 5 to under 10 percent). The guideline also advises measuring lipoprotein(a) at least once in adulthood. Statin adverse effects include myalgias (often nocebo), a small increase in diabetes risk and rare rhabdomyolysis and hepatotoxicity; interactions with strong CYP3A4 inhibitors raise risk. Statins are contraindicated in pregnancy. Fibrates and omega-3 icosapent ethyl address hypertriglyceridemia; severe elevation of triglycerides (500 mg/dL or more) risks pancreatitis.",
+    "Worked example: a 55-year-old man with a blood pressure of 152/94 on repeat home readings and no other disease has stage 2 hypertension and starts a single-pill combination of two first-line classes (for example, a thiazide-like diuretic with a calcium channel blocker or a renin-angiotensin inhibitor), plus lifestyle changes, with potassium and creatinine checked after initiation."
+   ]
+  },
+  {
+   "id": "med-clin-fm.l07",
+   "title": "Type 2 Diabetes and Chronic Kidney Disease",
+   "body": [
+    "Type 2 diabetes results from insulin resistance combined with progressive beta-cell dysfunction. Management has several goals: glycemic control to prevent microvascular complications, cardiovascular risk reduction, weight management and prevention of acute complications. The American Diabetes Association Standards of Care are updated annually, so clinicians use the current edition. A hemoglobin A1c goal of below 7 percent is reasonable for many nonpregnant adults, with less stringent goals (such as below 8 percent in the 2026 ADA Standards for older adults with multiple chronic conditions or functional limitations) for those with limited life expectancy or a high risk of hypoglycemia. For older adults in very complex or poor health the 2026 Standards advise against relying on A1c and focus instead on avoiding hypoglycemia and symptomatic hyperglycemia. The UKPDS showed that intensive glucose control reduced microvascular complications, and long-term follow-up showed a legacy effect on cardiovascular events and mortality, with metformin reducing events in overweight patients.",
+    "Metformin remains a common first-line drug because of efficacy, safety, low cost, weight neutrality and absence of hypoglycemia. It inhibits hepatic gluconeogenesis, reduces insulin resistance through AMP-activated protein kinase, and causes gastrointestinal upset and vitamin B12 deficiency; it is held around iodinated contrast in patients with reduced kidney function or acute illness because of lactic acidosis risk, and is avoided in severe renal impairment. Treatment selection now emphasizes comorbidities. For atherosclerotic cardiovascular disease, heart failure or chronic kidney disease, a sodium-glucose cotransporter 2 (SGLT2) inhibitor or a glucagon-like peptide-1 (GLP-1) receptor agonist is recommended independent of A1c, because outcome trials showed reduced cardiovascular events (GLP-1 receptor agonists and some SGLT2 inhibitors), reduced heart failure hospitalization and slower kidney disease progression (SGLT2 inhibitors). SGLT2 inhibitors cause genital mycotic infections, volume depletion, rare euglycemic ketoacidosis and, with canagliflozin, concern about amputations. GLP-1 receptor agonists cause nausea, delay gastric emptying, can rarely cause pancreatitis and gallbladder disease, carry a boxed warning for thyroid C-cell tumors in rodents and are contraindicated in medullary thyroid carcinoma and multiple endocrine neoplasia type 2. These agents and the dual",
+    "GIP/GLP-1 agonists also produce substantial weight loss. Sulfonylureas increase insulin secretion and carry a risk of hypoglycemia and weight gain; thiazolidinediones improve insulin sensitivity but cause edema, heart failure exacerbation, fractures and weight gain; DPP-4 inhibitors are weight-neutral with modest efficacy. Insulin is used when A1c is very high, with catabolic symptoms, or when other agents fail.",
+    "Complication surveillance includes annual dilated eye examination (retinopathy), annual urine albumin-to-creatinine ratio and estimated glomerular filtration rate (nephropathy), annual comprehensive foot examination with monofilament testing (neuropathy), blood pressure control, lipid management and vaccination. Hypoglycemia is treated with 15 to 20 g of fast-acting carbohydrate, and severe cases receive glucagon.",
+    "Chronic kidney disease is abnormal kidney structure or function for more than three months and is staged by estimated glomerular filtration rate (G1 at 90 or above, G2 60 to 89, G3a 45 to 59, G3b 30 to 44, G4 15 to 29, G5 below 15) and by albuminuria category. KDIGO's 2024 guideline emphasizes risk stratification by both axes. Diabetes and hypertension are the leading causes. Management includes blood pressure control with an ACE inhibitor or ARB when albuminuria is present, an SGLT2 inhibitor in many patients with diabetes or albuminuria, statins, avoidance of nephrotoxins (NSAIDs, contrast when possible) and dose adjustment of renally cleared drugs. Complications include anemia (from reduced erythropoietin), secondary hyperparathyroidism with hyperphosphatemia and low calcium and vitamin D, metabolic acidosis, hyperkalemia and volume overload. Referral to nephrology is considered at an eGFR below 30, with heavy albuminuria, rapid decline or an unclear cause.",
+    "Worked example: a 60-year-old man with type 2 diabetes, an eGFR of 48 and albuminuria on metformin has an A1c of 7.8 percent. Adding an SGLT2 inhibitor offers glycemic benefit and renal and cardiac protection, and an ACE inhibitor or ARB is continued for albuminuria."
+   ]
+  },
+  {
+   "id": "med-clin-fm.l08",
+   "title": "Asthma, COPD and Thyroid Disease in Primary Care",
+   "body": [
+    "Asthma is chronic airway inflammation with variable airflow obstruction, causing episodic wheeze, cough, dyspnea and chest tightness, often nocturnal and triggered by allergens, exercise, cold air and infection. Diagnosis rests on documenting variable airflow limitation by spirometry (a post-bronchodilator increase in FEV1 of 12 percent and 200 mL or more) or by a positive methacholine challenge. Modern guidelines such as the 2026 GINA strategy report (and earlier editions) recommend against treating asthma with short-acting beta agonist alone, since it leaves inflammation untreated and increases exacerbation risk. Instead, an inhaled corticosteroid-containing regimen is used at every step, and the preferred reliever and controller track combines low-dose inhaled corticosteroid with formoterol (a rapid-onset long-acting beta agonist) as needed or as maintenance and reliever. Escalation moves through low, medium and high-dose inhaled corticosteroid with formoterol, with add-on options of long-acting muscarinic antagonists, leukotriene receptor antagonists and biologic therapy for severe eosinophilic or allergic phenotypes (omalizumab, mepolizumab, dupilumab). Long-acting beta agonists are never given without inhaled corticosteroid in asthma, because of increased risk of severe events. Poor control is evaluated by checking technique, adherence, trigger exposure and comorbidities",
+    "such as rhinitis, reflux and obesity before stepping up. Action plans and spacer devices improve outcomes.",
+    "Chronic obstructive pulmonary disease (COPD) is diagnosed with a post-bronchodilator FEV1 to FVC ratio below 0.70 in a patient with exposure (mostly tobacco smoke) and symptoms. It differs from asthma by incomplete reversibility, and some patients have features of both. Smoking cessation is the only intervention proven to slow decline in lung function. GOLD (2026 report) groups patients by exacerbation history and symptoms. Long-acting bronchodilators are the foundation: a long-acting muscarinic antagonist or a combination of long-acting muscarinic and beta agonists reduces symptoms and exacerbations; an inhaled corticosteroid is added to those who have exacerbations and eosinophil counts of 300 cells per microliter or higher (a level that strongly predicts benefit), since inhaled steroids increase pneumonia risk. Long-term oxygen improves survival for patients with a resting PaO2 of 55 mmHg or below (or 60 with cor pulmonale or polycythemia). Pulmonary rehabilitation improves exercise capacity and quality of life, and vaccination (influenza, pneumococcal, RSV, COVID-19 and Tdap) reduces complications. Roflumilast and azithromycin are options for recurrent exacerbations in selected patients. Alpha-1 antitrypsin deficiency is suspected in young nonsmokers or those with basilar emphysema and liver disease.",
+    "Thyroid disease is common. Hypothyroidism is most often Hashimoto thyroiditis, with fatigue, weight gain, cold intolerance, constipation, dry skin, bradycardia and delayed relaxation of reflexes; a raised thyroid-stimulating hormone (TSH) with low free thyroxine confirms primary disease, and anti-thyroid peroxidase antibodies support the autoimmune cause. Treatment is levothyroxine, taken on an empty stomach and separated from calcium, iron and antacids, titrated using TSH after six to eight weeks. Subclinical hypothyroidism (high TSH with normal free thyroxine) is repeated before treatment and usually treated when the TSH is above 10, or in symptomatic patients, pregnancy or antibody positivity. Hyperthyroidism, most often from Graves disease, produces weight loss, heat intolerance, tremor, palpitations, atrial fibrillation, ophthalmopathy and pretibial myxedema; TSH is suppressed with elevated free thyroxine and triiodothyronine, and thyroid-stimulating immunoglobulins confirm Graves. Treatments are beta-blockers for symptoms, antithyroid drugs (methimazole, with propylthiouracil preferred in first-trimester pregnancy and in thyroid storm, though it carries hepatotoxicity), radioactive iodine or surgery. Methimazole can cause agranulocytosis, so patients are told to report fever and sore throat. Thyroid nodules are evaluated by TSH and ultrasound, with fine-needle aspiration",
+    "for suspicious features. The USPSTF finds insufficient evidence for screening asymptomatic adults for thyroid disease.",
+    "Worked example: a 35-year-old woman with asthma uses albuterol daily and wakes at night with cough. Her condition is uncontrolled, and she should step up to an inhaled corticosteroid-formoterol regimen with technique review and trigger assessment."
+   ]
+  },
+  {
+   "id": "med-clin-fm.l09",
+   "title": "Nutrition, Obesity and Weight Management",
+   "body": [
+    "Obesity is a chronic, relapsing disease defined for adults by a body mass index (weight in kilograms divided by height in meters squared) of 30 or higher, with overweight at 25 to 29.9, class 2 at 35 and class 3 at 40 or above; thresholds are lower for Asian populations because of greater metabolic risk at lower body mass index. Body mass index is an imperfect measure that does not distinguish fat from muscle or fat distribution, and waist circumference and fat distribution help refine risk, since visceral adiposity drives insulin resistance. Obesity increases the risk of type 2 diabetes, hypertension, dyslipidemia, cardiovascular disease, nonalcoholic fatty liver disease, obstructive sleep apnea, osteoarthritis, several cancers, infertility and depression. Secondary contributors to evaluate include hypothyroidism, Cushing syndrome, polycystic ovary syndrome, binge-eating disorder, sleep disorders and medications such as antipsychotics, insulin, sulfonylureas, valproate and glucocorticoids. Weight bias should be avoided in the clinical conversation.",
+    "Treatment is tiered. The USPSTF (2018, grade B; an update on diet, activity and weight loss is in progress) recommends offering or referring adults with a body mass index of 30 or more to intensive, multicomponent behavioral interventions (dietary change, physical activity, self-monitoring and goal setting, ideally at least 12 to 26 sessions in the first year). Any approach that creates a sustained energy deficit produces loss, and the best diet is the one the patient can follow; Mediterranean, low-carbohydrate, low-fat and DASH patterns all produce comparable weight loss in trials. Physical activity of at least 150 minutes per week of moderate aerobic exercise plus muscle strengthening is recommended for general health, and more is needed for maintenance of weight loss. Pharmacotherapy is added for a body mass index of 30 or higher, or 27 or higher with weight-related disease. GLP-1 receptor agonists (semaglutide, liraglutide) and the dual GIP/GLP-1 agonist tirzepatide produce an average loss of roughly 15 percent or more of body weight in trials, with gastrointestinal adverse effects, gallbladder disease and pancreatitis risk, and weight regain if stopped; semaglutide reduced major cardiovascular events in people with obesity and established cardiovascular disease in the SELECT trial. Older agents include phentermine (a sympathomimetic for short-term use, avoided in",
+    "uncontrolled hypertension and cardiovascular disease), orlistat (inhibits lipase, causing steatorrhea and fat-soluble vitamin deficiency) and naltrexone-bupropion, which is contraindicated in patients with seizure disorders. Bariatric surgery (sleeve gastrectomy, Roux-en-Y gastric bypass) is considered for a body mass index of 35 or higher, or 30 and above with metabolic disease, and produces the largest and most durable weight loss with remission of diabetes in many patients. Complications include dumping syndrome, micronutrient deficiencies (iron, B12, folate, calcium, vitamin D), marginal ulcers, internal hernia and, rarely, leaks.",
+    "Nutritional counseling in primary care emphasizes diet quality: fruits and vegetables, whole grains, legumes, nuts, fish, and unsaturated fats, with limits on added sugar, sodium and ultraprocessed foods, and attention to food insecurity. Micronutrient deficiencies of concern include iron (the most common), vitamin D, B12 (in vegans, older adults and those on metformin or acid suppressants) and folate. Vitamin D and calcium supplementation for fracture prevention in community-dwelling older adults is not supported for routine use by the USPSTF (final 2018 statement, grade D for low-dose supplementation in postmenopausal women; an update is in progress). Pediatric obesity is treated with intensive family-based behavioral programs of 26 or more contact hours for children aged 6 and older, according to the USPSTF.",
+    "Worked example: a 45-year-old woman with a body mass index of 33 and prediabetes asks about weight loss. The reasonable plan is referral to an intensive behavioral program, discussion of pharmacotherapy and shared decision-making about the options, with attention to her goals."
+   ]
+  },
+  {
+   "id": "med-clin-fm.l10",
+   "title": "Tobacco, Alcohol and Substance Use Counseling",
+   "body": [
+    "Tobacco use is the leading preventable cause of death in the United States. The USPSTF (2021; an update is in progress) recommends that clinicians ask all adults about tobacco use, advise them to stop, and offer behavioral interventions and FDA-approved pharmacotherapy to nonpregnant adults who use tobacco (grade A); in pregnancy, behavioral counseling is recommended and the evidence on medication is insufficient. The five A's (ask, advise, assess readiness, assist, arrange follow-up) structure a brief intervention that takes minutes, and the five R's (relevance, risks, rewards, roadblocks, repetition) help patients who are not ready to quit. A recommendation from a clinician raises quit rates, and combining counseling with medication works better than either alone. Quitlines (in the United States 1-800-QUIT-NOW) provide free counseling.",
+    "Three first-line drug classes are available. Nicotine replacement (patch, gum, lozenge, inhaler, nasal spray) delivers nicotine without combustion products, and combining a long-acting patch with a short-acting form is more effective than a single product. Varenicline is a partial agonist at the alpha-4 beta-2 nicotinic receptor, reducing both craving and the reward from smoking, and it is the most effective single agent in trials such as EAGLES, which found no significant increase in serious neuropsychiatric events compared with placebo, including in people with psychiatric illness. Common adverse effects are nausea and abnormal dreams. Bupropion is a norepinephrine-dopamine reuptake inhibitor that lowers seizure threshold and is contraindicated in seizure and eating disorders and in abrupt alcohol or benzodiazepine withdrawal. Relapse is common, so clinicians treat tobacco use disorder as a chronic condition and reassure patients that most successful quitters had several attempts. E-cigarettes are not recommended by the USPSTF for cessation, since evidence is insufficient to assess benefits and harms, although some trials show higher quit rates than nicotine replacement in adults; adolescent use is a concern because of nicotine addiction.",
+    "For alcohol, the USPSTF (2018; a draft update is in progress) recommends screening adults aged 18 or older for unhealthy alcohol use and offering brief behavioral counseling to those engaged in risky or hazardous drinking. The AUDIT-C (three questions) and single-item questions about heavy drinking days are validated. In the United States, risky drinking is generally considered more than four drinks on any day or 14 per week for men, and more than three drinks on any day or seven per week for women and for adults over 65, and a standard drink contains about 14 grams of pure ethanol. The CAGE questionnaire (cut down, annoyed, guilty, eye-opener) screens for dependence. Alcohol use disorder is treated with naltrexone, acamprosate, brief counseling, mutual support groups and, for withdrawal, benzodiazepines. Medication options also include topiramate and gabapentin. Patients at risk for withdrawal seizures or delirium tremens need medically supervised withdrawal.",
+    "For drugs, the USPSTF (2020) recommends screening adults aged 18 and older for unhealthy drug use with questions such as a single-item tool (\"how many times in the past year have you used an illegal drug or used a prescription medication for nonmedical reasons?\") when services for accurate diagnosis and care can be provided. Opioid use disorder is treated with medications (buprenorphine, methadone, extended-release naltrexone), which reduce mortality, and naloxone is prescribed to patients at risk of overdose and to their contacts. Harm reduction (syringe services, naloxone distribution, fentanyl test strips) lowers infectious disease and overdose deaths without increasing use. Clinicians counsel in a nonjudgmental, motivational style, and screen adolescents, who often begin substance use in the teens, using validated tools such as CRAFFT. Cannabis use disorder has no approved medication, but behavioral therapy helps.",
+    "Worked example: a 48-year-old man smoking a pack a day says he is \"thinking about quitting someday\". The clinician advises quitting clearly, explores his motives, offers combination nicotine replacement or varenicline with counseling and arranges follow-up."
+   ]
+  },
+  {
+   "id": "med-clin-fm.l11",
+   "title": "Men's Health: Prostate, Testosterone and Sexual Function",
+   "body": [
+    "Benign prostatic hyperplasia (BPH) is a common cause of lower urinary tract symptoms in older men: hesitancy, weak stream, intermittency, incomplete emptying, frequency, nocturia and urgency. The American Urological Association Symptom Index quantifies severity. Evaluation includes history, a digital rectal examination, urinalysis to exclude infection and hematuria, and possibly serum creatinine; PSA is considered after shared decision-making. Medications and conditions that worsen symptoms, such as anticholinergics, decongestants, diuretics, diabetes and heart failure, are reviewed. Alpha-1 blockers (tamsulosin, alfuzosin, doxazosin, terazosin) relax smooth muscle in the prostate and bladder neck, improving flow within days; adverse effects include orthostatic hypotension, dizziness, retrograde ejaculation and intraoperative floppy iris syndrome in cataract surgery, so ophthalmologists should be told about tamsulosin use. The 5-alpha-reductase inhibitors (finasteride, dutasteride) block conversion of testosterone to dihydrotestosterone, shrinking the gland over months and lowering the PSA by about half after six months of therapy, so PSA is interpreted after doubling; they cause decreased libido, erectile dysfunction and gynecomastia, and are most useful in prostates greater than 30 to 40 mL. Tadalafil also improves symptoms. Surgery is considered for refractory symptoms,",
+    "recurrent retention, recurrent urinary tract infection, bladder stones, hematuria or renal insufficiency from obstruction. Acute urinary retention is treated with catheterization.",
+    "Prostatitis categories include acute bacterial prostatitis, with fever, dysuria and a tender, boggy prostate (massage is avoided because of bacteremia risk) treated with antibiotics that penetrate the prostate such as fluoroquinolones or trimethoprim-sulfamethoxazole; chronic bacterial prostatitis, requiring prolonged therapy; and chronic pelvic pain syndrome, which is not bacterial and is managed symptomatically.",
+    "Erectile dysfunction is the persistent inability to achieve or maintain an erection sufficient for satisfactory sexual performance. Causes are vascular (atherosclerosis), neurogenic (diabetes, spinal injury), hormonal, psychogenic and medication-related (antihypertensives such as beta-blockers and thiazides, SSRIs, antipsychotics, antiandrogens and alcohol). Because erectile dysfunction may precede coronary events, the work-up includes cardiovascular risk assessment, glucose, lipids and morning testosterone when appropriate. Phosphodiesterase-5 inhibitors (sildenafil, tadalafil, vardenafil) increase nitric oxide-mediated cyclic GMP and are first-line; they are absolutely contraindicated with nitrates and with riociguat because of profound hypotension, and cause headache, flushing, dyspepsia, visual changes and, rarely, nonarteritic anterior ischemic optic neuropathy. Alternatives include vacuum devices, intracavernosal alprostadil and penile prosthesis. Priapism, a prolonged erection beyond four hours, is a urologic emergency, especially in sickle cell disease.",
+    "Testicular conditions are important in young men. Testicular cancer is the most common solid cancer in men aged 15 to 35, presenting as a painless firm mass, and risk factors include cryptorchidism; ultrasound, tumor markers (alpha-fetoprotein, beta-hCG and lactate dehydrogenase) and radical inguinal orchiectomy follow, and transscrotal biopsy is avoided. The USPSTF recommends against screening for testicular cancer in asymptomatic adolescents and adults (grade D). Testicular torsion produces sudden severe scrotal pain, a high-riding horizontal testis and absent cremasteric reflex, and is a surgical emergency within hours; Doppler ultrasound is used if it does not delay exploration. Epididymitis presents more gradually, with a positive Prehn sign, and is treated with antibiotics targeted to age and sexual activity. A varicocele (a bag of worms on standing) is the commonest correctable cause of male infertility. Hydrocele transilluminates.",
+    "Male hypogonadism is diagnosed by symptoms (low libido, erectile dysfunction, fatigue, decreased muscle mass) with consistently low morning total testosterone on at least two occasions, and then luteinizing hormone and follicle-stimulating hormone to distinguish primary (high gonadotropins) from secondary (low or normal) causes. Testosterone therapy is indicated only for symptomatic confirmed deficiency, and risks include polycythemia, worsening sleep apnea, prostate effects, infertility through suppression of spermatogenesis and, in those with hypogonadism, uncertain cardiovascular risk (the TRAVERSE trial found noninferiority for major adverse cardiac events in middle-aged and older hypogonadal men at risk). Testosterone is contraindicated in prostate or breast cancer and when fertility is desired.",
+    "Worked example: a 62-year-old man with chest pain on exertion is prescribed sildenafil by a friend and takes his nitroglycerin tablet. This combination can cause life-threatening hypotension, which is why nitrates are contraindicated within 24 hours of sildenafil."
+   ]
+  },
+  {
+   "id": "med-clin-fm.l12",
+   "title": "Women's Health: Contraception, Menopause, Breast and Bone Health",
+   "body": [
+    "Contraceptive counseling is organized by effectiveness: the most effective methods (failure under 1 percent) are the intrauterine devices (levonorgestrel and copper), the etonogestrel implant and sterilization; injectable depot medroxyprogesterone, pills, patches and rings follow, and condoms, withdrawal and fertility-awareness methods are less effective with typical use. The CDC US Medical Eligibility Criteria ranks conditions in categories from 1 (no restriction) to 4 (unacceptable risk). Combined estrogen-progestin methods are category 4 for women with a history of venous thromboembolism or known thrombogenic mutations, migraine with aura, active or recent breast cancer, smoking at age 35 or older with 15 or more cigarettes daily, uncontrolled hypertension (160/100 or higher), complicated valvular disease, ischemic heart disease or stroke, decompensated cirrhosis or liver tumors, and in the first 21 days postpartum. Progestin-only and intrauterine methods are options in many of those conditions. Depot medroxyprogesterone reduces bone density, with a boxed warning. Combined hormonal methods reduce risks of ovarian and endometrial cancer and ameliorate dysmenorrhea, acne and heavy bleeding, and the copper intrauterine device is also the most effective emergency contraception, with ulipristal and levonorgestrel pills as alternatives (levonorgestrel is less effective with a",
+    "higher body mass index). Condoms are the only method that protects against sexually transmitted infections, and are recommended in addition to other methods when risk exists.",
+    "Abnormal uterine bleeding is classified by the PALM-COEIN system: structural causes (polyp, adenomyosis, leiomyoma, malignancy and hyperplasia) and nonstructural causes (coagulopathy, ovulatory dysfunction, endometrial, iatrogenic, not otherwise classified). Evaluation begins with a pregnancy test in reproductive-age women, then a history, examination, hemoglobin, TSH and prolactin if indicated, and pelvic ultrasound; endometrial sampling is recommended for women aged 45 and older and for younger women with risk factors such as obesity, unopposed estrogen exposure or persistent bleeding. Postmenopausal bleeding is endometrial cancer until proven otherwise, and requires transvaginal ultrasound or biopsy. Polycystic ovary syndrome (two of three Rotterdam criteria: oligo-ovulation, hyperandrogenism, polycystic ovaries) is the most common cause of ovulatory dysfunction and is managed with lifestyle change, combined hormonal contraception, metformin in selected patients and endometrial protection.",
+    "Menopause is 12 months without menses, usually around age 51. Vasomotor symptoms, genitourinary syndrome of menopause and sleep disturbance are treated with systemic hormone therapy, the most effective treatment for vasomotor symptoms, with benefits that outweigh risks for most healthy women under 60 or within 10 years of menopause onset. The Women's Health Initiative found increased breast cancer, stroke, venous thromboembolism and coronary events with combined estrogen-progestin therapy in older women, which shaped the \"lowest dose for the shortest time\" approach; women with a uterus need a progestogen to protect the endometrium, whereas women without a uterus use estrogen alone. Contraindications include breast cancer, unexplained vaginal bleeding, active thromboembolic disease and liver disease. Nonhormonal options include SSRIs and SNRIs, gabapentin and fezolinetant, and low-dose vaginal estrogen is the first-line therapy for genitourinary symptoms with minimal systemic absorption.",
+    "The USPSTF (2025, updating its 2018 statement) recommends bone density screening with DXA, with or without a fracture risk tool, for women aged 65 and older (grade B) and for postmenopausal women younger than 65 at increased risk of fracture (grade B), and finds the evidence insufficient for men (grade I); a T-score of -2.5 or lower defines osteoporosis, and the FRAX tool estimates fracture risk. First-line treatment is a bisphosphonate (alendronate, risedronate, zoledronic acid), which inhibits osteoclasts and carries risks of esophagitis (oral agents must be taken upright with water), osteonecrosis of the jaw and atypical femur fracture with prolonged use. Denosumab is an alternative, and anabolic agents (teriparatide, romosozumab) are used for severe disease. Adequate calcium, vitamin D, weight-bearing exercise and avoiding tobacco and heavy alcohol help.",
+    "Worked example: a 33-year-old smoker of 20 cigarettes a day with migraine with aura requests a combined pill. Aura is a category 4 condition (stroke risk), so a progestin-only method or an intrauterine device is offered instead."
+   ]
+  },
+  {
+   "id": "med-clin-fm.l13",
+   "title": "Older Adult Health: Falls, Polypharmacy and Advance Care Planning",
+   "body": [
+    "Older adults vary widely in health, so care is guided by function and priorities rather than age alone. Comprehensive geriatric assessment covers medical conditions, medications, function (activities of daily living such as bathing, dressing and feeding, and instrumental activities such as managing money, medications and transport), cognition, mood, mobility and falls, nutrition, vision and hearing, continence, social support, living environment and goals of care. Geriatric syndromes, such as falls, delirium, incontinence, frailty, pressure injuries and functional decline, are multifactorial and arise when several small vulnerabilities add up. Frailty (weight loss, exhaustion, weakness, slow gait and low activity) predicts poor outcomes after illness or surgery.",
+    "Falls are the leading cause of injury in older adults. Risk factors include prior falls, gait and balance impairment, muscle weakness, sedating and cardiovascular medications, orthostatic hypotension, visual impairment, neuropathy, cognitive impairment, environmental hazards and alcohol. The Timed Up and Go test (rise from a chair, walk three meters, return and sit, with 12 seconds or longer suggesting risk) and the question about falls in the past year screen for risk. The 2024 USPSTF recommends exercise interventions to prevent falls in community-dwelling adults aged 65 or older at increased risk (grade B), and recommends an individualized decision about multifactorial interventions (grade C); the 2024 statement does not address vitamin D, which was moved to a separate recommendation. The final USPSTF position on vitamin D remains the 2018 statement (grade D for low-dose vitamin D with calcium for fracture prevention in postmenopausal women, and a grade D against vitamin D to prevent falls in the earlier falls statement); a December 2024 draft would extend a D grade to falls and fractures in postmenopausal women and men aged 60 and older but is not final. Evaluation of an older patient who has fallen includes orthostatic blood pressure, medication review, vision and foot assessment, gait testing and a search for syncope, since a cardiac cause changes management. Hip protectors and home safety assessment can reduce injury.",
+    "Polypharmacy is common and often harmful. Age-related changes in renal clearance, hepatic metabolism, body composition and pharmacodynamic sensitivity increase adverse drug events. The American Geriatrics Society Beers Criteria lists potentially inappropriate medications in older adults: first-generation antihistamines (diphenhydramine) and other strongly anticholinergic drugs, benzodiazepines and Z-drugs (falls, delirium and fractures), sulfonylureas such as glyburide (hypoglycemia), long-term proton pump inhibitor use without clear indication, NSAIDs (kidney injury and bleeding) and antipsychotics in dementia (increased mortality). The STOPP/START criteria offer a similar framework. Deprescribing is a deliberate process of reviewing each drug's indication and benefit, prioritizing which to taper, and monitoring withdrawal or relapse. A prescribing cascade occurs when an adverse effect is mistaken for a new condition and treated with another drug, such as a calcium channel blocker causing edema that leads to a diuretic.",
+    "Cognitive screening: the USPSTF concludes that evidence is insufficient to recommend routine screening for cognitive impairment in asymptomatic older adults (grade I, February 2020; an update is in progress), but clinicians assess cognition when patients or families report concerns, and as part of the Medicare Annual Wellness Visit. Tools include the Mini-Cog, the Montreal Cognitive Assessment and the Mini-Mental State Examination. Hearing loss is associated with cognitive decline, and driving safety is assessed in cognitive impairment. Elder abuse and neglect are screened for, and clinicians in many jurisdictions have mandated reporting duties.",
+    "Advance care planning aligns care with values. A durable power of attorney for health care names a surrogate; a living will records preferences about treatments such as ventilation; and a Physician (or Medical) Orders for Life-Sustaining Treatment form translates preferences into portable orders for patients with serious illness or limited life expectancy. A code status discussion explores understanding of illness, prognosis, hopes and fears, and trade-offs. Palliative care addresses symptoms and quality of life alongside disease-directed treatment at any stage, and hospice is for patients with an expected prognosis of six months or less if the illness runs its usual course.",
+    "Worked example: an 80-year-old woman falls twice in a year and takes zolpidem, oxybutynin, and amlodipine, and has an orthostatic drop in blood pressure. The best plan is a gait and strength exercise program, a review of medications that can be stopped (zolpidem and oxybutynin), and a check of vision and footwear."
+   ]
+  },
+  {
+   "id": "med-clin-fm.l14",
+   "title": "Musculoskeletal Problems in Primary Care",
+   "body": [
+    "Musculoskeletal complaints are among the most frequent reasons for primary care visits. The approach starts with a history of mechanism, location, timing, locking, instability, night pain and function, followed by inspection, palpation, range of motion, strength, neurovascular examination and special tests, with imaging reserved for red flags or failure to improve. Red flags include fever or infection risk, a history of cancer, unexplained weight loss, trauma with osteoporosis or age over 50, progressive neurologic deficit, bowel or bladder dysfunction, and pain at night or at rest.",
+    "Low back pain is mostly nonspecific and self-limited, and most patients improve within weeks. The 2017 American College of Physicians guideline recommends nonpharmacologic treatment first for acute and subacute pain: superficial heat, massage, acupuncture or spinal manipulation, and for chronic pain exercise, multidisciplinary rehabilitation, acupuncture, mindfulness-based stress reduction and cognitive behavioral therapy. If medication is needed, NSAIDs or skeletal muscle relaxants are suggested, while opioids are reserved for patients who have failed other treatments. Bed rest is discouraged, since staying active speeds recovery. A Choosing Wisely recommendation endorsed by the American College of Physicians and the American Academy of Family Physicians advises avoiding imaging for back pain in the first six weeks unless red flags are present. Lumbar radiculopathy from disc herniation produces leg pain in a dermatomal distribution, reproduced by straight leg raise; L5 radiculopathy causes weak ankle and toe dorsiflexion and foot drop, whereas S1 radiculopathy causes weakness of plantar flexion and a diminished ankle reflex. Cauda equina syndrome (saddle anesthesia, urinary retention, bilateral leg weakness) is a surgical emergency. Spinal stenosis presents with neurogenic claudication, with pain on walking that eases with sitting or leaning forward, in contrast to vascular claudication that eases on standing still.",
+    "Osteoarthritis is degenerative joint disease affecting weight-bearing joints and the hands (distal and proximal interphalangeal joints, producing Heberden and Bouchard nodes), with activity-related pain, brief morning stiffness (under 30 minutes), crepitus and bony enlargement. Radiographs show joint space narrowing, osteophytes, subchondral sclerosis and cysts. The 2019 American College of Rheumatology guideline strongly recommends exercise, weight loss in overweight patients, and self-efficacy programs, with topical NSAIDs for knee osteoarthritis, oral NSAIDs with attention to gastrointestinal, renal and cardiovascular risks, and intra-articular corticosteroid injections for flares. Glucosamine and chondroitin are not recommended, and hyaluronic acid injections are not supported by the guideline. Joint replacement is considered for severe, refractory disease. Rheumatoid arthritis, by contrast, is symmetrical, affecting the metacarpophalangeal and proximal interphalangeal joints with prolonged morning stiffness over an hour, positive rheumatoid factor and anti-cyclic citrullinated peptide antibodies, and it is treated early with disease-modifying drugs such as methotrexate.",
+    "Gout results from monosodium urate crystals, presenting as acute monoarthritis (classically the first metatarsophalangeal joint) with severe pain, redness and swelling. Joint aspiration shows needle-shaped, negatively birefringent crystals under polarized light; pseudogout from calcium pyrophosphate shows rhomboid, positively birefringent crystals. Acute attacks are treated with NSAIDs, colchicine or corticosteroids. Urate-lowering therapy (allopurinol, febuxostat) is started for frequent flares, tophi, or chronic kidney disease, titrating to a serum urate below 6 mg/dL, usually with flare prophylaxis; it is not started in the middle of an attack but is continued if already taken. Allopurinol can cause a severe hypersensitivity syndrome, associated with HLA-B*5801 and renal impairment. A septic joint is a medical emergency: a hot, swollen joint with fever requires arthrocentesis (white cell count above about 50,000 per microliter, with a positive Gram stain or culture), urgent antibiotics and drainage.",
+    "Common regional conditions include subacromial impingement and rotator cuff disease in the shoulder (painful arc, positive Neer and Hawkins tests, weakness of external rotation with supraspinatus tears), meniscal tears and patellofemoral pain in the knee (a locking or catching knee with joint-line tenderness; McMurray test), anterior cruciate ligament tears (a pop with immediate swelling and a positive Lachman test, the most sensitive), plantar fasciitis (heel pain with first steps in the morning), carpal tunnel syndrome (median nerve compression, nocturnal paresthesias of the thumb to ring fingers, positive Phalen and Tinel signs, treated with night splinting, steroid injection or release), and lateral epicondylitis (tennis elbow, worsened by wrist extension against resistance).",
+    "Worked example: a 55-year-old man wakes with a red, exquisitely painful first metatarsophalangeal joint. Arthrocentesis shows negatively birefringent needle-shaped crystals. He needs an NSAID, colchicine or a corticosteroid for the attack, and discussion of urate-lowering therapy if flares recur."
+   ]
+  },
+  {
+   "id": "med-clin-fm.l15",
+   "title": "Dermatologic Basics for Primary Care",
+   "body": [
+    "Dermatologic diagnosis begins by describing the primary lesion: a macule or patch (flat), papule or plaque (raised), nodule, vesicle or bulla (fluid-filled), pustule, wheal and so on; then the distribution, configuration and secondary changes such as scale, crust, erosion or lichenification. Examination under good light, including the scalp, nails, mucous membranes and intertriginous areas, matters, and a careful drug history is essential because many eruptions are drug-induced.",
+    "Atopic dermatitis is a chronic, relapsing, intensely pruritic eczema that begins in childhood, linked to filaggrin gene mutations, impaired barrier function and Th2 inflammation, with the atopic triad of eczema, allergic rhinitis and asthma. It involves flexural surfaces in older children and adults and cheeks and extensor surfaces in infants. Management centers on emollients and gentle skin care, topical corticosteroids matched to site and severity, topical calcineurin inhibitors for the face and skin folds, and for refractory disease dupilumab or JAK inhibitors. Eczema herpeticum is a medical emergency in which herpes simplex virus spreads in atopic skin and is treated with acyclovir. Contact dermatitis follows irritants or allergens (a type IV hypersensitivity, as with poison ivy and nickel) and is treated by avoiding the trigger and using topical steroids. Seborrheic dermatitis causes greasy scaling in the scalp, face and chest, and is treated with antifungal shampoos or creams. Psoriasis is an immune-mediated disease with well-demarcated erythematous plaques with silvery scale on extensor surfaces and scalp, nail pitting and a risk of psoriatic arthritis; treatment ranges from topical steroids and vitamin D analogs to phototherapy, methotrexate and biologics. Guttate psoriasis follows streptococcal infection. Acne vulgaris arises from follicular hyperkeratinization, sebum",
+    "production, Cutibacterium acnes and inflammation, and is treated by topical retinoids, benzoyl peroxide and topical or oral antibiotics (never antibiotics alone, to limit resistance), hormonal agents in women and oral isotretinoin for severe or scarring disease, which is teratogenic and requires a pregnancy prevention program (iPLEDGE).",
+    "Infections: bacterial skin infections include impetigo (honey-colored crusts from Staphylococcus aureus or group A Streptococcus, treated with topical mupirocin or oral therapy), cellulitis (spreading erythema and warmth, mostly streptococci or Staphylococcus aureus) and abscess, which is treated by incision and drainage with antibiotics based on risk and local rates of methicillin-resistant Staphylococcus aureus. Necrotizing fasciitis (pain out of proportion, rapid spread, systemic toxicity) requires emergency surgical debridement. Fungal infections (tinea corporis, pedis, capitis; candidiasis) are diagnosed with potassium hydroxide preparation and treated with topical azoles or allylamines, with oral therapy for scalp and nail disease. Scabies causes intense nocturnal itching with burrows in web spaces and is treated with permethrin applied to the whole body, including treating close contacts. Herpes zoster shows a painful dermatomal vesicular eruption treated with antivirals within 72 hours, and postherpetic neuralgia is a feared complication.",
+    "Skin cancer is the most common cancer. Basal cell carcinoma is a pearly papule with telangiectasia and rolled borders that rarely metastasizes. Squamous cell carcinoma is a scaly, crusted or ulcerated lesion in sun-exposed skin, preceded by actinic keratoses and associated with immunosuppression. Melanoma is recognized by the ABCDE criteria of the American Academy of Dermatology (asymmetry, irregular border, color variation, diameter above 6 mm, and evolution), and prognosis depends on Breslow thickness, with sentinel node biopsy for staging in intermediate-thickness tumors. Suspicious lesions are excised or sampled by full-thickness biopsy rather than shave in suspected melanoma. The USPSTF (2023) concludes that evidence is insufficient to assess screening for skin cancer by a clinician's visual examination in asymptomatic adults (grade I). Its separate 2018 statement recommends counseling on minimizing ultraviolet exposure for people aged 6 months to 24 years with fair skin (grade B) and selective counseling for older adults with fair skin (grade C). Sun protection includes broad-spectrum sunscreens, protective clothing and avoiding peak hours and tanning beds.",
+    "Worked example: a 28-year-old with an itchy, oozing, vesicular eruption in linear streaks on his forearms after hiking has allergic contact dermatitis from poison ivy, treated with topical or a short oral steroid course and avoidance."
+   ]
+  },
+  {
+   "id": "med-clin-fm.l16",
+   "title": "Occupational Health",
+   "body": [
+    "Occupational and environmental disease is frequently missed because clinicians do not ask about work. A brief occupational history asks what the patient does, what materials and chemicals are used, how long the exposure has lasted, whether symptoms improve on weekends and holidays and recur on return to work, whether coworkers are similarly affected, and what protective equipment is worn. Latency matters: asbestos-related disease typically appears 10 to 40 years or more after exposure, whereas irritant exposures cause symptoms within minutes. Safety data sheets list hazards and exposure limits. In the United States, the Occupational Safety and Health Act of 1970 created the Occupational Safety and Health Administration (OSHA), which sets and enforces workplace standards, and the National Institute for Occupational Safety and Health (NIOSH), which conducts research and makes recommendations. Workers' compensation is a no-fault state-based system that provides medical care and wage replacement for work-related injury and illness, in exchange for limits on suing the employer; physicians complete reports and judge causation using a reasonable degree of medical probability.",
+    "Classic exposures and diseases are tested often. Asbestos causes pleural plaques (benign), asbestosis (lower-lobe interstitial fibrosis, with a restrictive pattern and low diffusing capacity), lung cancer (especially with smoking, in which risk is multiplicative), and malignant mesothelioma, which is not strongly related to smoking. Silica (sandblasting, mining, stone cutting) causes silicosis, with upper-lobe nodules and eggshell calcification of hilar nodes, and increases the risk of tuberculosis. Coal dust causes coal workers' pneumoconiosis (black lung). Beryllium causes a granulomatous disease resembling sarcoidosis, diagnosed with a lymphocyte proliferation test. Cotton dust (byssinosis, with chest tightness on the first day of the work week), and organic dusts in farmers (hypersensitivity pneumonitis, a type III and IV reaction) cause occupational lung disease. Occupational asthma may arise from isocyanates (spray painting), flour, wood dust and latex. Lead causes anemia with basophilic stippling, abdominal pain, wrist and foot drop, neuropathy, encephalopathy and gingival lead lines, and is treated by removal from exposure and chelation (succimer, calcium EDTA, dimercaprol) when levels are high. Carbon monoxide, benzene (leukemia and aplastic anemia), vinyl chloride (hepatic angiosarcoma), arsenic, mercury and organophosphate pesticides are other classic toxins.",
+    "Noise-induced hearing loss typically begins with a notch at 4000 Hz on audiometry, and is prevented by hearing conservation programs when exposure reaches 85 decibels averaged over eight hours. Repetitive strain causes carpal tunnel syndrome and tendinopathy, and ergonomic changes help. Vibration causes hand-arm vibration syndrome with Raynaud-like symptoms.",
+    "The hierarchy of controls ranks prevention strategies from most to least effective: elimination of the hazard, substitution with something less hazardous, engineering controls (ventilation, enclosures), administrative controls (job rotation, training) and finally personal protective equipment such as respirators and earplugs, which depend on proper fit and use. Medical surveillance (audiometry, spirometry, blood lead monitoring, chest radiographs read with the International Labour Organization classification) detects disease early in exposed groups. Occupational infection prevention includes vaccination (hepatitis B for healthcare workers), tuberculosis testing, and postexposure management after needlestick injury: wound washing, source and exposed-person testing, and, where indicated, prophylaxis within hours for HIV and hepatitis B immune globulin plus vaccine for susceptible workers.",
+    "Fitness-for-duty assessments weigh the essential functions of the job against the worker's condition, and the Americans with Disabilities Act requires reasonable accommodation, and limits medical inquiries to what is job-related. Return-to-work planning with modified duty speeds recovery and reduces disability. Work-related stress, shift work (circadian misalignment, sleep disorders, and increased cardiometabolic and cancer risk) and workplace violence are significant concerns.",
+    "Worked example: a 55-year-old retired shipyard insulator has progressive dyspnea, bibasilar crackles, reduced diffusing capacity and a chest radiograph with lower-lobe linear opacities and calcified pleural plaques. This is asbestosis, with increased risk of lung cancer and mesothelioma, so smoking cessation and surveillance are crucial."
+   ]
+  },
+  {
+   "id": "med-clin-fm.l17",
+   "title": "Environmental Health: Lead, Radon, Air Quality and Climate",
+   "body": [
+    "Environmental health examines how exposures in air, water, soil, food and the built environment shape disease. Children are especially vulnerable because they eat, drink and breathe more per unit of body weight, play near the ground, and have developing organ systems. The exposure pathway has a source, a medium, a route of exposure (inhalation, ingestion, skin) and an exposed population, and interventions can interrupt any link.",
+    "Childhood lead exposure arises from deteriorating lead-based paint in housing built before 1978, contaminated dust and soil, drinking water carried through lead service lines and pipes, imported ceramics, spices and cosmetics, hobbies and parental occupations. Even low levels impair cognition, attention and behavior, and no blood lead level is known to be safe. The CDC blood lead reference value (currently 3.5 micrograms per deciliter) identifies children with higher exposure than most; levels at or above it prompt follow-up testing, exposure assessment and environmental investigation, and chelation is reserved for markedly elevated levels (above 45 micrograms per deciliter) or encephalopathy. Nutritional measures (adequate iron and calcium) reduce lead absorption. Screening is guided by local risk and Medicaid requirements (testing at 12 and 24 months for Medicaid-enrolled children). Clinical features of toxicity are irritability, constipation, anemia with basophilic stippling, developmental delay, and in severe cases encephalopathy with seizures; lead lines may appear on the long-bone radiograph metaphyses. Pregnant women with high lead levels are managed with source removal as lead crosses the placenta. The Flint, Michigan water crisis, in which a change in water source in 2014 caused corrosion of pipes, illustrates how infrastructure decisions affect health.",
+    "Radon, a decay product of uranium in the soil, is a radioactive gas that seeps into homes and is the second leading cause of lung cancer after smoking and the leading cause among nonsmokers. Home testing kits are inexpensive; the Environmental Protection Agency recommends mitigation (sub-slab depressurization systems) when levels are 4 picocuries per liter or higher and consideration at 2 to 4. Smoking and radon interact synergistically.",
+    "Air pollution includes fine particulate matter (PM2.5), ozone, nitrogen dioxide and sulfur dioxide. PM2.5 penetrates deep into the lung and enters the circulation, and is associated with asthma exacerbations, COPD exacerbations, myocardial infarction, stroke, lung cancer and premature death. Wildfire smoke is an increasing source; advice includes staying indoors with filtered air (HEPA purifiers or well-fitted N95 respirators, which filter particles but not gases), and monitoring the Air Quality Index. Indoor hazards include secondhand smoke, mold and dampness (associated with asthma and rhinitis), gas stove emissions, carbon monoxide from malfunctioning heaters and generators, and cleaning chemicals. Smoke and carbon monoxide detectors in homes are inexpensive, effective safety measures.",
+    "Water and food safety matter in routine care: nitrate in well water causes methemoglobinemia in infants; arsenic in groundwater increases cancer risk; harmful algal blooms and bacteria such as Legionella in building water systems cause illness. Mercury in large predatory fish (swordfish, king mackerel, shark, tilefish) is a concern in pregnancy, while fish low in mercury remain recommended for neurodevelopmental benefit. Per- and polyfluoroalkyl substances (PFAS) are persistent chemicals associated with immune effects, thyroid disease, kidney and testicular cancer and raised cholesterol.",
+    "Climate change affects health through heat waves (heat illness and cardiovascular events), extreme weather, wildfire smoke, changes in vector-borne disease distribution (Lyme disease, dengue), and food and water insecurity, with the greatest burden on children, older adults, outdoor workers and low-income communities. Clinicians help by counseling about heat risk and medication effects (diuretics, anticholinergics), contributing to emergency preparedness and screening for social needs, and by recognizing environmental justice: poorer communities often face higher exposure.",
+    "Worked example: a 2-year-old living in a 1950s apartment has a blood lead level of 12 micrograms per deciliter. The appropriate response is follow-up testing, inquiry into sources, notification of the health department for a home investigation, nutrition counseling, and developmental surveillance; chelation is not indicated at this level."
+   ]
+  },
+  {
+   "id": "med-clin-fm.l18",
+   "title": "Well-Child Care and Adolescent Preventive Health",
+   "body": [
+    "Well-child visits follow the American Academy of Pediatrics Bright Futures schedule, with frequent visits in the first two years (the newborn period, then ages 2 weeks and 1, 2, 4, 6, 9, 12, 15, 18 and 24 months), then 30 months and annually. Each visit includes measurement of growth plotted on standard charts (the World Health Organization charts for children under two and the CDC charts after), developmental surveillance, physical examination, immunization, anticipatory guidance and screening. Poor growth, or failure to thrive, is defined by weight faltering across percentile lines, and inadequate caloric intake is the commonest cause, evaluated by feeding history, with consideration of psychosocial and organic causes.",
+    "Developmental surveillance uses milestones as a guide, recognizing the range of normal. By about 2 months infants smile socially; by 6 months they sit with support, roll over, and babble; by 9 to 12 months they pull to stand, wave, use a pincer grasp and say \"mama\" and \"dada\" specifically, and by 12 months show stranger anxiety and respond to name; at 12 to 15 months they walk independently; by 18 months they have at least several words, and by 2 years they combine two words, run and follow two-step commands; by 3 years they speak in short sentences understood by strangers and ride a tricycle; and by 4 to 5 years they hop, draw a person, tell stories and cooperate in play. Primitive reflexes (Moro, rooting, palmar grasp) fade in the first months, and persistence beyond that suggests neurologic abnormality. The AAP recommends standardized developmental screening at 9, 18 and 30 months, and autism-specific screening at 18 and 24 months (for example with the M-CHAT-R/F). Red flags requiring evaluation include loss of previously acquired skills (regression), no babbling by 12 months, no words by 16 months, no two-word phrases by 24 months, and lack of social engagement. Hearing screening is performed in newborns, and vision screening is done at periodic intervals, with concern for amblyopia (treated by patching or atropine) and strabismus.",
+    "Newborn screening detects metabolic and genetic conditions such as phenylketonuria, congenital hypothyroidism, cystic fibrosis, sickle cell disease and congenital heart disease (by pulse oximetry), through blood spot and other testing, and early treatment prevents intellectual disability and death. Anticipatory guidance changes with age: safe sleep (supine position, a firm separate sleep surface and no soft bedding to reduce sudden infant death syndrome), breastfeeding support, introducing complementary foods around 6 months (including early introduction of peanut-containing foods in infants with severe eczema or egg allergy under guidance, to reduce peanut allergy), avoiding cow's milk as a main drink until 12 months and honey until 12 months (infant botulism), car seat use (rear-facing as long as possible within the seat's limits), water safety, firearm storage, limits on screen time and dental care. The USPSTF recommends fluoride supplementation for children over six months whose water is deficient, and application of fluoride varnish to primary teeth. Iron-deficiency screening is performed around 12 months, and lead screening is based on risk. Lipid screening once between ages 9 and 11 and again between 17 and 21 is recommended by AAP guidance, although the USPSTF finds insufficient evidence.",
+    "Adolescent care emphasizes confidentiality, which supports honest disclosure and is balanced by safety and reporting duties. The HEADSS or HEEADSSS interview (home, education and employment, eating, activities, drugs, sexuality, suicide and depression, safety) structures the psychosocial history. Screening includes depression (the USPSTF, 2022, grade B, recommends screening ages 12 to 18, and the AAP advises doing so annually), suicide risk (for which the USPSTF finds the evidence insufficient to assess screening), substance use, sexually transmitted infections and HIV in those with risk or after age 15, and attention to eating disorders, bullying, intimate partner violence and sexual exploitation. Contraception and vaccination (HPV, meningococcal, Tdap) are central. The leading causes of death in adolescents are unintentional injury, suicide and homicide, so helmet use, seat belts, avoidance of impaired driving and counseling on firearm safety are core preventive services. Puberty onset is assessed with Tanner staging: thelarche (breast budding) is the first sign in girls, usually at 8 to 13 years, followed by menarche about two to two and a half years later, and testicular enlargement is first in boys at 9 to 14 years. Precocious puberty (before age 8 in girls and 9 in boys) and delayed puberty (no breast development by 13 or testicular enlargement by 14) warrant evaluation.",
+    "Worked example: a 15-month-old girl has no words, does not point and does not respond to her name, with normal hearing screening at birth. This warrants audiology referral, developmental and autism screening, and early intervention services without waiting."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "med-clin-fm.l01.q1",
+   "lessonId": "med-clin-fm.l01",
+   "kind": "mcq",
+   "prompt": "Which term describes protecting patients from unnecessary or harmful medical interventions?",
+   "choices": [
+    "Tertiary prevention, which limits complications of established disease",
+    "Quaternary prevention, which guards against overmedicalization",
+    "Primary prevention, which prevents the onset of disease",
+    "Secondary prevention, which detects early disease in the asymptomatic"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l01.q2",
+   "lessonId": "med-clin-fm.l01",
+   "kind": "mcq",
+   "prompt": "Why is the pretest probability of a serious disease lower in primary care than in a referral clinic?",
+   "choices": [
+    "Patients present earlier and with less differentiated symptoms",
+    "Primary care patients as a group have fewer chronic diseases than hospital patients",
+    "Primary care clinicians refuse to order diagnostic tests",
+    "Serious diseases are never first seen by family physicians"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l01.q3",
+   "lessonId": "med-clin-fm.l01",
+   "kind": "mcq",
+   "prompt": "A 22-year-old woman has a rare condition with a 1 in 10,000 prevalence. A screening test has 95 percent sensitivity and 95 percent specificity. Why would most positive results still be false?",
+   "choices": [
+    "The sensitivity is too low to detect disease at that rate",
+    "Specificity falls whenever prevalence decreases",
+    "Tests with 95 percent sensitivity always overcall disease when the condition is uncommon",
+    "The low prevalence makes the positive predictive value very low"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l01.q4",
+   "lessonId": "med-clin-fm.l01",
+   "kind": "mcq",
+   "prompt": "A man says he does not want to decide about prostate screening alone, and asks the clinician what to do. Which response best reflects shared decision-making?",
+   "choices": [
+    "Tell him that screening is useless and should never be done",
+    "Defer the decision entirely to his spouse without discussion",
+    "Describe benefits and harms, ask about his values, and decide together",
+    "Order the test immediately because screening is always protective in men of his age group"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l01.q5",
+   "lessonId": "med-clin-fm.l01",
+   "kind": "mcq",
+   "prompt": "A patient with chronic low back pain reports new urinary retention and numbness around the perineum. What is the most appropriate step?",
+   "choices": [
+    "Opioid analgesics and watchful waiting at home this week",
+    "Urgent evaluation, including MRI, for cauda equina syndrome",
+    "Reassurance and a trial of conservative care for six weeks",
+    "Referral to physical therapy and a follow-up visit in one month"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l02.q1",
+   "lessonId": "med-clin-fm.l02",
+   "kind": "mcq",
+   "prompt": "What does lead-time bias do in a screening program?",
+   "choices": [
+    "Detects cancers that never would have caused symptoms",
+    "Recruits healthier volunteers than the general population",
+    "Lengthens apparent survival without delaying death",
+    "Selects slow-growing tumors that are less lethal"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l02.q2",
+   "lessonId": "med-clin-fm.l02",
+   "kind": "mcq",
+   "prompt": "At what ages does the 2021 USPSTF recommend colorectal cancer screening as a grade A or B?",
+   "choices": [
+    "40 to 70, with every adult in that range graded A and screened by colonoscopy yearly",
+    "50 to 85, with no distinction between age subgroups",
+    "55 to 80, with annual colonoscopy as the only option",
+    "45 to 75, with 45 to 49 graded B and 50 to 75 graded A"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l02.q3",
+   "lessonId": "med-clin-fm.l02",
+   "kind": "mcq",
+   "prompt": "A 52-year-old woman smoked one pack daily for 30 years and quit one year ago. Which recommendation best fits her?",
+   "choices": [
+    "Annual low-dose CT lung cancer screening",
+    "Annual chest radiography for lung cancer",
+    "No lung screening because she has quit smoking",
+    "Single low-dose CT only at age 65"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l02.q4",
+   "lessonId": "med-clin-fm.l02",
+   "kind": "mcq",
+   "prompt": "A 26-year-old woman has had normal cytology results. What is the recommended interval according to the 2018 USPSTF?",
+   "choices": [
+    "No screening until age 30",
+    "Cytology every three years",
+    "Cytology every year indefinitely",
+    "High-risk HPV testing alone every five years"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l02.q5",
+   "lessonId": "med-clin-fm.l02",
+   "kind": "mcq",
+   "prompt": "A 72-year-old man asks for a PSA test for prostate cancer screening, and he has a 15-year life expectancy. What is the USPSTF position?",
+   "choices": [
+    "Recommends an individual decision after age 70 only",
+    "Recommends digital rectal examination alone every year",
+    "Recommends against routine screening at age 70 and older",
+    "Recommends screening annually with PSA testing for all men through age 85"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l03.q1",
+   "lessonId": "med-clin-fm.l03",
+   "kind": "mcq",
+   "prompt": "Which test is recommended to confirm an elevated office blood pressure before diagnosing hypertension?",
+   "choices": [
+    "A repeat office reading at the same visit only",
+    "A resting electrocardiogram",
+    "A plasma renin level",
+    "Ambulatory or home blood pressure monitoring"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l03.q2",
+   "lessonId": "med-clin-fm.l03",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man with diabetes, a 10-year risk of 12 percent and no prior cardiovascular events asks about a statin. What is the USPSTF recommendation?",
+   "choices": [
+    "A statin is recommended only if the LDL is above 190 mg/dL",
+    "Aspirin is preferred over statins for all primary prevention",
+    "A statin is recommended for adults 40 to 75 with a risk factor and a risk of 10 percent or more",
+    "A statin is not recommended for primary prevention unless he has already had a myocardial infarction"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l03.q3",
+   "lessonId": "med-clin-fm.l03",
+   "kind": "mcq",
+   "prompt": "A 67-year-old man, a former smoker, has no symptoms. Which screening is recommended once?",
+   "choices": [
+    "Resting ECG for coronary disease",
+    "Abdominal ultrasound for aortic aneurysm",
+    "Carotid duplex ultrasound for stenosis",
+    "Echocardiography for ventricular function"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l03.q4",
+   "lessonId": "med-clin-fm.l03",
+   "kind": "mcq",
+   "prompt": "A 49-year-old woman with a 10-year cardiovascular risk of 8 percent has borderline risk and prefers to avoid a statin if possible. Which test may help refine the decision?",
+   "choices": [
+    "Coronary artery calcium score",
+    "Exercise stress echocardiogram",
+    "Carotid intima-media thickness in all patients",
+    "A resting electrocardiogram"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l03.q5",
+   "lessonId": "med-clin-fm.l03",
+   "kind": "mcq",
+   "prompt": "A 63-year-old man with no cardiovascular disease asks to start daily aspirin for prevention. What does the 2022 USPSTF recommend?",
+   "choices": [
+    "Starting aspirin for all adults older than 60 with hypertension",
+    "Starting aspirin only in those with a family history of colon cancer",
+    "Starting aspirin in all adults above age 40 who smoke",
+    "Not initiating aspirin for primary prevention at age 60 or older"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l04.q1",
+   "lessonId": "med-clin-fm.l04",
+   "kind": "mcq",
+   "prompt": "Which vaccine is contraindicated in pregnancy?",
+   "choices": [
+    "Measles, mumps and rubella vaccine, which is a live attenuated vaccine",
+    "Tetanus, diphtheria and acellular pertussis vaccine, given in every pregnancy",
+    "Inactivated influenza vaccine, given in any trimester during the season",
+    "Recombinant hepatitis B vaccine, given when the person is at risk"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l04.q2",
+   "lessonId": "med-clin-fm.l04",
+   "kind": "mcq",
+   "prompt": "Why are polysaccharide vaccines conjugated to a protein carrier?",
+   "choices": [
+    "To delay antigen release and prevent injection-site pain",
+    "To produce a T-cell-dependent response with immune memory in young children",
+    "To convert the polysaccharide vaccine into a live attenuated formulation that replicates",
+    "To avoid the need for an adjuvant in all adults"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l04.q3",
+   "lessonId": "med-clin-fm.l04",
+   "kind": "mcq",
+   "prompt": "A 16-year-old has no immunization records and arrives for a sports physical. Which approach is correct?",
+   "choices": [
+    "Defer all vaccines until laboratory immunity testing is done for each disease",
+    "Give only tetanus and defer all others until adulthood",
+    "Give age-appropriate catch-up doses, counting any documented doses and using minimum intervals without restarting series",
+    "Restart every vaccine series from the beginning because records are missing, then repeat all doses"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l04.q4",
+   "lessonId": "med-clin-fm.l04",
+   "kind": "mcq",
+   "prompt": "A 6-year-old develops a mild cold with a low-grade fever and is due for MMR and DTaP. Which statement is correct?",
+   "choices": [
+    "Any fever at all is a contraindication until the child has been fully well for a full week",
+    "Antibiotic use is a contraindication to live vaccines",
+    "MMR can only be given after a negative measles antibody test",
+    "Mild illness with low-grade fever is not a contraindication to vaccination"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l04.q5",
+   "lessonId": "med-clin-fm.l04",
+   "kind": "mcq",
+   "prompt": "A 62-year-old man with no history of shingles asks whether he should get the recombinant zoster vaccine. What is the recommendation?",
+   "choices": [
+    "Yes, two doses are recommended for adults aged 50 and older",
+    "No, it is recommended only for adults over 80 years of age",
+    "Yes, but the live zoster vaccine is preferred in older adults",
+    "No, it is recommended only after an episode of shingles"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l05.q1",
+   "lessonId": "med-clin-fm.l05",
+   "kind": "mcq",
+   "prompt": "Which test is recommended once for all adults aged 18 to 79 according to the 2020 USPSTF?",
+   "choices": [
+    "HPV DNA testing",
+    "Hepatitis C antibody testing",
+    "Hepatitis A IgM testing",
+    "Herpes simplex type 2 serology"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l05.q2",
+   "lessonId": "med-clin-fm.l05",
+   "kind": "mcq",
+   "prompt": "Which group does the USPSTF recommend screening for chlamydia and gonorrhea?",
+   "choices": [
+    "Sexually active women aged 24 and younger, and older women at increased risk",
+    "All men aged 15 to 30 irrespective of sexual activity, with annual urine testing",
+    "All women over age 40 with no risk factors",
+    "Only people with symptoms of urethritis or cervicitis"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l05.q3",
+   "lessonId": "med-clin-fm.l05",
+   "kind": "mcq",
+   "prompt": "A 29-year-old with a positive interferon-gamma release assay has a normal chest radiograph and no symptoms. What is the best management?",
+   "choices": [
+    "Begin four-drug therapy for presumed active tuberculosis while awaiting sputum cultures",
+    "Repeat the test in a year without treatment",
+    "Perform lung biopsy to confirm infection",
+    "Treat latent tuberculosis, such as with four months of rifampin"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l05.q4",
+   "lessonId": "med-clin-fm.l05",
+   "kind": "mcq",
+   "prompt": "A pregnant woman is at the first prenatal visit. Which set of infectious screens is routinely recommended?",
+   "choices": [
+    "Syphilis only if the partner has had a positive test",
+    "Herpes simplex serology, hepatitis E antibody and cytomegalovirus IgM for every patient",
+    "HIV, syphilis, hepatitis B surface antigen and rubella immunity",
+    "HIV and hepatitis A only, with others based on symptoms"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l05.q5",
+   "lessonId": "med-clin-fm.l05",
+   "kind": "mcq",
+   "prompt": "A 27-year-old woman is planning a pregnancy. Which supplement does the USPSTF recommend daily to prevent neural tube defects?",
+   "choices": [
+    "Vitamin E at 400 units daily",
+    "Folic acid, 0.4 to 0.8 mg",
+    "Vitamin A at high daily doses",
+    "Iron at 100 mg of elemental iron"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l06.q1",
+   "lessonId": "med-clin-fm.l06",
+   "kind": "mcq",
+   "prompt": "Which class of antihypertensive can cause a dry cough because of bradykinin accumulation?",
+   "choices": [
+    "Dihydropyridine calcium channel blockers",
+    "Beta-blockers",
+    "ACE inhibitors",
+    "Thiazide diuretics"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l06.q2",
+   "lessonId": "med-clin-fm.l06",
+   "kind": "mcq",
+   "prompt": "Which is a contraindication to ACE inhibitors and ARBs?",
+   "choices": [
+    "Diabetes with albuminuria",
+    "Heart failure with reduced ejection fraction",
+    "Prior myocardial infarction",
+    "Pregnancy"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l06.q3",
+   "lessonId": "med-clin-fm.l06",
+   "kind": "mcq",
+   "prompt": "A 28-year-old woman has hypertension, hypokalemia and a low renin. What is the best next test?",
+   "choices": [
+    "Plasma aldosterone-to-renin ratio",
+    "Plasma free metanephrines level",
+    "Renal artery duplex ultrasound alone",
+    "Thyroid-stimulating hormone with free T4"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l06.q4",
+   "lessonId": "med-clin-fm.l06",
+   "kind": "mcq",
+   "prompt": "A 55-year-old man with a repeated reading of 152/94 and no comorbid disease needs treatment. Which initial regimen is reasonable?",
+   "choices": [
+    "Spironolactone as the only agent in uncomplicated disease",
+    "A single-pill combination of two first-line classes, with lifestyle changes",
+    "A beta-blocker alone, since it has been the traditional first-line agent for all patients",
+    "An ACE inhibitor combined with an ARB for stronger effect"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l06.q5",
+   "lessonId": "med-clin-fm.l06",
+   "kind": "mcq",
+   "prompt": "A 52-year-old man with diabetes has an LDL of 130 mg/dL and no cardiovascular disease. What does the 2026 ACC/AHA dyslipidemia guideline recommend?",
+   "choices": [
+    "A fibrate as the first-line agent",
+    "Niacin to raise HDL cholesterol",
+    "Statin therapy, as for all adults with diabetes aged 40 to 75",
+    "No lipid therapy until a cardiovascular event occurs"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l07.q1",
+   "lessonId": "med-clin-fm.l07",
+   "kind": "mcq",
+   "prompt": "Which drug class slows kidney disease progression and reduces heart failure hospitalization in people with type 2 diabetes?",
+   "choices": [
+    "Sulfonylureas, which increase insulin secretion from the pancreas",
+    "Thiazolidinediones, which improve insulin sensitivity in fat tissue",
+    "DPP-4 inhibitors, which prolong incretin hormone activity",
+    "SGLT2 inhibitors, which reduce glomerular hyperfiltration"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l07.q2",
+   "lessonId": "med-clin-fm.l07",
+   "kind": "mcq",
+   "prompt": "A GLP-1 receptor agonist is contraindicated in which condition?",
+   "choices": [
+    "Established atherosclerotic cardiovascular disease together with diabetes",
+    "Obesity with a body mass index above 35 and prediabetes",
+    "Medullary thyroid carcinoma or multiple endocrine neoplasia type 2",
+    "Chronic kidney disease with albuminuria in a patient with diabetes"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l07.q3",
+   "lessonId": "med-clin-fm.l07",
+   "kind": "mcq",
+   "prompt": "A 60-year-old man with type 2 diabetes on metformin has an eGFR of 48, albuminuria and an A1c of 7.8 percent. Which addition is most appropriate?",
+   "choices": [
+    "Discontinuation of all renin-angiotensin blockers in order to protect the kidney function",
+    "An SGLT2 inhibitor, while continuing an ACE inhibitor or ARB for albuminuria",
+    "A sulfonylurea, since it has the strongest renal protection",
+    "Pioglitazone, since it lowers albuminuria without risk of edema"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l07.q4",
+   "lessonId": "med-clin-fm.l07",
+   "kind": "mcq",
+   "prompt": "A 70-year-old with type 2 diabetes, advanced heart failure and limited life expectancy has an A1c of 7.9 percent on stable therapy. What is the most reasonable approach?",
+   "choices": [
+    "Accept a less stringent target, around 8 percent, to avoid hypoglycemia",
+    "Intensify therapy to reach an A1c below 6 percent",
+    "Stop all glucose-lowering medication immediately",
+    "Switch to a basal-bolus insulin regimen aimed at reaching a normal fasting glucose"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l07.q5",
+   "lessonId": "med-clin-fm.l07",
+   "kind": "mcq",
+   "prompt": "Which is a classification feature of chronic kidney disease?",
+   "choices": [
+    "A creatinine rise lasting about a week in the setting of acute illness with dehydration, without albuminuria",
+    "A urinary tract infection that recurs more than twice a year",
+    "Kidney stones recurring in a patient with normal eGFR",
+    "Abnormal kidney structure or function lasting longer than three months, staged by eGFR and albuminuria"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l08.q1",
+   "lessonId": "med-clin-fm.l08",
+   "kind": "mcq",
+   "prompt": "Which description fits the diagnostic finding of COPD on spirometry?",
+   "choices": [
+    "Post-bronchodilator FEV1/FVC ratio below 0.70",
+    "Post-bronchodilator FEV1/FVC ratio above 0.90",
+    "Reduced total lung capacity with a normal ratio",
+    "A 12 percent rise in FEV1 after bronchodilator"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l08.q2",
+   "lessonId": "med-clin-fm.l08",
+   "kind": "mcq",
+   "prompt": "Why is a long-acting beta agonist never used alone in asthma?",
+   "choices": [
+    "It lowers the efficacy of the short-acting reliever",
+    "It treats bronchospasm but not inflammation, and increases severe event risk",
+    "It causes severe hypokalemia and arrhythmia in all patients who take it regularly",
+    "It is only effective in combination with oral steroids"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l08.q3",
+   "lessonId": "med-clin-fm.l08",
+   "kind": "mcq",
+   "prompt": "A 35-year-old woman uses albuterol daily and wakes at night with cough. What is the most appropriate management change?",
+   "choices": [
+    "Start a long-acting beta agonist alone as the new controller",
+    "Begin daily oral corticosteroids as long-term controller therapy",
+    "Step up to an inhaled corticosteroid-formoterol regimen after reviewing technique and triggers",
+    "Increase albuterol to four times daily as the main strategy for her symptoms"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l08.q4",
+   "lessonId": "med-clin-fm.l08",
+   "kind": "mcq",
+   "prompt": "A 62-year-old man with COPD has two exacerbations in a year and a blood eosinophil count of 400 cells per microliter. Which addition has the best rationale?",
+   "choices": [
+    "Long-term daily oral prednisone to prevent exacerbations in all patients",
+    "Theophylline as the first add-on agent",
+    "Stopping bronchodilators to reduce adverse effects",
+    "An inhaled corticosteroid added to dual long-acting bronchodilators"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l08.q5",
+   "lessonId": "med-clin-fm.l08",
+   "kind": "mcq",
+   "prompt": "A 40-year-old woman has fatigue, weight gain and constipation, with a TSH of 14 mIU/L and low free thyroxine. What is the best treatment?",
+   "choices": [
+    "Levothyroxine, adjusted by TSH in six to eight weeks",
+    "Methimazole to suppress thyroid hormone production and reduce gland activity",
+    "Radioactive iodine to ablate the gland",
+    "Observation with repeat testing in a year"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l09.q1",
+   "lessonId": "med-clin-fm.l09",
+   "kind": "mcq",
+   "prompt": "Which body mass index range defines obesity in most adults?",
+   "choices": [
+    "40 or higher only",
+    "30 or higher",
+    "25 to 29.9",
+    "35 to 39.9"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l09.q2",
+   "lessonId": "med-clin-fm.l09",
+   "kind": "mcq",
+   "prompt": "Which weight-loss drug is contraindicated in patients with a seizure disorder?",
+   "choices": [
+    "Naltrexone-bupropion",
+    "Semaglutide",
+    "Orlistat",
+    "Tirzepatide"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l09.q3",
+   "lessonId": "med-clin-fm.l09",
+   "kind": "mcq",
+   "prompt": "A 45-year-old woman with a body mass index of 33 and prediabetes asks about weight loss. What is the best approach?",
+   "choices": [
+    "Advice to simply eat less and exercise more, with no structured program or follow-up",
+    "Bariatric surgery referral as the first and only option",
+    "A single-nutrient supplement and reassessment in a year",
+    "Intensive multicomponent behavioral therapy, with discussion of pharmacotherapy"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l09.q4",
+   "lessonId": "med-clin-fm.l09",
+   "kind": "mcq",
+   "prompt": "A 50-year-old man who underwent Roux-en-Y gastric bypass years ago has fatigue, a macrocytic anemia and paresthesias. Which deficiency is most likely?",
+   "choices": [
+    "Vitamin K",
+    "Vitamin A",
+    "Vitamin B12",
+    "Vitamin C"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l09.q5",
+   "lessonId": "med-clin-fm.l09",
+   "kind": "mcq",
+   "prompt": "Which statement about dietary patterns in weight loss is supported by trials?",
+   "choices": [
+    "Meal timing matters more than total energy intake for all people",
+    "Mediterranean, low-carbohydrate and low-fat diets produce similar weight loss when adhered to",
+    "Only very low-carbohydrate diets produce meaningful long-term weight loss in trials",
+    "Low-fat diets are consistently superior to all other patterns"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l10.q1",
+   "lessonId": "med-clin-fm.l10",
+   "kind": "mcq",
+   "prompt": "Which drug acts as a partial agonist at the alpha-4 beta-2 nicotinic receptor and is used for smoking cessation?",
+   "choices": [
+    "Bupropion, which inhibits reuptake of norepinephrine and dopamine",
+    "Naltrexone, which blocks mu-opioid receptors in the brain",
+    "Nicotine gum, which delivers nicotine without combustion",
+    "Varenicline, which reduces craving and the reward from smoking"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l10.q2",
+   "lessonId": "med-clin-fm.l10",
+   "kind": "mcq",
+   "prompt": "What is recommended by the USPSTF for adults who use tobacco and are not pregnant?",
+   "choices": [
+    "Electronic cigarettes as the first-line cessation aid",
+    "Medication only, with no counseling because it is ineffective",
+    "Behavioral interventions plus FDA-approved medication, which work better combined",
+    "Behavioral counseling alone, because medication adds no benefit to counseling in trials"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l10.q3",
+   "lessonId": "med-clin-fm.l10",
+   "kind": "mcq",
+   "prompt": "A 48-year-old man who smokes a pack daily says he is thinking about quitting someday. What is the best response?",
+   "choices": [
+    "Document his statement and avoid pressuring him in any way",
+    "Advise him clearly, explore his motives and offer medication and counseling with follow-up",
+    "Tell him to return when he is fully ready to quit and offer counseling only then",
+    "Prescribe bupropion without discussion so he can use it when ready"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l10.q4",
+   "lessonId": "med-clin-fm.l10",
+   "kind": "mcq",
+   "prompt": "A 35-year-old woman has a seizure disorder and wants help quitting smoking. Which agent should be avoided?",
+   "choices": [
+    "Bupropion, because it lowers the seizure threshold",
+    "Varenicline, because of high rates of psychosis",
+    "Nicotine patch, because it increases seizure frequency",
+    "Combination nicotine replacement, because of dependence risk"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l10.q5",
+   "lessonId": "med-clin-fm.l10",
+   "kind": "mcq",
+   "prompt": "A man with opioid use disorder asks about treatment. Which approach reduces mortality the most?",
+   "choices": [
+    "Detoxification alone followed by outpatient follow-up",
+    "Counseling without any medication during the first year of treatment, then reassess",
+    "Short-term benzodiazepines to control withdrawal symptoms",
+    "Medication such as buprenorphine or methadone with counseling"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l11.q1",
+   "lessonId": "med-clin-fm.l11",
+   "kind": "mcq",
+   "prompt": "Which medication class is contraindicated with nitrates because of profound hypotension?",
+   "choices": [
+    "5-alpha-reductase inhibitors such as finasteride, which shrink the gland",
+    "Thiazide diuretics such as hydrochlorothiazide, which lower blood pressure",
+    "Phosphodiesterase-5 inhibitors such as sildenafil",
+    "Alpha-1 blockers such as tamsulosin, which relax prostate smooth muscle"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l11.q2",
+   "lessonId": "med-clin-fm.l11",
+   "kind": "mcq",
+   "prompt": "A man with benign prostatic hyperplasia takes finasteride. How does this change interpretation of his PSA?",
+   "choices": [
+    "The PSA is raised by about half, so measured values are halved for interpretation purposes",
+    "The PSA becomes unreliable and should never be measured",
+    "The PSA is unchanged because the drug acts on testosterone only",
+    "The PSA is lowered by about half, so values are doubled for interpretation"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l11.q3",
+   "lessonId": "med-clin-fm.l11",
+   "kind": "mcq",
+   "prompt": "A 17-year-old has sudden severe left scrotal pain with nausea. The testis is high-riding and the cremasteric reflex is absent. What is the best next step?",
+   "choices": [
+    "Immediate surgical exploration without waiting for imaging if suspicion is high",
+    "Oral antibiotics for presumed epididymitis with a follow-up visit in about a week",
+    "Scrotal ice and analgesics with outpatient ultrasound next week",
+    "Urinalysis and observation overnight in the emergency department"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l11.q4",
+   "lessonId": "med-clin-fm.l11",
+   "kind": "mcq",
+   "prompt": "A 24-year-old man has a painless, firm left testicular mass. What is the appropriate approach?",
+   "choices": [
+    "Reassurance because testicular masses in young men are usually benign hydroceles",
+    "Scrotal ultrasound and tumor markers, followed by radical inguinal orchiectomy if suspicious",
+    "Transscrotal needle biopsy to confirm the diagnosis",
+    "Empiric antibiotics for two weeks and reassessment"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l11.q5",
+   "lessonId": "med-clin-fm.l11",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man has fatigue and low libido and a low morning total testosterone twice, with low luteinizing hormone. What does this indicate?",
+   "choices": [
+    "Normal aging that never requires evaluation",
+    "Androgen insensitivity syndrome",
+    "Secondary hypogonadism, which needs evaluation for pituitary or systemic causes",
+    "Primary testicular failure from an intrinsic testicular disorder with high gonadotropins"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l12.q1",
+   "lessonId": "med-clin-fm.l12",
+   "kind": "mcq",
+   "prompt": "Which contraceptive method is the most effective emergency contraception?",
+   "choices": [
+    "Barrier method used afterward",
+    "Copper intrauterine device",
+    "Levonorgestrel pill",
+    "Combined oral contraceptive taken twice"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l12.q2",
+   "lessonId": "med-clin-fm.l12",
+   "kind": "mcq",
+   "prompt": "Which condition makes combined estrogen-progestin contraception category 4 (unacceptable risk)?",
+   "choices": [
+    "Migraine with aura",
+    "Mild asthma",
+    "Previous gestational diabetes",
+    "Controlled hypothyroidism"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l12.q3",
+   "lessonId": "med-clin-fm.l12",
+   "kind": "mcq",
+   "prompt": "A 33-year-old woman smokes 20 cigarettes per day and has migraine with aura. She requests a combined pill. What is the best response?",
+   "choices": [
+    "Prescribe the combined pill and counsel her to stop smoking before she starts it",
+    "Prescribe a higher-dose estrogen pill to improve her cycle control and reduce bleeding",
+    "Recommend no contraception because of her risk factors",
+    "Offer a progestin-only method or an intrauterine device instead"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l12.q4",
+   "lessonId": "med-clin-fm.l12",
+   "kind": "mcq",
+   "prompt": "A 56-year-old woman with a uterus has severe hot flashes and no contraindication, two years after menopause. Which regimen is appropriate if she chooses hormone therapy?",
+   "choices": [
+    "Progestogen alone to treat vasomotor symptoms",
+    "Testosterone alone to treat vasomotor symptoms",
+    "Estrogen with a progestogen to protect the endometrium",
+    "Unopposed estrogen alone because of the severity of her symptom burden and uterine status"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l12.q5",
+   "lessonId": "med-clin-fm.l12",
+   "kind": "mcq",
+   "prompt": "A 67-year-old woman has a DXA T-score of -2.8 at the femoral neck and no contraindication to oral therapy. What is first-line treatment?",
+   "choices": [
+    "Observation and repeat DXA in ten years without treatment",
+    "An oral bisphosphonate taken upright with water, with calcium and vitamin D",
+    "Estrogen alone as the main long-term agent for osteoporosis in older women",
+    "Calcitonin nasal spray as the preferred long-term agent"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l13.q1",
+   "lessonId": "med-clin-fm.l13",
+   "kind": "mcq",
+   "prompt": "Which USPSTF-recommended intervention reduces falls in community-dwelling adults aged 65 or older at increased risk?",
+   "choices": [
+    "Exercise programs, which improve strength and balance",
+    "Vitamin D supplementation for all older adults routinely",
+    "Bed rest for the first month after a first fall",
+    "Daily low-dose aspirin for cardiovascular protection"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l13.q2",
+   "lessonId": "med-clin-fm.l13",
+   "kind": "mcq",
+   "prompt": "A prescribing cascade is best described by which example?",
+   "choices": [
+    "A patient receives a drug that is contraindicated by allergy",
+    "A calcium channel blocker causes edema, which is then treated with a diuretic",
+    "A patient is prescribed two drugs from the same class for the same single problem",
+    "A drug is stopped abruptly and withdrawal symptoms emerge"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l13.q3",
+   "lessonId": "med-clin-fm.l13",
+   "kind": "mcq",
+   "prompt": "An 80-year-old woman falls twice in a year while taking zolpidem, oxybutynin and amlodipine, and has an orthostatic blood pressure drop. What is the best plan?",
+   "choices": [
+    "Hip protectors alone with no medication changes",
+    "Vitamin D supplementation alone to prevent further falls",
+    "Exercise program and deprescribing of zolpidem and oxybutynin, with vision and footwear review",
+    "Adding a second sedative at bedtime to improve her sleep and reduce nighttime wakening"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l13.q4",
+   "lessonId": "med-clin-fm.l13",
+   "kind": "mcq",
+   "prompt": "A 78-year-old man has newly diagnosed metastatic cancer and wants to avoid intubation. Which document turns his preferences into portable medical orders?",
+   "choices": [
+    "A general financial power of attorney naming a family member as agent",
+    "A signed consent form for chemotherapy",
+    "A hospital admission note",
+    "A POLST or MOLST form completed with his clinician"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l13.q5",
+   "lessonId": "med-clin-fm.l13",
+   "kind": "mcq",
+   "prompt": "A 72-year-old woman has been taking a first-generation antihistamine nightly and now has constipation, confusion and urinary retention. Which explanation fits best?",
+   "choices": [
+    "Anticholinergic adverse effects of the drug",
+    "New-onset hypothyroidism unrelated to the drug",
+    "Early Parkinson disease with autonomic failure",
+    "Normal aging changes that need no workup"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l14.q1",
+   "lessonId": "med-clin-fm.l14",
+   "kind": "mcq",
+   "prompt": "Which symptom suggests cauda equina syndrome in a patient with back pain?",
+   "choices": [
+    "Pain that improves within one week of rest",
+    "Pain that worsens with prolonged sitting only",
+    "Morning stiffness lasting ten minutes",
+    "Saddle anesthesia with urinary retention"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l14.q2",
+   "lessonId": "med-clin-fm.l14",
+   "kind": "mcq",
+   "prompt": "Which crystal finding on synovial fluid analysis confirms gout?",
+   "choices": [
+    "Cholesterol plates with a notched corner shape",
+    "Calcium oxalate bipyramidal crystals in the fluid",
+    "Needle-shaped, negatively birefringent crystals",
+    "Rhomboid-shaped, positively birefringent crystals"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l14.q3",
+   "lessonId": "med-clin-fm.l14",
+   "kind": "mcq",
+   "prompt": "A 60-year-old woman has knee pain with activity, brief morning stiffness, crepitus and bony enlargement. Which treatment strategy is recommended first?",
+   "choices": [
+    "Methotrexate to prevent progression",
+    "Exercise and weight loss, with topical or oral NSAIDs as needed",
+    "Glucosamine and chondroitin supplements as the first-line treatment strategy",
+    "Hyaluronic acid injections at each visit"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l14.q4",
+   "lessonId": "med-clin-fm.l14",
+   "kind": "mcq",
+   "prompt": "A 35-year-old woman has nocturnal paresthesias of the thumb, index and middle fingers, relieved by shaking the hand, and a positive Tinel sign. What is the best initial treatment?",
+   "choices": [
+    "Wrist splinting at night, with steroid injection or surgical release if it fails",
+    "Immediate cervical spine fusion for presumed cervical radiculopathy at C6 level",
+    "Oral opioids for neuropathic pain and rest",
+    "Elbow immobilization for ulnar neuropathy"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l14.q5",
+   "lessonId": "med-clin-fm.l14",
+   "kind": "mcq",
+   "prompt": "A 45-year-old man has a hot, swollen knee, fever and inability to bear weight. What is the most important next step?",
+   "choices": [
+    "NSAIDs and a follow-up visit in one week",
+    "Plain radiographs and discharge with rest",
+    "Intra-articular corticosteroid injection for symptom relief",
+    "Arthrocentesis with cell count, Gram stain and culture"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l15.q1",
+   "lessonId": "med-clin-fm.l15",
+   "kind": "mcq",
+   "prompt": "Which ABCDE feature of a pigmented lesion suggests melanoma?",
+   "choices": [
+    "A diameter of less than 3 mm without any change",
+    "A flat lesion that has been stable since childhood",
+    "Evolution, meaning change in size, shape or color over time",
+    "Uniform color with a symmetrical shape and a smooth regular border, unchanged for years"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l15.q2",
+   "lessonId": "med-clin-fm.l15",
+   "kind": "mcq",
+   "prompt": "Which treatment for severe nodulocystic acne requires a pregnancy prevention program because of teratogenicity?",
+   "choices": [
+    "Topical benzoyl peroxide",
+    "Oral doxycycline",
+    "Topical clindamycin",
+    "Oral isotretinoin"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l15.q3",
+   "lessonId": "med-clin-fm.l15",
+   "kind": "mcq",
+   "prompt": "A child with atopic dermatitis develops clustered punched-out vesicles and fever over eczematous skin. What is the best management?",
+   "choices": [
+    "Systemic acyclovir, treating for eczema herpeticum",
+    "Increased topical steroid potency to treat the flare",
+    "Oral antihistamines alone and reassurance",
+    "Topical antifungal cream for presumed tinea"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l15.q4",
+   "lessonId": "med-clin-fm.l15",
+   "kind": "mcq",
+   "prompt": "A 58-year-old man has a 9 mm irregular, multicolored, changing pigmented lesion on his back. What is the correct next step?",
+   "choices": [
+    "Cryotherapy for presumed seborrheic keratosis",
+    "Full-thickness excisional or punch biopsy including the deepest part of the lesion",
+    "Shave biopsy to remove only the superficial surface of the lesion for quick pathology",
+    "Topical steroid trial for four weeks"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l15.q5",
+   "lessonId": "med-clin-fm.l15",
+   "kind": "mcq",
+   "prompt": "A family presents with intense nocturnal itching and burrows in finger web spaces. Which treatment is appropriate?",
+   "choices": [
+    "Oral antifungal therapy for several weeks",
+    "Selenium sulfide shampoo applied to the scalp",
+    "Permethrin applied to the whole body, with treatment of close contacts",
+    "Topical corticosteroids applied to the affected areas only, with oral antihistamines at night"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l16.q1",
+   "lessonId": "med-clin-fm.l16",
+   "kind": "mcq",
+   "prompt": "Which hazard is most strongly associated with malignant mesothelioma?",
+   "choices": [
+    "Cotton dust exposure",
+    "Asbestos exposure",
+    "Silica dust exposure",
+    "Coal dust exposure"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l16.q2",
+   "lessonId": "med-clin-fm.l16",
+   "kind": "mcq",
+   "prompt": "In the hierarchy of controls, which approach is most effective?",
+   "choices": [
+    "Eliminating the hazard",
+    "Providing respirators to workers",
+    "Rotating workers between jobs",
+    "Training workers about hazards"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l16.q3",
+   "lessonId": "med-clin-fm.l16",
+   "kind": "mcq",
+   "prompt": "A 52-year-old sandblaster has upper-lobe nodules and eggshell calcification of hilar lymph nodes on chest radiography. What additional risk should be monitored?",
+   "choices": [
+    "Mesothelioma of the pleura as the main long-term concern in silica exposure",
+    "Lead poisoning with peripheral neuropathy",
+    "Hepatic angiosarcoma from vinyl chloride",
+    "Tuberculosis, which occurs more often in silicosis"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l16.q4",
+   "lessonId": "med-clin-fm.l16",
+   "kind": "mcq",
+   "prompt": "A 38-year-old battery plant worker has abdominal pain, anemia with basophilic stippling and wrist drop. What is the best approach?",
+   "choices": [
+    "Start iron supplements for presumed iron deficiency anemia",
+    "Perform hepatic ultrasound to exclude angiosarcoma",
+    "Measure blood lead, remove him from exposure and chelate if levels are high",
+    "Observe him at work with annual complete blood counts and no other testing"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l16.q5",
+   "lessonId": "med-clin-fm.l16",
+   "kind": "mcq",
+   "prompt": "A factory worker has audiometry showing a notch at 4000 Hz. What is the most likely cause?",
+   "choices": [
+    "Acoustic neuroma with asymmetric loss",
+    "Noise-induced hearing loss",
+    "Presbycusis from aging alone",
+    "Otosclerosis with conductive loss"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l17.q1",
+   "lessonId": "med-clin-fm.l17",
+   "kind": "mcq",
+   "prompt": "Which is the second leading cause of lung cancer in the United States and the leading cause among nonsmokers?",
+   "choices": [
+    "Radon",
+    "Asbestos",
+    "Air pollution from traffic",
+    "Secondhand marijuana smoke"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l17.q2",
+   "lessonId": "med-clin-fm.l17",
+   "kind": "mcq",
+   "prompt": "What is the most important management for a toddler with a blood lead level of 12 micrograms per deciliter?",
+   "choices": [
+    "Repeat testing only at the next routine well visit",
+    "Identify and remove the source, with follow-up testing and nutrition review",
+    "Immediate chelation with intravenous edetate calcium disodium in hospital",
+    "Reassurance because the level is below the action range"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l17.q3",
+   "lessonId": "med-clin-fm.l17",
+   "kind": "mcq",
+   "prompt": "Wildfire smoke blankets a town. Which advice best protects a patient with asthma?",
+   "choices": [
+    "Wear a cloth face covering as equivalent protection",
+    "Open windows to ventilate the home during the smoke",
+    "Stay indoors with filtered air and use a well-fitted N95 respirator outdoors",
+    "Exercise outdoors in the early morning to build tolerance to the smoke"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l17.q4",
+   "lessonId": "med-clin-fm.l17",
+   "kind": "mcq",
+   "prompt": "A 4-month-old fed formula mixed with well water has cyanosis and chocolate-colored blood with normal PaO2. What exposure is most likely?",
+   "choices": [
+    "Lead in the plumbing causing encephalopathy",
+    "Arsenic in groundwater causing skin lesions",
+    "Mercury in fish causing neurodevelopmental delay",
+    "Nitrate in well water causing methemoglobinemia"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l17.q5",
+   "lessonId": "med-clin-fm.l17",
+   "kind": "mcq",
+   "prompt": "During a heat wave an elderly woman taking a diuretic and an anticholinergic becomes confused. Which risk factor most increases her susceptibility?",
+   "choices": [
+    "Impaired heat dissipation and volume depletion from her drugs",
+    "Low humidity improving evaporative cooling and heat loss during the heat wave",
+    "Vitamin D deficiency alone",
+    "Regular outdoor exercise in the morning"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l18.q1",
+   "lessonId": "med-clin-fm.l18",
+   "kind": "mcq",
+   "prompt": "At what ages is autism-specific screening recommended by the AAP?",
+   "choices": [
+    "6 and 9 months",
+    "3 and 5 years",
+    "12 months only",
+    "18 and 24 months"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l18.q2",
+   "lessonId": "med-clin-fm.l18",
+   "kind": "mcq",
+   "prompt": "Which feeding advice reduces the risk of infant botulism?",
+   "choices": [
+    "Delay vegetables until 12 months of age",
+    "Avoid breastfeeding after 6 months",
+    "Avoid honey until 12 months of age",
+    "Avoid cow's milk-based formula"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l18.q3",
+   "lessonId": "med-clin-fm.l18",
+   "kind": "mcq",
+   "prompt": "A 15-month-old girl has no words, does not point and does not respond to her name. Newborn hearing screening was normal. What is the best next step?",
+   "choices": [
+    "Prescribing a trial of stimulant medication",
+    "Audiology referral and developmental and autism screening, with early intervention referral",
+    "Reassurance because late talkers usually catch up by age three without any evaluation",
+    "Waiting until age four before any evaluation"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l18.q4",
+   "lessonId": "med-clin-fm.l18",
+   "kind": "mcq",
+   "prompt": "A 7-month-old has a stuffy nose and a pediatrician hears a family sleeping arrangement with the infant on a sofa with the parent. What is the best advice about sleep?",
+   "choices": [
+    "Place the infant supine in a separate firm sleep surface without soft bedding",
+    "Place the infant prone on a soft surface to reduce reflux and nasal congestion",
+    "Continue sofa sleeping because it is safe with an alert parent",
+    "Place soft bumpers in the crib to prevent injury"
+   ]
+  },
+  {
+   "id": "med-clin-fm.l18.q5",
+   "lessonId": "med-clin-fm.l18",
+   "kind": "mcq",
+   "prompt": "A 13-year-old boy has a sad mood, poor sleep and thoughts of self-harm and asks that his parents not be told. Which approach is most appropriate?",
+   "choices": [
+    "Promise complete confidentiality under all circumstances, whatever he discloses about harm",
+    "Wait until he turns 18 before addressing his symptoms with any treatment",
+    "Prescribe a sedative and schedule a routine follow-up in six months",
+    "Assess suicide risk, ensure safety and involve parents or others as needed for safety"
+   ]
+  }
+ ]
+}

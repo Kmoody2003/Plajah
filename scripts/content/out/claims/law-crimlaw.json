@@ -1,0 +1,1502 @@
+{
+ "courseId": "law-crimlaw",
+ "label": "Criminal Law",
+ "lessons": [
+  {
+   "id": "law-crimlaw.l01",
+   "title": "Legality and the Sources of Criminal Law",
+   "body": [
+    "Criminal law defines conduct that the community condemns enough to punish through the state, with a formal finding of guilt. It differs from civil law in who brings the case, the burden of proof, and the stigma and sanctions that follow. The prosecution must prove every element of the offense beyond a reasonable doubt, a requirement the Supreme Court treated as a due process rule in In re Winship (1970). Offenses are usually graded as felonies, typically punishable by more than a year of imprisonment, and misdemeanors, with lighter penalties.",
+    "The principle of legality holds that there is no crime and no punishment without a law that was in force and clear at the time of the conduct. In England the courts once created offenses; in the United States that power is largely gone. The federal courts held in United States v. Hudson and Goodwin (1812) that there are no federal common-law crimes, so federal offenses must be created by Congress. Most states have likewise replaced common-law crimes with statutes, though many statutes borrow common-law terms, and courts consult the common law to interpret them. The Model Penal Code, drafted by the American Law Institute and completed in 1962, section 1.05, takes the further step of providing that no conduct is an offense unless the Code or another statute defines it. The Code is not itself law anywhere, but it shaped criminal codes in a majority of states and is the shared vocabulary of the field.",
+    "Several doctrines enforce legality. The Constitution bars ex post facto laws, which retroactively criminalise conduct or increase punishment, a category described in Calder v. Bull (1798). Bouie v. City of Columbia (1964) extended the same fair-warning idea to a judicial construction that retroactively widens a statute. A vague statute violates due process because it fails to give ordinary people notice of what is forbidden and invites arbitrary enforcement, as in Papachristou v. City of Jacksonville (1972) and Kolender v. Lawson (1983). The rule of lenity directs courts to resolve genuine ambiguity in a penal statute in favour of the defendant, since the legislature, not the court, defines crimes. Lambert v. California (1957) held that due process barred punishing a person for a passive omission, failure to register as a felon, where there was no reason to know of the duty.",
+    "Reasoning about an offense follows a standard method. Break the statute into elements: the conduct, the circumstances, the result, and the mental state attached to each. Then ask whether the facts prove each element, and then whether any defense applies. Affirmative defenses may place a burden of production or even persuasion on the defendant, but not by relabelling an element, a limit explored in Patterson v. New York (1977).",
+    "Worked example. A city ordinance forbids loitering with no apparent purpose. A person standing on a corner is arrested. The ordinance is likely void for vagueness because it fails to say what conduct is forbidden and leaves enforcement to an officer's unguided judgment, as the Court found in cases of this kind."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l02",
+   "title": "Actus Reus: The Voluntary Act and Omissions",
+   "body": [
+    "Actus reus, the guilty act, is the physical element of an offense. Criminal law punishes conduct, not mere thoughts or character, and the conduct must be voluntary. Model Penal Code section 2.01 states that a person is not guilty unless liability is based on conduct that includes a voluntary act or the omission to perform an act of which he is physically capable. Reflexes, convulsions, bodily movements during unconsciousness or sleep, conduct during hypnosis, and movements not the product of effort or determination are not voluntary acts. Courts also recognise that liability may rest on an earlier voluntary act: someone who knows he is subject to seizures and drives anyway may be liable for the resulting crash because of the choice to drive.",
+    "Martin v. State (Alabama Court of Appeals, 1944) is the classic illustration of the act requirement. A man arrested at home and taken onto a public highway by police was convicted of public drunkenness, and the court reversed because his presence in public was not his voluntary act. A possession offense satisfies the act requirement if the defendant knowingly procured or received the thing possessed, or was aware of control long enough to be able to terminate possession, as section 2.01(4) provides.",
+    "Omissions create liability only when the law imposes a duty to act. Common-law and statutory duties arise from a statute, such as a duty to file a tax return; from a status relationship, such as parent and child; from a contract, as with a lifeguard; from voluntary assumption of care that isolates the victim from other help; and from creating the peril. There is generally no duty to rescue a stranger, however easy the rescue, a rule that reflects the law's reluctance to compel altruism and its concern about defining who must help whom. A few jurisdictions have narrow statutes requiring reporting or reasonable assistance in an emergency. Jones v. United States (D.C. Cir. 1962) reversed a conviction for the death of an infant because the jury had not been instructed that the defendant had a legal duty, not merely a moral one, to care for the child, and it listed the sources of legal duty.",
+    "Status offenses present a constitutional problem. Robinson v. California (1962) held that punishing a person for being addicted to narcotics, as distinct from acts of using or possessing, violated the Eighth Amendment. Powell v. Texas (1968), however, upheld a conviction for public intoxication, and the Justices did not agree on a rationale: a plurality found the conviction rested on conduct, being drunk in public, not on status.",
+    "Worked example. Dr. Lin is off duty when a stranger collapses on a sidewalk. She walks past. She is not criminally liable, because she has no legal duty to the stranger. If instead the patient were hers in the clinic, her contractual and professional relationship would supply a duty, and a failure to act could ground a negligent or reckless homicide charge if death resulted and the mental state requirement is met."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l03",
+   "title": "Mens Rea: Mental States, Mistake and Strict Liability",
+   "body": [
+    "Mens rea, the guilty mind, is the mental element. The common law used a family of terms: malice, intent, willfulness and the distinction between general and specific intent. Specific intent offenses require a further purpose beyond the act, as in larceny's intent to permanently deprive or burglary's intent to commit a felony inside. General intent offenses require only intent to do the act. The distinction is notoriously confused, and the Model Penal Code replaces it with four defined mental states. Section 2.02(2) describes acting purposely when it is the actor's conscious object to engage in conduct or cause a result; knowingly when aware that the conduct is of a certain nature or that the circumstances exist, or that a result is practically certain; recklessly when consciously disregarding a substantial and unjustifiable risk, a gross deviation from what a law-abiding person would observe; and negligently when failing to perceive such a risk that he should have perceived. Section 2.02(3) supplies recklessness as the default when the statute states no mental state. The Code also requires a mental state to be proved for each material element.",
+    "The state of mind need not target a particular victim. Under transferred intent, a person who intends to shoot A but hits B is guilty as if the intent had been directed at B. Motive, the reason for acting, is not an element and differs from intent.",
+    "Mistake matters when it negates a required mental state. A mistake of fact is a defense if it negates the mental state; at common law, for general intent crimes the mistake had to be reasonable, and for specific intent crimes an honest mistake sufficed. The Code asks only whether the mistake negates the mental state required for the offense, so an honest mistake suffices unless negligence is the culpability required. A mistake about the age of a victim is generally no defense to statutory rape, in line with the older English case Regina v. Prince (1875). Mistake of law is usually no defense, but exceptions exist: reliance on an official statement, and offenses where the law's meaning is an element. Cheek v. United States (1991) held that a sincere belief, even an unreasonable one, that the tax laws did not apply negated the statutory willfulness element, though a belief that the tax laws are unconstitutional did not.",
+    "Strict liability offenses require no mental state as to some element. Public welfare offenses, such as regulatory violations, may be so treated. Morissette v. United States (1952) held that a federal theft-type statute that was silent as to intent should be read to require it, and Staples v. United States (1994) required knowledge of the characteristics that made a firearm a regulated machine gun. Elonis v. United States (2015) held that a federal threats statute requires more than a showing that a reasonable person would regard the statement as a threat. Strict liability for serious crimes is disfavoured, and the Code limits it to violations.",
+    "Worked example. Taylor takes an umbrella from a stand, honestly believing it is hers. She lacks the intent to take property of another, so she is not guilty of larceny even if the belief is unreasonable, since larceny is a specific intent offense."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l04",
+   "title": "Causation",
+   "body": [
+    "When a crime is defined by a result, such as death, the prosecution must prove that the defendant's conduct caused it. Causation has two parts. Actual cause, or cause in fact, is tested by asking whether the result would have occurred but for the conduct. If it would have happened anyway, the defendant is not a cause. Burrage v. United States (2014) applied the but-for rule to a federal statute enhancing a penalty when death results from the use of a drug: where the heroin was not a but-for cause of death because the victim might have died anyway from the combination of other drugs, the enhancement could not apply. Where two independent forces would each have caused the harm, courts treat each as a cause, as an exception to the strict but-for test.",
+    "Proximate cause, or legal cause, asks whether the defendant should be held responsible for the result given policy and foreseeability. A defendant takes the victim as he finds him: an unusual frailty, such as a thin skull or haemophilia, does not excuse the defendant, although many jurisdictions limit liability when the result is highly unforeseeable. The key question is usually whether an intervening cause broke the chain. A dependent intervening cause is a response to the defendant's conduct, such as medical treatment of the victim or an attempt to escape the danger, and it generally does not relieve the defendant unless it is abnormal and not foreseeable. Negligent medical treatment is ordinarily foreseeable and does not shift responsibility; grossly negligent treatment that is the sole cause of death may. An independent intervening cause is a coincidence unrelated to the defendant's conduct, such as a lightning strike on an ambulance, and it relieves the defendant of liability for the later harm. An intervening act by a third person that is itself a deliberate crime is more likely to break the chain than a negligent one. Voluntary acts by the victim, such as a free and informed choice to take a risk, may also break the chain, though flight from danger caused by the defendant does not.",
+    "The Model Penal Code section 2.03 asks first whether the conduct was a but-for cause. When purpose or knowledge is required, the actual result must be within the purpose or contemplation of the actor, or the difference must not be too remote or accidental to bear on the actor's liability. When recklessness or negligence is required, the result must be within the risk of which the actor was or should have been aware, with the same remoteness test. The Code frames proximate cause as a mental state question tied to culpability. The old common-law year-and-a-day rule, limiting murder liability to deaths within a year, has been abolished in most places.",
+    "Worked example. Moore stabs Ames, who is taken to hospital and receives routine but slightly negligent care, and dies. Moore's conduct was a but-for cause and the negligent treatment, being foreseeable, is a dependent intervening cause that does not break the chain. If instead the ambulance were struck by lightning, that independent event would likely supersede."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l05",
+   "title": "Murder: Malice, Premeditation and Degrees",
+   "body": [
+    "Homicide is the killing of one human being by another; it is not always a crime. Criminal homicides are graded by culpability. At common law murder was a killing with malice aforethought, a term of art that did not require ill will or premeditation. It was satisfied by any of four mental states: intent to kill; intent to inflict serious bodily harm; a depraved heart, meaning an extremely reckless indifference to human life; and intent to commit a dangerous felony, which is felony murder, discussed in a later lesson. A killing in the course of resisting a lawful arrest was also sometimes added.",
+    "Pennsylvania in 1794 divided murder into degrees to limit capital punishment, and most states followed. First-degree murder typically covers a willful, deliberate and premeditated killing, along with specified methods such as poison or lying in wait, and killings in the course of listed felonies. Second-degree murder covers other murders with malice. Premeditation means the defendant formed the intent to kill beforehand and deliberation means he considered it; courts disagree about how much time is required. Many say that no particular length of time is needed and that the intent can be formed in an instant, while others require a reflective period that shows the killing was the product of reflection and not impulse. The distinction matters because the facts that prove premeditation are things like planning activity, prior relationship and motive, and the manner of killing.",
+    "Intent to kill can be inferred from the use of a deadly weapon on a vital part of the body. Under the depraved-heart theory, conduct such as firing a gun into a crowd or driving at extreme speed on a crowded street, without intent to kill, can be murder if it shows extreme indifference to life. This is more than the gross negligence or recklessness that supports manslaughter, though courts struggle to define the margin.",
+    "The Model Penal Code does not divide murder into degrees. Section 210.2 makes criminal homicide murder when it is committed purposely or knowingly, or recklessly under circumstances manifesting extreme indifference to the value of human life. The Code presumes such recklessness and indifference when the actor is engaged in or fleeing from certain violent felonies, a softened substitute for felony murder. A killing that would be murder is reduced to manslaughter if committed under extreme mental or emotional disturbance. The Code places the grading of sentences, including capital punishment, in separate provisions.",
+    "The majority of states define first-degree murder with premeditation, but some codes grade by factors such as the victim's status or the means, so the student must check the jurisdiction. The prosecution must prove malice in the sense of the relevant mental state; the defendant's motive does not matter.",
+    "Worked example. Dana, furious after an argument, grabs a kitchen knife and stabs her partner in the chest within seconds. The use of a deadly weapon on a vital area supports an inference of intent to kill, so the killing is murder at common law. Whether it is first degree depends on whether the jurisdiction finds premeditation in an instantaneous decision, or demands evidence of prior reflection."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l06",
+   "title": "Manslaughter: Provocation and Reckless Killing",
+   "body": [
+    "Manslaughter is an unlawful killing without malice aforethought. It is traditionally divided into voluntary and involuntary manslaughter. Voluntary manslaughter is an intentional killing that would be murder but for the presence of adequate provocation, and it is a concession to human frailty rather than a justification. The common-law rule has four requirements: the defendant was in fact provoked and acted in the heat of passion; the provocation was adequate, meaning that it would arouse sudden and intense passion in a reasonable person; there was not a sufficient time for a reasonable person to cool off; and the defendant did not in fact cool off.",
+    "Categories of adequate provocation were traditionally fixed by courts and included a serious battery, a mutual combat, an unlawful arrest, and the discovery of a spouse in the act of adultery. Mere words alone were not adequate provocation under the traditional rule, though many modern courts relax this. The test is objective as to adequacy: a defendant with a hot temper or a peculiar sensitivity cannot claim a lowered threshold, although many courts allow the jury to consider characteristics of the defendant that bear on the gravity of the provocation. The cooling-off requirement is judged by both the reasonable person and the actual defendant. A killing aimed at someone other than the provoker is usually treated by transferred intent.",
+    "The Model Penal Code, section 210.3(1)(b), reduces a homicide that would otherwise be murder to manslaughter when it is committed under the influence of extreme mental or emotional disturbance for which there is a reasonable explanation or excuse. The reasonableness of the explanation is assessed from the viewpoint of a person in the actor's situation under the circumstances as he believes them to be. This drops the requirements of a suddenness, a fixed set of provocations, and a bar on words, and takes a broader approach, though it keeps an objective element. Some states have adopted the Code's language. A defendant's burden to raise the issue differs: the Supreme Court held in Mullaney v. Wilbur (1975) that a state could not require the defendant to prove heat of passion to negate malice, an element, and in Patterson v. New York (1977) that a state could require a defendant to prove extreme emotional disturbance as an affirmative defense to murder because it is not an element of the offense as defined.",
+    "Involuntary manslaughter covers unintentional killings through recklessness or gross negligence: conduct that creates a high degree of risk, below the extreme indifference that supports depraved-heart murder, as in careless handling of a firearm. Under the Model Penal Code, reckless homicide is manslaughter and negligent homicide is a lesser offense, section 210.4. Many jurisdictions also recognise misdemeanor-manslaughter, a death caused in the commission of an unlawful act that is not a felony, though it is disfavoured and often limited to dangerous acts.",
+    "Worked example. Hal finds his sibling being beaten, and, enraged, shoots the attacker moments later. This looks like voluntary manslaughter rather than murder. If he instead waits two days and then ambushes the attacker, the passion has cooled, and the killing is likely murder."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l07",
+   "title": "Felony Murder",
+   "body": [
+    "Felony murder makes a person guilty of murder for a killing committed in the course of a felony, even if the death was accidental and the defendant did not intend it. The doctrine substitutes the intent to commit the felony for the mental state ordinarily required for murder. Its supporters argue that it deters dangerous felonies and holds felons accountable for foreseeable consequences, while critics argue it punishes without culpability, and the doctrine has been abolished in England, and restricted or abolished in some American states. The Model Penal Code does not adopt it as such, replacing it with a rebuttable presumption of recklessness and extreme indifference when death results during specified violent felonies.",
+    "Because the doctrine is harsh, courts have limited it. First, many states apply it only to inherently dangerous felonies, judged either in the abstract or on the facts of the case, or to a list of enumerated felonies, typically robbery, burglary, arson, rape and kidnapping. Second, under the merger doctrine, an underlying felony that is an integral part of the homicide, such as assault with a deadly weapon, cannot serve as the predicate, or every killing from an assault would be murder. People v. Ireland (California, 1969) is the leading case. Third, the killing must occur during the commission or attempt of the felony, including immediate flight, under the res gestae idea; once the felons have reached a place of temporary safety the felony ends. Fourth, the death must be causally connected to the felony and foreseeable.",
+    "Jurisdictions split over killings by someone other than the felon. Under the agency rule, the majority approach, the felons are liable only for killings committed by a participant in the felony. If a police officer or victim kills a bystander or a co-felon, the felons are not guilty of felony murder, as in Commonwealth v. Redline (Pennsylvania, 1958). Under the proximate cause rule, a minority view, the felons are liable for any death that is the proximate result of the felony, including killings by police or victims responding to it. Courts also hold co-felons liable for deaths caused by one of them, subject to the limits on accomplice liability.",
+    "The Eighth Amendment limits the death penalty in felony murder cases. Enmund v. Florida (1982) held that a death sentence could not be imposed on a getaway driver who did not kill, attempt to kill or intend that a killing occur. Tison v. Arizona (1987) held that major participation in the felony combined with reckless indifference to human life can support a death sentence. Many states also provide an affirmative defense for a non-triggering participant who was unarmed and had no reason to expect violence.",
+    "Worked example. Two people rob a store; the clerk, terrified, collapses and dies of a heart attack. Under the proximate-cause approach, and in jurisdictions following cases of this type, the robbers may be convicted of felony murder because the death was a consequence of the robbery. If instead the clerk shot and killed an innocent bystander, an agency-rule state would not hold the robbers liable for felony murder, while a proximate-cause state might."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l08",
+   "title": "Assault, Battery, Kidnapping and Related Offenses",
+   "body": [
+    "Non-fatal offenses against the person form a large part of everyday criminal law. At common law, battery was the unlawful application of force to the person of another, a result offense, and assault was either an attempted battery or the intentional creation of a reasonable apprehension of immediate bodily harm. The first form is an attempt; the second is a separate form that requires the victim's awareness. Battery needs no injury, and offensive touching can suffice at common law, though the Model Penal Code requires bodily injury for simple assault. Many modern statutes merge the two into one offense called assault, with grades.",
+    "Section 211.1 of the Model Penal Code illustrates modern grading. Simple assault is attempting to cause or purposely, knowingly or recklessly causing bodily injury, or negligently causing bodily injury with a deadly weapon, or attempting to put another in fear of imminent serious bodily injury by physical menace. It is a misdemeanor, or a petty misdemeanor in a fight entered into by mutual consent. Aggravated assault involves attempting to cause serious bodily injury or causing it under circumstances manifesting extreme indifference to human life, or causing bodily injury with a deadly weapon, and is a felony. Statutes add further aggravating factors such as the victim's status as a police officer or child, or the use of a firearm.",
+    "The mens rea of assault rests on the type of offense. Attempted battery assault requires an intent to cause the harm; a reckless act that causes injury can be battery. Consent can be a defense to simple assault, but not to serious injury where society's interest overrides, and courts differ about consent in fights and in some risky activities such as sports, where ordinary play is within the scope of consent.",
+    "Kidnapping at common law was the forcible abduction and carrying of a person out of the country. Modern statutes define it as unlawful confinement or movement, sometimes with intent to hold for ransom, to facilitate a felony, or to terrorise. Because a robbery, rape or assault necessarily involves some confinement, courts avoid converting every such crime into kidnapping by requiring that the movement or confinement be substantial, have independent significance, or increase the risk of harm. The Model Penal Code, section 212.1, requires removal from the place of residence or business, or a substantial distance, or unlawful confinement for a substantial period, together with a listed purpose. False imprisonment is the lesser offense of unlawfully restraining another. Stalking and harassment statutes now address repeated conduct that causes fear, and they have to be drawn carefully to avoid punishing protected speech.",
+    "Worked example. During a robbery, Kim forces a store clerk to move twenty feet to the register. Many courts would hold that this movement is merely incidental to the robbery and does not support kidnapping. If Kim drove the clerk across town to prevent a report to police, the movement is substantial and increases the risk of harm, and kidnapping charges are likely to stand."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l09",
+   "title": "Sexual Offenses: Consent, Force and Mens Rea",
+   "body": [
+    "Sexual offenses are among the areas of criminal law that have changed most since the 1970s. At common law, rape was the unlawful carnal knowledge of a woman, not the wife of the perpetrator, by force and against her will. The common law required proof that the victim resisted to the utmost or at least reasonably, and the marital exemption barred prosecution of a husband. Corroboration rules and evidence about the victim's past sexual conduct made prosecution difficult. Reform has changed most of this: modern statutes are gender-neutral, cover a wider range of sexual penetration, usually eliminate the marital exemption, drop the resistance requirement, and restrict evidence of the victim's past through rape shield rules such as Federal Rule of Evidence 412.",
+    "The central doctrinal question is the role of force and consent. In many states, the offense requires force or threat of force, or an inability to consent, and consent is a defense. In others, the statutory element is lack of consent and the force requirement is minimal. State in the Interest of M.T.S. (New Jersey, 1992) held that the statute's requirement of physical force is met by any act of sexual penetration engaged in without the affirmative and freely given permission of the victim, so that no force beyond the act itself is required, and permission may be shown by words or conduct. Other jurisdictions retain a force requirement. Offenses are also defined by incapacity: where the victim is unconscious, intoxicated to the point of incapacity, asleep, or mentally disabled, or where the actor is in a position of authority. Coercion by threats that are not of physical violence is treated differently across statutes.",
+    "The Model Penal Code of 1962, section 213.1, treated rape as sexual intercourse compelled by force or threat of imminent death, serious bodily injury, extreme pain or kidnapping, or by substantial impairment of the victim's power to appraise or control conduct, among others, and gross sexual imposition for lesser coercion. The American Law Institute approved a revised Article 213 in 2022, which, as of this writing, defines offenses by reference to the absence of affirmative consent and treats consent as words or actions indicating willingness. Whether and how states adopt it is still developing, and the student should treat it as a model, not the law.",
+    "The mental state as to consent differs between jurisdictions. Some require that the defendant knew or was reckless as to the lack of consent, so that an honest mistake negates it; others adopt a reasonable-mistake or negligence approach; some treat lack of consent as a strict element. Statutory rape, sexual intercourse with a person under the age of consent, is generally a strict liability offense as to age in most states, so a reasonable mistake about age is no defense, as in Garnett v. State (Maryland, 1993), though some states and the Model Penal Code allow a defense of reasonable mistake in certain circumstances.",
+    "The Eighth Amendment limits punishment: Coker v. Georgia (1977) held that the death penalty is a disproportionate punishment for the rape of an adult woman, and Kennedy v. Louisiana (2008) extended the holding to the rape of a child where the victim did not die.",
+    "Worked example. A defendant has sex with a person who is asleep. In every modern code this is an offense because sleeping people cannot consent. Whether the defendant is guilty if he honestly but unreasonably believed she was awake depends on the jurisdiction's mens rea rule."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l10",
+   "title": "Theft Offenses: Larceny, Embezzlement and False Pretenses",
+   "body": [
+    "Common-law theft was divided into separate crimes that depended on how the defendant obtained the property. Larceny is the trespassory taking and carrying away of the personal property of another with the intent to permanently deprive the owner of it. Each element matters. Trespassory means the taking was without the owner's consent and the defendant took possession from another who had possession. Carrying away, or asportation, requires slight movement. The property must be tangible personal property, so at common law real estate and many intangibles were excluded. The intent must exist at the time of taking, and intent to permanently deprive includes disposing of the property so that it is unlikely to be recovered, or using it in a way that creates a substantial risk of loss.",
+    "Because larceny requires a trespassory taking, it did not reach someone who obtained the property lawfully and kept it. Embezzlement fills the gap: it is the fraudulent conversion of property by a person who is already in lawful possession, such as an employee or trustee. Larceny by trick applies where the defendant obtains possession through a misrepresentation, intending to keep the property, since the owner consents to possession only; the owner consented only to a transfer of possession, so the taking is treated as trespassory. False pretenses is obtaining title to property by a knowingly false representation of a past or existing fact, with intent to defraud. The difference between larceny by trick and false pretenses is whether the victim intended to give up title, or just possession. A promise of future conduct generally does not qualify as false pretenses at common law, although many statutes extend to it.",
+    "The distinctions caused technical acquittals when prosecutors chose the wrong crime, and the Model Penal Code, in sections 223.1 to 223.9, consolidates the offenses into a single crime of theft. Theft by unlawful taking, by deception, by extortion, by failure to make required disposition, and by receiving stolen property all fall under section 223.1, with a single set of grading rules by value. Many states have followed. Receiving stolen property requires knowing, or believing that, the property was stolen and intent to deprive the owner.",
+    "Claim of right is a defense: a person who takes property in an honest belief that he has a right to it lacks the intent to steal, even if the belief is mistaken or unreasonable, though most courts do not allow self-help to collect a debt through force. The Code recognises the same defense. Larceny is also distinguished from the lesser concept of lost property: finders who intend to keep a lost item when the owner can be readily identified may be guilty of larceny by finding.",
+    "Worked example. A customer borrows a neighbour's lawnmower and keeps it, planning to sell it to a pawn shop. When she took it, she intended to return it, so there was no larceny at the time of taking, since the intent to deprive must exist when the property is taken. At common law she might be guilty of embezzlement if she was a bailee, or of a modern theft offense. Under the Model Penal Code, her conduct would be theft by unlawful taking or disposition."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l11",
+   "title": "Robbery, Burglary and Arson",
+   "body": [
+    "Robbery is larceny from the person or presence of another by force or threat of force. It combines a property crime with a crime against the person, which makes it a more serious offense than larceny. The force or fear must be used to take the property or to retain it against resistance; a pickpocket who stealthily takes a wallet commits larceny, not robbery, while a purse snatcher who overcomes the victim's resistance commits robbery. At common law the threat had to be of immediate harm. Force used only after the taking to escape does not make the taking a robbery under the common-law view, though some statutes cover force used in flight, and the Model Penal Code, section 222.1, covers force used in the course of committing a theft, including flight after the attempt or commission. The property must be in the victim's presence, which is understood to include areas under the victim's control. Most statutes add degrees if a weapon is used.",
+    "Burglary at common law was the breaking and entering of the dwelling of another at night with the intent to commit a felony therein. Breaking meant creating an opening, even by pushing open a closed door; entry meant any part of the body or an instrument inserted. Modern statutes have broadened it greatly: they usually drop the breaking requirement, so entering through an open door without permission is enough, extend to any building or structure, remove the requirement of night, and treat the intent to commit any crime, not only a felony, as sufficient. The Model Penal Code, section 221.1, defines burglary as entering a building or occupied structure with the purpose to commit a crime therein, unless the entry was licensed or privileged, with enhancements for some circumstances. The crucial element is the intent at the time of entry. If the defendant formed the intent to steal only after entering lawfully, there is no burglary. Many courts hold that a person who exceeds the scope of consent, such as an invited guest who goes into a locked room, may be guilty if the intent existed at entry. Burglary is a completed offense upon entry, regardless of what happens next, and the underlying crime may be punished separately.",
+    "Arson at common law was the malicious burning of the dwelling of another. Burning meant at least some charring, so scorching was not enough, and malice meant intent to burn or reckless disregard of an obvious risk of burning. Modern statutes cover burning of any building or property, include the defendant's own property if done to defraud an insurer or endanger others, and extend to explosions. The Model Penal Code, section 220.1, defines arson as starting a fire or causing an explosion with the purpose of destroying a building or occupied structure of another, or for insurance fraud, or recklessly endangering a person.",
+    "Worked example. Ravi goes to a friend's house at night through an unlocked door, intending to take a laptop. At common law this would not be burglary because there was no breaking, while under a modern statute and the Model Penal Code the unlicensed entry with intent to steal is burglary, and the larceny itself, when carried out, would be a separate offense."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l12",
+   "title": "Attempt",
+   "body": [
+    "An attempt is a crime in which the defendant, with intent to commit a crime, takes steps toward it but does not complete it. Attempt is an inchoate offense, one that punishes conduct before the harm. The reasons for punishing it include prevention, the dangerousness of the actor shown by the conduct, and the equal culpability of someone who tried and failed through bad luck. The two elements are the mental state, a specific intent to commit the target offense, and an act beyond mere preparation. Because attempt requires intent to bring about the result, a person cannot be convicted of an attempted crime of recklessness: attempted murder requires an intent to kill, even though murder itself can be committed with a depraved heart. Attempt is typically graded lower than the completed offense, and it merges into the completed crime, so a defendant cannot be convicted of both.",
+    "The hardest question is where preparation ends and attempt begins. Courts and scholars have developed several tests. The last-act test asks whether the defendant has done everything he planned to do; it is narrow. The physical proximity or dangerous proximity test asks whether the defendant came dangerously close to success, considering how close the defendant is in time and space, as in People v. Rizzo (New York, 1927), where defendants who drove around looking for a payroll messenger they planned to rob were not guilty of attempted robbery because they had not found him. Other tests look at whether the act is unequivocal, showing the criminal purpose without needing other evidence. The Model Penal Code section 5.01(1)(c) adopts the substantial step test: a substantial step in a course of conduct planned to culminate in the crime, strongly corroborative of the actor's criminal purpose. Section 5.01(2) lists examples, such as lying in wait, reconnoitring the place, possessing materials to be used in the crime, and soliciting an innocent agent. This test moves the line earlier and gives police more room to intervene.",
+    "Impossibility arises when the defendant's plan could not succeed. Factual impossibility, where the plan fails because of circumstances unknown to the defendant, such as picking an empty pocket, is no defense. Legal impossibility, where the acts, even if completed as the defendant intended, would not amount to a crime, as when someone believes that a lawful act is a crime, was traditionally a defense, though the distinction is difficult to apply, and the Model Penal Code abolishes it as a defense in most cases by judging the conduct on the circumstances as the actor believed them to be. Pure legal impossibility, as where a defendant believes his lawful conduct is criminal, is not an attempt in any approach, since the law does not punish mistaken beliefs about law as a crime.",
+    "Abandonment: the common law denies a defense once the attempt is complete, but the Model Penal Code, section 5.01(4), recognises renunciation as an affirmative defense if the actor voluntarily and completely renounces the criminal purpose, not because of a change in circumstances that makes success harder.",
+    "Worked example. Lee, intending to kill a rival, fires a gun at a bed he believes the rival is sleeping in, but the bed is empty. Under both the common law and the Code he is guilty of attempted murder, because factual impossibility is no defense."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l13",
+   "title": "Conspiracy and Solicitation",
+   "body": [
+    "Conspiracy is an agreement between two or more persons to commit a crime, together with the intent to achieve the objective of the agreement. It is a separate crime from the target offense, and it is complete upon agreement at common law. Most modern statutes require an overt act in furtherance, though the act may be minor and need not be criminal. The federal general conspiracy statute, 18 U.S.C. section 371, requires an overt act, while some specific federal conspiracy provisions, such as the drug conspiracy statute, do not, as the Supreme Court held in United States v. Shabani (1994). The mental state is a double intent: the intent to agree and the intent that the object offense be committed. Knowledge that another person is planning a crime does not suffice without intent to further it.",
+    "Agreement may be proved by circumstantial evidence, and the parties need not have met or spoken. Courts distinguish a chain conspiracy, where each participant is linked in a single enterprise, from a hub-and-spoke conspiracy, where a central person deals with separate individuals who are linked only by the hub; without a rim connecting the spokes, there may be several conspiracies instead of one, as in Kotteakos v. United States (1946), which concerned a variance between a single conspiracy charged and multiple conspiracies shown. The common-law bilateral approach requires two guilty parties, so if one only feigns agreement, as a government informer does, there is no conspiracy. The Model Penal Code, section 5.03, takes the unilateral approach, in which a person is guilty if he agrees with another, even if the other is feigning. Gebardi v. United States (1932) held that a woman who consented to being transported in violation of the Mann Act could not be convicted of conspiracy to violate it, since the offense required the participation of both and the legislature had chosen not to punish her. Wharton's rule similarly bars conspiracy charges for offenses that by definition require two people, such as adultery or dueling, unless a third person is involved, and Iannelli v. United States (1975) treated the rule as a judicial presumption of legislative intent.",
+    "Conspiracy does not merge with the completed crime, so a defendant may be convicted of both. Under Pinkerton v. United States (1946), a conspirator is liable for substantive offenses committed by co-conspirators in furtherance of the conspiracy, if reasonably foreseeable. The Model Penal Code rejects Pinkerton liability, requiring accomplice liability in its place. Withdrawal does not defeat liability for the conspiracy itself but can limit liability for later acts. A statement by a co-conspirator in furtherance of the conspiracy is admissible against others under Federal Rule of Evidence 801(d)(2)(E).",
+    "Solicitation is the offense of asking, urging or encouraging another to commit a crime, with the intent that the crime be committed. The crime is complete upon the request, even if the other person refuses, and it merges into the offense if the crime is committed or attempted.",
+    "Worked example. Two people agree to rob a bank. One of them, unknown to the other, is working for the police. Under the bilateral approach there is no conspiracy because only one party has a genuine agreement. Under the Model Penal Code's unilateral approach, the genuine party is guilty of conspiracy."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l14",
+   "title": "Accomplice Liability",
+   "body": [
+    "A person can be criminally liable for a crime committed by another if he assists or encourages it. At common law, participants were divided into principals in the first degree, who commit the crime; principals in the second degree, who are present and assist; accessories before the fact, who help beforehand and are absent; and accessories after the fact, who help the offender escape. Most jurisdictions today have abolished these categories for felonies, and treat everyone who aids or abets as a principal, though accessory after the fact remains a separate and lesser offense. Federal law, 18 U.S.C. section 2, treats an aider and abettor as a principal.",
+    "Accomplice liability requires an act and a mental state. The act is any assistance, such as providing a weapon, acting as a lookout, or encouraging the principal, including words; mere presence is not enough, and neither is mere knowledge that a crime is occurring, though presence combined with other facts may support an inference of encouragement. The mental state is traditionally the intent that the principal commit the offense, a purpose to promote or facilitate it, together with knowledge of the principal's plan. Model Penal Code section 2.06(3)(a) says that a person is an accomplice if, with the purpose of promoting or facilitating the offense, he solicits, aids or agrees or attempts to aid. Courts disagree about whether knowledge alone, such as a seller who knows that a buyer will use goods for a crime, can suffice; the usual view is that it does for serious crimes, but not as a general rule.",
+    "Scope of liability: the common-law and majority rule holds an accomplice liable for the target offense and also for other crimes that are the natural and probable consequences of the crime he aided, even if not intended. The Code rejects this, limiting liability to the offenses the accomplice intended to promote or facilitate, although for results crimes with recklessness or negligence, the accomplice is liable if he has the required culpability for the result. Rosemond v. United States (2014) held that, to be liable as an aider and abettor of a firearm-in-drug-crime offense, the defendant must have advance knowledge that a confederate would carry a gun, enough to give him the opportunity to walk away, and so show intent to facilitate the crime as committed.",
+    "An accomplice may be convicted even if the principal is acquitted or not prosecuted, as the Supreme Court held for a federal statute in Standefer v. United States (1980); the accomplice's liability is derivative of the criminal act, not of the principal's conviction. An innocent agent who does the act without culpability, for instance a deceived courier, leaves the person who used him liable as the principal.",
+    "Withdrawal from complicity is possible before the crime is committed, and under the Code, section 2.06(6)(c), requires neutralising the assistance given, giving timely warning to law enforcement, or otherwise making proper effort to prevent the offense.",
+    "Worked example. Lou drives a friend to a store, knowing only that the friend plans to shoplift. The friend instead robs the clerk at gunpoint. Under the natural-and-probable-consequences rule, Lou might face liability, though a robbery with a gun is not a natural consequence of shoplifting; under the Code, Lou is not an accomplice to the robbery because he did not intend it."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l15",
+   "title": "Self-Defense and Defense of Others",
+   "body": [
+    "Self-defense is a justification: the conduct, though it meets the elements of an offense, is held to be right or at least permissible. A person may use reasonable force to protect against unlawful force by another. The core requirements are that the defendant was not the initial aggressor, that he reasonably believed that he faced the threat of unlawful force, that the threat was imminent, and that the force used was proportionate. Deadly force is justified only in response to a threat of death or serious bodily harm, and in some states also to prevent other serious felonies such as rape, kidnapping or robbery. Force in defense of property alone cannot be deadly. Defense of others follows similar rules, and most jurisdictions allow a person to use force when the third party would have had the right to do so, though some jurisdictions use a narrower test in which the defender acts at his own peril if he is wrong about whom he is assisting.",
+    "The belief must be both honest and, in most jurisdictions, reasonable; it need not be correct. The reasonable-belief standard is applied to the circumstances as the defendant saw them, and many courts allow the jury to consider the defendant's characteristics, such as past experiences. The Model Penal Code, section 3.04, requires only that the actor believes that force is immediately necessary, a subjective test, but if the belief is reckless or negligent, the defendant may be convicted of an offense requiring recklessness or negligence. A defendant with an honest but unreasonable belief may claim imperfect self-defense in some states, which reduces murder to manslaughter, though other states reject the doctrine.",
+    "An initial aggressor loses the right of self-defense unless he withdraws and communicates his withdrawal, or the victim responds with disproportionate force, as when a nonlethal attack is met with deadly force. Duty to retreat: under the majority rule, a person has no duty to retreat before using deadly force when he is attacked in a place where he has a right to be, a view stated in Brown v. United States (1921) and, earlier, Beard v. United States (1895). A minority of states require retreat, if it can be done in complete safety, before deadly force may be used, except in the home, where the castle doctrine applies. Stand-your-ground statutes, enacted in a number of states since the early 2000s, extend the no-retreat rule to any place the person is lawfully present. These laws are controversial; supporters argue that people should not be forced to flee, and critics say that they raise the risk of lethal escalation. The law is a matter of state statute.",
+    "Imminence requires that the threat be about to happen, not at some time in the future. Cases involving victims of abuse who kill their abusers when the abuser is not at that moment attacking raise the question whether the imminence requirement should be relaxed. Courts often admit expert testimony on battered-person syndrome to help the jury judge reasonableness of belief, though most still require some measure of imminence or an immediate threat.",
+    "Burden of proof: once the defendant produces evidence of self-defense, the prosecution in most states must disprove it beyond a reasonable doubt. Martin v. Ohio (1987) held, however, that a state may place the burden of proving self-defense on the defendant without violating due process, as the defense does not negate an element of the offense.",
+    "Worked example. Pat is punched in a bar and responds by shooting the attacker. The attacker's nonlethal force did not threaten death or serious injury, so deadly force is likely disproportionate and self-defense fails, though a lesser degree of force would have been permitted."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l16",
+   "title": "Insanity and Mental Incapacity",
+   "body": [
+    "The insanity defense is an excuse: the defendant committed the act and met the elements of the offense but is not held responsible, because mental disease deprived him of the capacity for rational choice. It is distinct from competence to stand trial, which asks about the defendant's present ability, as the Supreme Court explained in Dusky v. United States (1960): whether he has a rational and factual understanding of the proceedings and sufficient ability to consult his lawyer. The insanity defense applies to the mental state at the time of the offense. Its rarity in practice is often noted; it is raised in a small share of cases and succeeds in far fewer, although public perception differs.",
+    "Tests differ by jurisdiction. The M'Naghten rule, from an English case in 1843, is the most widely used: a defendant is insane if, because of a defect of reason caused by disease of the mind, he did not know the nature and quality of his act, or if he did, that it was wrong. Courts disagree on whether wrong means legally wrong or morally wrong. Some states supplement it with an irresistible impulse test, which excuses a defendant who could not control his conduct. The Durham product test, adopted by the District of Columbia circuit in 1954, excused conduct that was the product of mental disease, but it was criticised as giving too much weight to experts and was later abandoned. The Model Penal Code, section 4.01, asks whether, as a result of mental disease or defect, the defendant lacked substantial capacity either to appreciate the criminality (or wrongfulness) of his conduct or to conform his conduct to the requirements of law, and so combines cognitive and volitional prongs. After the 1982 acquittal of John Hinckley, Congress passed the Insanity Defense Reform Act of 1984, 18 U.S.C. section 17, which narrowed the federal test to severe mental disease or defect that left the defendant unable to appreciate the nature and quality or wrongfulness of his acts, and placed the burden on the defendant to prove it by clear and convincing evidence. Most states presume sanity and put some burden on the defendant, while some require the prosecution to prove sanity once raised.",
+    "The Constitution leaves states wide latitude. Clark v. Arizona (2006) upheld Arizona's narrow version of the M'Naghten test. Kahler v. Kansas (2020) held that due process does not require a state to adopt a moral-incapacity test; Kansas permits evidence of mental illness only to negate mens rea, and the Court upheld that approach, noting that a handful of states take a similar view. Some states have a verdict of guilty but mentally ill, which allows a conviction and treatment. A defendant acquitted by reason of insanity is not simply released: Jones v. United States (1983) held that an acquittee may be committed to a hospital on a preponderance showing of mental illness and dangerousness, and held for as long as the condition lasts.",
+    "Related doctrines include diminished capacity, in which evidence of mental abnormality is used to negate a specific intent, and is accepted in some jurisdictions and rejected in others, and bars on executing a person who lacks capacity: Ford v. Wainwright (1986) held that the Eighth Amendment bars executing the insane, and Atkins v. Virginia (2002) barred executing a person with an intellectual disability.",
+    "Worked example. A defendant, in the grip of a psychotic delusion, believes that his neighbour is a demon who will kill him and kills the neighbour. He knows he killed a human being but sincerely believes the act is necessary for survival. Under M'Naghten the question is whether he knew his act was wrong; a delusion of this kind usually does not alone satisfy the test, unless the delusion prevents him from understanding the wrongfulness, a distinction courts draw carefully."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l17",
+   "title": "Duress and Necessity",
+   "body": [
+    "Duress and necessity both involve a person who commits a crime because the alternative seems worse. They differ in the source of the pressure. Duress arises from a threat by another person; necessity, or the choice of evils defense, arises from natural or circumstantial pressures. Duress is traditionally an excuse, meaning that the actor is not blamed because he was coerced; necessity is often described as a justification, because the harm avoided outweighs the harm caused.",
+    "The common-law elements of duress are an unlawful threat of death or serious bodily injury to the defendant or another, a threat that is imminent or immediate, a well-grounded fear that it will be carried out, and no reasonable opportunity to escape. Most jurisdictions do not allow duress as a defense to murder. The reasoning is that a person should not be permitted to take an innocent life to save his own. Duress is not available to someone who recklessly or intentionally placed himself in a situation where coercion was likely, such as joining a violent gang. Threats to property or reputation are insufficient. The Model Penal Code, section 2.09, is broader: it allows the defense where the actor was coerced by the use or threat of unlawful force against his person or another that a person of reasonable firmness in his situation would have been unable to resist, with no requirement that the threat be imminent, and without a murder exception, although the defendant who recklessly placed himself in the position is limited.",
+    "Necessity requires that the defendant faced a clear and imminent harm, reasonably believed that his act was necessary to avoid it, that the harm avoided was greater than the harm caused, that there was no reasonable legal alternative, and that the legislature has not already weighed the choice and excluded the defense. The Model Penal Code, section 3.02, states the choice of evils defense in broader terms: conduct the actor believes necessary to avoid a harm or evil to himself or another is justified if the harm sought to be avoided is greater than that sought to be prevented by the law defining the offense, provided no legislative purpose to exclude the justification appears. Necessity is generally not a defense to murder. The English case Regina v. Dudley and Stephens (1884) rejected necessity for shipwrecked sailors who killed and ate a cabin boy to survive, and held them guilty of murder, although their sentence was commuted. United States v. Bailey (1980) held that a prisoner who escapes must, to raise duress or necessity, offer evidence of a bona fide effort to surrender or return to custody as soon as the claimed threat has lost its coercive force. United States v. Oakland Cannabis Buyers' Cooperative (2001) held that the federal controlled substances statute left no room for a medical necessity defense to distribution of marijuana, since Congress had made a determination of values.",
+    "Worked example. A driver speeds through a red light to avoid a truck that is brake-less and bearing down behind him. A court may recognise necessity because the harm avoided was greater than a traffic violation. If a gunman orders a person to drive getaway under threat of immediate death, duress may excuse the driving, but not if the gunman orders the person to kill an innocent victim, in a jurisdiction with the common-law rule."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l18",
+   "title": "Intoxication and Entrapment",
+   "body": [
+    "Voluntary intoxication is generally not an excuse for crime, because the actor chose to become intoxicated. The traditional common-law rule bars the defense altogether, but most jurisdictions have relaxed it for specific intent crimes: evidence of intoxication may be considered on whether the defendant formed the required intent, for example the intent to permanently deprive in larceny or the premeditation required for first-degree murder, but not for general intent crimes. Where a crime requires only recklessness, voluntary intoxication is not a defense: Model Penal Code section 2.08(2) provides that if the actor, due to self-induced intoxication, is unaware of a risk of which he would have been aware had he been sober, such unawareness is immaterial. Section 2.08(1) allows evidence of intoxication where it negatives an element of the offense, such as purpose or knowledge. Montana v. Egelhoff (1996) held, in a divided decision, that due process does not require a state to allow a jury to consider evidence of voluntary intoxication when deciding whether the defendant acted knowingly, as Montana had barred it.",
+    "Involuntary intoxication is treated differently. It arises when the defendant was intoxicated by force, by trickery, by an unexpected reaction to a prescribed drug, or by an unknowing ingestion. It can be a defense, usually if it causes a mental condition meeting the insanity test or negates the required mental state. Pathological intoxication, an unusual and extreme reaction that the defendant had no reason to anticipate, is treated by many courts in the same manner. Addiction and chronic alcoholism are not usually accepted as grounds for the defense, although long-term effects that produce a mental disease may be relevant to insanity.",
+    "Entrapment is a defense that arises when the government induces a person to commit a crime that he was not otherwise disposed to commit. Two approaches exist. The subjective test, followed in federal courts and a majority of states, focuses on the defendant's predisposition. Sorrells v. United States (1932) recognised the defense as a matter of statutory interpretation: Congress could not have meant to punish those whom the government had lured into crime. Sherman v. United States (1958) applied it where an informant played on the defendant's sympathy to obtain narcotics. Jacobson v. United States (1992) held that where the government had spent over two years pressing a defendant to order illegal materials, it had not proved beyond a reasonable doubt that he was predisposed to commit the crime independent of that pressure. The objective test, advocated in concurring opinions in Sherman and adopted in the Model Penal Code, section 2.13, and a minority of states, asks whether the police conduct would induce a normally law-abiding person to commit the crime, regardless of the defendant's predisposition.",
+    "The defense is unavailable if the defendant was ready and willing to commit the crime and only needed the opportunity. Merely providing the opportunity is not entrapment. The Court has rejected a due process defense based on outrageous government conduct as a general rule, in United States v. Russell (1973), though it left the possibility open in extreme cases. The defendant ordinarily must raise the issue by producing some evidence of inducement, after which the government must prove predisposition beyond a reasonable doubt.",
+    "Worked example. An undercover officer asks a defendant once to buy drugs, and the defendant, who has a history of dealing, agrees quickly. There is no entrapment under the subjective test since he was predisposed, and none under the objective test since a single request is not enough to tempt a law-abiding person."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l19",
+   "title": "Theories of Punishment",
+   "body": [
+    "Criminal punishment is the deliberate infliction of hardship by the state on a person found guilty of an offense, and it needs a justification. The classical theories divide into backward-looking and forward-looking. Retributivism, the backward-looking approach associated with Kant and, in modern form, with just-deserts theory, holds that punishment is deserved because the offender has committed a wrong and that the punishment should be proportionate to the offender's culpability and the harm. On this view, punishment is justified even if it produces no further benefit, and it limits punishment: no one may be punished more than he deserves, even for good effect. Critics say that desert is hard to measure and that retribution can look like vengeance.",
+    "The utilitarian theories, associated with Beccaria and Bentham, look forward and justify punishment by its beneficial consequences. General deterrence aims at discouraging the public from committing crime by the threat and example of punishment; specific deterrence aims at discouraging the particular offender. Empirical research is widely read as showing that the certainty of being caught deters more than the severity of the sentence, and that the effect of longer sentences on deterrence is modest, although the evidence differs by crime and context. Incapacitation prevents crime by confining the offender so that he cannot offend during that period; it is the rationale for habitual-offender laws, and its effectiveness depends on predicting dangerousness, which is imprecise. Rehabilitation aims to change the offender through education, treatment and training so that he will not reoffend. It dominated much of the twentieth century, declined in the 1970s amid doubts about its effectiveness, and has been revived by programs with evidence of success. Restorative justice focuses on repairing the harm and involving the victim, offender and community.",
+    "Expressive theories hold that punishment communicates the community's condemnation. The theories conflict in practice. A deterrence rationale may justify a harsh example sentence for a minor offender, which retributivism would forbid; incapacitation may justify long confinement of a dangerous person who has committed a minor offence; rehabilitation may argue for early release, where retribution would demand a full term. Many legal systems use a mixed approach, in which desert sets the outer limits and utilitarian goals operate inside them. This hybrid is sometimes called limiting retributivism.",
+    "The American Law Institute's Model Penal Code, section 1.02(2), lists purposes such as preventing the commission of offenses, promoting correction and rehabilitation, safeguarding offenders against excessive punishment, giving fair warning of the consequences, and differentiating on rational grounds between serious and minor offenses. Federal sentencing law, 18 U.S.C. section 3553(a), directs a court to consider the nature of the offense and the history of the defendant and to impose a sentence sufficient but not greater than necessary to reflect the seriousness of the offense, promote respect for the law, provide just punishment, afford adequate deterrence, protect the public, and provide the defendant with needed training or treatment. Mistretta v. United States (1989) upheld the creation of the United States Sentencing Commission against a separation-of-powers challenge, and the Sentencing Reform Act of 1984 sought to reduce disparity in federal sentences.",
+    "Worked example. A legislature raises the penalty for a minor property crime to ten years because the crime is common and a severe penalty may deter it. A retributivist objects that the sentence exceeds the offender's desert; a utilitarian may ask whether the evidence shows that severity, rather than certainty of apprehension, deters, and whether the costs of long imprisonment exceed the benefits."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l20",
+   "title": "Sentencing and the Eighth Amendment",
+   "body": [
+    "Sentencing doctrine has two constitutional layers: who must find the facts that raise a sentence, and what punishments are too severe. On the first, Apprendi v. New Jersey (2000) held that, other than the fact of a prior conviction, any fact that increases the penalty for a crime beyond the prescribed statutory maximum must be submitted to a jury and proved beyond a reasonable doubt. Blakely v. Washington (2004) defined the statutory maximum as the maximum a judge may impose based solely on the facts reflected in the jury verdict or admitted by the defendant, which made the Washington guidelines system unconstitutional as applied. United States v. Booker (2005) applied the same reasoning to the mandatory federal Sentencing Guidelines; the remedy was to make them advisory. Courts must still calculate them, and review sentences for reasonableness, as in Gall v. United States (2007). Alleyne v. United States (2013) extended Apprendi to facts that increase a mandatory minimum sentence.",
+    "The Eighth Amendment bars cruel and unusual punishments. In noncapital cases, a proportionality principle applies but narrowly. Solem v. Helm (1983) struck down a life sentence without parole for a recidivist who passed a worthless check for 100 dollars. Harmelin v. Michigan (1991) upheld a mandatory life sentence for possessing a large quantity of cocaine, with the controlling concurrence finding that the Amendment forbids only extreme sentences that are grossly disproportionate to the crime. Ewing v. California (2003) upheld a 25-years-to-life sentence under California's three strikes law for stealing golf clubs, and Lockyer v. Andrade (2003) upheld fifty years to life for two shoplifting offenses on federal habeas review. Successful challenges are rare.",
+    "Categorical rules govern the death penalty and juveniles. Furman v. Georgia (1972) held that the death penalty as then administered was arbitrary, and Gregg v. Georgia (1976) upheld guided-discretion statutes. The Court has barred capital punishment for certain offenders and offenses: Coker v. Georgia (1977) for the rape of an adult; Enmund v. Florida (1982) for certain felony-murder participants; Atkins v. Virginia (2002) for people with an intellectual disability; Roper v. Simmons (2005) for offenders under eighteen at the time of the offense; and Kennedy v. Louisiana (2008) for child rape not resulting in death. For juveniles, Graham v. Florida (2010) held that life without parole is unconstitutional for nonhomicide offenses; Miller v. Alabama (2012) held that mandatory life without parole for juvenile homicide offenders violates the Amendment; Montgomery v. Louisiana (2016) made Miller retroactive; and Jones v. Mississippi (2021) held that a sentencer need not make a finding of permanent incorrigibility before imposing life without parole on a juvenile if the sentence is discretionary.",
+    "Capital punishment is among the most contested subjects in the law. Supporters argue that it is a deserved retribution for the gravest crimes and may deter, and that the law protects against error by procedural safeguards. Opponents argue that it risks executing the innocent, is applied unequally by race and geography, costs more than life imprisonment, and is an excessive form of state power. The law as a fact is that it is constitutional in principle under Gregg, subject to the categorical limits above, that many states retain it and many have abolished it or imposed moratoria, and that its status can change with legislation and litigation, so a student must check current state law.",
+    "Worked example. A statute says that possession of a drug is punishable by up to ten years, but five years' mandatory minimum if the judge finds that the amount exceeded a threshold. Under Alleyne, the quantity facts that raise the minimum must be found by the jury beyond a reasonable doubt, so a judge's finding by preponderance would be unconstitutional."
+   ]
+  },
+  {
+   "id": "law-crimlaw.l21",
+   "title": "Constitutional Limits on Criminalisation",
+   "body": [
+    "The legislature has broad authority to define crimes, but the Constitution places limits on that power. Vagueness doctrine requires a criminal statute to define the offense with sufficient definiteness that ordinary people can understand what is prohibited and in a manner that does not encourage arbitrary enforcement. Papachristou v. City of Jacksonville (1972) struck down a vagrancy ordinance; Kolender v. Lawson (1983) invalidated a requirement that a person stopped on the street produce credible and reliable identification; City of Chicago v. Morales (1999) struck a gang-loitering ordinance. Johnson v. United States (2015) held that the residual clause of the Armed Career Criminal Act was unconstitutionally vague, and later cases applied the reasoning to similar clauses, including Sessions v. Dimaya (2018) and United States v. Davis (2019). Overbreadth is a related First Amendment concept in which a statute that reaches a substantial amount of protected speech is invalid on its face, as in United States v. Stevens (2010), which struck down a federal ban on depictions of animal cruelty.",
+    "The First Amendment protects speech that the state cannot criminalise. Brandenburg v. Ohio (1969) limits the punishment of advocacy to speech directed to inciting imminent lawless action and likely to produce it. Texas v. Johnson (1989) held that burning a flag as political protest is protected expression. True threats are not protected: Virginia v. Black (2003) allowed a ban on cross burning done with the intent to intimidate, though not a rule that treats every cross burning as proof of intent; and Counterman v. Colorado (2023) held that the First Amendment requires the state to prove that the speaker had some subjective understanding of the threatening nature of the statements, at least recklessness. United States v. Alvarez (2012) struck down the Stolen Valor Act's criminalisation of false claims of military honours.",
+    "Substantive due process and privacy limit the state's power over intimate conduct. Lawrence v. Texas (2003) held that a statute criminalising private consensual same-sex sexual conduct between adults was unconstitutional, overruling Bowers v. Hardwick (1986). The Eighth Amendment bars punishing a status, as Robinson v. California held, and due process requires notice for passive omissions, as Lambert held.",
+    "The Second Amendment is a contested limit on weapon crimes. District of Columbia v. Heller (2008) held that the amendment protects an individual right to keep a handgun in the home for self-defense, while saying that longstanding regulations such as prohibitions on possession by felons remain presumptively lawful. McDonald v. City of Chicago (2010) applied it to states. New York State Rifle and Pistol Association v. Bruen (2022) held that a firearm regulation must be consistent with the nation's historical tradition of firearm regulation, and United States v. Rahimi (2024) upheld the federal ban on firearm possession by people subject to certain domestic-violence restraining orders against a facial challenge. Advocates of gun rights and advocates of regulation make strong arguments, and the law is developing, so this lesson states the cases and not a conclusion.",
+    "Federal criminal power must have an enumerated source. United States v. Lopez (1995) held that the Gun-Free School Zones Act exceeded Congress's Commerce Clause authority because possession of a gun in a school zone was not economic activity substantially affecting commerce. States hold general police power.",
+    "Ex post facto limits and the proof requirement from In re Winship also constrain legislatures. Legislatures may not reduce the burden of proof on the elements, though they have discretion in defining what the elements are.",
+    "Worked example. A town makes it a crime to say anything offensive to a police officer. The statute criminalises protected speech on its face and is likely invalid for overbreadth and vagueness because it reaches a substantial amount of protected speech and gives officers unlimited discretion."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "law-crimlaw.l01.q1",
+   "lessonId": "law-crimlaw.l01",
+   "kind": "mcq",
+   "prompt": "What did In re Winship (1970) hold?",
+   "choices": [
+    "Due process requires a jury to find every element of an offense unanimously in all state cases",
+    "Due process requires the prosecution to disprove every affirmative defense raised by the accused beyond a reasonable doubt",
+    "Due process requires proof beyond a reasonable doubt of every fact necessary to constitute the crime charged",
+    "Due process requires proof by clear and convincing evidence of facts that raise the maximum penalty"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l01.q2",
+   "lessonId": "law-crimlaw.l01",
+   "kind": "mcq",
+   "prompt": "A federal prosecutor charges a defendant with a crime that is defined only by older English court decisions and not by any act of Congress. Under United States v. Hudson and Goodwin, the charge",
+   "choices": [
+    "may proceed, because federal courts inherit the English common law of crimes as it stood at the Founding",
+    "may proceed if the state where the court sits recognises the same common-law offense",
+    "must be dismissed only if the defendant objects before the jury is sworn",
+    "must be dismissed, because federal courts have no power to create or punish common-law crimes"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l01.q3",
+   "lessonId": "law-crimlaw.l01",
+   "kind": "mcq",
+   "prompt": "Which doctrine best describes the rule that ambiguity in a penal statute should be resolved in the defendant's favour?",
+   "choices": [
+    "The rule of lenity",
+    "The void-for-vagueness doctrine",
+    "The merger doctrine",
+    "The rule against ex post facto laws"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l01.q4",
+   "lessonId": "law-crimlaw.l01",
+   "kind": "mcq",
+   "prompt": "A state supreme court, in the case of a defendant who was arrested in 2019, announces for the first time that a long-standing trespass statute also covers conduct on public sidewalks, and it applies that new reading to the 2019 conduct. Which constitutional principle is most directly implicated?",
+   "choices": [
+    "The Sixth Amendment right to a jury trial, because the state supreme court rather than a jury decided how the statute should be read",
+    "Due process fair warning, as in Bouie v. City of Columbia, against unforeseeable retroactive judicial expansion of a statute",
+    "The Eighth Amendment, because the sentence imposed is disproportionate to the offense of trespass",
+    "The Fourth Amendment, because the arrest occurred without a warrant issued under the new reading"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l01.q5",
+   "lessonId": "law-crimlaw.l01",
+   "kind": "mcq",
+   "prompt": "A city ordinance makes it a crime to loiter with no apparent purpose and gives officers discretion to order a person to move along. Walker is arrested for standing on a corner. The strongest constitutional argument is that the ordinance is",
+   "choices": [
+    "a bill of attainder, because it singles out loiterers for punishment without a trial",
+    "a violation of the Eighth Amendment, because loitering is a status and not an act",
+    "void for vagueness, because it gives no clear notice and invites arbitrary enforcement by officers",
+    "an ex post facto law, because it punishes conduct that was lawful before the ordinance took effect"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l02.q1",
+   "lessonId": "law-crimlaw.l02",
+   "kind": "mcq",
+   "prompt": "Under Model Penal Code section 2.01, which of the following is NOT a voluntary act?",
+   "choices": [
+    "Habitual conduct performed without reflection",
+    "A bodily movement during sleep",
+    "A decision to pick up an object",
+    "A deliberate punch"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l02.q2",
+   "lessonId": "law-crimlaw.l02",
+   "kind": "mcq",
+   "prompt": "Which of these is a recognised source of a legal duty to act that can support liability for an omission?",
+   "choices": [
+    "A parent's relationship to a young child",
+    "A bystander's moral duty to rescue a stranger in danger",
+    "A passerby's general duty to assist in any emergency",
+    "A person's awareness that a stranger needs help that is easy to give"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l02.q3",
+   "lessonId": "law-crimlaw.l02",
+   "kind": "mcq",
+   "prompt": "In Martin v. State (Alabama, 1944), the conviction for public drunkenness was reversed because",
+   "choices": [
+    "the defendant was too intoxicated to form the mental state required for the offense of public drunkenness",
+    "the statute criminalised the status of being a drunkard rather than any conduct",
+    "the arresting officer lacked probable cause to take the defendant into custody",
+    "the defendant was taken to the highway by police and his presence there was not voluntary"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l02.q4",
+   "lessonId": "law-crimlaw.l02",
+   "kind": "mcq",
+   "prompt": "Mara, a pharmacist, learns that a customer standing at her counter has collapsed from what looks like an overdose. She does nothing and the customer dies. Elsewhere, Mara's own child, left in her sole care, dies after she neglects to feed him. Which analysis is most accurate?",
+   "choices": [
+    "No liability on either facts, because criminal liability for omissions is limited to statutory offenses",
+    "Liability on the first facts because her professional training created a duty to every person in her store",
+    "No liability on the first facts absent a statutory duty, but a legal duty from the parent-child relationship supports liability on the second",
+    "Liability on both facts, because a failure to act when death is foreseeable is itself a crime in every jurisdiction, whatever the relationship"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l02.q5",
+   "lessonId": "law-crimlaw.l02",
+   "kind": "mcq",
+   "prompt": "Under Robinson v. California and Powell v. Texas, a statute criminalising which of the following would be most clearly unconstitutional?",
+   "choices": [
+    "Driving while under the influence of alcohol",
+    "Being addicted to narcotics, regardless of any act of use or possession",
+    "Being drunk in a public place, as the defendant was in the Powell case itself",
+    "Possessing narcotics, regardless of addiction"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l03.q1",
+   "lessonId": "law-crimlaw.l03",
+   "kind": "mcq",
+   "prompt": "Under Model Penal Code section 2.02, a person acts recklessly when he",
+   "choices": [
+    "consciously disregards a substantial and unjustifiable risk, in gross deviation from the standard of a law-abiding person",
+    "fails to perceive a substantial and unjustifiable risk that a reasonable person in his situation would have perceived, in gross deviation from reasonable care",
+    "is aware that a result is practically certain to follow from his conduct",
+    "has the conscious object of causing the result that follows"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l03.q2",
+   "lessonId": "law-crimlaw.l03",
+   "kind": "mcq",
+   "prompt": "Taylor takes an umbrella from a stand, honestly but unreasonably believing it is hers. Larceny requires intent to permanently deprive another of his property. Taylor is",
+   "choices": [
+    "not guilty only if she returns the umbrella before the owner discovers the loss",
+    "not guilty, because her honest mistake negates the specific intent required, even though it was unreasonable",
+    "guilty, because a mistake of fact is a defense only if it was reasonable",
+    "guilty, because intent to take property is irrelevant when the taking is trespassory, so only the act of carrying away matters"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l03.q3",
+   "lessonId": "law-crimlaw.l03",
+   "kind": "mcq",
+   "prompt": "What did Cheek v. United States (1991) hold about the tax-evasion willfulness requirement?",
+   "choices": [
+    "A belief negates willfulness whether it concerns misunderstanding of the law or disagreement with its validity, provided that it is sincerely held by the taxpayer",
+    "Willfulness is a strict liability element that no belief can negate",
+    "A sincere belief that the tax laws do not apply, even if unreasonable, can negate willfulness, but a belief that the laws are unconstitutional cannot",
+    "A belief negates willfulness only if a reasonable person would have held it"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l03.q4",
+   "lessonId": "law-crimlaw.l03",
+   "kind": "mcq",
+   "prompt": "A statute punishes anyone who knowingly possesses an unregistered firearm of a type defined by technical features. Sullivan owns a rifle that, unknown to him, has been altered to fire automatically. Under Staples v. United States, the best reading is that the prosecution",
+   "choices": [
+    "need only prove he knowingly possessed a firearm, because dangerous items are regulated strictly",
+    "need not prove any mental state as to the weapon's features because the statute is a public welfare offense",
+    "must prove he knew that possession of such a weapon is unlawful under federal law",
+    "must prove he knew the features that make the weapon fall within the statute's regulated category"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l03.q5",
+   "lessonId": "law-crimlaw.l03",
+   "kind": "mcq",
+   "prompt": "Under Elonis v. United States, a federal conviction for transmitting threats may not rest solely on proof that",
+   "choices": [
+    "a reasonable person would regard the communication as a threat, without proof of the defendant's own mental state",
+    "the defendant intended to communicate the statement to another person",
+    "the defendant sent the statement over the internet to an identifiable recipient, whether or not he meant it as a threat",
+    "the recipient actually felt afraid after reading the communication"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l04.q1",
+   "lessonId": "law-crimlaw.l04",
+   "kind": "mcq",
+   "prompt": "Actual cause in criminal law is generally tested by asking",
+   "choices": [
+    "whether the result was a reasonably foreseeable consequence of the conduct charged",
+    "whether the defendant intended the result to occur",
+    "whether the conduct was the only cause of the result",
+    "whether the result would have occurred but for the defendant's conduct"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l04.q2",
+   "lessonId": "law-crimlaw.l04",
+   "kind": "mcq",
+   "prompt": "Moore stabs Ames, who receives foreseeable but slightly negligent hospital care and dies. Is Moore's conduct a proximate cause of death?",
+   "choices": [
+    "No, because the treatment, not the stabbing, was the last event before death",
+    "Yes, but only if the stab wound alone would have caused death without treatment and the hospital acted without any negligence",
+    "Yes, because ordinary negligent medical treatment is a foreseeable dependent intervening cause that does not break the chain",
+    "No, because any negligence by another person breaks the chain of causation"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l04.q3",
+   "lessonId": "law-crimlaw.l04",
+   "kind": "mcq",
+   "prompt": "Under the thin-skull principle in criminal law, a defendant who strikes a victim with unusually fragile health",
+   "choices": [
+    "is liable only if he intended the fatal consequence",
+    "is not excused because the victim's unusual frailty was unforeseeable",
+    "is excused unless he knew of the frailty beforehand",
+    "is liable only for the harm that a healthy person of ordinary strength would have suffered"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l04.q4",
+   "lessonId": "law-crimlaw.l04",
+   "kind": "mcq",
+   "prompt": "Under a federal statute, a penalty is enhanced when death results from the use of a drug distributed by the defendant. The victim died after taking heroin from the defendant together with other drugs, and the evidence shows the heroin was not by itself a but-for cause of death. Under Burrage v. United States, the enhancement",
+   "choices": [
+    "cannot apply, because the statute requires that the drug be a but-for cause of the death",
+    "applies, because the heroin contributed to the death even if it was not necessary to bring it about",
+    "applies if death was a foreseeable consequence of distributing heroin",
+    "cannot apply unless the heroin was the only cause of death"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l04.q5",
+   "lessonId": "law-crimlaw.l04",
+   "kind": "mcq",
+   "prompt": "Under Model Penal Code section 2.03, where the offense requires recklessness as to the result, the defendant's conduct is a sufficient cause of the result if",
+   "choices": [
+    "it was a but-for cause and the result was a natural consequence of the conduct viewed objectively",
+    "it was the sole cause of the result and the actor intended the conduct",
+    "it was a but-for cause and the actor was negligent in failing to prevent the result",
+    "it was a but-for cause and the result was within the risk of which the actor was aware, and not too remote or accidental to bear on his liability"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l05.q1",
+   "lessonId": "law-crimlaw.l05",
+   "kind": "mcq",
+   "prompt": "Which of the following is NOT one of the traditional common-law states of mind that satisfy malice aforethought?",
+   "choices": [
+    "Intent to cause serious bodily harm",
+    "Extreme recklessness showing depraved-heart indifference to human life",
+    "Negligent failure to perceive a risk of death",
+    "Intent to kill"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l05.q2",
+   "lessonId": "law-crimlaw.l05",
+   "kind": "mcq",
+   "prompt": "Under the Model Penal Code, a killing is murder if it is committed",
+   "choices": [
+    "with premeditation and deliberation after an opportunity for reflection, the formula the Code adopts for its highest degree",
+    "during any felony, whether or not the actor intended or foresaw death",
+    "recklessly or negligently, so long as a death results from the conduct",
+    "purposely or knowingly, or recklessly under circumstances manifesting extreme indifference to the value of human life"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l05.q3",
+   "lessonId": "law-crimlaw.l05",
+   "kind": "mcq",
+   "prompt": "Which is the best example of depraved-heart murder?",
+   "choices": [
+    "Firing a gun repeatedly into an occupied house to scare the residents, killing one of them",
+    "Shooting a rival in the chest after planning for weeks to do so",
+    "Hitting a pedestrian while driving slightly above the speed limit",
+    "Striking a victim who unexpectedly dies from an undiagnosed medical condition after a minor shove"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l05.q4",
+   "lessonId": "law-crimlaw.l05",
+   "kind": "mcq",
+   "prompt": "Dana, furious after an argument, grabs a kitchen knife and stabs her partner once in the chest within seconds, killing him. In a jurisdiction where first-degree murder requires a premeditated and deliberate killing, she is most likely guilty of",
+   "choices": [
+    "involuntary manslaughter, because she acted without a plan to kill",
+    "second-degree murder, unless evidence shows she reflected beforehand, because the intent to kill can be inferred but premeditation requires reflection beyond the instant",
+    "first-degree murder, because use of a deadly weapon on a vital area proves premeditation as a matter of law",
+    "voluntary manslaughter, because the argument is adequate provocation as a matter of law"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l05.q5",
+   "lessonId": "law-crimlaw.l05",
+   "kind": "mcq",
+   "prompt": "Why did Pennsylvania in 1794 divide murder into degrees, a model followed by most states?",
+   "choices": [
+    "To eliminate the felony-murder rule",
+    "To make every killing committed with a deadly weapon first-degree murder",
+    "To reserve the death penalty for the most serious murders",
+    "To abolish malice aforethought as a mental state"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l06.q1",
+   "lessonId": "law-crimlaw.l06",
+   "kind": "mcq",
+   "prompt": "Under the traditional common-law approach, voluntary manslaughter requires",
+   "choices": [
+    "a mistaken belief in the need for self-defense that was reasonable",
+    "adequate provocation that would arouse sudden passion in a reasonable person, no time to cool off, and actual heat of passion",
+    "proof that the killing was unintentional and committed during an unlawful act",
+    "an intent to kill formed after reflection and deliberation"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l06.q2",
+   "lessonId": "law-crimlaw.l06",
+   "kind": "mcq",
+   "prompt": "How does the Model Penal Code's extreme mental or emotional disturbance doctrine differ from common-law provocation?",
+   "choices": [
+    "It drops fixed categories of provocation and the cooling-off rule, and tests reasonableness from the actor's situation as he believes it to be",
+    "It requires physical violence by the victim before the defendant may claim it",
+    "It applies only to killings of a spouse or other family member",
+    "It reduces murder to involuntary manslaughter instead of voluntary manslaughter"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l06.q3",
+   "lessonId": "law-crimlaw.l06",
+   "kind": "mcq",
+   "prompt": "A defendant's carelessness with a loaded firearm, which creates a high risk of death but not extreme indifference, kills a friend. The most likely charge is",
+   "choices": [
+    "first-degree murder because a deadly weapon was involved",
+    "voluntary manslaughter because the shooting was an intentional act of the defendant",
+    "no homicide offense, because the death was accidental",
+    "involuntary manslaughter based on recklessness or gross negligence"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l06.q4",
+   "lessonId": "law-crimlaw.l06",
+   "kind": "mcq",
+   "prompt": "Hal finds his sibling being beaten and, enraged, shoots the attacker moments later. In a second case, Ira learns of an insult from a rival and waits two days before ambushing him. Which is the best analysis?",
+   "choices": [
+    "Neither is manslaughter, because provocation requires a victim to be the one killed by the defendant",
+    "Both are murder, because provocation is available only for an unintentional killing",
+    "Hal's case supports a manslaughter reduction, while Ira's passion has cooled and mere words are generally inadequate provocation, so murder is likely",
+    "Both are manslaughter, because anger always mitigates an intentional killing"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l06.q5",
+   "lessonId": "law-crimlaw.l06",
+   "kind": "mcq",
+   "prompt": "A state requires a defendant to prove by a preponderance that he acted in the heat of passion, to reduce murder to manslaughter, where malice is an element and heat of passion negates it. Under Mullaney v. Wilbur and Patterson v. New York, the best view is that",
+   "choices": [
+    "this is constitutional only for felony offenses and not for misdemeanors",
+    "this violates due process if heat of passion negates an element the state must prove, but a state may place the burden of an affirmative defense on the defendant",
+    "this is always constitutional, because states control the allocation of burdens",
+    "this is always unconstitutional, because the state must disprove every defense beyond a reasonable doubt"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l07.q1",
+   "lessonId": "law-crimlaw.l07",
+   "kind": "mcq",
+   "prompt": "Felony murder holds a person liable for murder when",
+   "choices": [
+    "a death is caused in the commission or attempt of a felony, without proof of intent to kill",
+    "a death results from any unlawful act, including a minor traffic offense, regardless of intent or risk",
+    "a defendant intends to commit a felony but the felony is never begun",
+    "a defendant is reckless about the possibility of death during any crime"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l07.q2",
+   "lessonId": "law-crimlaw.l07",
+   "kind": "mcq",
+   "prompt": "The merger doctrine in felony murder means that",
+   "choices": [
+    "a felony must be inherently dangerous in the abstract",
+    "a felony that is an integral part of the homicide, such as assault with a deadly weapon, cannot be the predicate felony",
+    "a conspiracy to commit a felony merges into the completed felony",
+    "the felony and the killing must occur at the same time and place"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l07.q3",
+   "lessonId": "law-crimlaw.l07",
+   "kind": "mcq",
+   "prompt": "Under the agency rule for felony murder, felons are NOT liable when",
+   "choices": [
+    "a co-felon kills an innocent person while fleeing the scene",
+    "the victim of the robbery dies from sheer fright caused by a robber's verbal threat",
+    "a police officer, responding to the robbery, accidentally kills a bystander",
+    "one of the robbers shoots and kills the clerk"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l07.q4",
+   "lessonId": "law-crimlaw.l07",
+   "kind": "mcq",
+   "prompt": "Under Enmund v. Florida and Tison v. Arizona, a death sentence for felony murder is constitutionally permitted for a person who",
+   "choices": [
+    "merely drove the getaway car, was absent from the killing and had no intent that anyone be killed",
+    "was present at the scene but did not take part in the planning",
+    "agreed to the felony but withdrew before it began",
+    "was a major participant in the felony and acted with reckless indifference to human life"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l07.q5",
+   "lessonId": "law-crimlaw.l07",
+   "kind": "mcq",
+   "prompt": "Two robbers hold up a store; during the robbery, an armed clerk shoots and kills one robber. In a jurisdiction following the agency rule and one following the proximate cause rule, the surviving robber is",
+   "choices": [
+    "not guilty of felony murder under the agency rule, but may be guilty under the proximate cause rule",
+    "guilty of felony murder under both, because the death occurred during the robbery",
+    "not guilty under either rule, because a robber cannot be the victim of a felony murder charge against his co-felon",
+    "guilty under the agency rule but not under the proximate cause rule"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l08.q1",
+   "lessonId": "law-crimlaw.l08",
+   "kind": "mcq",
+   "prompt": "At common law, battery is",
+   "choices": [
+    "an attempt to commit a battery or creating a reasonable apprehension of harm",
+    "any threat of harm made in the presence of the victim",
+    "the unlawful confinement of another person",
+    "the unlawful application of force to the person of another"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l08.q2",
+   "lessonId": "law-crimlaw.l08",
+   "kind": "mcq",
+   "prompt": "Which is an aggravating factor that typically converts a simple assault into an aggravated assault?",
+   "choices": [
+    "The defendant's prior acquaintance with the victim",
+    "The absence of any physical contact with the victim",
+    "The use of a deadly weapon or an attempt to cause serious bodily injury",
+    "The victim's decision not to report the incident to the police until the next day"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l08.q3",
+   "lessonId": "law-crimlaw.l08",
+   "kind": "mcq",
+   "prompt": "Why do courts generally require that movement in a kidnapping be more than incidental to another crime?",
+   "choices": [
+    "Because only force is an element and movement is irrelevant",
+    "To avoid converting every robbery or rape into kidnapping, since those crimes always involve some confinement",
+    "Because kidnapping requires the victim to be taken across a state line",
+    "Because kidnapping is a specific intent crime that requires intent to hold the victim for ransom, reward or hostage purposes"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l08.q4",
+   "lessonId": "law-crimlaw.l08",
+   "kind": "mcq",
+   "prompt": "During a robbery, Kim forces a store clerk to walk twenty feet to the register. In another incident, she drives a clerk across town to prevent a report to police. Which is the most likely result under the majority approach?",
+   "choices": [
+    "The first movement is incidental to robbery and does not support kidnapping, while the second is substantial and increases the risk of harm",
+    "Both movements support kidnapping, because any forced movement is a kidnapping",
+    "Neither movement supports kidnapping, because kidnapping requires asportation across a state line or out of the country, and neither clerk was taken that far",
+    "Only the first movement supports kidnapping, because it happened during a felony"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l08.q5",
+   "lessonId": "law-crimlaw.l08",
+   "kind": "mcq",
+   "prompt": "Under the Model Penal Code, simple assault includes",
+   "choices": [
+    "only the intentional infliction of serious bodily injury with a deadly weapon",
+    "any offensive touching of another person, regardless of injury",
+    "only causing bodily injury to a police officer in the line of duty",
+    "attempting to cause bodily injury or purposely, knowingly or recklessly causing it, and attempting to put another in fear of imminent serious bodily injury by physical menace"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l09.q1",
+   "lessonId": "law-crimlaw.l09",
+   "kind": "mcq",
+   "prompt": "Which feature of the traditional common-law definition of rape has been eliminated in most modern statutes?",
+   "choices": [
+    "The element of sexual penetration",
+    "The requirement that the offender act intentionally",
+    "The marital exemption",
+    "The requirement of lack of consent"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l09.q2",
+   "lessonId": "law-crimlaw.l09",
+   "kind": "mcq",
+   "prompt": "In State in the Interest of M.T.S. (N.J., 1992), the court held that the statutory element of force was satisfied by",
+   "choices": [
+    "a showing that the victim physically resisted throughout the encounter and that the defendant overcame her resistance",
+    "a threat of serious bodily injury communicated before the act",
+    "the use of a weapon during the act",
+    "sexual penetration without the affirmative and freely given permission of the victim, with no additional force needed"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l09.q3",
+   "lessonId": "law-crimlaw.l09",
+   "kind": "mcq",
+   "prompt": "Which statement about statutory rape and mistake of age is accurate for most states?",
+   "choices": [
+    "A reasonable mistake about the victim's age is generally not a defense because the offense is strict liability as to age",
+    "A reasonable mistake about age is always a defense",
+    "A mistake about age is a defense only if the victim lied about her age in writing and the defendant checked it against an identification document",
+    "The offense requires proof that the defendant knew the victim was underage"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l09.q4",
+   "lessonId": "law-crimlaw.l09",
+   "kind": "mcq",
+   "prompt": "A defendant has sex with a person who is asleep, honestly believing she was awake and consenting because of ambiguous earlier flirting. Which analysis is most accurate?",
+   "choices": [
+    "No offense unless the sleeping person physically resisted",
+    "The act is an offense in modern codes because a sleeping person cannot consent, and whether his honest mistake is a defense depends on the jurisdiction's mens rea rule as to consent",
+    "No offense, because a belief in consent always negates liability",
+    "An offense in every jurisdiction regardless of his beliefs, because consent mistakes are never recognised"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l09.q5",
+   "lessonId": "law-crimlaw.l09",
+   "kind": "mcq",
+   "prompt": "Under Coker v. Georgia and Kennedy v. Louisiana, the Eighth Amendment",
+   "choices": [
+    "permits the death penalty for rape of an adult or a child in any case if the state statute is clear",
+    "bars all punishment above ten years for sexual offenses",
+    "bars the death penalty for the rape of an adult and for child rape where the victim did not die",
+    "bars the death penalty for any sexual offense, even where the victim dies"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l10.q1",
+   "lessonId": "law-crimlaw.l10",
+   "kind": "mcq",
+   "prompt": "Which crime involves obtaining title to property by a knowingly false representation of a past or existing fact?",
+   "choices": [
+    "False pretenses",
+    "Larceny by trick",
+    "Embezzlement",
+    "Receiving stolen property"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l10.q2",
+   "lessonId": "law-crimlaw.l10",
+   "kind": "mcq",
+   "prompt": "An employee lawfully holds her employer's cash while making deposits and decides to keep it. At common law, this is most likely",
+   "choices": [
+    "robbery, because the cash was taken from the employer's presence",
+    "embezzlement, because she converted property she lawfully possessed",
+    "larceny, because she took the property without the employer's consent",
+    "false pretenses, because she obtained title by deceit"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l10.q3",
+   "lessonId": "law-crimlaw.l10",
+   "kind": "mcq",
+   "prompt": "What is the difference between larceny by trick and false pretenses?",
+   "choices": [
+    "Larceny by trick requires a written misrepresentation, while false pretenses requires an oral misrepresentation made face to face",
+    "Larceny by trick applies only to real property",
+    "In larceny by trick the owner intends to transfer only possession, and in false pretenses the owner intends to transfer title",
+    "In larceny by trick the defendant uses force, and in false pretenses he uses fear"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l10.q4",
+   "lessonId": "law-crimlaw.l10",
+   "kind": "mcq",
+   "prompt": "Rhea borrows a neighbour's lawnmower with permission, intending to return it. A week later she decides to sell it and does so. Which is the most accurate analysis at common law?",
+   "choices": [
+    "Larceny, because her later intent relates back to the time of the taking",
+    "False pretenses, because she obtained the mower by pretending she would return it",
+    "Robbery, because she took the mower from her neighbour's property",
+    "No larceny, because the intent to deprive did not exist at the time of the taking, though a modern theft statute or embezzlement-type offense may apply"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l10.q5",
+   "lessonId": "law-crimlaw.l10",
+   "kind": "mcq",
+   "prompt": "A defendant takes property from a debtor in an honest belief that the debtor owes him the money and that he is entitled to the property. Under the claim of right defense, he is",
+   "choices": [
+    "not guilty of larceny, because he lacks the intent to steal even if his belief is mistaken or unreasonable",
+    "guilty of larceny, because the belief must be reasonable and held in good faith to negate the intent to steal",
+    "guilty of larceny, because self-help debt collection is always a crime",
+    "not guilty only if the property was worth less than the debt"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l11.q1",
+   "lessonId": "law-crimlaw.l11",
+   "kind": "mcq",
+   "prompt": "Robbery at common law is",
+   "choices": [
+    "the taking of property by deception",
+    "larceny from the person or presence of another by force or threat of force",
+    "the breaking and entering of a dwelling at night with intent to commit a felony",
+    "the malicious burning of the dwelling of another"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l11.q2",
+   "lessonId": "law-crimlaw.l11",
+   "kind": "mcq",
+   "prompt": "Which change is typical of modern burglary statutes compared with the common-law offense?",
+   "choices": [
+    "They drop the breaking requirement and extend to any building and to any time of day",
+    "They require proof of actual theft or a completed felony inside the building after entry",
+    "They require entry into a dwelling at night only",
+    "They require use of force against an occupant"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l11.q3",
+   "lessonId": "law-crimlaw.l11",
+   "kind": "mcq",
+   "prompt": "Under the Model Penal Code, burglary is committed by",
+   "choices": [
+    "breaking and entering the dwelling of another at night with intent to commit a felony therein, exactly as at common law, with no broader forms",
+    "entering any premises with the intent to commit a felony of violence",
+    "remaining in a building after closing hours with permission",
+    "entering a building or occupied structure with the purpose to commit a crime therein, unless the entry was licensed or privileged"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l11.q4",
+   "lessonId": "law-crimlaw.l11",
+   "kind": "mcq",
+   "prompt": "Ravi enters a friend's house at night through an unlocked door, with the permission of the owner, who invited him to dinner. After dinner, he decides to take a laptop and does so. Is Ravi guilty of burglary under a modern statute?",
+   "choices": [
+    "Yes, because his later intent relates back to the time of entry",
+    "No, because larceny cannot be committed in a friend's home",
+    "No, because his entry was licensed and the intent to steal was formed after entering, though he is guilty of larceny",
+    "Yes, because any theft in a dwelling at night is burglary"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l11.q5",
+   "lessonId": "law-crimlaw.l11",
+   "kind": "mcq",
+   "prompt": "A purse snatcher grabs a bag from the victim's arm, and the victim, taken by surprise, does not resist. A pickpocket takes a wallet without the victim noticing. At common law",
+   "choices": [
+    "both commit larceny only, because robbery requires a weapon",
+    "the pickpocket commits larceny, and the purse snatcher commits robbery only if he used force sufficient to overcome resistance, not mere stealth",
+    "both commit robbery, because both took property from the victim's person",
+    "neither commits a crime, because the victims were not aware of the taking in the second case"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l12.q1",
+   "lessonId": "law-crimlaw.l12",
+   "kind": "mcq",
+   "prompt": "What mental state is required for attempt?",
+   "choices": [
+    "Negligence as to the harm",
+    "No mental state beyond that of the underlying preparatory act",
+    "A specific intent to commit the target offense",
+    "Recklessness as to the target result"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l12.q2",
+   "lessonId": "law-crimlaw.l12",
+   "kind": "mcq",
+   "prompt": "The Model Penal Code's test for attempt requires",
+   "choices": [
+    "the last act necessary to complete the offense",
+    "physical proximity to completing the offense",
+    "an act that is unequivocal in showing the criminal purpose by itself",
+    "a substantial step in a course of conduct planned to culminate in the crime, strongly corroborative of criminal purpose"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l12.q3",
+   "lessonId": "law-crimlaw.l12",
+   "kind": "mcq",
+   "prompt": "A defendant aims a gun at an empty bed he believes holds his sleeping rival, and fires. He is",
+   "choices": [
+    "guilty of attempted murder, because factual impossibility is not a defense",
+    "not guilty, because the intended victim was not in the bed and so no harm could occur",
+    "guilty only of assault, because no person was in danger",
+    "not guilty, because he was mistaken about the circumstances"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l12.q4",
+   "lessonId": "law-crimlaw.l12",
+   "kind": "mcq",
+   "prompt": "Defendants drive around a neighbourhood armed, hoping to rob a payroll messenger whom they have not yet located. Under a dangerous-proximity test, as in People v. Rizzo, the court would most likely hold that",
+   "choices": [
+    "no attempt occurred because the planned crime would have been a felony",
+    "no attempt occurred because the defendants had not come dangerously close to success",
+    "attempted robbery occurred because they intended to rob and had armed themselves and driven to the area",
+    "attempted robbery occurred because the target had been identified in advance"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l12.q5",
+   "lessonId": "law-crimlaw.l12",
+   "kind": "mcq",
+   "prompt": "A defendant plans to carry out a burglary but, before entering, voluntarily and completely abandons the plan out of conscience. Which statement is most accurate?",
+   "choices": [
+    "Abandonment is never a defense, because the act of attempt is complete when the substantial step is taken in all jurisdictions",
+    "Abandonment is a defense only if the defendant first reports his plan to the police",
+    "Under the Model Penal Code, voluntary and complete renunciation is an affirmative defense to attempt, while most common-law courts reject abandonment once the attempt is complete",
+    "Abandonment is a defense to attempt in every jurisdiction regardless of motive"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l13.q1",
+   "lessonId": "law-crimlaw.l13",
+   "kind": "mcq",
+   "prompt": "What is the key mental state requirement for conspiracy?",
+   "choices": [
+    "Recklessness about whether the object offense will actually be committed",
+    "Knowledge that another person plans a crime",
+    "No mental state beyond the agreement",
+    "Intent to agree and intent that the object offense be committed"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l13.q2",
+   "lessonId": "law-crimlaw.l13",
+   "kind": "mcq",
+   "prompt": "Under the Pinkerton rule, a conspirator is liable for",
+   "choices": [
+    "only the crimes he personally agreed to commit in the conspiracy",
+    "only crimes that he assisted by an overt act",
+    "substantive crimes committed by co-conspirators in furtherance of the conspiracy that were reasonably foreseeable",
+    "any crime committed by any co-conspirator at any time"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l13.q3",
+   "lessonId": "law-crimlaw.l13",
+   "kind": "mcq",
+   "prompt": "Under the traditional bilateral approach to conspiracy, if one party to the agreement is an undercover agent who feigns agreement, the other party is",
+   "choices": [
+    "guilty of conspiracy only if the undercover agent also committed an overt act in furtherance",
+    "not guilty of conspiracy because there is no genuine agreement between two persons",
+    "guilty of conspiracy because he agreed with someone",
+    "guilty only of solicitation"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l13.q4",
+   "lessonId": "law-crimlaw.l13",
+   "kind": "mcq",
+   "prompt": "Under Gebardi v. United States and Wharton's rule, which defendants cannot be convicted of conspiracy to commit the substantive offense?",
+   "choices": [
+    "Parties whose participation is necessary to the offense and where the legislature did not intend to punish one of them, such as the woman transported in violation of the Mann Act",
+    "Any two people who agree to commit a crime that requires only one person to carry out",
+    "Anyone who withdraws from the conspiracy before an overt act",
+    "A defendant who is also guilty of the completed substantive offense"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l13.q5",
+   "lessonId": "law-crimlaw.l13",
+   "kind": "mcq",
+   "prompt": "Under 18 U.S.C. section 371 and cases such as United States v. Shabani, which statement is correct?",
+   "choices": [
+    "No federal conspiracy statute requires an overt act",
+    "Every federal conspiracy statute requires an overt act, including the federal drug conspiracy statute in 21 U.S.C. section 846",
+    "Federal conspiracy requires an overt act only if the crime is a felony",
+    "The general federal conspiracy statute requires an overt act, while the federal drug conspiracy statute does not"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l14.q1",
+   "lessonId": "law-crimlaw.l14",
+   "kind": "mcq",
+   "prompt": "Under Model Penal Code section 2.06(3)(a), a person is an accomplice if he",
+   "choices": [
+    "acts with the purpose of promoting or facilitating the offense and solicits, aids or agrees to aid in its commission",
+    "merely knows that another person intends to commit an offense",
+    "is present at the scene of a crime without objecting",
+    "benefits financially from an offense committed by another"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l14.q2",
+   "lessonId": "law-crimlaw.l14",
+   "kind": "mcq",
+   "prompt": "The majority common-law rule holds an accomplice liable for",
+   "choices": [
+    "only offenses committed in his presence",
+    "the target offense and for other crimes that are the natural and probable consequences of the offense he aided",
+    "only the specific offense he intended to help commit",
+    "any offense committed by the principal, however unrelated"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l14.q3",
+   "lessonId": "law-crimlaw.l14",
+   "kind": "mcq",
+   "prompt": "Under Standefer v. United States, an aider and abettor",
+   "choices": [
+    "cannot be tried until the principal has been convicted",
+    "is liable only if the principal is also charged in the same indictment and tried together",
+    "may be convicted even though the principal was acquitted in a separate trial",
+    "must be acquitted if the principal is acquitted"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l14.q4",
+   "lessonId": "law-crimlaw.l14",
+   "kind": "mcq",
+   "prompt": "A driver takes a friend to a store, knowing only that the friend plans to shoplift. The friend instead robs the clerk at gunpoint. Under the Model Penal Code, the driver is",
+   "choices": [
+    "an accomplice to the robbery, because it was a consequence of the shoplifting plan",
+    "an accomplice to the robbery, because he knew the friend planned a crime",
+    "not liable for anything, because mere knowledge of a plan is not criminal",
+    "not an accomplice to the robbery because he did not have the purpose to facilitate it, though he may be an accomplice to the shoplifting"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l14.q5",
+   "lessonId": "law-crimlaw.l14",
+   "kind": "mcq",
+   "prompt": "In Rosemond v. United States, the Court held that to be convicted of aiding and abetting the use of a firearm in a drug crime, a defendant must have",
+   "choices": [
+    "advance knowledge that a confederate would carry a gun, with enough time to walk away from the crime",
+    "participated in the gun use directly",
+    "supplied the gun used in the offense",
+    "known that the use of a firearm would be a separate federal crime and intended to facilitate only the drug offense"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l15.q1",
+   "lessonId": "law-crimlaw.l15",
+   "kind": "mcq",
+   "prompt": "Which element must be present for a self-defense claim?",
+   "choices": [
+    "The defendant must have retreated before using any force",
+    "A reasonable belief that unlawful force is imminent and that the force used is necessary and proportionate",
+    "The defendant must have been physically attacked first",
+    "The defendant must have used no more than non-deadly force"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l15.q2",
+   "lessonId": "law-crimlaw.l15",
+   "kind": "mcq",
+   "prompt": "Under the majority rule stated in Brown v. United States, a person attacked in a place where he has a right to be",
+   "choices": [
+    "need not retreat before using deadly force when he reasonably believes it necessary to protect himself",
+    "must retreat if it is possible to do so safely before using deadly force, even when attacked in his own home",
+    "may use deadly force only against an intruder in his home",
+    "may never use deadly force in public"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l15.q3",
+   "lessonId": "law-crimlaw.l15",
+   "kind": "mcq",
+   "prompt": "An initial aggressor loses the right of self-defense unless",
+   "choices": [
+    "the victim struck back first",
+    "the aggressor had no weapon",
+    "the victim was larger than the aggressor",
+    "he withdraws and communicates his withdrawal, or the victim escalates to deadly force against a nonlethal attack"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l15.q4",
+   "lessonId": "law-crimlaw.l15",
+   "kind": "mcq",
+   "prompt": "Pat is punched in the face in a bar by a stranger and responds by pulling a gun and shooting him. The stranger was unarmed and had no apparent intent beyond a fistfight. Which analysis is most likely?",
+   "choices": [
+    "Self-defense succeeds because Pat had no duty to retreat",
+    "Self-defense fails only if Pat could have safely retreated in a jurisdiction that imposes a duty to retreat, and is otherwise complete",
+    "Self-defense fails because deadly force was disproportionate to a nonlethal threat, so Pat is guilty of a homicide offense",
+    "Self-defense succeeds because Pat was struck first"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l15.q5",
+   "lessonId": "law-crimlaw.l15",
+   "kind": "mcq",
+   "prompt": "Under Martin v. Ohio, a state that requires a defendant to prove self-defense by a preponderance of the evidence",
+   "choices": [
+    "violates the Eighth Amendment, because it increases punishment",
+    "does not violate due process, because self-defense does not negate an element of the offense as defined",
+    "violates due process in every case, because the state must disprove every defense beyond a reasonable doubt",
+    "violates due process only if the offense is murder"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l16.q1",
+   "lessonId": "law-crimlaw.l16",
+   "kind": "mcq",
+   "prompt": "Under the M'Naghten test, a defendant is legally insane if, because of a disease of the mind, he",
+   "choices": [
+    "lacked substantial capacity to conform his conduct to the law",
+    "committed an act that was the product of mental disease",
+    "did not know the nature and quality of his act or did not know it was wrong",
+    "could not control his conduct because of an irresistible impulse arising from mental disease"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l16.q2",
+   "lessonId": "law-crimlaw.l16",
+   "kind": "mcq",
+   "prompt": "Competence to stand trial under Dusky v. United States asks whether the defendant",
+   "choices": [
+    "was insane at the time of the offense",
+    "can be punished at the time of the offense",
+    "understood the wrongfulness of his conduct at the time of the offense and can appreciate its consequences",
+    "has a rational and factual understanding of the proceedings and can consult with his lawyer"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l16.q3",
+   "lessonId": "law-crimlaw.l16",
+   "kind": "mcq",
+   "prompt": "After John Hinckley's acquittal, the Insanity Defense Reform Act of 1984 did what?",
+   "choices": [
+    "Narrowed the federal test to severe mental disease making the defendant unable to appreciate the nature or wrongfulness of his acts, with the burden on the defendant",
+    "Abolished the insanity defense in all federal courts",
+    "Adopted the Durham product test for all federal courts",
+    "Added a volitional prong to the federal test"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l16.q4",
+   "lessonId": "law-crimlaw.l16",
+   "kind": "mcq",
+   "prompt": "Kansas does not allow a moral-incapacity insanity defense and permits evidence of mental illness only to negate mens rea. A defendant argues that this violates due process. Under Kahler v. Kansas, the court should",
+   "choices": [
+    "reject the claim only if the defendant was competent to stand trial",
+    "reject the claim, because due process does not require a state to adopt a particular insanity test including moral incapacity",
+    "accept the claim, because due process requires every state to adopt the M'Naghten wrongfulness test as a constitutional minimum for every defendant",
+    "accept the claim, because the Constitution requires a volitional test"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l16.q5",
+   "lessonId": "law-crimlaw.l16",
+   "kind": "mcq",
+   "prompt": "A defendant, in a psychotic delusion, believes his neighbour is a demon who will kill him and kills the neighbour. He knows the neighbour is a human being and knows that killing humans is illegal, but sincerely believes the act is necessary to save his own life. Under M'Naghten, the strongest argument for insanity is that",
+   "choices": [
+    "his act was the product of a mental disease under the Durham test",
+    "he lacked substantial capacity to conform his conduct to the law",
+    "his delusion prevented him from knowing that the act was wrong, if wrong is read to include moral wrong as he understood it",
+    "he acted under an irresistible impulse that he could not control"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l17.q1",
+   "lessonId": "law-crimlaw.l17",
+   "kind": "mcq",
+   "prompt": "What distinguishes duress from necessity?",
+   "choices": [
+    "Duress is a justification, while necessity is always an excuse",
+    "Duress applies only to murder, while necessity applies to other crimes",
+    "Duress requires the defendant to have had no reasonable alternative, while necessity requires only a good-faith belief in the harm",
+    "Duress arises from a threat by another person, while necessity arises from natural or circumstantial pressures"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l17.q2",
+   "lessonId": "law-crimlaw.l17",
+   "kind": "mcq",
+   "prompt": "Under the common-law rule in most jurisdictions, duress is",
+   "choices": [
+    "a defense only to property crimes",
+    "a defense only if the threat was to the defendant's property",
+    "not a defense to murder",
+    "a defense to every crime, including murder"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l17.q3",
+   "lessonId": "law-crimlaw.l17",
+   "kind": "mcq",
+   "prompt": "In United States v. Bailey, a prisoner who escapes and wishes to raise duress or necessity must",
+   "choices": [
+    "have reported the threat to the warden before escaping",
+    "offer evidence of a bona fide effort to surrender or report to authorities once the claimed threat has lost its coercive force",
+    "prove that the prison conditions were unconstitutional",
+    "show that no other prisoner has escaped from the facility"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l17.q4",
+   "lessonId": "law-crimlaw.l17",
+   "kind": "mcq",
+   "prompt": "A gunman orders a bystander to drive the getaway car under threat of immediate death. In another case, he orders a person to shoot an innocent victim under the same threat. At common law, duress",
+   "choices": [
+    "may excuse the driving, but is not available for the killing",
+    "excuses both, because the threat was equally serious",
+    "excuses neither, because duress is not recognised at common law",
+    "excuses the killing but not the driving"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l17.q5",
+   "lessonId": "law-crimlaw.l17",
+   "kind": "mcq",
+   "prompt": "Under United States v. Oakland Cannabis Buyers' Cooperative, a medical necessity defense to distribution of marijuana under the federal Controlled Substances Act",
+   "choices": [
+    "is available, because necessity is a general common-law defense",
+    "is available if a state has legalised medical marijuana",
+    "is available only to patients with a terminal illness",
+    "is unavailable, because Congress determined that marijuana has no accepted medical use, leaving no room for the defense"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l18.q1",
+   "lessonId": "law-crimlaw.l18",
+   "kind": "mcq",
+   "prompt": "Under the majority approach, evidence of voluntary intoxication may be considered",
+   "choices": [
+    "on whether the defendant formed a required specific intent",
+    "to excuse any crime, including general intent crimes, committed while intoxicated",
+    "only for crimes of recklessness",
+    "only if the defendant was an alcoholic"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l18.q2",
+   "lessonId": "law-crimlaw.l18",
+   "kind": "mcq",
+   "prompt": "Under Model Penal Code section 2.08(2), where a crime requires recklessness, a defendant who failed to perceive a risk because of self-induced intoxication",
+   "choices": [
+    "is guilty of negligence only",
+    "is treated as aware of the risk that he would have perceived if sober",
+    "is not guilty, because he lacked awareness",
+    "is not guilty, because self-induced intoxication is a mental disease that negates recklessness"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l18.q3",
+   "lessonId": "law-crimlaw.l18",
+   "kind": "mcq",
+   "prompt": "Under the subjective test of entrapment, the key question is",
+   "choices": [
+    "whether the government's conduct was outrageous",
+    "whether the defendant had a prior record",
+    "whether the defendant was predisposed to commit the crime before government inducement",
+    "whether the police conduct would induce a normally law-abiding person to commit the crime"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l18.q4",
+   "lessonId": "law-crimlaw.l18",
+   "kind": "mcq",
+   "prompt": "In Jacobson v. United States, the government spent over two years sending the defendant mailings that encouraged him to order illegal materials. The Court held that",
+   "choices": [
+    "entrapment is never available if the defendant ordered the materials",
+    "entrapment applies only if the government used force or threats",
+    "the objective test applies in federal court and the conduct was not outrageous",
+    "the government had not proved beyond a reasonable doubt that the defendant was predisposed independent of its inducement, so the conviction was reversed"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l18.q5",
+   "lessonId": "law-crimlaw.l18",
+   "kind": "mcq",
+   "prompt": "An undercover officer asks a known dealer once to sell him drugs, and the dealer agrees quickly. Under the subjective and objective tests respectively, entrapment is",
+   "choices": [
+    "unavailable under both tests, because the defendant was predisposed and one request would not induce a law-abiding person",
+    "available under the subjective test and unavailable under the objective test, because the police made the first approach to him",
+    "unavailable under the subjective test and available under the objective test",
+    "available under both tests, because the police initiated the contact"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l19.q1",
+   "lessonId": "law-crimlaw.l19",
+   "kind": "mcq",
+   "prompt": "Which theory of punishment looks backward and holds that punishment is justified because the offender deserves it?",
+   "choices": [
+    "Rehabilitation",
+    "Retribution",
+    "General deterrence",
+    "Incapacitation"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l19.q2",
+   "lessonId": "law-crimlaw.l19",
+   "kind": "mcq",
+   "prompt": "What is the most widely held reading of empirical research on deterrence?",
+   "choices": [
+    "The certainty of apprehension deters more than the severity of the sentence",
+    "Longer sentences always deter more than shorter ones, regardless of how likely detection is",
+    "Punishment has no effect on crime",
+    "Severity deters more than certainty"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l19.q3",
+   "lessonId": "law-crimlaw.l19",
+   "kind": "mcq",
+   "prompt": "Incapacitation as a theory of punishment aims to",
+   "choices": [
+    "change the offender through education, treatment and vocational training during confinement",
+    "communicate community condemnation",
+    "repair the harm done to the victim",
+    "prevent crime by physically restraining the offender during the period of confinement"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l19.q4",
+   "lessonId": "law-crimlaw.l19",
+   "kind": "mcq",
+   "prompt": "A legislature raises the penalty for a common minor property offense to ten years to deter it. A retributivist and a utilitarian would most likely respond that",
+   "choices": [
+    "both object, because punishment must never exceed the harm to the victim",
+    "the retributivist approves, because retribution requires a deterrent example",
+    "the retributivist objects that the sentence exceeds desert, while the utilitarian asks whether the severity deters at acceptable cost",
+    "both approve, because deterrence is the only valid purpose"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l19.q5",
+   "lessonId": "law-crimlaw.l19",
+   "kind": "mcq",
+   "prompt": "Under 18 U.S.C. section 3553(a), a federal sentence should be",
+   "choices": [
+    "the minimum required by statute",
+    "sufficient but not greater than necessary to serve the purposes of sentencing",
+    "the maximum allowed by the Sentencing Guidelines range for the offense level and criminal history",
+    "determined solely by the nature of the offense"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l20.q1",
+   "lessonId": "law-crimlaw.l20",
+   "kind": "mcq",
+   "prompt": "Under Apprendi v. New Jersey, any fact that increases a penalty beyond the statutory maximum, other than a prior conviction, must be",
+   "choices": [
+    "proved by clear and convincing evidence",
+    "submitted to a jury and proved beyond a reasonable doubt",
+    "found by the sentencing judge by a preponderance of the evidence",
+    "found by the judge beyond a reasonable doubt"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l20.q2",
+   "lessonId": "law-crimlaw.l20",
+   "kind": "mcq",
+   "prompt": "What did United States v. Booker hold about the federal Sentencing Guidelines?",
+   "choices": [
+    "Mandatory Guidelines violate the Sixth Amendment, so the remedy was to make them advisory",
+    "The Guidelines are unconstitutional in their entirety and may not be consulted by sentencing judges",
+    "The Guidelines are valid and mandatory",
+    "The Guidelines apply only to felonies"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l20.q3",
+   "lessonId": "law-crimlaw.l20",
+   "kind": "mcq",
+   "prompt": "Which Eighth Amendment holding concerns juvenile offenders?",
+   "choices": [
+    "Roper v. Simmons held that juveniles may be executed if the crime was heinous",
+    "Graham v. Florida allowed life without parole for juvenile nonhomicide offenders convicted of armed or violent felonies",
+    "Montgomery v. Louisiana applied Miller only to future cases",
+    "Miller v. Alabama held that mandatory life without parole for juvenile homicide offenders is unconstitutional"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l20.q4",
+   "lessonId": "law-crimlaw.l20",
+   "kind": "mcq",
+   "prompt": "A statute imposes up to ten years for drug possession, with a five-year mandatory minimum if the judge finds, by a preponderance, that the amount exceeded a threshold. Under Alleyne v. United States, the minimum",
+   "choices": [
+    "may be imposed only if the defendant has a prior conviction",
+    "may be imposed if the Guidelines are advisory",
+    "may not be imposed on the judge's finding alone, because facts that raise a mandatory minimum must be found by a jury beyond a reasonable doubt",
+    "may be imposed, because the sentence remains below the statutory maximum"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l20.q5",
+   "lessonId": "law-crimlaw.l20",
+   "kind": "mcq",
+   "prompt": "Which of the following is a correct statement of current constitutional law on capital punishment?",
+   "choices": [
+    "The death penalty is permitted for child rape not resulting in death",
+    "The death penalty is constitutional in principle under Gregg v. Georgia, subject to categorical limits such as those for juveniles and persons with intellectual disability",
+    "The death penalty is unconstitutional in all cases",
+    "The death penalty may be imposed on any offender convicted of murder"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l21.q1",
+   "lessonId": "law-crimlaw.l21",
+   "kind": "mcq",
+   "prompt": "Under Brandenburg v. Ohio, the government may punish advocacy only if it is",
+   "choices": [
+    "directed to inciting imminent lawless action and likely to produce such action",
+    "critical of the government or its officials",
+    "offensive to a substantial part of the community and likely to provoke a hostile reaction",
+    "intended to cause fear in the audience"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l21.q2",
+   "lessonId": "law-crimlaw.l21",
+   "kind": "mcq",
+   "prompt": "In Counterman v. Colorado (2023), the Court held that to convict someone for true threats the state must prove",
+   "choices": [
+    "that the recipient suffered serious emotional distress",
+    "that the defendant had some subjective understanding of the threatening nature of his statements, at least recklessness",
+    "only that a reasonable person would view the statement as a threat",
+    "that the defendant intended to carry out the threat"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l21.q3",
+   "lessonId": "law-crimlaw.l21",
+   "kind": "mcq",
+   "prompt": "Lawrence v. Texas (2003) held that",
+   "choices": [
+    "the Eighth Amendment bars punishing sexual conduct",
+    "the Commerce Clause bars state sodomy laws",
+    "a statute criminalising private consensual same-sex sexual conduct between adults is unconstitutional",
+    "states may criminalise any private consensual sexual conduct between adults if a legislature finds it immoral"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l21.q4",
+   "lessonId": "law-crimlaw.l21",
+   "kind": "mcq",
+   "prompt": "A town makes it a crime to say anything offensive to a police officer. A resident is charged for a rude comment made on a sidewalk. The strongest constitutional challenge is that the ordinance is",
+   "choices": [
+    "an ex post facto law, because it applies to conduct before its enactment",
+    "a violation of the Second Amendment",
+    "a violation of the Eighth Amendment, because the punishment is cruel",
+    "overbroad and vague, because it reaches a substantial amount of protected speech and leaves enforcement to officers' discretion"
+   ]
+  },
+  {
+   "id": "law-crimlaw.l21.q5",
+   "lessonId": "law-crimlaw.l21",
+   "kind": "mcq",
+   "prompt": "Under United States v. Lopez (1995), Congress exceeded its Commerce Clause power by",
+   "choices": [
+    "criminalising possession of a gun in a school zone, where the activity was not economic and lacked a substantial effect on commerce",
+    "regulating interstate transportation of firearms",
+    "regulating channels of interstate commerce",
+    "criminalising the sale of firearms across state lines"
+   ]
+  }
+ ]
+}

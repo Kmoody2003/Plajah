@@ -24,6 +24,7 @@ const WALLET_LABEL = {
   shared: "Draws your plan credits",
   separate: "Separate developer balance",
   none: "No API — hand off only",
+  free_local: "100% Free · Runs on Local GPU",
 };
 
 export default function GeneratePanel({ projectId, bins = [], defaultBin, onClose, importResults, context }) {

@@ -1,0 +1,70 @@
+import { mcq, type CoursePart } from '../../courseKit';
+
+export const PART: CoursePart = {
+  track: {
+    id: 'med-g35.t4', title: 'Sleep, Growing Up and Feelings',
+    blurb: 'Rest, the changes of growing up, and taking care of your mind.',
+    level: 'FOUNDATION',
+    lessons: [
+      {
+        id: 'med-g35.l13', title: 'Sleep: Your Body\'s Repair Time', minutes: 5, asOf: '2026-10',
+        blurb: 'Sleep helps the brain, body and mood recover and grow.',
+        body:
+          'Sleep is not wasted time. While you sleep, your body is busy. Your brain sorts what you learned during the day and stores important memories. Your body repairs itself, and children release growth hormone during deep sleep, which helps them grow.\n\nSleep happens in cycles. During light sleep your body relaxes. During deep sleep it is hard to wake you and much of the repair work happens. During a stage called REM sleep, the brain is very active and most vivid dreams happen. A full night includes several of these cycles.\n\nHealth groups say that school-age children generally need about nine to twelve hours of sleep each night, and teenagers need about eight to ten. Needs differ a little from person to person.\n\nNot enough sleep can make it hard to pay attention, learn, and control feelings. People who are tired may feel cranky and may catch more colds.\n\nGood sleep habits help. Go to bed and wake up at about the same time each day. Keep your room dark, cool and quiet. Turn off screens for a while before bed, because the light and exciting content can make it harder to fall asleep. If worries keep you awake, tell a trusted adult.',
+        anchors: [],
+      },
+      {
+        id: 'med-g35.l14', title: 'Growing Up and Puberty Basics', minutes: 7, asOf: '2026-10',
+        blurb: 'Between about 8 and 16, bodies change at their own pace, and that is normal.',
+        body:
+          'All living things grow and change, and humans do so for many years. Between roughly ages 8 and 14, most children begin puberty, the time when the body changes from a child\'s into an adult\'s. Puberty is controlled by hormones, which are chemical messengers made by glands. They travel in the blood and tell parts of the body what to do.\n\nSome changes happen to nearly everyone. You grow taller quickly, sometimes in sudden spurts. Body hair grows in new places, and sweat becomes stronger smelling, so washing daily and using deodorant can help. Skin may become oily, and pimples are common. Feelings can swing up and down more than before.\n\nOther changes are different for different bodies. In girls, breasts start to develop and menstruation, or a period, begins, usually around ages 10 to 15. In boys, the voice deepens, the shoulders broaden, and the testicles and penis grow. These changes are part of how the reproductive system prepares for adulthood.\n\nThe most important fact is that the timing varies. Some people start early and some start later, and both are normal. There is no right schedule, and comparing yourself with friends is not helpful.\n\nQuestions about puberty are good ones. A parent, caregiver, school nurse or doctor can give you accurate answers. Your body belongs to you, and you can always tell a trusted adult if anything makes you feel unsafe.',
+        anchors: [],
+      },
+      {
+        id: 'med-g35.l15', title: 'Mental Health and Coping', minutes: 7, asOf: '2026-10',
+        blurb: 'Feelings are normal, and there are healthy ways to cope and ways to get help.',
+        body:
+          'Mental health means how you think, feel and handle life. Just as you can have a cold in your body, your mind can have hard times too. Everyone has feelings such as joy, anger, fear and sadness. None of them is bad. Feelings give information, and what matters is what we do with them.\n\nHealthy ways to cope include naming the feeling out loud, taking slow deep breaths, going for a walk or playing, drawing or writing, listening to calming music, and talking to someone you trust. Breathing slowly works because it helps calm the body\'s alarm response. Getting enough sleep, eating regularly and being active also support a steady mood.\n\nSometimes feelings are too big or last too long. If you feel sad or worried for weeks, cannot enjoy things you used to, have trouble sleeping or eating, or feel you want to hurt yourself, that is a sign to tell a trusted adult right away. Doctors, school counselors and therapists are trained to help, and many problems such as anxiety and depression can be treated. Asking for help is a strength, not a weakness.\n\nYou can also help others. If a friend seems very sad, listen kindly and encourage them to talk to an adult. If a friend ever talks about hurting themselves, tell an adult immediately even if they ask you to keep it secret. In the United States, the 988 Suicide and Crisis Lifeline can be reached by calling or texting 988.',
+        anchors: [],
+      },
+    ],
+  },
+  questions: [
+    mcq('med-g35.l13', 1, 1, 'What happens in the body during deep sleep?',
+      ['Repair work takes place and growth hormone is released in children', 'The heart stops beating so that it can rest completely', 'The lungs fill with air and hold it until morning', 'The brain turns off all activity and stores nothing'], 0,
+      'Sleep is busy time.', 'Deep sleep supports repair and growth. The heart and brain keep working, and the brain also sorts memories.'),
+    mcq('med-g35.l13', 2, 1, 'About how much sleep do school-age children usually need each night?',
+      ['About nine to twelve hours', 'About three to four hours', 'About five to six hours', 'About thirteen to fifteen hours'], 0,
+      'More than adults.', 'Health groups suggest around nine to twelve hours for school-age children.'),
+    mcq('med-g35.l13', 3, 2, 'A student who stays up late often finds it hard to pay attention in class. What is the best explanation?',
+      ['Too little sleep makes attention, learning and mood harder to manage', 'Staying up late makes the brain grow too large for the skull', 'Late nights stop the stomach from digesting breakfast food', 'Sleep affects only the muscles and never the brain at all'], 0,
+      'Think brain and rest.', 'Lack of sleep affects attention and mood. Sleep matters for the brain, not just the muscles.'),
+    mcq('med-g35.l13', 4, 2, 'Which habit best helps a child fall asleep more easily?',
+      ['A regular bedtime in a dark, quiet room with screens off', 'A big sugary snack followed by a bright video game', 'A different bedtime every night to stay surprising', 'Lying in a bright room with the television turned on'], 0,
+      'Calm and regular.', 'Routine and a calm, dark room help sleep. Bright light and exciting content make it harder.'),
+    mcq('med-g35.l14', 1, 1, 'In the study of the body, what are hormones?',
+      ['Chemical messengers carried in the blood that tell the body what to do', 'Tiny bones in the ear that pass vibrations to the inner ear', 'Strong juices in the stomach that break food into small bits', 'Thin tubes where oxygen passes out of the blood into cells'], 0,
+      'They travel in the blood.', 'Hormones are made by glands and signal other parts of the body. They drive puberty.'),
+    mcq('med-g35.l14', 2, 1, 'Which of these is a normal change during puberty for most people?',
+      ['Growing taller in spurts and developing stronger body odor', 'Losing all body hair and becoming shorter overnight', 'Having bones that stop growing for several years', 'Having a heartbeat that stops at night during sleep'], 0,
+      'Think growth and sweat.', 'Growth spurts and stronger sweat odor are common. Washing daily helps with the odor.'),
+    mcq('med-g35.l14', 3, 2, 'One child starts puberty at 9 and a friend has not started at 13. What is the best way to see this?',
+      ['The timing varies from person to person, and both are normal', 'The friend who started first is healthier than the other', 'The friend who has not started must see a doctor right now', 'Both of them should hurry or slow down to match each other'], 0,
+      'There is a wide normal range.', 'Normal timing covers a wide range. A doctor can answer worries, but a later start is often normal too.'),
+    mcq('med-g35.l14', 4, 2, 'A child has questions about changes in their body. What is the best thing to do?',
+      ['Ask a parent, caregiver, school nurse or doctor for accurate answers', 'Search for answers on random websites and believe the first one', 'Keep the questions secret because they are not allowed', 'Wait until the changes stop, then guess at the reasons'], 0,
+      'Trusted sources.', 'Trusted adults and health professionals give accurate information. Random sources can be wrong or unsafe.'),
+    mcq('med-g35.l15', 1, 1, 'Which of these is a healthy way to cope with a big feeling?',
+      ['Taking slow deep breaths and talking to someone you trust', 'Keeping it hidden and acting as if nothing is wrong', 'Yelling at others until the feeling goes away for good', 'Skipping meals and sleep so you have no time to think'], 0,
+      'Calm the body and share.', 'Slow breathing calms the body\'s alarm response, and talking helps. Hiding feelings and skipping sleep usually make things worse.'),
+    mcq('med-g35.l15', 2, 1, 'What should you do if a friend says they want to hurt themselves?',
+      ['Tell a trusted adult right away, even if asked to keep it secret', 'Promise to keep it secret and tell nobody else about it', 'Wait a few weeks to see whether they feel better alone', 'Tell the other children so everyone can talk about it'], 0,
+      'Safety comes before secrets.', 'This is a time to tell an adult at once. Keeping that kind of secret can leave a friend in danger.'),
+    mcq('med-g35.l15', 3, 2, 'A child has felt very sad for several weeks and no longer enjoys favorite games. What does this suggest?',
+      ['It is a sign to tell a trusted adult, since help is available', 'It is only a weakness that the child must hide from everyone', 'It is a normal mood that never needs anyone\'s attention', 'It is caused by too much exercise and too much food'], 0,
+      'Long-lasting feelings matter.', 'Weeks of sadness and loss of interest are signs that help could be useful. Many such problems are treatable.'),
+    mcq('med-g35.l15', 4, 2, 'Which statement about asking for help with mental health is accurate?',
+      ['It is a sign of strength, and counselors and doctors can treat many problems', 'It is a sign of weakness, and most problems cannot be treated', 'It is only useful for adults, since children never have such feelings', 'It is only needed when a person has a fever or a physical injury'], 0,
+      'Mind health is health.', 'Asking for help is wise, and treatments exist for many conditions such as anxiety. Children can and do need this help too.'),
+  ],
+};

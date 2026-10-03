@@ -1,0 +1,1676 @@
+{
+ "courseId": "world-mythology",
+ "verifier": "B",
+ "note": "Fetched ~10 Wikipedia pages; remaining claims checked from knowledge only and marked with empty sources. Answers are from knowledge.",
+ "fetched": 17,
+ "questions": [
+  {
+   "id": "world-mythology.l01.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l01.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l02.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l02.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l02.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l03.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l03.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l03.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l03.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l04.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l04.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l04.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l04.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l05.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l05.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l05.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l05.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l06.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l06.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l07.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l07.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l07.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l07.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l08.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l08.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l08.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l08.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l09.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l09.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l09.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l09.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l10.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l10.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l10.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l11.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l11.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l12.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l12.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l12.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l13.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l13.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l13.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l14.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l14.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l14.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l15.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l15.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l15.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l16.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l16.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l16.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l17.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l17.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l17.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l17.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l17.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l18.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l18.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l18.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l19.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l19.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l19.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l19.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l20.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l20.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l20.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l21.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l21.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l21.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l21.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l21.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l22.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l22.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l22.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l22.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l22.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l23.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l23.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l23.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l23.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l23.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l24.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l24.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l24.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l24.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l24.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l25.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l25.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l25.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l25.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l25.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l26.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l26.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l26.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l26.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l26.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l27.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l27.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l27.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l27.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l27.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l28.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l28.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l28.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l28.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l28.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l29.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l29.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l29.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l29.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l29.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l30.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l30.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l30.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l30.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l30.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l31.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l31.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l31.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l31.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l31.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l32.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l32.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l32.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l32.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "world-mythology.l32.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "world-mythology.l10",
+   "claim": "Iliad covers a few weeks of the Trojan War centered on Achilles' anger",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l10",
+   "claim": "Homeric epics composed c. 8th century BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l10",
+   "claim": "Euripides and Ovid tell Medea differently",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l11",
+   "claim": "Traditional founding date of Rome 753 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l11",
+   "claim": "Virgil died 19 BCE leaving the Aeneid unfinished",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l11",
+   "claim": "Jupiter/Zeus, Juno/Hera, Mars/Ares, Venus/Aphrodite, Minerva/Athena equivalences",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l12",
+   "claim": "Codex Regius written in about the 1270s",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Codex_Regius"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "world-mythology.l12",
+   "claim": "Prose Edda c. 1220 by Snorri as a poets' handbook",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l12",
+   "claim": "Iceland converted around 1000, about two centuries before the texts",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l13",
+   "claim": "Four Branches of the Mabinogi survive in 13th-14th century manuscripts",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l13",
+   "claim": "Lebor Gabala Erenn is the Book of Invasions; Tain Bo Cuailnge centers on Cu Chulainn",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l13",
+   "claim": "Irish tales gathered in manuscripts from roughly the 12th century",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l14",
+   "claim": "Rus' Primary Chronicle (early 12th c.) reports Vladimir's idols incl. Perun in Kiev",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l14",
+   "claim": "Conversion of Rus' traditionally dated 988",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l14",
+   "claim": "Baba Yaga tales collected by Afanasyev in the 19th century",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l15",
+   "claim": "Rig Veda: more than a thousand hymns, composed in 2nd millennium BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l15",
+   "claim": "Bhagavad Gita is a dialogue of Arjuna and Krishna within the Mahabharata",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l15",
+   "claim": "Ramayana attributed to Valmiki; Sita abducted by Ravana",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l16",
+   "claim": "Pali Jataka collection counts 547 tales",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Jataka_tales"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "world-mythology.l16",
+   "claim": "Jataka scenes at Bharhut and Sanchi stupas",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Jataka_tales"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "world-mythology.l16",
+   "claim": "Hare story: king of gods (Sakka) marks hare on the moon",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l17",
+   "claim": "Pangu first recorded c. 3rd century CE (Xu Zheng, Three Kingdoms)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Pangu"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "world-mythology.l17",
+   "claim": "Journey to the West published in 16th century, attributed to Wu Cheng'en",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l17",
+   "claim": "Xuanzang traveled to India in the 7th century",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l18",
+   "claim": "Kojiki completed 712 CE",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Kojiki"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "world-mythology.l18",
+   "claim": "Nihon Shoki completed 720 CE, in Classical Chinese",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Kojiki"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "world-mythology.l18",
+   "claim": "Jimmu as first emperor; Amaterasu cave episode",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l19",
+   "claim": "Samguk Yusa compiled in the 13th century by Iryeon",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Samguk_yusa"
+   ],
+   "note": "Article gives c. 1280."
+  },
+  {
+   "lessonId": "world-mythology.l19",
+   "claim": "Samguk Sagi completed 1145 by Kim Busik",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l19",
+   "claim": "Traditional date 2333 BCE for Gojoseon is from later tradition, not archaeology",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l20",
+   "claim": "Ranginui, Papatuanuku and Tane separating them",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l20",
+   "claim": "Te Ika a Maui is the North Island",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l20",
+   "claim": "George Grey published Maori traditions in the 1850s",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l21",
+   "claim": "Jukurrpa (Warlpiri) and Tjukurpa (Pitjantjatjara) are terms for Dreaming",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l21",
+   "claim": "Songlines record ancestral journeys",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l21",
+   "claim": "Restricted knowledge should not be sought or retold by outsiders",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l22",
+   "claim": "Ife as the Yoruba place of creation; Obatala shaped humans",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l22",
+   "claim": "Santeria/Lucumi in Cuba and Candomble in Brazil derive from Yoruba religion",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l22",
+   "claim": "Akan Ananse wins sky god Nyame's stories by completing tasks",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l23",
+   "claim": "Griaule published Conversations with Ogotemmeli in 1948",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ogotemmeli"
+   ],
+   "note": "Originally published 1948 as Dieu d'Eau; confirms year only."
+  },
+  {
+   "lessonId": "world-mythology.l23",
+   "claim": "Van Beek reported Dogon did not recognize Griaule's system",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Fetched Wikipedia page did not cover van Beek; widely reported in his 1991 Current Anthropology article, but I did not open it."
+  },
+  {
+   "lessonId": "world-mythology.l23",
+   "claim": "Most scholars reject the Dogon Sirius claims",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l24",
+   "claim": "Surviving Popol Vuh copy by Dominican friar Francisco Ximenez in early 1700s",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Popol_Vuh"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "world-mythology.l24",
+   "claim": "Humans made from maize after mud and wood attempts",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Popol_Vuh"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "world-mythology.l24",
+   "claim": "Original 16th-century manuscript lost; text in K'iche' with Latin alphabet",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l25",
+   "claim": "Coyolxauhqui stone disk found at Templo Mayor in 1978",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Coyolxauhqui"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "world-mythology.l25",
+   "claim": "Florentine Codex compiled by Sahagun with Nahua informants",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l25",
+   "claim": "Present age is the Fifth Sun; Cortes-as-god doubted",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l26",
+   "claim": "Inca used quipu; no alphabetic writing",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l26",
+   "claim": "Garcilaso's Royal Commentaries published 1609",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l26",
+   "claim": "Huarochiri Manuscript Quechua text c. 1608",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l27",
+   "claim": "More than 500 federally recognized tribes in the U.S.",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l27",
+   "claim": "Haudenosaunee Sky Woman and Turtle Island",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l27",
+   "claim": "White Buffalo Calf Woman in Lakota tradition",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l28",
+   "claim": "Shahnameh completed c. 1010 CE by Ferdowsi, about 50,000 couplets",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Shahnameh"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "world-mythology.l28",
+   "claim": "Rostam unknowingly kills Sohrab",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Shahnameh"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "world-mythology.l28",
+   "claim": "Aladdin and Ali Baba added via Galland's early-18th-century translation",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l29",
+   "claim": "Quranic names: Yusuf, Nuh, Ibrahim, Musa, Isa, Maryam",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l29",
+   "claim": "Quran does not name Adam's wife",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l29",
+   "claim": "Quran tells Yusuf's story in one continuous chapter (Surah 12)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l30",
+   "claim": "Atrahasis is Old Babylonian, early 2nd millennium BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l30",
+   "claim": "Deucalion and Pyrrha survive Zeus's flood",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l30",
+   "claim": "Shatapatha Brahmana: Manu warned by a fish",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l31",
+   "claim": "Homeric Hymn to Hermes: Hermes steals Apollo's cattle",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l31",
+   "claim": "Loki takes part in Ragnarok on the side of the gods' enemies",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l31",
+   "claim": "Eshu is an orisha of crossroads and messenger",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l32",
+   "claim": "Hero with a Thousand Faces published 1949",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l32",
+   "claim": "Otto Rank 1909 and Lord Raglan 1936 hero patterns",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l32",
+   "claim": "Vogler adapted Campbell for screenwriters; Moana 2016 had Pacific advisors",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l01",
+   "claim": "Pandora's jar is in Hesiod's Works and Days",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l01",
+   "claim": "Myth in scholarly usage does not imply falsehood",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l01",
+   "claim": "Poetic Edda and Rig Veda are standard attributed sources",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l02",
+   "claim": "Dumezil proposed a tripartite Indo-European ideology (priests, warriors, producers)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l02",
+   "claim": "Malinowski studied Trobriand Islanders and described myth as a social charter",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l02",
+   "claim": "Euhemerus argued gods were deified humans",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l03",
+   "claim": "Prose Edda written by Snorri Sturluson around 1220",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l03",
+   "claim": "Poetic Edda manuscript (Codex Regius) from about the 1270s",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Codex_Regius"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "world-mythology.l03",
+   "claim": "Iceland accepted Christianity around 1000",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l04",
+   "claim": "Aboriginal Australian restricted/initiated-only stories exist and should not be retold by outsiders",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l04",
+   "claim": "Kojiki records Amaterasu",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l04",
+   "claim": "Shinto, Yoruba, Maori traditions continue today",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l05",
+   "claim": "Enuma Elish is recorded in Akkadian on seven tablets",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Enûma_Eliš"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "world-mythology.l05",
+   "claim": "Title means 'When on high' from opening words",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Enûma_Eliš"
+   ],
+   "note": "Dating to later 2nd millennium BCE is debated; article favors Second Dynasty of Isin, consistent with lesson."
+  },
+  {
+   "lessonId": "world-mythology.l05",
+   "claim": "Humans made from blood of Kingu; Marduk given fifty names",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Enûma_Eliš"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "world-mythology.l06",
+   "claim": "Standard Version of twelve tablets credited to Sin-leqi-unninni",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l06",
+   "claim": "Much recovered from Ashurbanipal's library at Nineveh",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l06",
+   "claim": "Gilgamesh and Enkidu kill Humbaba in Cedar Forest; Utnapishtim flood",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l07",
+   "claim": "Pyramid Texts carved in royal pyramids c. 2400 BCE (end of Old Kingdom, Unas)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l07",
+   "claim": "Plutarch's On Isis and Osiris written around 100 CE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l07",
+   "claim": "Living king identified with Horus, dead king with Osiris",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l08",
+   "claim": "Shabaka Stone records Memphite theology: Ptah creates by thought and speech",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l08",
+   "claim": "Ennead derives from Greek for 'nine'; Nun primeval waters at Heliopolis",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l08",
+   "claim": "Ra passes through the Duat at night and faces Apep",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l09",
+   "claim": "Theogony means 'birth of gods'; Hesiod c. 700 BCE",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l09",
+   "claim": "Cronus overthrows Ouranos at Gaia's urging; Rhea saves Zeus",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  },
+  {
+   "lessonId": "world-mythology.l09",
+   "claim": "Near Eastern (Hittite/Babylonian) succession parallels are discussed by scholars",
+   "verdict": "supported",
+   "sources": [],
+   "note": "From knowledge; page not opened."
+  }
+ ]
+}

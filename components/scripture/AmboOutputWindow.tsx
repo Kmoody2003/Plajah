@@ -11,10 +11,11 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import {
-  outputIdFromUrl, stackForOutput, subscribeToStudio,
+  makeOutput, outputIdFromUrl, stackForOutput, subscribeToStudio,
   type AmboOutput, type OutputMessage,
 } from '../../services/ambo/outputRouter';
 import { LayerRenderer } from '../../services/ambo/layerRenderer';
+import { installRemoteAmboAnalyser } from '../../services/ambo/amboAudioEngine';
 import type { LiveStack } from '../../services/ambo/showModel';
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
@@ -31,6 +32,10 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
   const [clock, setClock] = useState('');
   const [isFullscreen, setIsFullscreen] = useState(false);
 
+  // Visualizers here react to the studio's mix: its spectrum arrives over a
+  // BroadcastChannel (this window has no access to the studio's AudioContext).
+  useEffect(() => installRemoteAmboAnalyser(), []);
+
   // Subscribe to the studio.
   useEffect(() => {
     if (!id) return;
@@ -46,8 +51,12 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
         return;
       }
       setConnected(true);
-      const mine = m.outputs?.find(o => o.id === id) ?? null;
-      if (mine) setOutput(mine);
+      // An id the studio doesn't list (renamed output, stale window) still gets
+      // program rather than a black screen that looks connected.
+      const mine = m.outputs?.find(o => o.id === id)
+        ?? m.outputs?.find(o => o.kind === 'PROGRAM')
+        ?? makeOutput('PROGRAM', 'Program', { id });
+      setOutput(prev => (prev && JSON.stringify(prev) === JSON.stringify(mine) ? prev : mine));
       if (m.stack) setStack(m.stack);
       if (m.timers) setTimers(m.timers);
     });
@@ -129,9 +138,9 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
   useEffect(() => {
     const r = rendererRef.current;
     if (!r || !output) return;
-    r.setOptions({ timers });
+    r.setOptions({ timers, outputMask: output.mask, outputTransform: output.transform });
     r.setStack(stackForOutput(stack, output));
-  }, [stack, output, timers]);
+  }, [stack, output, timers, renderWidth, renderHeight]);
 
   if (!id) {
     return (

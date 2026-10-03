@@ -49,14 +49,7 @@ const config: CapacitorConfig = {
   },
 
   server: {
-    // The native app is a thin shell that loads the LIVE deployed site, so every
-    // deploy to master reaches the app immediately with no APK rebuild (only
-    // native changes — plugins, config, icon — need a new APK). The Capacitor
-    // native bridge is still injected into this remote origin, so isNativePlatform()
-    // is true and the native plugins (Google sign-in, etc.) work. Requires network
-    // to launch (no offline shell). To go back to a self-contained bundled build,
-    // remove `url` and it loads from dist/ (webDir).
-    url: 'https://plajah.com',
+    // Bundled build loads directly from local assets in dist/ (webDir)
     cleartext: false,
     androidScheme: 'https',
     hostname: 'plajah.app',

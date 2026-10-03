@@ -19,7 +19,7 @@
 import { Router, Request, Response } from 'express';
 import { Readable } from 'stream';
 import { GoogleGenAI, type GenerateVideosOperation } from '@google/genai';
-import { verifyIdToken, adminConfig } from '../services/firebaseAdminRest';
+import { verifyIdToken, verifyIdTokenDetailed, adminConfig } from '../services/firebaseAdminRest';
 
 export const veoRouter = Router();
 
@@ -47,15 +47,16 @@ function client(): GoogleGenAI | null {
 
 // ── auth (same shape as routes/kithSightings.ts) ──────────────────────────────
 
-async function callerUid(req: Request): Promise<string | null> {
+async function callerAuth(req: Request) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return null;
-  return verifyIdToken(auth.slice(7));
+  return verifyIdTokenDetailed(auth.slice(7));
 }
 
 /**
  * Every route gates identically: server must be configured with both Firebase
  * admin credentials (to verify the caller) and a Google AI key (to do the work).
+ * Anonymous callers are prohibited from generating media or claiming tokens.
  */
 async function gate(req: Request, res: Response): Promise<GoogleGenAI | null> {
   if (!adminConfig.hasCredentials()) {
@@ -67,9 +68,13 @@ async function gate(req: Request, res: Response): Promise<GoogleGenAI | null> {
     res.status(503).json({ error: 'AI features are not configured on this server.' });
     return null;
   }
-  const uid = await callerUid(req);
-  if (!uid) {
+  const auth = await callerAuth(req);
+  if (!auth) {
     res.status(401).json({ error: 'Sign in required.' });
+    return null;
+  }
+  if (auth.isAnonymous) {
+    res.status(403).json({ error: 'Registered account required for Veo and Gemini generation.' });
     return null;
   }
   return ai;

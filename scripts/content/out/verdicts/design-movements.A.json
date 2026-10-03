@@ -1,0 +1,1242 @@
+{
+ "courseId": "design-movements",
+ "verifier": "A",
+ "note": "WebFetch of Wikipedia pages (secondary, not primary sources); some pages 404 or were disambiguations and are marked unverifiable.",
+ "fetched": 52,
+ "questions": [
+  {
+   "id": "design-movements.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l01.q2",
+   "answer": 2,
+   "confidence": "medium",
+   "sources": [],
+   "note": "Option 3 matches the critics' worries; others are weaker."
+  },
+  {
+   "id": "design-movements.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l01.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l01.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l02.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l02.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l03.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l03.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l03.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l03.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l04.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l04.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l04.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l05.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l05.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l05.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l05.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l06.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l06.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l07.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l07.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l07.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l08.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l08.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l08.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l08.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l09.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l09.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l09.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l09.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l10.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l10.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l10.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l11.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l11.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l12.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l12.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l12.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l12.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l13.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l13.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l13.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l13.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l13.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l14.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l14.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l14.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l15.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l15.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l15.q5",
+   "answer": 1,
+   "confidence": "medium",
+   "sources": [],
+   "ambiguous": true,
+   "note": "Term emerged mid-1950s per some sources but label only became standard c.1984; lesson says popular later, so False intended."
+  },
+  {
+   "id": "design-movements.l16.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l16.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l16.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l17.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l17.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l17.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l17.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l17.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l18.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l18.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l18.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l19.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l19.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l19.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l20.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l20.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l21.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l21.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l21.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l21.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l21.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l22.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l22.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l22.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l22.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "design-movements.l22.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "design-movements.l01",
+   "claim": "Crystal Palace, Great Exhibition 1851, designed by Joseph Paxton, iron and glass",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/The_Great_Exhibition"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l01",
+   "claim": "Owen Jones, The Grammar of Ornament (1856)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/The_Grammar_of_Ornament"
+   ],
+   "note": "Jones stressed idealising not copying nature."
+  },
+  {
+   "lessonId": "design-movements.l01",
+   "claim": "Thonet No. 14 chair of 1859; Ruskin Stones of Venice 1851-53",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Thonet page 404; Stones of Venice page was only a disambiguation."
+  },
+  {
+   "lessonId": "design-movements.l02",
+   "claim": "Red House 1859, Philip Webb, red brick",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Red_House,_Bexleyheath"
+   ],
+   "note": "Built 1859-60."
+  },
+  {
+   "lessonId": "design-movements.l02",
+   "claim": "Morris, Marshall, Faulkner & Co. 1861; Kelmscott Press 1891",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Morris_%26_Co.",
+    "https://en.wikipedia.org/wiki/Kelmscott_Press"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l02",
+   "claim": "Art Workers' Guild 1884, Arts and Crafts Exhibition Society 1887; Gamble House 1908-09",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Arts_and_Crafts_movement",
+    "https://en.wikipedia.org/wiki/Gamble_House_(Pasadena,_California)"
+   ],
+   "note": "Glasgow School of Art 1897-99 not verified."
+  },
+  {
+   "lessonId": "design-movements.l03",
+   "claim": "Hotel Tassel 1893, early Art Nouveau",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/H%C3%B4tel_Tassel"
+   ],
+   "note": "Built 1892-93."
+  },
+  {
+   "lessonId": "design-movements.l03",
+   "claim": "Bing's Maison de l'Art Nouveau 1895; Jugendstil from Jugend; Stile Liberty from Liberty & Co.",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Art_Nouveau"
+   ],
+   "note": "Jugend founding year 1896 not on page."
+  },
+  {
+   "lessonId": "design-movements.l03",
+   "claim": "Casa Batllo remodelled c.1904-06",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Casa_Batll%C3%B3"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l04",
+   "claim": "Vienna Secession 1897, Klimt first president, Olbrich building 1897-98",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Vienna_Secession"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l04",
+   "claim": "Wiener Werkstatte founded 1903 by Hoffmann and Moser with Waerndorfer; closed 1932",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Wiener_Werkst%C3%A4tte"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l04",
+   "claim": "Loos, Ornament and Crime, 'lecture and essay of 1908'",
+   "verdict": "contradicted",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ornament_and_Crime"
+   ],
+   "note": "Page says lecture was 1910, first published 1913; 1908 is a traditional but disputed date (retroactively altered in a 1931 reprint). Suggest 'c.1908-1910'."
+  },
+  {
+   "lessonId": "design-movements.l05",
+   "claim": "Werkbund founded in Munich 1907",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Deutscher_Werkbund"
+   ],
+   "note": "Founders listed: Olbrich, Behrens, Riemerschmid, Bruno Paul at Muthesius's instigation; Weissenhof 1927 confirmed."
+  },
+  {
+   "lessonId": "design-movements.l05",
+   "claim": "Behrens AEG consultant 1907; Turbine Factory 1909",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/AEG_Turbine_Factory"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l05",
+   "claim": "Fagus Factory 1911 by Gropius and Meyer, glass corner",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Fagus_Factory"
+   ],
+   "note": "Built 1911-13."
+  },
+  {
+   "lessonId": "design-movements.l06",
+   "claim": "Bauhaus founded 1919 in Weimar by Gropius; Itten Vorkurs; left Weimar 1925",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Bauhaus"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l06",
+   "claim": "Klee from 1921, Kandinsky from 1922",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked on a page."
+  },
+  {
+   "lessonId": "design-movements.l06",
+   "claim": "Wagenfeld/Jucker lamp c.1923-24; 1923 slogan",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked on a page."
+  },
+  {
+   "lessonId": "design-movements.l07",
+   "claim": "Dessau building opened 1926; Meyer 1928-30, Mies 1930-33; Dessau closed 1932",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Bauhaus"
+   ],
+   "note": "Exact Dec 1926 and 1933 dates not on page."
+  },
+  {
+   "lessonId": "design-movements.l07",
+   "claim": "Wassily chair by Breuer c.1925-26",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Wassily_Chair"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l07",
+   "claim": "Bauhaus lasted about fourteen years",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Bauhaus"
+   ],
+   "note": "1919-1933."
+  },
+  {
+   "lessonId": "design-movements.l08",
+   "claim": "Point and Line to Plane published 1926",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "design-movements.l08",
+   "claim": "New Bauhaus Chicago 1937; Ulm School 1953",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "design-movements.l08",
+   "claim": "Bauhaus emigres influenced US design education",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Bauhaus"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l09",
+   "claim": "Schroder House 1924 with sliding walls",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rietveld_Schr%C3%B6der_House"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l09",
+   "claim": "Red and Blue Chair designed c.1917-18, painted later",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Red_and_Blue_Chair"
+   ],
+   "note": "Page: designed 1917, colour c.1923."
+  },
+  {
+   "lessonId": "design-movements.l09",
+   "claim": "Tatlin's Monument to the Third International 1919-20, never built",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Tatlin%27s_Tower"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l10",
+   "claim": "Name from 1925 Paris Exposition internationale des arts decoratifs et industriels modernes",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Art_Deco"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l10",
+   "claim": "Hillier's 1968 book popularised the term",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Art Deco page says term first in print 1966 (exhibition title); Hillier 1968 not confirmed on an opened page."
+  },
+  {
+   "lessonId": "design-movements.l10",
+   "claim": "Influences: Cubism, Ballets Russes, Egyptian motifs",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Art_Deco"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l11",
+   "claim": "Chrysler Building 1930, Van Alen, stainless steel spire, tallest until Empire State",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Chrysler_Building"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l11",
+   "claim": "Normandie entered service 1935",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/SS_Normandie"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l11",
+   "claim": "Napier rebuilt in Deco after 1931 earthquake",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Napier,_New_Zealand"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l12",
+   "claim": "Douglas DC-3 first flown 1935",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Douglas_DC-3"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l12",
+   "claim": "Bel Geddes Futurama for GM at 1939 World's Fair",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Futurama_(New_York_World%27s_Fair)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l12",
+   "claim": "Chrysler Airflow 1934",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "design-movements.l13",
+   "claim": "1932 MoMA show by Hitchcock and Johnson with Barr; three principles",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/International_Style_(architecture)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l13",
+   "claim": "Villa Savoye 1928-31; Seagram 1958",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/International_Style_(architecture)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l13",
+   "claim": "Pruitt-Igoe demolition began 1972; Jencks quote",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Pruitt%E2%80%93Igoe"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l14",
+   "claim": "Helvetica by Miedinger 1957 as Neue Haas Grotesk, renamed 1960; Univers by Frutiger",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Helvetica"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l14",
+   "claim": "Muller-Brockmann Tonhalle posters; Neue Grafik 1958",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Josef_M%C3%BCller-Brockmann"
+   ],
+   "note": "Tonhalle series began 1950 per page; specific 1955 poster and Grid Systems 1981 not stated."
+  },
+  {
+   "lessonId": "design-movements.l14",
+   "claim": "Weingart in Basel loosened the grid",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "design-movements.l15",
+   "claim": "Eames Lounge Chair 1956 for Herman Miller",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Eames_Lounge_Chair"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l15",
+   "claim": "Case Study House program 1945; Eames House 1949",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Case_Study_Houses"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l15",
+   "claim": "Cara Greenberg 1984 Mid-Century Modern book",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mid-century_modern"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l16",
+   "claim": "Artek founded 1935 by Aalto",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Artek"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l16",
+   "claim": "IKEA founded 1943 by Ingvar Kamprad",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/IKEA"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l16",
+   "claim": "Design in Scandinavia tour 1954-57; Marimekko 1951",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page 404."
+  },
+  {
+   "lessonId": "design-movements.l17",
+   "claim": "Beton brut, Unite d'Habitation 1952; Banham 1955; Hunstanton 1954",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Brutalist_architecture"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l17",
+   "claim": "Barbican by Chamberlin, Powell and Bon, completed 1982",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Barbican_Estate"
+   ],
+   "note": "Page gives estate construction 1965-76; arts centre opened 1982, so 'completed in 1982' is loose."
+  },
+  {
+   "lessonId": "design-movements.l17",
+   "claim": "National Theatre 1976; Trellick Tower 1972",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "design-movements.l18",
+   "claim": "Venturi, Complexity and Contradiction 1966, 'less is a bore'",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Complexity_and_Contradiction_in_Architecture"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l18",
+   "claim": "Memphis: Dec 1980 meeting, Sept 1981 launch, Dylan song, Carlton 1981",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Memphis_Group"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l18",
+   "claim": "AT&T Building 1984 broken pediment; Graves 9093 kettle 1985",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "AT&T page was a disambiguation."
+  },
+  {
+   "lessonId": "design-movements.l19",
+   "claim": "Mingei coined mid-1920s by Yanagi, Hamada, Kawai; Folk Crafts Museum 1936",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mingei"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l19",
+   "claim": "Nakagin Capsule Tower 1972, dismantled 2022",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Nakagin_Capsule_Tower"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l19",
+   "claim": "Butterfly stool 1954; Yoyogi 1964; Muji 1980",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not checked."
+  },
+  {
+   "lessonId": "design-movements.l20",
+   "claim": "Mark Dery coined Afrofuturism in 1993 essay Black to the Future",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Afrofuturism"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l20",
+   "claim": "Carter (costume) and Beachler (production design) won Oscars for Black Panther",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Confirmed from WebSearch result snippets (CNBC, Stylist); no page opened."
+  },
+  {
+   "lessonId": "design-movements.l20",
+   "claim": "Pritzker: Barragan 1980, Doshi 2018, Kere 2022",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Pritzker_Architecture_Prize"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l21",
+   "claim": "Cradle to Cradle 2002 by McDonough and Braungart",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Cradle_to_Cradle:_Remaking_the_Way_We_Make_Things"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l21",
+   "claim": "Mjostarnet 2019, tallest timber building for a time",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Mj%C3%B8st%C3%A5rnet"
+   ],
+   "note": "Completed March 2019; surpassed by Ascent MKE in Aug 2022; lesson wording accurate."
+  },
+  {
+   "lessonId": "design-movements.l21",
+   "claim": "Passivhaus from Germany in the 1990s; Rams 606 system 1960",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Passive_house",
+    "https://en.wikipedia.org/wiki/Dieter_Rams"
+   ],
+   "note": "Passivhaus origin 1988, first houses 1990-91, institute 1996; 'from the 1990s' slightly late. Papanek page 404."
+  },
+  {
+   "lessonId": "design-movements.l22",
+   "claim": "Postmodernism brought ornament back after International Style / Loos rejected ornament",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Interpretive synthesis."
+  },
+  {
+   "lessonId": "design-movements.l22",
+   "claim": "International Style = glass boxes on steel frames",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/International_Style_(architecture)"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "design-movements.l22",
+   "claim": "Memphis = clashing colours and pattern",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Memphis_Group"
+   ],
+   "note": ""
+  }
+ ]
+}

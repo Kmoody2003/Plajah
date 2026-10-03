@@ -84,7 +84,12 @@ const Bar: React.FC<{ value: number; color: string }> = ({ value, color }) => (
 type Tab = 'grade' | 'plan' | 'planner' | 'checks' | 'assess' | 'reports' | 'connect' | 'context' | 'library' | 'worksheet' | 'templates' | 'integrity';
 
 const TeacherToolsView: React.FC<{ onBack?: () => void; user?: any }> = ({ onBack, user }) => {
-  const [tab, setTab] = useState<Tab>('plan');
+  // Hubs deep-link into a tab through sessionStorage (read once, then cleared) so "Build a lesson"
+  // lands on Assignment Templates instead of whichever tab happens to be the default.
+  const [tab, setTab] = useState<Tab>(() => {
+    try { const t = sessionStorage.getItem('plajah:teacherTab') as Tab | null; sessionStorage.removeItem('plajah:teacherTab'); if (t) return t; } catch { /* */ }
+    return 'plan';
+  });
   const [subject, setSubject] = useState<Subject>('ELA');
   const [band, setBand] = useState<BandId>('g34');
   const [plans, setPlans] = useState<LessonPlan[]>([]);

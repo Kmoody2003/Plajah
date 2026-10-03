@@ -1,0 +1,1448 @@
+{
+ "courseId": "law-intl-public",
+ "label": "Public International Law",
+ "lessons": [
+  {
+   "id": "law-intl-public.l01",
+   "title": "What International Law Is and Who It Binds",
+   "body": [
+    "Public international law is the body of rules that governs the relations of states with one another and with other international actors. It differs from the domestic law you may be used to in its structure. There is no world legislature that enacts statutes binding everyone, no police force with general authority, and no court with compulsory jurisdiction over every dispute. Instead the system is horizontal: the main lawmakers are the very states that are bound by the rules, and they make law mostly by agreeing to treaties and by their consistent behaviour over time. A sceptic might conclude that this is not really law. The usual reply is that law is identified by the existence of rules that actors treat as binding, that they justify their conduct by reference to, and that they accept criticism under. States nearly always argue that their conduct is lawful rather than denying that law applies, which is itself evidence that the rules matter.",
+    "Public international law should be kept distinct from private international law, also called conflict of laws. Private international law decides which national court hears a dispute between private parties, and which country's law applies to it, for example a contract between a French buyer and a Brazilian seller. Public international law concerns the rights and duties of international actors themselves.",
+    "The classic subjects of international law are states. A subject of international law is an entity capable of holding rights and duties directly under that law. The cornerstone principle is sovereign equality, set out in Article 2(1) of the Charter of the United Nations 1945: states are juridically equal regardless of size, wealth or power. Equality does not mean equal influence, only equal legal status; Luxembourg and the United States both have one vote in the General Assembly and are equally bound by the prohibition on the use of force.",
+    "States are no longer the only subjects. In the Reparation for Injuries advisory opinion (ICJ, 1949), arising after a UN mediator was killed in Palestine, the International Court of Justice held that the United Nations possesses international legal personality, meaning it can bring claims, and that this personality is objective rather than dependent on recognition by each state. The court added that subjects need not be identical in nature or in rights: a state has the full range of sovereign powers, while an international organisation has only the powers its founders gave it, expressly or by necessary implication. Other actors hold narrower legal status. Individuals hold rights under human rights treaties and bear direct criminal responsibility for core crimes such as genocide, though their access to international forums is limited. Companies and non-governmental organisations are generally not full subjects, though they may hold specific treaty rights, for example investor rights in investment treaties.",
+    "One mechanism to keep in mind throughout the course is consent. Because no sovereign stands above states, a state is bound only by rules it has accepted, by treaty or by custom, with the important exceptions of peremptory norms and the Charter. A worked example: State A has not ratified a treaty banning a particular weapon. As a general matter the treaty does not bind A. But if the ban has also hardened into customary law, A may be bound by the custom anyway, and the lesson on sources will explain how. A common trap is to say a treaty binds \"the international community\". A treaty binds its parties, nothing more, unless a rule it records also exists in custom."
+   ]
+  },
+  {
+   "id": "law-intl-public.l02",
+   "title": "Sources of International Law: Article 38 of the ICJ Statute",
+   "body": [
+    "Where do rules of international law come from? The standard answer is Article 38(1) of the Statute of the International Court of Justice, which directs the Court to apply four things in deciding disputes. First, international conventions, meaning treaties, establishing rules expressly recognised by the contesting states. Second, international custom, as evidence of a general practice accepted as law. Third, the general principles of law recognised by civilised nations (the archaic wording is still the formal text). Fourth, as subsidiary means for determining rules of law, judicial decisions and the teachings of the most highly qualified publicists of the various nations. Article 38 is written as an instruction to the Court, not as a constitution of the system, but it is universally treated as the authoritative list of formal sources. Article 38(2) adds that the Court may decide a case ex aequo et bono, according to what is fair and good, only if the parties agree.",
+    "Treaties bind the parties to them and are the dominant source in practice, from the UN Charter to trade, human rights, arms control and environmental agreements. Custom arises from two elements, state practice and opinio juris, discussed in the next lesson. General principles fill gaps and draw on principles common to the major legal systems of the world, for example good faith, the rule that a party may not benefit from its own wrong, res judicata (a final decision settles a matter between the same parties), and the principle that parties are heard before being judged. In the Temple of Preah Vihear case (Cambodia v. Thailand, ICJ, 1962), the Court relied on acquiescence and estoppel, doctrines of fairness and consistency, to hold that Thailand had accepted a map placing the temple in Cambodia.",
+    "Judicial decisions and scholarship are not sources that create law. They are evidence of what the law is. Even ICJ judgments are not binding precedent in the common-law sense: Article 59 of the Statute provides that a decision has no binding force except between the parties and in respect of that particular case. In practice the Court cites its own earlier decisions heavily for consistency.",
+    "Is there a hierarchy among sources? Article 38 lists them in order but does not say that treaties outrank custom. The general rules of thumb are that a later rule prevails over an earlier one (lex posterior), a specific rule over a general one (lex specialis), and that parties may by treaty depart from customary rules between themselves unless the custom is peremptory. Two true hierarchical devices exist. Article 103 of the UN Charter provides that obligations under the Charter prevail over a member's obligations under any other international agreement, and peremptory norms (jus cogens), covered later, cannot be set aside by agreement.",
+    "Material outside Article 38 matters too. Resolutions of the UN General Assembly are generally recommendations, not binding law, though they may be evidence of opinio juris when adopted with consistent support. The Universal Declaration of Human Rights 1948 began as such a non-binding resolution, and some of its content is now widely regarded as customary. \"Soft law\" is a term for non-binding instruments that nevertheless influence conduct.",
+    "A worked example: State X and State Y dispute fishing rights. They have no treaty on the topic. A court would ask whether a customary rule exists, then whether a general principle such as good faith or equity applies, and would look to prior decisions as evidence. The trap is to treat General Assembly resolutions as binding statutes of a world parliament."
+   ]
+  },
+  {
+   "id": "law-intl-public.l03",
+   "title": "Customary International Law: Practice, Opinio Juris and Peremptory Norms",
+   "body": [
+    "Customary international law is unwritten law formed by what states do and why they do it. Article 38(1)(b) of the ICJ Statute describes it as evidence of a general practice accepted as law, which gives the two elements. The objective element is state practice: actions and statements by states, including legislation, diplomatic correspondence, official military manuals, voting and statements in international organisations, and the practice of courts and executives. The subjective element is opinio juris sive necessitatis, the belief that the conduct is legally required or permitted rather than merely courteous, convenient or politically wise.",
+    "The leading case is North Sea Continental Shelf (Germany/Denmark; Germany/Netherlands, ICJ, 1969). Denmark and the Netherlands argued that Germany was bound by the equidistance method of delimiting the continental shelf, found in Article 6 of the 1958 Geneva Convention on the Continental Shelf. Germany had signed but not ratified that convention. The Court held that Germany was not bound by the treaty and that the equidistance rule had not become customary. For a treaty provision to generate custom, the Court said, it should be of a norm-creating character, and practice must be extensive, virtually uniform, and include states whose interests are specially affected, accompanied by a sense of legal obligation. The Court said time alone is not decisive, so a short period does not prevent custom from forming. The opposite error is to treat habit as custom. If states do something merely out of courtesy, such as certain ceremonial salutes, opinio juris is missing and no rule arises.",
+    "Custom binds even states that never expressly agreed, which is why it matters so much. Two limits apply. First, a state that persistently and openly objects to a developing rule from the start may not be bound by it, the persistent objector rule. The Fisheries Case (United Kingdom v. Norway, ICJ, 1951) is often cited in this connection: the Court observed that Norway's method of drawing baselines had been consistently applied and the United Kingdom had not objected for decades, so the rule was not opposable to Norway. The objection must be consistent and made before the rule crystallises; a late protest does not work. Second, objection is ineffective against peremptory norms. Newly independent states, by contrast, generally take the existing body of custom as they find it.",
+    "Some customary rules have a special status as peremptory norms or jus cogens. Article 53 of the Vienna Convention on the Law of Treaties 1969 defines a peremptory norm as one accepted and recognised by the international community of States as a whole as a norm from which no derogation is permitted and which can be modified only by a later norm of the same character. A treaty conflicting with such a norm is void. The list is not formally fixed, but the prohibitions of genocide, slavery, torture, aggression and the core of the law of armed conflict are widely accepted examples. Closely related is the concept of obligations erga omnes, owed to the international community as a whole, so that all states have a legal interest in their observance; the ICJ referred to them in Barcelona Traction (Belgium v. Spain, 1970).",
+    "Worked example: State M has for decades carried out and publicly defended a particular practice of stopping vessels near its coast. Nearly all other states do the same and say it is their legal right. A court sees both elements and finds a custom. State N, which did the opposite and protested each time, may claim persistent-objector status; State M's practice would not bind N, unless the rule is peremptory."
+   ]
+  },
+  {
+   "id": "law-intl-public.l04",
+   "title": "Statehood, Recognition and Self-Determination",
+   "body": [
+    "States are the primary subjects of international law, so the question of what counts as a state matters. The most widely cited test is Article 1 of the Montevideo Convention on the Rights and Duties of States 1933, which says a state as a person of international law should possess a permanent population, a defined territory, a government, and the capacity to enter into relations with other states. Despite being a regional treaty, these criteria are treated as reflecting custom. The criteria are applied flexibly. Territory does not need precisely settled borders: Albania was admitted to the League of Nations with undetermined borders, and Israel was admitted to the UN while its borders were disputed. A government need not be democratic or even stable; the question is whether there is an effective authority, and the collapse of government in Somalia did not end its statehood. Capacity to enter relations is often read as independence: legal separateness from any other state's authority. Where a state is created by illegal force or by violating a peremptory norm, the international community may refuse to treat it as a state however effective it is. The examples usually given are Southern Rhodesia's 1965 declaration and the Turkish Republic of Northern Cyprus, recognised only by Turkey.",
+    "Recognition is the act by which a state acknowledges that another entity is a state. Two theories compete. Under the declaratory theory, which reflects the dominant view and Article 3 of the Montevideo Convention, statehood exists as a fact once the criteria are met, and recognition merely acknowledges it. Under the constitutive theory, an entity becomes a state only through recognition by others. The constitutive theory has a practical problem: if recognition decides statehood, an entity could be a state for some countries and not for others. In practice recognition has political and legal effects: it opens diplomatic relations, supports access to courts and treaty relations, and collective non-recognition can be strong evidence that something is not lawful. Recognition of a state differs from recognition of a government. A change of government, even by coup, does not end the state's identity or its treaty obligations; the question for governments is usually effective control, though many states now decide on relations in a more case-by-case way.",
+    "Self-determination is a principle found in Article 1(2) of the UN Charter, in the 1966 human rights covenants, and described by the ICJ as having an erga omnes character in the East Timor case (Portugal v. Australia, 1995). In the Western Sahara advisory opinion (1975), the Court held that the principle required free and genuine expression of the will of the peoples concerned. The classic holders are peoples under colonial or alien domination. Outside that context, there is no general right to secede from an existing state under international law. In the Kosovo advisory opinion of 2010, the ICJ concluded that the declaration of independence did not violate general international law, because international law contains no prohibition on declarations of independence as such. It did not decide whether Kosovo had a right to statehood or whether it had become a state, and it carefully avoided deciding whether there is a right of remedial secession.",
+    "Worked example: A territory with 500,000 residents, a functioning government and clear borders declares independence from a parent state against its wishes. Under Montevideo the criteria may be met, but whether the entity is generally treated as a state depends on recognition practice, UN admission (which needs a Security Council recommendation and a General Assembly vote under Article 4 of the Charter) and the legality of how it came about."
+   ]
+  },
+  {
+   "id": "law-intl-public.l05",
+   "title": "Sovereignty, Territory and Jurisdiction",
+   "body": [
+    "Sovereignty, in the formulation of the arbitrator Max Huber in the Island of Palmas case (Netherlands v. United States, Permanent Court of Arbitration, 1928), means independence in regard to a portion of the globe, the right to exercise there, to the exclusion of any other state, the functions of a state. The same decision held that sovereignty over territory rests on the continuous and peaceful display of state authority, and that a vague claim based on early discovery is weaker than effective administration. Sovereignty carries duties as well as rights, including the duty to protect on its territory the rights of other states.",
+    "Jurisdiction is the lawful authority of a state to make, apply and enforce rules. It comes in three forms: prescriptive jurisdiction (making rules), adjudicative jurisdiction (courts hearing cases) and enforcement jurisdiction (carrying out the law, for example arrests and seizures). The key difference is that enforcement jurisdiction is strictly territorial: a state may not send officers to arrest someone on another state's territory without that state's consent, since that violates its sovereignty. Prescriptive jurisdiction is wider.",
+    "International law recognises several bases for prescribing law. The territorial principle is the most basic: a state may regulate conduct occurring within its territory. Objective territoriality extends to conduct abroad that has its effects within the territory, for example a shot fired across a border. The nationality principle (active personality) allows a state to regulate its own nationals wherever they are, and many states prosecute their citizens for serious crimes committed abroad. The passive personality principle, which supports jurisdiction because the victim is a national, is more controversial but has gained acceptance for terrorism and some serious crimes. The protective principle allows a state to punish conduct abroad that threatens its security or essential functions, for example forging its currency or passports. The universality principle allows any state to prosecute certain crimes regardless of where they took place or who is involved. It applies to piracy and, by treaty and custom, to genocide, war crimes and crimes against humanity; some states claim it for torture.",
+    "The Lotus case (France v. Turkey, Permanent Court of International Justice, 1927) arose from a collision on the high seas between the French steamer Lotus and the Turkish collier Boz-Kourt, in which Turkish sailors died. Turkey prosecuted the French officer on watch when the Lotus reached Constantinople. The Court held that Turkey had not violated international law, reasoning that restrictions on states' independence cannot be presumed and that a state may exercise jurisdiction over foreign conduct unless a prohibitive rule says otherwise. The case is famous for that permissive approach, though it has been criticised. Its specific result was reversed by treaty: Article 97 of the United Nations Convention on the Law of the Sea 1982 provides that in a collision at sea only the flag state or the state of nationality of the person concerned may bring penal proceedings.",
+    "When states overlap on jurisdiction, courts may moderate it through a reasonableness approach and international comity, which is courtesy and mutual respect rather than legal obligation. Where a state applies its laws to conduct abroad that has substantial effects at home, as many states do with competition law, other states often object, and the question is how far the \"effects\" connection reaches.",
+    "Worked example: A national of State P, working in State Q, assaults a national of State R. State Q may prosecute under territoriality, State P under nationality, and State R perhaps under passive personality. None of the three may arrest the offender while he is in another of these states without that state's consent."
+   ]
+  },
+  {
+   "id": "law-intl-public.l06",
+   "title": "Making Treaties: Consent, Ratification and Reservations",
+   "body": [
+    "The Vienna Convention on the Law of Treaties 1969 (VCLT), which entered into force in 1980, is the principal source of the law of treaties. It governs treaties between states. Many of its rules are also treated as customary international law, which is why even states that are not parties, such as the United States, which signed but never ratified it, generally accept most of its provisions as authoritative. Article 2(1)(a) defines a treaty as an international agreement concluded between states in written form and governed by international law, whether embodied in a single instrument or two or more related instruments and whatever its particular designation. The name does not matter: convention, covenant, protocol, charter and exchange of notes can all be treaties. What matters is the intention to create legal obligations under international law. A joint political declaration that says it is not legally binding is not a treaty, which is why leaders sometimes use that format to avoid binding commitments. Oral agreements can bind too, though the VCLT does not govern them.",
+    "Who may bind a state? Under Article 7, a person is considered to represent a state for adopting or authenticating a treaty text if that person produces appropriate full powers or if practice shows an intention to treat them as representing the state. Heads of state, heads of government and ministers for foreign affairs are regarded as representing their state for all acts relating to the conclusion of a treaty without needing to show full powers.",
+    "Consent to be bound can be expressed in several ways, listed in Articles 11 to 17: signature, exchange of instruments, ratification, acceptance, approval or accession. Typically, negotiators adopt and sign a text, and the state later ratifies it after domestic procedures, such as legislative approval. Signature alone, when ratification is required, does not usually bind the state to the treaty. Article 18, however, requires a signatory not to defeat the object and purpose of the treaty before it makes clear that it does not intend to become a party. A state that did not take part in negotiations joins later by accession. Treaties enter into force as the treaty provides, often after a set number of ratifications.",
+    "A reservation is a unilateral statement, however phrased, made by a state when signing or ratifying, by which it purports to exclude or modify the legal effect of certain provisions of the treaty in their application to it (Article 2(1)(d)). Reservations let states join while avoiding provisions they cannot accept. Article 19 prohibits a reservation if the treaty forbids it, if the treaty permits only specified reservations and this is not among them, or if it is incompatible with the object and purpose of the treaty. This reflects the Reservations to the Convention on Genocide advisory opinion (ICJ, 1951), where the Court rejected the traditional view that any objection from any party prevented the reserving state from becoming a party, and held that a state making or objecting to a reservation should be guided by compatibility with the object and purpose.",
+    "A reservation takes effect through acceptance and objection (Articles 20 and 21). If another party accepts the reservation, or does not object within twelve months, the reservation operates reciprocally between the two states. If a state objects, the treaty generally still enters into force between the two, except for the provisions affected, unless the objecting state clearly says otherwise. An interpretative declaration, which explains how a state reads a provision without excluding it, is different from a reservation, and courts look at substance rather than label.",
+    "Worked example: State A ratifies a human rights treaty with a reservation that excludes any provision inconsistent with its national religious law, a vague and sweeping statement. Several parties object, arguing that it defeats the object and purpose. Under Article 19(c), the reservation is likely invalid, and the debate then turns on whether A remains a party without the reservation, an issue on which practice and views differ."
+   ]
+  },
+  {
+   "id": "law-intl-public.l07",
+   "title": "Observing and Interpreting Treaties",
+   "body": [
+    "The foundation of treaty law is pacta sunt servanda, stated in Article 26 of the Vienna Convention on the Law of Treaties 1969: every treaty in force is binding upon the parties to it and must be performed by them in good faith. Good faith means more than avoiding breach in letter; it forbids a party from using formalities to defeat the purpose of its commitment. Article 27 adds that a party may not invoke the provisions of its internal law as justification for failure to perform a treaty. This is the central rule connecting treaties with national law, and the next lessons return to it.",
+    "The treaty binds parties only. Under Article 34, a treaty does not create obligations or rights for a third state without its consent. A third state is bound by an obligation only if it expressly accepts it in writing, and may enjoy a right if it assents and the parties intended to confer it. The rule has a caveat: where a treaty provision records a rule of custom, the third state is bound by the custom, not by the treaty (Article 38).",
+    "Treaties generally do not apply retroactively. Under Article 28, unless a different intention appears, the provisions do not bind a party in relation to acts or facts that took place before the treaty entered into force for that party. Territorial application is governed by Article 29, which states that a treaty binds each party in respect of its entire territory unless a different intention appears.",
+    "Interpretation is where most treaty disputes are fought. The VCLT sets out a general rule in Article 31(1): a treaty shall be interpreted in good faith in accordance with the ordinary meaning to be given to its terms in their context and in the light of its object and purpose. Context in Article 31(2) includes the text with its preamble and annexes, and any agreement or instrument made in connection with the treaty's conclusion. Article 31(3) requires taking into account, together with context, any subsequent agreement between the parties regarding interpretation, subsequent practice that establishes the agreement of the parties regarding its interpretation, and any relevant rules of international law applicable between the parties. Special meaning is given to a term if it is established that the parties so intended.",
+    "Article 32 provides that recourse may be had to supplementary means of interpretation, including the preparatory work (travaux préparatoires) and the circumstances of the treaty's conclusion, to confirm the meaning resulting from Article 31, or to determine the meaning where the interpretation leaves it ambiguous or obscure or leads to a result that is manifestly absurd or unreasonable. This ordering matters: the text comes first, and the travaux are secondary, not an equal alternative. Article 33 deals with treaties authenticated in more than one language: each language version is equally authoritative unless the treaty provides otherwise, and terms are presumed to have the same meaning in each text; where a comparison discloses a difference that the earlier rules do not remove, the meaning that best reconciles the texts, having regard to the object and purpose, is adopted.",
+    "In the Gabcikovo-Nagymaros Project case (Hungary/Slovakia, ICJ, 1997), the Court dealt with a 1977 treaty for a system of dams on the Danube. Hungary had suspended and then abandoned work, claiming a state of ecological necessity and later purporting to terminate the treaty. The Court held that the treaty remained in force and that Hungary's termination was not lawful, since the conditions for necessity and for termination were not met, while recognising that the treaty should be implemented in light of environmental norms, with the parties negotiating in good faith. The case illustrates that good faith performance and the strict limits on termination operate together.",
+    "Worked example: A treaty guarantees \"vehicles\" free passage over a bridge, and a dispute arises whether bicycles are covered. Interpretation starts with the ordinary meaning of \"vehicles\" in context and in light of the treaty's purpose of promoting commerce. If still unclear, the preparatory work may be consulted, for example if the negotiators rejected a draft that expressly listed bicycles."
+   ]
+  },
+  {
+   "id": "law-intl-public.l08",
+   "title": "Invalidity, Termination and Breach of Treaties",
+   "body": [
+    "Because pacta sunt servanda is the basic rule, the Vienna Convention on the Law of Treaties 1969 treats the grounds for invalidating, ending or suspending a treaty as exhaustive and narrow. States cannot escape a treaty simply because it has become inconvenient.",
+    "Invalidity first. Articles 46 to 53 list grounds. A state may not ordinarily invoke the fact that its consent was expressed in violation of its internal law, but Article 46 allows it where the violation was manifest and concerned a rule of fundamental importance. A violation is manifest if it would be objectively evident to any state conducting itself normally and in good faith. This high bar protects other states that rely on the representations of a head of state or foreign minister. Other grounds are error of fact (Article 48), fraud (Article 49), corruption of a representative (Article 50), coercion of a representative (Article 51), and coercion of the state by the threat or use of force in violation of the principles of the UN Charter (Article 52), which makes a treaty void. Economic or political pressure, as distinct from force, is generally not included; the conference adopting the Convention condemned such pressure in a declaration, but it did not make it a ground of invalidity. Article 53 makes a treaty void if it conflicts with a peremptory norm at the time of its conclusion, and Article 64 provides that if a new peremptory norm emerges, any existing treaty in conflict with it becomes void and terminates.",
+    "Termination and suspension are governed by Articles 54 to 64. A treaty may end according to its own terms, or by consent of all parties. A treaty that contains no termination clause is not subject to denunciation or withdrawal unless it is established that the parties intended to admit that possibility or that a right of denunciation is implied by the nature of the treaty (Article 56), with twelve months' notice.",
+    "Material breach (Article 60) allows an injured party to invoke the breach as a ground for terminating or suspending the treaty. A material breach is a repudiation of the treaty not sanctioned by the Convention, or the violation of a provision essential to the accomplishment of the object or purpose. For bilateral treaties the other party may terminate or suspend. For multilateral treaties the response is more complicated and depends on whether the breach specially affects a party or radically changes the position of all parties. Article 60(5) excludes provisions relating to the protection of the human person contained in treaties of a humanitarian character from this right, so that a breach of one party cannot be used to justify abandoning humanitarian obligations.",
+    "Supervening impossibility of performance (Article 61), where an object indispensable to performance disappears or is destroyed, is another ground. Fundamental change of circumstances (rebus sic stantibus, Article 62) is the most limited. It may be invoked only if the circumstances existing at the time of conclusion constituted an essential basis of the consent of the parties, and the change radically transforms the extent of obligations still to be performed. It cannot be invoked for a treaty establishing a boundary, nor where the change results from the invoking party's own breach. In Gabcikovo-Nagymaros (ICJ, 1997), the Court treated the VCLT's rules on termination as largely reflecting custom and held that the changes Hungary relied on, including political changes and the economic and environmental developments, were not so radical as to transform the obligations.",
+    "Procedure matters. Under Article 65, a party claiming a ground must notify the others, with reasons, and if no objection is raised within the specified period (not less than three months, except in cases of special urgency) it may proceed. If objection is raised, the parties should seek a solution through the means in Article 33 of the UN Charter. For disputes concerning peremptory norms, Article 66 allows submission to the ICJ unilaterally; other disputes go to conciliation.",
+    "Worked example: State A signs a treaty ceding a strip of land to State B after B's troops threaten to invade. If the threat was a use of force in violation of the Charter, Article 52 makes the treaty void. If instead A, five years later, argues that the treaty is unfair because of changed economic conditions, Article 62 cannot assist A, since the treaty establishes a boundary."
+   ]
+  },
+  {
+   "id": "law-intl-public.l09",
+   "title": "International Law and Domestic Law",
+   "body": [
+    "Two questions arise where international and domestic law meet. First, internationally, what is the status of national law? The answer is that a state cannot rely on its own law to excuse a breach of international obligations. Article 27 of the Vienna Convention on the Law of Treaties 1969 says so for treaties, and the customary rule is general: in the eyes of an international tribunal, national law is a fact, evidence of the state's conduct. A country whose constitution forbids a treaty obligation remains bound by it on the international plane and bears responsibility if it does not comply. Second, domestically, how does international law enter the national legal order, and what rank does it have? That is decided by each state's own constitution.",
+    "Theory divides into monism and dualism. Monism views international and domestic law as parts of one legal system, so a valid treaty becomes part of national law without further step. Dualism holds that they are separate systems operating on different subjects and relationships, so international rules must be transformed into national law by legislation before national courts can apply them. In practice, states mix approaches. The United Kingdom is a classic dualist system for treaties: a treaty ratified by the Crown does not change domestic law until Parliament legislates. Many civil law countries are closer to monist and give treaties domestic effect on ratification and publication, sometimes with rank above statutes. Germany's Basic Law, for example, makes the general rules of public international law part of federal law with precedence over statutes.",
+    "The United States has its own features. Article VI of the Constitution declares treaties made under the authority of the United States, with the Constitution and federal statutes, to be the supreme law of the land. Treaties require the advice and consent of two thirds of the Senators present. The key doctrinal distinction is between self-executing treaties, which can be enforced by courts without further legislation, and non-self-executing treaties, which require implementing legislation. In Medellin v. Texas (U.S. Supreme Court, 2008), the Court held that the International Court of Justice's judgment in Avena (Mexico v. United States), which had required review and reconsideration of the convictions of Mexican nationals who had not been told of their consular rights, was not directly enforceable as domestic law in state court, because the relevant treaty provisions were not self-executing, and that the President could not unilaterally require state courts to give effect to it. The decision shows that a state may be in breach internationally even when its courts lack authority to carry out the obligation, which is a matter for Congress and the political branches.",
+    "Customary international law has a different status. In The Paquete Habana (U.S. Supreme Court, 1900), the Court held that international law is part of United States law and must be ascertained and administered by courts of appropriate jurisdiction where no treaty or controlling executive or legislative act exists. The case concerned fishing vessels captured as prizes during the Spanish-American War, and the Court held that coastal fishing vessels were exempt from capture under customary law. Treaty power also has a constitutional dimension: in Missouri v. Holland (U.S. Supreme Court, 1920), the Court upheld a statute implementing a migratory bird treaty, holding that a treaty and its implementing legislation may be valid even if Congress would lack power to legislate on the subject absent a treaty. Treaties remain subject to constitutional limits such as individual rights.",
+    "Conflicts in the domestic order are generally resolved by the later-in-time rule between a treaty and a federal statute, so that Congress can override a treaty as a matter of domestic law, though doing so places the United States in breach internationally. Courts also apply the Charming Betsy canon, interpreting statutes where possible so as not to conflict with international law.",
+    "Worked example: State X is a dualist system. It ratifies a treaty creating a right for prisoners to consular access, but passes no implementing statute. A prisoner invokes the treaty in a national court. The court will probably refuse to apply the treaty directly, yet State X remains internationally responsible for the violation, and it cannot cite its missing statute as a defence."
+   ]
+  },
+  {
+   "id": "law-intl-public.l10",
+   "title": "State Responsibility: Wrongful Acts and Attribution",
+   "body": [
+    "The law of state responsibility asks when a state is legally answerable for a breach of international law and what follows. Its main statement is the set of Articles on Responsibility of States for Internationally Wrongful Acts, adopted by the International Law Commission in 2001 and noted by the UN General Assembly in resolution 56/83. They are not a treaty, but courts and states treat many of their provisions as reflecting customary law, and the ICJ cites them often. The rules are described as secondary rules: they do not say what states must do (the primary rules, found in treaties and custom) but what the consequences are when a primary rule is broken.",
+    "Article 2 states that there is an internationally wrongful act when conduct consisting of an action or omission is attributable to the state under international law and constitutes a breach of an international obligation of the state. Two elements, then: attribution and breach. Both are determined by international law, not national law. An act may be lawful under the state's constitution and still be wrongful internationally, and the reverse is also true. Harm is not a general requirement; whether damage is needed depends on the primary rule.",
+    "Attribution links the conduct to the state. A state is an abstract entity and acts through people. Article 4 attributes the conduct of any state organ, whether legislative, executive, judicial or other, whatever its position in the state's organisation and whether it belongs to the central government or a territorial unit. That includes a federal state's component units, so a country cannot excuse a breach by pointing to its federal structure. The conduct of an organ is attributable even if the organ exceeds its authority or contravenes instructions, provided it acted in an official capacity (Article 7). Article 5 attributes the conduct of persons or entities empowered by law to exercise governmental authority, such as a privatised prison operator. Article 8 attributes the conduct of a person or group acting on the instructions of, or under the direction or control of, the state in carrying out the conduct. Article 11 attributes conduct that the state acknowledges and adopts as its own.",
+    "The usual difficulty is private action. Ordinarily, the acts of private individuals are not attributable to the state. But the state may be responsible for its own failure to prevent or punish them, which is a separate breach of a duty of due diligence. In the Corfu Channel case (United Kingdom v. Albania, ICJ, 1949), British warships were damaged by mines in Albanian waters. The Court held that Albania was responsible, not because it laid the mines, which was not proved, but because it knew or must have known of their presence and failed to warn ships, breaching its obligation not to allow its territory to be knowingly used for acts contrary to the rights of other states.",
+    "How much control is enough under Article 8? In the Nicaragua case (1986), the ICJ required effective control over the specific operations in which the violations occurred. In the Bosnian Genocide case (Bosnia and Herzegovina v. Serbia and Montenegro, ICJ, 2007), the Court applied the same effective control test, rejecting the broader overall control test developed by the ICTY in the Tadic case for characterising a conflict. It found that Serbia was not responsible for the acts of genocide at Srebrenica as such, because the perpetrators had not been shown to act on its instructions or under its effective control, but that Serbia had breached its obligation to prevent genocide and its obligation to cooperate with the ICTY. The case shows how a state can be responsible for a failure to act even when it is not responsible for the underlying acts.",
+    "Worked example: Rebels in State M, armed and funded by State N but operating independently in their choice of targets, attack a village in M. N is not responsible for the attack as its own act unless it directed or effectively controlled that specific operation. N may be responsible for other breaches, for example unlawful intervention through its support."
+   ]
+  },
+  {
+   "id": "law-intl-public.l11",
+   "title": "Defences, Reparation and Countermeasures",
+   "body": [
+    "Once a wrongful act is established, two sets of questions follow: whether the state has a defence, and what it must do. The Articles on Responsibility of States for Internationally Wrongful Acts (2001) answer both.",
+    "Chapter V lists circumstances precluding wrongfulness, which excuse non-performance of an obligation while the circumstance exists. Consent (Article 20) is valid consent by the affected state to the conduct, for example allowing foreign troops on its territory, to the extent that the conduct stays within that consent. Self-defence (Article 21) covers lawful measures of self-defence taken in conformity with the UN Charter. Countermeasures (Article 22) are covered below. Force majeure (Article 23) is an irresistible force or unforeseen event beyond the state's control that makes performance materially impossible. Distress (Article 24) applies where the author of the act has no other reasonable way of saving their life or that of persons entrusted to their care, for instance an aircraft entering foreign airspace in an emergency. Necessity (Article 25) is the most restrictive: it may be invoked only if the act is the only way for the state to safeguard an essential interest against a grave and imminent peril, and does not seriously impair an essential interest of the state or states towards which the obligation exists. It cannot be invoked if the obligation excludes it or if the state contributed to the situation. In the Gabcikovo-Nagymaros case the Court accepted that necessity exists as a customary ground but found that Hungary had not met its strict conditions. No circumstance can justify breach of a peremptory norm (Article 26).",
+    "If no defence applies, the responsible state has legal consequences. It must cease the wrongful act if it is continuing and offer assurances of non-repetition if circumstances require (Article 30), and make full reparation for the injury (Article 31). The classic statement is in the Factory at Chorzów case (Germany v. Poland, Permanent Court of International Justice, 1928): reparation must, as far as possible, wipe out all the consequences of the illegal act and re-establish the situation which would, in all probability, have existed if the act had not been committed. Article 34 lists three forms: restitution, compensation and satisfaction, which may be given singly or in combination. Restitution means re-establishing the situation before the wrongful act, so long as it is not materially impossible and not out of proportion to the benefit. Compensation covers financially assessable damage, including loss of profits where established. Satisfaction covers injury that cannot be made good by the others and may take the form of an acknowledgment of the breach, an expression of regret or a formal apology. Interest may be payable.",
+    "Who may invoke responsibility? The injured state, whose individual right was breached or which is specially affected, may do so (Article 42). Under Article 48, any state may invoke responsibility where the obligation is owed to a group of states for the protection of a collective interest or is owed to the international community as a whole, which links with the erga omnes concept. Ordinarily, a state may also exercise diplomatic protection for its nationals, subject to exhaustion of local remedies and nationality of claims rules.",
+    "Countermeasures are acts that would otherwise be unlawful which an injured state takes against a responsible state to induce it to comply (Articles 49 to 54). They must be proportionate to the injury and may not involve the use of force, violation of fundamental human rights, humanitarian obligations or peremptory norms. Normally the injured state must call on the responsible state to comply and notify it of its decision to take countermeasures, and they must be reversible as far as possible and cease once compliance occurs. Retorsion, in contrast, is an unfriendly but lawful act, such as expelling diplomats, imposing visa restrictions or ending aid, and needs no justification.",
+    "Worked example: State A seizes a ship of State B in breach of a treaty. B suspends a trade preference it had granted to A under an unrelated treaty, after demanding the ship's return, to pressure compliance. If the suspension is proportionate, notified and reversible, it is a lawful countermeasure. If B instead bombs A's port, no countermeasure doctrine can excuse it."
+   ]
+  },
+  {
+   "id": "law-intl-public.l12",
+   "title": "Immunities of States, Officials and Diplomats",
+   "body": [
+    "Immunity is a rule of procedure: it bars a court of one state from exercising jurisdiction over another state or its officials, though it does not make the conduct lawful. The foreign state, or the individual's own state, may still be responsible internationally, and the individual may be prosecuted at home or before certain international tribunals. Three categories are worth keeping separate.",
+    "State immunity protects the state itself, based on sovereign equality (par in parem non habet imperium: an equal has no authority over an equal). The modern rule is restrictive immunity, which distinguishes sovereign acts (acta jure imperii) from commercial or private acts (acta jure gestionis). A state is immune for the first kind but not the second. A foreign government that buys office supplies and refuses to pay is treated like any buyer; a foreign army's military operations are sovereign. In the United States, the Foreign Sovereign Immunities Act of 1976 codifies this: foreign states are presumptively immune, subject to exceptions, including waiver and commercial activity, and the statute is the exclusive source of jurisdiction over foreign states in United States courts. Many states have similar statutes, and the UN Convention on Jurisdictional Immunities of States and Their Property of 2004 has been adopted but, as of this writing, has not entered into force. In Jurisdictional Immunities of the State (Germany v. Italy, ICJ, 2012), Italian courts had allowed civil claims by victims of Nazi-era atrocities, including forced labour and massacres, against Germany. The Court held that Italy violated Germany's immunity: state immunity applies to acts of armed forces in the course of armed conflict, and the rules on immunity are procedural and do not conflict with the",
+    "substantive jus cogens prohibitions, so there is no exception for even serious violations of this kind. The decision is controversial, and some national courts and commentators argue that immunity should yield when the violation is grave.",
+    "Diplomatic and consular immunity is governed by the Vienna Convention on Diplomatic Relations 1961 and the Vienna Convention on Consular Relations 1963. Diplomatic agents have inviolable persons (Article 29), inviolable mission premises (Article 22), and full immunity from the criminal jurisdiction of the receiving state, together with immunity from civil and administrative jurisdiction, subject to specified exceptions such as private real property claims or professional activity outside official functions (Article 31). The sending state may waive immunity, but waiver must be express. A receiving state may at any time declare a diplomat persona non grata, without giving reasons (Article 9), after which the sending state must recall the person or end the person's functions. Consular officers have a narrower, functional immunity, covering acts performed in the exercise of consular functions.",
+    "Immunity of state officials has two forms. Immunity ratione personae attaches to the office and is held by the head of state, head of government and foreign minister: while in office it covers all acts, official or private, and bars criminal proceedings in foreign courts. In the Arrest Warrant case (Democratic Republic of the Congo v. Belgium, ICJ, 2002), Belgium had issued an international arrest warrant under its universal jurisdiction law against the then serving Congolese foreign minister for alleged crimes against humanity. The Court held that an incumbent foreign minister enjoys full immunity from criminal jurisdiction and inviolability, and that issuing and circulating the warrant violated Congo's rights. The Court noted that immunity is not impunity: the person could be prosecuted in his own state, after the office ends in some circumstances, if his state waives immunity, or before certain international criminal courts. Immunity ratione materiae covers official acts and belongs to all state officials but only for acts done in an official capacity; it continues after leaving office, and the extent to which it applies to international crimes is debated.",
+    "Worked example: A visiting minister of State R is sued for unpaid rent on a private holiday home in State S. As a serving foreign minister of R, civil immunity questions differ from criminal ones and depend on the specific rule, but a criminal charge brought against him in S while he holds office would be barred under the Arrest Warrant principle, even if the alleged offence is serious."
+   ]
+  },
+  {
+   "id": "law-intl-public.l13",
+   "title": "Enforcement and Compliance: Why States Obey",
+   "body": [
+    "Critics often say international law is weak because it lacks a central enforcer. That description captures a real structural feature but overstates the conclusion, because states do comply with most of their obligations most of the time. Understanding why requires distinguishing enforcement from compliance.",
+    "Enforcement has several routes. The first is self-help by the injured state: diplomatic protests, retorsion (lawful unfriendly acts such as recalling an ambassador or limiting aid), and countermeasures (otherwise unlawful but proportionate acts, as the last lesson explained). Self-help is unequal, since powerful states are better able to apply it, and it risks escalation, which is why the law restrains it. The second is collective enforcement through institutions. Under Chapter VII of the UN Charter, the Security Council can determine the existence of a threat to the peace, breach of the peace or act of aggression (Article 39), impose non-military measures such as economic sanctions, arms embargoes and travel bans (Article 41), and authorise military action (Article 42). Decisions of the Council bind all members (Article 25). Its effectiveness is limited by the veto of the five permanent members. Regional bodies and other organisations apply their own mechanisms, such as the European Union's institutions or the WTO dispute settlement system, where findings can authorise trade retaliation. Treaty bodies, for example the UN human rights committees, review state reports and receive complaints but generally issue non-binding views. Third, courts and tribunals decide disputes, though their jurisdiction depends on consent, and the ICJ lacks its own enforcement arm. Article 94 of the",
+    "Charter obliges members to comply with ICJ decisions in cases to which they are parties, and permits a party to seek action from the Security Council if the other fails to do so, subject again to the veto. Finally, individuals can face criminal accountability before international and domestic courts, an area that has expanded since the Nuremberg trials.",
+    "Why do states comply even without strong enforcement? Scholars offer several overlapping explanations. Reciprocity is powerful: states that break rules invite others to do the same, and many treaties, such as those on diplomatic relations, depend on mutual interest. Reputation matters because a state seen as unreliable will have difficulty making future agreements. Many rules coordinate behaviour, for example air traffic, shipping and postal rules, where everyone benefits from a common standard and there is little reason to deviate. Domestic politics also plays a role: legislatures, courts, interest groups and a free press may push governments to comply, and a government that has committed publicly may pay a political cost for non-compliance. Institutional design, such as monitoring, reporting and dispute settlement, raises the costs of violation and makes it detectable. Some theorists emphasise power and interest (realist views), some the benefits of cooperation within institutions (liberal institutionalist views), and some the internalisation of norms through repeated interaction (constructivist views). These are explanatory lenses, not rival legal rules.",
+    "Compliance is far from perfect. Powerful states sometimes act contrary to the rules and escape serious consequences, particularly where a permanent member of the Security Council is involved. Enforcement is selective, and many violations, especially of human rights or the use of force, are met with condemnation but little more. A balanced view recognises both the high level of everyday routine compliance, which rarely makes news, and the visible failures that do.",
+    "Worked example: State A seizes a vessel in breach of a treaty. The injured State B first protests and recalls its ambassador (retorsion), demands release, then suspends a trade concession (a countermeasure). If A refuses an agreed ICJ judgment ordering compensation, B may take the matter to the Security Council under Article 94(2), where a veto by a permanent member backing A could block action. A's own interest in continued trade and its reputation as a treaty partner may still push it to settle."
+   ]
+  },
+  {
+   "id": "law-intl-public.l14",
+   "title": "The Use of Force and Self-Defence",
+   "body": [
+    "The prohibition on the use of force is the central rule of the modern international order. Article 2(4) of the UN Charter requires all members to refrain in their international relations from the threat or use of force against the territorial integrity or political independence of any state, or in any other manner inconsistent with the purposes of the United Nations. It is widely regarded as customary and as a peremptory norm. The Charter allows force in only a few situations, and the strict reading of those limits is the core of the modern law.",
+    "The first exception is Security Council authorisation. Under Chapter VII, once the Council has determined under Article 39 that a threat to the peace, breach of the peace or act of aggression exists, it may authorise measures involving force (Article 42). Authorised coalitions acted in this way after Iraq's invasion of Kuwait in 1990, when Resolution 678 authorised member states to use all necessary means to restore peace. Authority requires nine affirmative votes with no negative vote from a permanent member; under Council practice, an abstention by a permanent member is not a veto, a position the ICJ accepted in the Namibia advisory opinion (1971). The second exception is the inherent right of individual or collective self-defence under Article 51, if an armed attack occurs against a member, until the Council has taken measures necessary to maintain international peace, with measures reported immediately to the Council. The third is the valid consent of the territorial state, since force used at the invitation of a government is not directed against its sovereignty, though the consent must be genuine and from a government with authority to give it.",
+    "Self-defence has several conditions. There must be an armed attack. In Nicaragua v. United States (ICJ, 1986), the Court held that an armed attack includes action by regular forces across a border and also the sending of armed bands or groups of such gravity as to amount to an actual armed attack by regular forces, but not mere assistance to rebels in the form of weapons or logistical support, which may be an unlawful intervention or threat of force without being an armed attack. The Court distinguished the most grave forms of force from less grave forms. Defensive action must also meet necessity and proportionality, a requirement derived from custom. For collective self-defence, the Court said the victim state must declare itself attacked and request assistance: a third state cannot decide on its own to act in collective self-defence. The Court also held that the Charter's rules and customary law coexist, so custom continued to apply despite the United States' reservation, which had excluded the Charter from the Court's jurisdiction in that case.",
+    "Several issues are contested. Anticipatory self-defence relies on the old Caroline incident of 1837, where a formulation by US Secretary of State Daniel Webster required a necessity of self-defence that is instant, overwhelming and leaves no choice of means and no moment for deliberation. Many states accept self-defence against an imminent attack, but views diverge on pre-emptive action against more distant threats. Self-defence against non-state actors operating from another state's territory has been invoked widely since 2001, and some states rely on an \"unwilling or unable\" theory when the host state cannot or will not suppress the threat; others reject that theory as an erosion of Article 2(4). In Armed Activities on the Territory of the Congo (DRC v. Uganda, ICJ, 2005), the Court found that Uganda's military operations in the DRC violated the prohibition on the use of force and that Uganda could not rely on self-defence, since the DRC government had not itself attacked Uganda and Uganda had not shown that attacks by rebels were attributable to the DRC. The Court did not decide whether self-defence exists against large-scale attacks by non-state actors that are not attributable to a state.",
+    "Humanitarian intervention without Council authorisation is also contested. NATO's 1999 bombing campaign over Kosovo was widely discussed as unlawful but legitimate by some, and no general legal right has been established. The 2005 World Summit Outcome endorsed a responsibility to protect populations from genocide, war crimes, ethnic cleansing and crimes against humanity, but tied collective action to the Security Council. Reprisals involving force and the use of force to protect nationals abroad are also disputed.",
+    "Worked example: State A's regular army shells a border town in State B and crosses the frontier. B may respond in self-defence, with necessary and proportionate force, and must report to the Council. Suppose instead that State C only gives weapons to rebels in B. C's help would not alone give B a right to use force against C in self-defence under Nicaragua, although it may breach non-intervention."
+   ]
+  },
+  {
+   "id": "law-intl-public.l15",
+   "title": "The United Nations System",
+   "body": [
+    "The United Nations was established by the Charter of the United Nations, signed in San Francisco in June 1945 and in force from October 1945. Its purposes, in Article 1, include maintaining international peace and security, developing friendly relations among nations based on equal rights and self-determination of peoples, achieving international cooperation in solving economic, social, cultural and humanitarian problems, and being a centre for harmonising the actions of nations. Article 2 sets out principles: sovereign equality, good-faith performance, peaceful settlement of disputes, the prohibition of the threat or use of force, and the rule in Article 2(7) that nothing authorises the UN to intervene in matters essentially within the domestic jurisdiction of any state, though that does not prejudice enforcement measures under Chapter VII.",
+    "Article 7 establishes six principal organs. The General Assembly includes all members, each with one vote. It discusses and recommends on any matter within the Charter, controls the budget, and elects non-permanent members of the Security Council and others. Its resolutions are generally not binding, except for internal matters such as the budget and some institutional decisions. Important questions, for example on peace and security recommendations, budget and admission of members, need a two-thirds majority of members present and voting; other questions need a simple majority (Article 18). The Security Council has fifteen members: five permanent (China, France, Russia, the United Kingdom and the United States) and ten elected by the Assembly for two-year terms. Under Article 24, members confer on it primary responsibility for the maintenance of international peace and security, and under Article 25 they agree to accept and carry out its decisions. Article 27 sets out voting: procedural matters need the affirmative votes of nine members; on all other matters, nine affirmative votes including the concurring votes of the permanent members, which is the veto. Practice treats abstention as not preventing adoption. A party to a dispute must abstain from voting on decisions under Chapter VI. Chapter VI covers pacific settlement and Council recommendations; Chapter VII covers binding enforcement measures.",
+    "When the Council is deadlocked, the General Assembly has on occasion used the Uniting for Peace resolution (resolution 377(V) of 1950) to consider matters and recommend collective measures, including the use of force in case of breach of the peace or act of aggression, but it cannot adopt binding decisions in the manner of the Council. In the Certain Expenses advisory opinion (1962), the ICJ accepted that the Council's primary responsibility is not exclusive.",
+    "The Economic and Social Council coordinates economic and social work and relations with specialised agencies. The Trusteeship Council, which oversaw trust territories, suspended operations in 1994 after the last trust territory became independent. The International Court of Justice is the principal judicial organ and its Statute forms part of the Charter. The Secretariat, led by the Secretary-General, who is appointed by the General Assembly on the recommendation of the Security Council, is the administrative organ, and the Secretary-General may bring to the Council's attention any matter threatening international peace (Article 99).",
+    "Membership is open to peace-loving states that accept the Charter's obligations and, in the Organisation's judgment, are able and willing to carry them out; admission is by General Assembly decision on the recommendation of the Security Council (Article 4), so the permanent members can block admission. Palestine has non-member observer state status in the Assembly, granted by resolution 67/19 in 2012. Article 103 gives Charter obligations priority over members' conflicting treaty obligations. Specialised agencies, such as the World Health Organization and the International Civil Aviation Organization, are separate organisations related to the UN by agreements.",
+    "Worked example: A resolution proposed in the Council on sanctions receives eleven votes in favour, none against, and one abstention by a permanent member. Nine votes were reached and no permanent member voted against, so it passes. If the same text had drawn a negative vote from one permanent member, it would fail even though eleven voted in favour."
+   ]
+  },
+  {
+   "id": "law-intl-public.l16",
+   "title": "The International Court of Justice",
+   "body": [
+    "The International Court of Justice (ICJ), seated at the Peace Palace in The Hague, is the principal judicial organ of the United Nations. It succeeded the Permanent Court of International Justice, which operated under the League of Nations. The Court has fifteen judges, elected for nine-year terms by the General Assembly and the Security Council voting concurrently, with one-third of the seats renewed every three years; no two judges may be nationals of the same state. A state party to a contentious case without a judge of its nationality may choose a judge ad hoc for that case. The Court's decisions are by majority, and judges may append separate or dissenting opinions.",
+    "The central rule of its contentious jurisdiction is consent. Only states may be parties in contentious cases (Article 34 of the Statute), and no state can be brought before the Court without having consented in one of several ways. First, special agreement: the parties jointly submit a particular dispute. Second, a compromissory clause: many treaties provide that disputes about their interpretation or application may be referred to the Court. Third, the optional clause under Article 36(2): a state may declare that it recognises as compulsory, in relation to any other state accepting the same obligation, the Court's jurisdiction in specified categories of legal dispute. Such declarations are often qualified by reservations, and the principle of reciprocity means a respondent can invoke a reservation that the applicant could have invoked against it. Only a minority of states have such declarations in force; the United Kingdom has one, while the United States withdrew its declaration after the Nicaragua case and does not have one. Fourth, forum prorogatum: consent given by conduct after the case has been started. Where jurisdiction is challenged, the Court first decides preliminary objections on jurisdiction and admissibility. Also, the Court may order provisional measures under Article 41 to preserve rights pending judgment; these are binding, as the Court held in LaGrand (Germany v. United States, 2001).",
+    "A recurring trap is that the Court's jurisdiction is not general. If State A sues State B over a treaty that has no compromissory clause and neither has accepted the optional clause, the Court has no jurisdiction unless B agrees. The Court's decisions are final and without appeal (Article 60), though revision is possible on discovery of a decisive new fact, and interpretation may be requested. Judgments bind only the parties and only in respect of the particular case (Article 59). Under Article 94 of the Charter, each member undertakes to comply with a decision of the Court in any case to which it is a party, and if a party fails to perform, the other may have recourse to the Security Council, which may make recommendations or decide on measures to give effect to the judgment. Many judgments are complied with, especially in boundary and maritime disputes, but there have been prominent cases of non-compliance, including United States non-participation at the merits phase of Nicaragua and Albania's initial non-payment of the Corfu Channel compensation.",
+    "The Court also has advisory jurisdiction. The General Assembly and Security Council may request an advisory opinion on any legal question (Article 96(1) of the Charter), and other organs and specialised agencies authorised by the Assembly may request opinions on questions arising within their scope. States cannot request them. Advisory opinions are not binding in themselves, though they carry considerable legal authority and sometimes the requesting organ or the parties agreed in advance to treat them as binding. Examples include the opinions on Reparation for Injuries (1949), Namibia (1971), Western Sahara (1975), the legality of the threat or use of nuclear weapons (1996) and Kosovo (2010). The Court may decline to give an opinion for compelling reasons but has rarely done so.",
+    "Worked example: State X and State Y have a boundary dispute. Both are parties to a treaty with a compromissory clause covering the boundary. X files an application. Y objects that the treaty does not apply. The Court rules on jurisdiction first. If it accepts jurisdiction, it decides the merits. If Y wins and later refuses to comply with a judgment against it, X may go to the Security Council under Article 94(2), where Y's allies may block action."
+   ]
+  },
+  {
+   "id": "law-intl-public.l17",
+   "title": "Arbitration and Other International Tribunals",
+   "body": [
+    "The ICJ is only one of many international forums. Because jurisdiction depends on consent, a mix of courts and tribunals has developed, each with its own treaty base and scope.",
+    "International arbitration is the oldest method of binding third-party settlement. The parties choose the arbitrators, agree on the rules and the applicable law, and accept the award as binding. The Permanent Court of Arbitration (PCA), established by the 1899 Hague Convention for the Pacific Settlement of International Disputes, in The Hague, is not a standing court in the ordinary sense but an administrative institution that maintains a list of arbitrators and provides registry and other support for arbitral proceedings between states, state entities and in some cases private parties. The Island of Palmas (1928) arbitration was held under its auspices. Arbitration is often chosen because parties control the composition of the tribunal and procedure, and may keep proceedings confidential. Investor-state arbitration under investment treaties, often administered by ICSID at the World Bank, allows foreign investors to bring claims directly against host states, and has attracted criticism over transparency and regulatory space.",
+    "The UN Convention on the Law of the Sea 1982 (UNCLOS) has a distinctive system in Part XV. States parties must settle disputes peacefully, and where negotiation fails, compulsory procedures leading to binding decisions apply, subject to exceptions and limits in Articles 297 and 298, such as optional exclusions of maritime boundary delimitation, military activities and law enforcement. Under Article 287, a state may choose by declaration among the International Tribunal for the Law of the Sea (ITLOS), the ICJ, an arbitral tribunal under Annex VII, and a special arbitral tribunal under Annex VIII. If the parties have not chosen the same forum, or a state has made no declaration, the dispute goes to Annex VII arbitration by default. ITLOS, based in Hamburg, has twenty-one judges and a Seabed Disputes Chamber, and has special authority to order the prompt release of vessels and crews and provisional measures. The arbitration brought by the Philippines against China concerning the South China Sea was decided under Annex VII, with the PCA acting as registry. In 2016 the tribunal found that there was no legal basis for China to claim historic rights to resources in the sea areas within the so-called nine-dash line to the extent they exceeded the limits of its maritime entitlements under UNCLOS, and that none of the features in the Spratly Islands could generate an exclusive economic",
+    "zone. China did not participate, rejected the award and called it null and void. The case shows both the reach of compulsory procedures and the limits of enforcement.",
+    "Other bodies handle specific areas. The World Trade Organization has a dispute settlement system whose panels and Appellate Body rule on trade disputes, though the Appellate Body has been unable to function since late 2019 because new members were not appointed, and this status continues as of this writing. Regional human rights courts include the European Court of Human Rights, the Inter-American Court of Human Rights and the African Court on Human and Peoples' Rights, which hear claims by individuals or states, often with binding judgments.",
+    "Criminal accountability for individuals lies with the International Criminal Court (ICC), created by the Rome Statute of 1998, which entered into force in 2002. It is a treaty body, separate from the UN, with jurisdiction over genocide, crimes against humanity, war crimes and aggression, limited to crimes committed on the territory of a state party or by its nationals, or referred by the Security Council. Complementarity is its guiding principle: the Court acts only when states are unwilling or unable genuinely to investigate or prosecute. The United States, Russia and China are not parties to the Rome Statute, and the ICC's reach has been contested by several states. Earlier tribunals include the Nuremberg and Tokyo tribunals and ad hoc tribunals for the former Yugoslavia and Rwanda.",
+    "Worked example: States P and Q both parties to UNCLOS dispute the legality of Q's arrest of a P vessel. Neither has made an Article 287 declaration. P starts Annex VII arbitration. Q declines to appoint an arbitrator, but the procedure allows the President of ITLOS to make appointments, so the case proceeds."
+   ]
+  },
+  {
+   "id": "law-intl-public.l18",
+   "title": "The Law of the Sea: Zones and Freedoms",
+   "body": [
+    "The law of the sea is mostly codified in the United Nations Convention on the Law of the Sea 1982 (UNCLOS), which opened for signature in 1982 and entered into force in 1994. It has a very large number of parties, though the United States has signed but not ratified it; the United States generally treats most of its navigational and zone provisions as customary law. The Convention balances two competing interests: coastal states want control over nearby resources and security, while maritime powers and trading states want freedom of navigation.",
+    "Zones are measured from baselines. The normal baseline is the low-water line along the coast (Article 5), and straight baselines may be used where the coastline is deeply indented or has a fringe of islands (Article 7). Waters on the landward side of the baseline are internal waters, in which the coastal state has full sovereignty, subject to limited rights such as entry in distress. The territorial sea extends up to twelve nautical miles from the baseline (Article 3). The coastal state has sovereignty there, over the airspace above and the seabed below, subject to the right of innocent passage for foreign ships (Article 17). Passage is innocent so long as it is not prejudicial to the peace, good order or security of the coastal state (Article 19). The Corfu Channel case (1949) held that warships have a right of innocent passage through international straits in time of peace, even without prior authorisation, but that Albania was entitled to expect not to be surprised by a show of force.",
+    "The contiguous zone extends to twenty-four nautical miles from the baseline (Article 33), where the coastal state may exercise control to prevent and punish infringements of customs, fiscal, immigration or sanitary laws. The exclusive economic zone (EEZ) extends up to two hundred nautical miles (Articles 55 and 57). In it the coastal state has sovereign rights for exploring, exploiting, conserving and managing natural resources, living or non-living, and jurisdiction over artificial islands, marine scientific research and environmental protection, while other states keep freedoms of navigation and overflight and of laying cables and pipelines. The continental shelf is the seabed and subsoil that extends beyond the territorial sea throughout the natural prolongation of land territory, to a minimum of two hundred nautical miles and, where the geological shelf extends farther, to the outer edge of the continental margin, subject to the limits in Article 76, generally not beyond 350 nautical miles from the baseline or a stated distance from the 2,500 metre isobath. The Commission on the Limits of the Continental Shelf reviews submissions on outer limits. Coastal state rights over the shelf exist ipso facto and do not depend on occupation or proclamation, a principle drawn from the North Sea Continental Shelf cases (ICJ, 1969).",
+    "Beyond national jurisdiction is the high sea, open to all states, with freedoms of navigation, overflight, laying cables and pipelines, fishing, scientific research and constructing artificial islands, exercised with due regard for the interests of others (Article 87). The principal rule of jurisdiction is that ships on the high seas are subject to the exclusive jurisdiction of the flag state, with exceptions such as piracy, slave trading and unauthorised broadcasting, and the right of hot pursuit (Article 111) of a ship that has violated coastal laws. The seabed beyond national jurisdiction, called the Area, and its resources are the common heritage of mankind (Part XI), managed by the International Seabed Authority in Kingston, Jamaica, and no state may claim sovereignty over it.",
+    "Straits and archipelagos have special rules. Ships and aircraft enjoy the right of transit passage through straits used for international navigation, which is more protective of navigation than innocent passage: it cannot be suspended, and submarines may pass submerged (Part III, Article 38). Archipelagic states may draw baselines around the outermost islands under conditions and have sovereignty over the enclosed archipelagic waters, subject to archipelagic sea lanes passage (Part IV). Islands generate maritime zones, but rocks that cannot sustain human habitation or economic life of their own have no EEZ or continental shelf (Article 121(3)).",
+    "When coasts are adjacent or opposite, boundaries must be delimited, usually by agreement, and the ICJ and tribunals commonly apply a three-stage method: draw a provisional equidistance line, consider relevant circumstances that may require adjustment, and test the result for disproportion.",
+    "Worked example: A cargo ship flying State F's flag is passing 30 nautical miles from State C's coast and is suspected of illegal fishing in C's EEZ. State C may take enforcement action in its EEZ, including boarding and arrest consistent with Article 73, and may pursue the ship on the high seas if the pursuit began in a zone where the violation occurred and has been continuous. If the same ship were merely passing and carrying cargo, C could not stop it, since the EEZ preserves freedom of navigation."
+   ]
+  },
+  {
+   "id": "law-intl-public.l19",
+   "title": "International Environmental Law",
+   "body": [
+    "International environmental law developed because pollution and resource depletion cross borders and affect shared commons such as the atmosphere and oceans. It has no single code. It is a mix of customary principles, framework treaties and detailed protocols, and it relies heavily on soft law and technical cooperation.",
+    "The oldest customary principle is the duty to prevent transboundary harm. In the Trail Smelter arbitration (United States v. Canada, 1938 and 1941), fumes from a smelter at Trail, British Columbia, damaged farmland in Washington State. The tribunal held that under the principles of international law, no state has the right to use or permit the use of its territory in such a manner as to cause injury by fumes in or to the territory of another, when the case is of serious consequence and the injury is established by clear and convincing evidence. Canada was held responsible and was required to regulate the smelter's operations. The principle was later restated in Principle 21 of the Stockholm Declaration of 1972 and Principle 2 of the Rio Declaration of 1992: states have the sovereign right to exploit their own resources pursuant to their environmental and developmental policies and the responsibility to ensure that activities within their jurisdiction or control do not cause damage to the environment of other states or of areas beyond national jurisdiction. In its 1996 advisory opinion on the legality of the threat or use of nuclear weapons, the ICJ confirmed that this general obligation is now part of the corpus of international law relating to the environment.",
+    "In Pulp Mills on the River Uruguay (Argentina v. Uruguay, ICJ, 2010), the Court applied the principle of prevention as a customary rule that derives from the due diligence expected of a state in its territory. It held that conducting an environmental impact assessment, where there is a risk that a proposed industrial activity may have a significant adverse impact in a transboundary context, has become a requirement under general international law, while leaving the content of the assessment to national law. The Court found that Uruguay had breached procedural obligations in the bilateral river treaty but had not breached its substantive obligations to prevent pollution.",
+    "Other recurring principles include precaution (Rio Principle 15), under which lack of full scientific certainty should not postpone cost-effective measures to prevent serious or irreversible damage; the polluter pays principle (Principle 16); sustainable development; common but differentiated responsibilities, recognising that states have different capacities and historic contributions; and cooperation and the duty to notify and consult. Whether precaution is a binding customary rule or a general approach is debated, and tribunals have treated it cautiously.",
+    "Treaties address specific problems. The Vienna Convention for the Protection of the Ozone Layer 1985 and its Montreal Protocol of 1987 phase out ozone-depleting substances through binding schedules, with trade measures to encourage participation and a fund to help developing countries; it is often described as one of the most successful environmental agreements. The UN Framework Convention on Climate Change 1992 set the overall framework for climate cooperation, the Kyoto Protocol 1997 set binding targets for developed countries, and the Paris Agreement 2015, in force since 2016, takes a different approach. It aims to hold the increase in global average temperature to well below 2 degrees Celsius above pre-industrial levels and to pursue efforts to limit it to 1.5 degrees, and it relies on nationally determined contributions, which each party prepares and communicates, with transparency and periodic review (the global stocktake), rather than on binding national targets. States' obligations to submit and pursue contributions are binding in a procedural sense, while the level of ambition is largely left to the states themselves. Other important agreements concern biodiversity, the trade in endangered species (CITES 1973), hazardous wastes (the Basel Convention 1989) and marine pollution.",
+    "International courts have been asked about climate obligations. As of this writing, the ICJ has delivered an advisory opinion in 2025 on the obligations of states in respect of climate change, following a request by the General Assembly; this is a fast-moving area and learners should consult the opinion itself and current developments.",
+    "Worked example: State A operates a chemical plant near its border, and emissions harm crops in State B. Under the prevention principle, A must exercise due diligence to prevent significant transboundary harm, which includes conducting an impact assessment and notifying and consulting B before approving risky activity. B can claim responsibility under state responsibility rules once significant harm is shown, even though A's plant is lawful under A's own law."
+   ]
+  },
+  {
+   "id": "law-intl-public.l20",
+   "title": "Space Law: The Outer Space Treaty Regime",
+   "body": [
+    "Space law grew out of the early years of space flight, when states were anxious to prevent the competition between the Soviet Union and the United States from extending conflict and claims into space. Its core is the Treaty on Principles Governing the Activities of States in the Exploration and Use of Outer Space, including the Moon and Other Celestial Bodies of 1967, usually called the Outer Space Treaty, which has a very large number of parties, including all major space powers. Many of its principles are regarded as customary.",
+    "The main rules are as follows. Article I provides that exploration and use of outer space shall be carried out for the benefit and in the interests of all countries and is the province of all mankind; outer space is free for exploration and use by all states without discrimination, on a basis of equality. Article II provides that outer space, including the Moon and other celestial bodies, is not subject to national appropriation by claim of sovereignty, by means of use or occupation, or by any other means. This is the non-appropriation principle, and it means no state can lawfully claim sovereignty over the Moon or a planet. Article III applies international law, including the UN Charter, to space activities. Article IV prohibits placing in orbit around the Earth, installing on celestial bodies or stationing in space any nuclear weapons or other weapons of mass destruction, and requires that the Moon and other celestial bodies be used exclusively for peaceful purposes, with military bases and testing of weapons of any kind banned on celestial bodies. The treaty does not ban all military uses of space: conventional military satellites and ballistic missiles that transit space are not prohibited by it. Article VI is a key innovation: states bear international responsibility for national activities in outer space, whether carried on by governmental agencies or by non-governmental",
+    "entities, and the activities of private entities require authorisation and continuing supervision by the appropriate state. This is why a state licences its commercial launch companies. Article VII provides that a state that launches or procures the launching of an object, or from whose territory it is launched, is internationally liable for damage caused by the object. Article VIII retains jurisdiction and control of a registered space object, and ownership of objects is not affected by being in space. Article IX requires due regard to the interests of other states, avoiding harmful contamination, and consultation before potentially harmful activity.",
+    "Further treaties build on this. The Rescue Agreement 1968 requires assistance to astronauts and return of astronauts and space objects. The Convention on International Liability for Damage Caused by Space Objects 1972 (the Liability Convention) makes a launching state absolutely liable to pay compensation for damage caused by its space object on the surface of the Earth or to aircraft in flight (Article II), and liable on the basis of fault for damage caused elsewhere, for example in orbit (Article III). The first major claim was after the Soviet satellite Cosmos 954, carrying a nuclear reactor, scattered radioactive debris over Canada in 1978; Canada claimed compensation and the matter was settled by a protocol in 1981 for a sum lower than Canada's claim. The Registration Convention 1975 requires states to register space objects. The Moon Agreement 1979 declares the Moon and its resources to be the common heritage of mankind, but has few parties and none of the major space powers.",
+    "Commercial activity raises current questions. The Outer Space Treaty bans national appropriation of celestial bodies, but it does not say clearly whether private extraction of resources, such as mining of asteroids or lunar material, is permitted. The United States passed a law in 2015 recognising the right of its citizens to own resources they extract, and several states have passed similar laws. Many states take the view that extraction of resources is consistent with the treaty as long as no sovereignty is claimed, while others argue that national authorisation of ownership comes close to appropriation. The Artemis Accords of 2020, a set of non-binding political principles led by the United States, support resource extraction and \"safety zones\" around activities; their legal status and the question of safety zones are debated. Space debris, congestion and the limited availability of orbital slots and radio spectrum, managed by the International Telecommunication Union, also raise growing legal issues.",
+    "Worked example: A privately owned company in State A launches a satellite that collides in orbit with a satellite of State B. Under Article VI of the Outer Space Treaty, A is responsible for the company's activity, and under Article III of the Liability Convention, A is liable to B only if the damage is due to the fault of A or persons for whom A is responsible, because the damage occurred in orbit. If the satellite had instead fallen on a village on Earth, A would be absolutely liable regardless of fault."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "law-intl-public.l01.q1",
+   "lessonId": "law-intl-public.l01",
+   "kind": "mcq",
+   "prompt": "Which description best captures how international law is made and applied compared with domestic law?",
+   "choices": [
+    "Its main lawmakers are the states bound by it, acting through treaties and custom",
+    "A world parliament enacts binding statutes that a global police force then enforces against each member state",
+    "It is made only by a supreme international court whose rulings automatically become binding law for every state",
+    "It is made by the Security Council alone, which adopts general rules binding all states by majority vote"
+   ]
+  },
+  {
+   "id": "law-intl-public.l01.q2",
+   "lessonId": "law-intl-public.l01",
+   "kind": "mcq",
+   "prompt": "Article 2(1) of the UN Charter states sovereign equality. What does that principle mean in law?",
+   "choices": [
+    "Great powers hold greater legal rights because their capacity to enforce rules is greater",
+    "States have equal legal status whatever their size or power",
+    "States must hold equal voting shares in every international organisation to which they belong",
+    "Small states are exempt from rules that bind larger states, so as to compensate for weakness"
+   ]
+  },
+  {
+   "id": "law-intl-public.l01.q3",
+   "lessonId": "law-intl-public.l01",
+   "kind": "mcq",
+   "prompt": "A UN mediator is killed while on duty and the UN wants to bring a claim against the responsible state. In the Reparation for Injuries opinion (ICJ, 1949), what did the Court conclude about the UN?",
+   "choices": [
+    "It has the same full range of sovereign powers as a state, including territorial jurisdiction over its offices",
+    "It has personality only toward states that expressly recognised it when they joined the organisation",
+    "It has international legal personality and the capacity to bring such claims",
+    "It has no personality of its own and only member states may present claims on behalf of their own nationals"
+   ]
+  },
+  {
+   "id": "law-intl-public.l01.q4",
+   "lessonId": "law-intl-public.l01",
+   "kind": "mcq",
+   "prompt": "State A has not ratified a multilateral treaty banning a certain weapon. State B, a party, says A is nonetheless bound because \"the treaty binds the whole international community\". Which response is most accurate?",
+   "choices": [
+    "A is bound, since a treaty adopted by a majority of states becomes binding on every state after a reasonable period",
+    "A is not bound under any circumstances, because a treaty can never be the source of a customary rule",
+    "A is bound if the weapon is dangerous enough, because danger of a weapon automatically creates a peremptory norm",
+    "A is bound only if the ban also exists as a customary rule or A has otherwise consented"
+   ]
+  },
+  {
+   "id": "law-intl-public.l01.q5",
+   "lessonId": "law-intl-public.l01",
+   "kind": "mcq",
+   "prompt": "State Q's government argues that international law is \"not real law\" because no authority compels it to obey. State Q then publishes a legal memorandum defending its border operation as consistent with the UN Charter. What is the best analytic point to make about this?",
+   "choices": [
+    "Q's effort to justify its conduct in legal terms indicates that it treats international rules as binding",
+    "The memorandum proves that the border operation was lawful, since a state's own legal opinion is conclusive",
+    "The memorandum is legally irrelevant because only decisions of the International Court of Justice can state the law",
+    "The memorandum shows that international law is merely a branch of Q's domestic law and depends on Q's own approval"
+   ]
+  },
+  {
+   "id": "law-intl-public.l02.q1",
+   "lessonId": "law-intl-public.l02",
+   "kind": "mcq",
+   "prompt": "Which of the following is NOT one of the sources listed in Article 38(1) of the ICJ Statute as something the Court applies?",
+   "choices": [
+    "International conventions establishing rules recognised by the contesting states",
+    "International custom as evidence of a general practice accepted as law",
+    "General principles of law recognised by civilised nations",
+    "Resolutions of the Security Council adopted by a simple majority as general legislation"
+   ]
+  },
+  {
+   "id": "law-intl-public.l02.q2",
+   "lessonId": "law-intl-public.l02",
+   "kind": "mcq",
+   "prompt": "Under Article 59 of the ICJ Statute, what is the legal force of an ICJ decision?",
+   "choices": [
+    "It binds only the losing party and has no effect for the winning party",
+    "It binds the parties and also every state that is a member of the United Nations",
+    "It binds only the parties and only for that particular case",
+    "It binds all states as precedent, as a common-law appellate decision binds lower courts"
+   ]
+  },
+  {
+   "id": "law-intl-public.l02.q3",
+   "lessonId": "law-intl-public.l02",
+   "kind": "mcq",
+   "prompt": "In the Temple of Preah Vihear case (ICJ, 1962), the Court relied on Thailand's long acceptance of a map without objection. Which type of source does this reasoning illustrate?",
+   "choices": [
+    "A subsidiary means consisting of the writings of leading publicists on frontier maps",
+    "General principles such as acquiescence and estoppel based on fairness and consistency",
+    "A multilateral convention binding Thailand through its ratification of the treaty",
+    "A peremptory norm overriding the consent of Thailand to a different frontier"
+   ]
+  },
+  {
+   "id": "law-intl-public.l02.q4",
+   "lessonId": "law-intl-public.l02",
+   "kind": "mcq",
+   "prompt": "State R owes State S obligations under a bilateral trade treaty. The UN Security Council later adopts a binding Chapter VII sanctions decision requiring R to stop all trade with S. R's obligations under the two instruments conflict. Which rule most directly resolves the conflict?",
+   "choices": [
+    "Article 103 of the UN Charter, under which Charter obligations prevail over conflicting obligations under other agreements",
+    "Article 59 of the ICJ Statute, under which the later instrument binds only the parties to the earlier one",
+    "The general rule that the older treaty prevails because it is the more specific and settled commitment",
+    "Article 38(2) of the ICJ Statute, which allows R to choose whichever instrument is fairer to it"
+   ]
+  },
+  {
+   "id": "law-intl-public.l02.q5",
+   "lessonId": "law-intl-public.l02",
+   "kind": "mcq",
+   "prompt": "A General Assembly resolution on a principle of non-intervention was adopted by consensus and has been repeatedly cited by states as stating the law. An advocate says it is a binding statute. A better analysis is that the resolution:",
+   "choices": [
+    "Is binding because the General Assembly has general legislative power over all member states",
+    "Is legally meaningless because states cannot create law by votes in international organisations",
+    "Is a peremptory norm because it was adopted by consensus rather than by a majority",
+    "Is not binding in itself but may be evidence of opinio juris contributing to customary law"
+   ]
+  },
+  {
+   "id": "law-intl-public.l03.q1",
+   "lessonId": "law-intl-public.l03",
+   "kind": "mcq",
+   "prompt": "Which two elements are needed to form a rule of customary international law?",
+   "choices": [
+    "A resolution of the Security Council and approval by the International Court of Justice",
+    "Repeated use for at least fifty years and a general vote of the General Assembly",
+    "State practice and opinio juris, meaning a belief that the conduct is legally required or permitted",
+    "A written agreement and ratification by two thirds of the states in the world"
+   ]
+  },
+  {
+   "id": "law-intl-public.l03.q2",
+   "lessonId": "law-intl-public.l03",
+   "kind": "mcq",
+   "prompt": "In North Sea Continental Shelf (ICJ, 1969), why was Germany not bound by the equidistance rule in Article 6 of the 1958 Geneva Convention on the Continental Shelf?",
+   "choices": [
+    "Germany had made a reservation to Article 6 that the Court treated as valid and effective",
+    "The convention had been terminated by the later practice of the Netherlands and Denmark",
+    "The Court held that treaty rules can never generate custom binding non-parties",
+    "Germany had not ratified the convention"
+   ]
+  },
+  {
+   "id": "law-intl-public.l03.q3",
+   "lessonId": "law-intl-public.l03",
+   "kind": "mcq",
+   "prompt": "A state objects openly and consistently from the earliest stages to an emerging customary rule on baselines. If the rule later crystallises, what is the likely result under the persistent objector doctrine?",
+   "choices": [
+    "The rule will not be opposable to that state, unless the rule is a peremptory norm",
+    "The rule binds that state, since custom binds all states regardless of any objection",
+    "The rule binds that state only after it has obtained approval from the Security Council",
+    "The rule is void, since a single objection prevents any custom from forming"
+   ]
+  },
+  {
+   "id": "law-intl-public.l03.q4",
+   "lessonId": "law-intl-public.l03",
+   "kind": "mcq",
+   "prompt": "For three decades most coastal states have inspected cargo vessels at a particular distance from shore, citing \"customary rights\". State T did the same, but its foreign ministry states that it does so solely as a courtesy to neighbours and without any legal obligation. State U, a neighbour, claims a customary rule exists binding T. What is the strongest analysis?",
+   "choices": [
+    "No rule can exist because custom requires practice by all states without exception",
+    "T's statements negate opinio juris on its side, so U must show that opinio juris exists among states generally",
+    "The rule exists conclusively because practice has lasted three decades, and T's statements are legally irrelevant",
+    "The rule exists because any practice that many states follow automatically becomes custom after thirty years"
+   ]
+  },
+  {
+   "id": "law-intl-public.l03.q5",
+   "lessonId": "law-intl-public.l03",
+   "kind": "mcq",
+   "prompt": "State V enters a treaty with State W in which the two agree that either may use force against nationals of the other for any reason. A third state argues that the treaty is void on a ground drawn from the Vienna Convention on the Law of Treaties 1969. Which provision best supports this?",
+   "choices": [
+    "Article 31, which makes treaties void if their wording departs from ordinary meaning",
+    "Article 62, which makes treaties void whenever one party regrets the bargain it struck",
+    "Article 53, which makes a treaty void if it conflicts with a peremptory norm of general international law",
+    "Article 26, which makes treaties void if they are not ratified by every state in the world"
+   ]
+  },
+  {
+   "id": "law-intl-public.l04.q1",
+   "lessonId": "law-intl-public.l04",
+   "kind": "mcq",
+   "prompt": "Which of the following is one of the Montevideo Convention (1933) criteria for statehood?",
+   "choices": [
+    "Recognition by all permanent members of the Security Council",
+    "A permanent population",
+    "A democratic constitution",
+    "Membership of the United Nations"
+   ]
+  },
+  {
+   "id": "law-intl-public.l04.q2",
+   "lessonId": "law-intl-public.l04",
+   "kind": "mcq",
+   "prompt": "What distinguishes the declaratory theory of recognition from the constitutive theory?",
+   "choices": [
+    "Under the declaratory theory statehood exists once the criteria are met and recognition merely acknowledges it",
+    "Under the declaratory theory a state exists only for those states that have formally recognised it",
+    "Under the constitutive theory statehood arises automatically and recognition has no political consequence",
+    "Under the constitutive theory a state is created only by a vote of the UN General Assembly"
+   ]
+  },
+  {
+   "id": "law-intl-public.l04.q3",
+   "lessonId": "law-intl-public.l04",
+   "kind": "mcq",
+   "prompt": "What did the ICJ conclude in its 2010 advisory opinion on Kosovo's declaration of independence?",
+   "choices": [
+    "That Kosovo had become a state with a right to remedial secession under international law",
+    "That the declaration was void because only the Security Council can create new states",
+    "That the declaration was unlawful because it breached the territorial integrity of Serbia",
+    "That the declaration did not violate general international law"
+   ]
+  },
+  {
+   "id": "law-intl-public.l04.q4",
+   "lessonId": "law-intl-public.l04",
+   "kind": "mcq",
+   "prompt": "Province Z has a population of 2 million, clear borders and a capable government, and declares independence from State Y after Y's army is ordered into the province. Y was not oppressing the province, and no armed conflict preceded the declaration. Three states recognise Z. A lawyer for Z says that statehood is now complete. The strongest response is:",
+   "choices": [
+    "Z cannot be a state because states cannot be created from the territory of an existing state under any circumstances",
+    "Z becomes a state automatically on the day after the declaration because international law provides for it",
+    "Recognition by three states does not establish statehood by itself; Z's claim must meet the Montevideo criteria and the rules on the lawful creation of states, and there is no general right to secession outside colonial contexts",
+    "Statehood is complete because three recognitions satisfy the constitutive theory, which counts only a minimum of recognising states"
+   ]
+  },
+  {
+   "id": "law-intl-public.l04.q5",
+   "lessonId": "law-intl-public.l04",
+   "kind": "mcq",
+   "prompt": "After a coup, the military of State K removes the elected government and takes control of the capital. The new regime announces it will not honour K's existing treaty debts. A creditor state argues that K remains bound. Which analysis is most accurate?",
+   "choices": [
+    "K is bound only if the creditor state recognises the new regime, which is a condition of statehood",
+    "The state's identity and treaty obligations continue despite the change of government",
+    "K's treaty obligations are extinguished because the former government no longer exists",
+    "K ceases to be a state until the new regime is recognised by the Security Council"
+   ]
+  },
+  {
+   "id": "law-intl-public.l05.q1",
+   "lessonId": "law-intl-public.l05",
+   "kind": "mcq",
+   "prompt": "Which term describes a state's authority to carry out law through arrests, seizures and similar acts?",
+   "choices": [
+    "Enforcement jurisdiction",
+    "Prescriptive jurisdiction",
+    "Adjudicative jurisdiction",
+    "Protective jurisdiction"
+   ]
+  },
+  {
+   "id": "law-intl-public.l05.q2",
+   "lessonId": "law-intl-public.l05",
+   "kind": "mcq",
+   "prompt": "State D forges the passports of State E in order to pass off its agents abroad. Which basis of jurisdiction most directly supports prosecution in State E of the forgers when they are later found within E?",
+   "choices": [
+    "The universality principle, which applies only to crimes such as piracy and genocide",
+    "The protective principle, which covers conduct abroad that threatens the security or essential functions of the state",
+    "The passive personality principle, which depends on the victim being a national",
+    "The nationality principle, which depends on the offender being a national of the state"
+   ]
+  },
+  {
+   "id": "law-intl-public.l05.q3",
+   "lessonId": "law-intl-public.l05",
+   "kind": "mcq",
+   "prompt": "What approach to jurisdiction did the PCIJ adopt in the Lotus case (1927)?",
+   "choices": [
+    "A state may exercise jurisdiction only over conduct taking place within its own territory",
+    "A state may exercise jurisdiction only where the offender is present within the national territory",
+    "A state may exercise jurisdiction over foreign conduct unless a prohibitive rule of international law forbids it",
+    "A state may exercise jurisdiction only where a permissive rule of international law expressly grants it"
+   ]
+  },
+  {
+   "id": "law-intl-public.l05.q4",
+   "lessonId": "law-intl-public.l05",
+   "kind": "mcq",
+   "prompt": "A national of State P assaults a national of State R in the territory of State Q. Later, the assailant travels to State R. Officers of State R, acting without Q's consent, arrest the assailant while he is visiting State Q's capital and take him to R for trial. What is the strongest analysis of R's conduct?",
+   "choices": [
+    "The arrest was lawful because R's passive personality jurisdiction covers any step needed to bring the assailant to trial",
+    "The arrest was lawful because the assailant is a national of P and P has jurisdiction, which R may exercise on P's behalf",
+    "The arrest was lawful because enforcement jurisdiction follows the victim's nationality in all states",
+    "The arrest violated Q's territorial sovereignty because enforcement jurisdiction cannot be exercised on foreign soil without consent, even if R had a basis for prescribing law"
+   ]
+  },
+  {
+   "id": "law-intl-public.l05.q5",
+   "lessonId": "law-intl-public.l05",
+   "kind": "mcq",
+   "prompt": "Two vessels, one flying the flag of State F and one carrying the flag of State G, collide on the high seas, killing a crew member on the G vessel. State G prosecutes the F captain once the vessel enters a G port. Under Article 97 of the UN Convention on the Law of the Sea 1982, which analysis is most accurate?",
+   "choices": [
+    "G may not prosecute: only the flag state or the state of nationality of the person concerned may bring penal proceedings in respect of a collision at sea",
+    "G may prosecute freely: the Lotus decision still allows any state affected by a collision to take proceedings",
+    "G may prosecute only if it first obtains a resolution authorising it from the UN General Assembly",
+    "G may prosecute because the ship entered its port, and port presence overrides the rule about collisions"
+   ]
+  },
+  {
+   "id": "law-intl-public.l06.q1",
+   "lessonId": "law-intl-public.l06",
+   "kind": "mcq",
+   "prompt": "Under Article 2(1)(a) of the Vienna Convention on the Law of Treaties 1969, which feature is essential for an instrument to be a treaty?",
+   "choices": [
+    "It must be approved by the UN General Assembly before it can create binding obligations",
+    "It must be signed by every state that will later be affected by its provisions",
+    "It must be named a treaty or convention, since the title decides its legal status",
+    "It must be an international agreement between states in written form and governed by international law"
+   ]
+  },
+  {
+   "id": "law-intl-public.l06.q2",
+   "lessonId": "law-intl-public.l06",
+   "kind": "mcq",
+   "prompt": "A state signs a treaty that requires ratification but has not yet ratified it. Under Article 18 of the VCLT, what is its position?",
+   "choices": [
+    "It is fully bound by every obligation in the treaty from the moment of signature",
+    "It is free to do anything, since signature creates no legal consequence of any kind",
+    "It must refrain from acts that would defeat the object and purpose of the treaty until it makes its intention clear",
+    "It must ratify within twelve months or lose all rights it could have claimed under the treaty"
+   ]
+  },
+  {
+   "id": "law-intl-public.l06.q3",
+   "lessonId": "law-intl-public.l06",
+   "kind": "mcq",
+   "prompt": "What did the ICJ hold in the Reservations to the Genocide Convention advisory opinion (1951)?",
+   "choices": [
+    "A state may not become a party if any other party objects to its reservation",
+    "A reserving state remains a party only if the reservation is compatible with the object and purpose of the convention",
+    "Reservations to multilateral treaties are never permitted unless every party accepts them in advance",
+    "Reservations are valid whatever their content so long as the reserving state ratifies the treaty"
+   ]
+  },
+  {
+   "id": "law-intl-public.l06.q4",
+   "lessonId": "law-intl-public.l06",
+   "kind": "mcq",
+   "prompt": "State A ratifies a multilateral human rights treaty with a reservation excluding \"any obligation that conflicts with A's domestic law, as it may exist from time to time.\" State B objects, stating the reservation defeats the treaty's object and purpose, but does not say it opposes the treaty entering into force between itself and A. Which analysis is most defensible?",
+   "choices": [
+    "The reservation is likely impermissible under Article 19(c) because it is vague and subordinates the treaty to national law",
+    "The reservation is valid because Article 19 allows any reservation unless the treaty itself prohibits reservations expressly",
+    "The treaty cannot enter into force between A and B at all, because any objection to a reservation prevents entry into force",
+    "The reservation is valid because B's objection was not made through the Security Council, which is the only competent organ"
+   ]
+  },
+  {
+   "id": "law-intl-public.l06.q5",
+   "lessonId": "law-intl-public.l06",
+   "kind": "mcq",
+   "prompt": "The foreign minister of State C signs a boundary agreement with State D, without producing full powers. C's president later says the minister had no authority and that C is not bound. Which response best reflects the VCLT?",
+   "choices": [
+    "C is not bound, because only a head of state may sign a treaty and a minister cannot do so",
+    "C is not bound, because every signature must be accompanied by written full powers presented to the other party",
+    "The agreement is binding only once the Security Council has confirmed the minister's authority",
+    "A foreign minister is considered to represent the state for treaty-making acts under Article 7 without needing full powers, so C is likely bound if consent was otherwise expressed"
+   ]
+  },
+  {
+   "id": "law-intl-public.l07.q1",
+   "lessonId": "law-intl-public.l07",
+   "kind": "mcq",
+   "prompt": "Which rule does Article 26 of the VCLT state?",
+   "choices": [
+    "A state may refuse performance whenever its internal law prohibits compliance",
+    "Treaties lapse automatically after twenty years unless the parties renew them",
+    "Every treaty in force binds its parties and must be performed by them in good faith",
+    "A treaty binds parties only when a majority of states has ratified it"
+   ]
+  },
+  {
+   "id": "law-intl-public.l07.q2",
+   "lessonId": "law-intl-public.l07",
+   "kind": "mcq",
+   "prompt": "Under the general rule of interpretation in Article 31 of the VCLT, which element comes first in the analysis?",
+   "choices": [
+    "The subjective intention of the state with the greatest bargaining power during the negotiations",
+    "The interpretation adopted by whichever state first performed the obligation under the treaty",
+    "The preparatory work and circumstances of conclusion, which the Convention treats as the primary evidence of intent",
+    "The ordinary meaning of the terms in their context and in the light of the treaty's object and purpose"
+   ]
+  },
+  {
+   "id": "law-intl-public.l07.q3",
+   "lessonId": "law-intl-public.l07",
+   "kind": "mcq",
+   "prompt": "State A and State B conclude a treaty. State C is not a party and has not consented to it. What is the effect of the treaty on C under Article 34?",
+   "choices": [
+    "It creates no obligation or right for C without C's consent",
+    "It creates an obligation for C if the treaty says the parties intend it to bind others",
+    "It creates an obligation for C if C benefits indirectly from the arrangement",
+    "It creates an obligation for C once a majority of the states in the region have ratified it"
+   ]
+  },
+  {
+   "id": "law-intl-public.l07.q4",
+   "lessonId": "law-intl-public.l07",
+   "kind": "mcq",
+   "prompt": "A treaty between State E and State F obliges both to give \"vehicles\" free transit over a shared bridge. E bans motorbikes at the bridge, saying the treaty covers only cars and trucks, and cites a negotiating draft that listed \"motor vehicles\" which was later changed to \"vehicles\". F says motorbikes are included. Which approach would a tribunal apply?",
+   "choices": [
+    "Decide in favour of F, because every ambiguity in a treaty is resolved against the party that drafted the text",
+    "Begin with the ordinary meaning of \"vehicles\" in context and in light of the treaty's purpose",
+    "Begin with the negotiating draft, which prevails over the final text whenever the two differ in wording",
+    "Decide in favour of E, because restrictions on sovereignty must always be read narrowly against the state invoking them"
+   ]
+  },
+  {
+   "id": "law-intl-public.l07.q5",
+   "lessonId": "law-intl-public.l07",
+   "kind": "mcq",
+   "prompt": "Hungary in the Gabcikovo-Nagymaros dispute (ICJ, 1997) suspended and then abandoned works, relying on necessity, and purported to terminate the 1977 treaty. Which conclusion did the Court reach?",
+   "choices": [
+    "Hungary was entitled to terminate because ecological risks always override treaty obligations",
+    "The treaty had lapsed through the dissolution of Czechoslovakia, which ended all obligations",
+    "Hungary's termination was not lawful and the treaty remained in force",
+    "The treaty was void from the start because it conflicted with a peremptory norm protecting the environment"
+   ]
+  },
+  {
+   "id": "law-intl-public.l08.q1",
+   "lessonId": "law-intl-public.l08",
+   "kind": "mcq",
+   "prompt": "Under Article 53 of the VCLT, what is the consequence of a treaty conflicting with a peremptory norm at the time of its conclusion?",
+   "choices": [
+    "The treaty is valid but must be interpreted narrowly to avoid the conflict",
+    "The treaty is void",
+    "The treaty is suspended until the next session of the General Assembly",
+    "The treaty is voidable at the option of the weaker party only"
+   ]
+  },
+  {
+   "id": "law-intl-public.l08.q2",
+   "lessonId": "law-intl-public.l08",
+   "kind": "mcq",
+   "prompt": "A state wishes to withdraw from a treaty that has no termination or denunciation clause. Under Article 56, when may it withdraw?",
+   "choices": [
+    "Only if it is established that the parties intended to admit denunciation or it is implied by the nature of the treaty, with twelve months' notice",
+    "Only if the UN Security Council approves the withdrawal by a vote of nine members",
+    "Only if a majority of the other parties vote to permit it after a period of five years",
+    "Whenever it chooses, since sovereignty allows any state to leave any treaty at will"
+   ]
+  },
+  {
+   "id": "law-intl-public.l08.q3",
+   "lessonId": "law-intl-public.l08",
+   "kind": "mcq",
+   "prompt": "Why can the fundamental change of circumstances doctrine in Article 62 not be used by a state seeking to escape a boundary treaty?",
+   "choices": [
+    "Boundary treaties are peremptory norms and therefore can never be affected by any change",
+    "Boundary treaties are governed by customary law only and so fall outside the VCLT",
+    "Article 62 applies only to treaties of commerce and not to any territorial arrangement",
+    "Article 62(2) excludes treaties establishing a boundary from the doctrine"
+   ]
+  },
+  {
+   "id": "law-intl-public.l08.q4",
+   "lessonId": "law-intl-public.l08",
+   "kind": "mcq",
+   "prompt": "Under duress from an invasion threat, State A signs a treaty in which it cedes a coastal strip to State B. B had mobilised troops on the border and told A's government it would attack the capital unless the treaty was signed. Years later A says the treaty is void. What is the best analysis?",
+   "choices": [
+    "The treaty is void only if A obtains a ruling from the Security Council that B committed aggression",
+    "The treaty is valid because the signing was done by A's authorised representative",
+    "The treaty is void under Article 52 if the threat was a threat of force in violation of the principles of the UN Charter",
+    "The treaty is valid unless A can show that B's economic pressure was the true cause of A's consent"
+   ]
+  },
+  {
+   "id": "law-intl-public.l08.q5",
+   "lessonId": "law-intl-public.l08",
+   "kind": "mcq",
+   "prompt": "State P and State Q are parties to a bilateral treaty of friendship and trade. P materially breaches by repudiating the treaty without legal basis. Q wants to respond. What does Article 60 of the VCLT permit?",
+   "choices": [
+    "Q may terminate the treaty only if P first consents in writing to the termination of its own obligations",
+    "Q may terminate the treaty or suspend its operation in whole or in part",
+    "Q must continue to perform the treaty in full, because breach by one party can never justify any response by another",
+    "Q may terminate the treaty only after a judgment of the ICJ confirms that P has committed a material breach"
+   ]
+  },
+  {
+   "id": "law-intl-public.l09.q1",
+   "lessonId": "law-intl-public.l09",
+   "kind": "mcq",
+   "prompt": "What does Article 27 of the VCLT provide about a state's internal law?",
+   "choices": [
+    "A party may not invoke its internal law as justification for failure to perform a treaty",
+    "A party may invoke its internal law only where the other parties have approved it",
+    "A party may invoke its internal law to justify its failure to perform a treaty",
+    "A party may rely on its internal law only when its constitution is more recent than the treaty"
+   ]
+  },
+  {
+   "id": "law-intl-public.l09.q2",
+   "lessonId": "law-intl-public.l09",
+   "kind": "mcq",
+   "prompt": "What distinguishes a dualist from a monist approach to international law?",
+   "choices": [
+    "Dualism treats treaties as automatically part of national law, while monism requires legislation",
+    "Dualism treats international and national law as separate systems so that treaties generally require legislation before domestic courts apply them",
+    "Dualism applies only to customary rules while monism applies only to treaties",
+    "Dualism is used only by common law states and monism only by states with written constitutions"
+   ]
+  },
+  {
+   "id": "law-intl-public.l09.q3",
+   "lessonId": "law-intl-public.l09",
+   "kind": "mcq",
+   "prompt": "In Medellin v. Texas (U.S., 2008), what did the Supreme Court hold concerning the ICJ's Avena judgment?",
+   "choices": [
+    "The judgment was void because the ICJ lacks authority to decide cases involving the United States",
+    "The judgment bound only the federal courts and did not affect state criminal proceedings at all",
+    "The judgment was not directly enforceable as domestic law in state court",
+    "The judgment was directly enforceable in state courts as federal law because it is a treaty obligation"
+   ]
+  },
+  {
+   "id": "law-intl-public.l09.q4",
+   "lessonId": "law-intl-public.l09",
+   "kind": "mcq",
+   "prompt": "The United States ratifies a treaty with the Senate's consent, and the treaty states that parties will \"provide\" a private right of action but Congress passes no implementing legislation. A litigant sues a state official under the treaty, and the state argues the treaty is non-self-executing. Which analysis is most accurate?",
+   "choices": [
+    "The litigant wins automatically because every treaty is directly enforceable under the Supremacy Clause",
+    "The litigant loses and the United States is not in breach, since domestic law decides international responsibility",
+    "The treaty is void because Congress did not pass a statute within a reasonable period after ratification",
+    "If the treaty is non-self-executing the courts will generally not apply it directly"
+   ]
+  },
+  {
+   "id": "law-intl-public.l09.q5",
+   "lessonId": "law-intl-public.l09",
+   "kind": "mcq",
+   "prompt": "Congress passes a statute inconsistent with an earlier ratified treaty to which the United States is a party. In a domestic case between private parties, which answer best states the usual consequence?",
+   "choices": [
+    "The later statute generally prevails domestically under the last-in-time rule",
+    "The courts must refer the question to the International Court of Justice before deciding",
+    "The treaty prevails because treaties always outrank federal statutes under Article VI",
+    "The statute is void because Congress has no authority to legislate contrary to a treaty"
+   ]
+  },
+  {
+   "id": "law-intl-public.l10.q1",
+   "lessonId": "law-intl-public.l10",
+   "kind": "mcq",
+   "prompt": "According to Article 2 of the ILC Articles on State Responsibility (2001), what are the two elements of an internationally wrongful act?",
+   "choices": [
+    "A decision of an international court, and a refusal by the state concerned to comply with that decision",
+    "A violation of the state's own constitution, and a resulting loss suffered by the state's own citizens",
+    "Conduct attributable to the state under international law",
+    "Physical injury to a foreign national, and a formal protest lodged by the injured state's government"
+   ]
+  },
+  {
+   "id": "law-intl-public.l10.q2",
+   "lessonId": "law-intl-public.l10",
+   "kind": "mcq",
+   "prompt": "A provincial police unit of a federal state beats a detained foreign national in breach of an international obligation, and the federal government says it has no control over provincial police. What is the position under Article 4 of the Articles?",
+   "choices": [
+    "The conduct is attributable only if the federal government approved the unit's conduct in advance and in writing",
+    "The conduct is attributable to the province alone, and the injured state must sue the province in its own courts",
+    "The conduct is not attributable to the federal state because provincial authorities are separate legal entities in domestic law",
+    "The conduct is attributable to the state as the act of a state organ, whatever the organ's position in the state's structure"
+   ]
+  },
+  {
+   "id": "law-intl-public.l10.q3",
+   "lessonId": "law-intl-public.l10",
+   "kind": "mcq",
+   "prompt": "In the Corfu Channel case (ICJ, 1949), on what ground did the Court hold Albania responsible for damage to British warships from mines?",
+   "choices": [
+    "Albania knew or must have known of the mines in its waters and failed to warn the ships",
+    "Albania had refused to allow the warships to pass through the strait under any circumstances",
+    "Albania's agents had laid the mines, which the evidence proved directly during the proceedings",
+    "Albania had approved the earlier laying of the mines by a third state in a secret treaty"
+   ]
+  },
+  {
+   "id": "law-intl-public.l10.q4",
+   "lessonId": "law-intl-public.l10",
+   "kind": "mcq",
+   "prompt": "State N supplies arms and funding to an armed group in State M and gives general strategic advice, but the group chooses its own targets and operates independently. The group commits a massacre in M. Under the effective control test applied by the ICJ in the Nicaragua and Bosnian Genocide cases, what is the most likely result?",
+   "choices": [
+    "The massacre is attributable to N because N financed and armed the group as a whole",
+    "The massacre is not attributable to N unless N directed or effectively controlled the specific operation",
+    "The massacre is attributable to M, because the group is a state organ of the territory in which it operates",
+    "The massacre is attributable to N only if a Security Council resolution has condemned the group's leaders"
+   ]
+  },
+  {
+   "id": "law-intl-public.l10.q5",
+   "lessonId": "law-intl-public.l10",
+   "kind": "mcq",
+   "prompt": "Paramilitaries not controlled by State S commit genocide in a neighbouring region. S had strong influence over them, knew of the serious risk and had the capacity to act, but did nothing. Using the reasoning of the ICJ in Bosnia v. Serbia (2007), what is the best analysis of S's responsibility?",
+   "choices": [
+    "S bears no responsibility of any kind, because the acts of private groups can never give rise to state responsibility",
+    "S is responsible only if the paramilitaries were formally part of its armed forces under its domestic law",
+    "S may be responsible for breaching its separate obligation to prevent genocide",
+    "S is responsible for committing genocide, since influence is the equivalent of control for attribution"
+   ]
+  },
+  {
+   "id": "law-intl-public.l11.q1",
+   "lessonId": "law-intl-public.l11",
+   "kind": "mcq",
+   "prompt": "Under the ILC Articles, which of the following is a form of reparation listed in Article 34?",
+   "choices": [
+    "Retorsion",
+    "Retaliation",
+    "Sanction",
+    "Satisfaction"
+   ]
+  },
+  {
+   "id": "law-intl-public.l11.q2",
+   "lessonId": "law-intl-public.l11",
+   "kind": "mcq",
+   "prompt": "According to the Chorzow Factory case (PCIJ, 1928), what is the aim of reparation?",
+   "choices": [
+    "To restore the original treaty obligations without any compensation for damage already caused",
+    "To punish the responsible state in proportion to the seriousness of its misconduct",
+    "To wipe out the consequences of the illegal act and re-establish the situation that would probably have existed without it",
+    "To impose a fixed monetary penalty set by the court regardless of the actual injury suffered"
+   ]
+  },
+  {
+   "id": "law-intl-public.l11.q3",
+   "lessonId": "law-intl-public.l11",
+   "kind": "mcq",
+   "prompt": "Which of the following would qualify as retorsion rather than a countermeasure?",
+   "choices": [
+    "Seizing property belonging to the responsible state, in breach of an immunity rule",
+    "Expelling the responsible state's ambassador, which is an unfriendly but lawful act",
+    "Closing a canal in breach of a treaty guaranteeing free passage to the responsible state's ships",
+    "Suspending a treaty obligation owed to the responsible state, in order to induce compliance"
+   ]
+  },
+  {
+   "id": "law-intl-public.l11.q4",
+   "lessonId": "law-intl-public.l11",
+   "kind": "mcq",
+   "prompt": "State A's aircraft, with its crew in grave danger after a storm damaged its engines, enters State B's airspace without permission and lands at a B airport. B protests the violation. Which circumstance precluding wrongfulness is most relevant?",
+   "choices": [
+    "Distress under Article 24, because the crew had no other reasonable way of saving their lives and those entrusted to their care",
+    "Consent under Article 20, because the Chicago airspace rules treat any landing as consented to in advance",
+    "Countermeasures under Article 22, because B had earlier breached an unrelated treaty with A",
+    "Necessity under Article 25, because the state needed to protect an essential interest and it makes no difference whether others' interests are seriously impaired"
+   ]
+  },
+  {
+   "id": "law-intl-public.l11.q5",
+   "lessonId": "law-intl-public.l11",
+   "kind": "mcq",
+   "prompt": "State X violates a trade treaty with State Y. Y, after demanding compliance and notifying X, imposes proportionate duties on X's goods in breach of a separate treaty, to be lifted once X complies. Y also threatens to bombard X's capital if X does not comply. Which analysis is best?",
+   "choices": [
+    "Both the duties and the threat are lawful countermeasures, since any response to a breach is allowed so long as it is announced in advance",
+    "Neither the duties nor the threat is lawful, since countermeasures are never permitted in international law",
+    "Both are lawful because X's violation of the treaty is a use of force that justifies any response",
+    "The duties are likely a lawful countermeasure if proportionate and reversible"
+   ]
+  },
+  {
+   "id": "law-intl-public.l12.q1",
+   "lessonId": "law-intl-public.l12",
+   "kind": "mcq",
+   "prompt": "What is the distinction between acta jure imperii and acta jure gestionis in the law of state immunity?",
+   "choices": [
+    "Acts of sovereign authority, for which the state is immune, and commercial or private acts",
+    "Acts committed abroad, for which the state is immune, and acts committed at home, for which it generally is not",
+    "Acts of the head of state, for which the state is immune, and acts of lower officials, for which it generally is not",
+    "Acts that were lawful, for which the state is immune, and unlawful acts, for which it generally is not"
+   ]
+  },
+  {
+   "id": "law-intl-public.l12.q2",
+   "lessonId": "law-intl-public.l12",
+   "kind": "mcq",
+   "prompt": "What did the ICJ decide in the Arrest Warrant case (DRC v. Belgium, 2002)?",
+   "choices": [
+    "That a serving foreign minister has no immunity when accused of crimes against humanity, since universal jurisdiction overrides it",
+    "That a serving foreign minister is immune from foreign criminal jurisdiction, so Belgium's warrant violated the DRC's rights",
+    "That immunity applies only to the head of state and never to ministers or other government officials",
+    "That Belgium could not exercise universal jurisdiction over any crime, whatever the status of the accused"
+   ]
+  },
+  {
+   "id": "law-intl-public.l12.q3",
+   "lessonId": "law-intl-public.l12",
+   "kind": "mcq",
+   "prompt": "Under the Vienna Convention on Diplomatic Relations 1961, what may a receiving state do when it no longer wishes to accept a diplomat?",
+   "choices": [
+    "Arrest the diplomat after a short period of notice, since immunity lasts only for the first year of the posting",
+    "Prosecute the diplomat for any crime alleged, as immunity applies only to civil matters under the Convention",
+    "Declare the diplomat persona non grata at any time without having to explain its decision",
+    "Seek the approval of the UN Security Council before asking the sending state to recall the person"
+   ]
+  },
+  {
+   "id": "law-intl-public.l12.q4",
+   "lessonId": "law-intl-public.l12",
+   "kind": "mcq",
+   "prompt": "Victims of wartime atrocities by State G's armed forces sue State G for damages in the courts of State I, and say that immunity cannot apply to violations of peremptory norms. Using the reasoning of the ICJ in Germany v. Italy (2012), what is the best analysis?",
+   "choices": [
+    "The suit is barred only if State I has ratified the 2004 UN Convention on Jurisdictional Immunities",
+    "The suit must proceed because jus cogens norms automatically remove state immunity in the courts of all states",
+    "The suit must proceed because the acts of armed forces are always treated as commercial acts under the restrictive theory",
+    "The suit is barred by State G's immunity"
+   ]
+  },
+  {
+   "id": "law-intl-public.l12.q5",
+   "lessonId": "law-intl-public.l12",
+   "kind": "mcq",
+   "prompt": "A former head of state of State T is visiting State U after leaving office. State U's prosecutors wish to charge him for acts he committed privately before taking office, and for official acts during office. Which analysis is most defensible?",
+   "choices": [
+    "Personal immunity no longer applies after leaving office",
+    "He is fully immune for both, because immunity ratione personae continues after leaving office for all acts",
+    "He has no immunity for either, because immunity ends on leaving office for every act, official or private",
+    "He is immune for private acts before office, but not for his official acts as head of state"
+   ]
+  },
+  {
+   "id": "law-intl-public.l13.q1",
+   "lessonId": "law-intl-public.l13",
+   "kind": "mcq",
+   "prompt": "Which Article of the UN Charter provides that members must comply with ICJ decisions in cases to which they are parties?",
+   "choices": [
+    "Article 2(4)",
+    "Article 94",
+    "Article 51",
+    "Article 103"
+   ]
+  },
+  {
+   "id": "law-intl-public.l13.q2",
+   "lessonId": "law-intl-public.l13",
+   "kind": "mcq",
+   "prompt": "Which of the following is the best example of compliance explained by coordination rather than by threat of enforcement?",
+   "choices": [
+    "States follow common aviation and shipping standards because all benefit from a shared system",
+    "A state releases a seized vessel after its ambassador is recalled by the injured state",
+    "A state complies with a Security Council arms embargo after the threat of further sanctions",
+    "A state pays compensation ordered by an arbitral tribunal after its assets abroad are frozen"
+   ]
+  },
+  {
+   "id": "law-intl-public.l13.q3",
+   "lessonId": "law-intl-public.l13",
+   "kind": "mcq",
+   "prompt": "Which statement about Security Council enforcement under Chapter VII is correct?",
+   "choices": [
+    "The Council may act only with the unanimous consent of all 193 General Assembly members",
+    "The Council's decisions are recommendations only and bind no member state under the Charter",
+    "The Council may act without any prior determination of a threat to the peace, breach of the peace or act of aggression",
+    "The Council may adopt binding decisions on non-military measures such as sanctions"
+   ]
+  },
+  {
+   "id": "law-intl-public.l13.q4",
+   "lessonId": "law-intl-public.l13",
+   "kind": "mcq",
+   "prompt": "State A refuses to comply with an ICJ judgment ordering it to return disputed property to State B. B takes the matter to the Security Council under Article 94(2). A's ally, a permanent member, threatens to veto any resolution. Which analysis of the situation is most accurate?",
+   "choices": [
+    "A is no longer bound by the judgment once the matter reaches the Council, since the Council replaces the Court's authority",
+    "The judgment becomes void if the Council fails to act on it within a reasonable time after referral",
+    "The judgment remains legally binding on A, but enforcement through the Council may be blocked by the veto",
+    "The veto cannot apply to matters relating to ICJ judgments, which the Charter excludes from the voting rules"
+   ]
+  },
+  {
+   "id": "law-intl-public.l13.q5",
+   "lessonId": "law-intl-public.l13",
+   "kind": "mcq",
+   "prompt": "A scholar argues that states mostly comply with the law of diplomatic relations even though no body enforces it, because each state hosts foreign diplomats and sends its own abroad, so breach invites retaliation against its own envoys. Which explanation of compliance is she mainly relying on?",
+   "choices": [
+    "Constructivist internalisation, under which states obey because they have absorbed the norm into their identity regardless of cost",
+    "Reciprocity, under which states obey because their own interests are served by mutual observance of the rule",
+    "Collective enforcement, under which the Security Council compels compliance by sanctions under Chapter VII",
+    "Judicial enforcement, under which the ICJ's compulsory jurisdiction deters violations by every state"
+   ]
+  },
+  {
+   "id": "law-intl-public.l14.q1",
+   "lessonId": "law-intl-public.l14",
+   "kind": "mcq",
+   "prompt": "Which provision of the UN Charter contains the general prohibition on the threat or use of force between states?",
+   "choices": [
+    "Article 103, which gives Charter obligations priority over members' conflicting treaty obligations",
+    "Article 51, which states the right of self-defence and contains the main limits on force",
+    "Article 2(4), which requires members to refrain from the threat or use of force against territorial integrity or political independence",
+    "Article 42, which gives the Security Council power to take military action to restore international peace"
+   ]
+  },
+  {
+   "id": "law-intl-public.l14.q2",
+   "lessonId": "law-intl-public.l14",
+   "kind": "mcq",
+   "prompt": "According to the ICJ in Nicaragua v. United States (1986), which of the following does NOT by itself amount to an armed attack giving rise to the right of self-defence?",
+   "choices": [
+    "Cross-border action by a state's regular armed forces of sufficient gravity against another state",
+    "The sending by or on behalf of a state of armed bands whose action is of such gravity as to amount to an armed attack",
+    "A large-scale invasion carried out by a state's army with tanks, aircraft and heavy artillery",
+    "Mere assistance to rebels in the form of weapons supply or logistical support from another state"
+   ]
+  },
+  {
+   "id": "law-intl-public.l14.q3",
+   "lessonId": "law-intl-public.l14",
+   "kind": "mcq",
+   "prompt": "The Security Council adopts a Chapter VII resolution with twelve votes in favour, none against, and China abstaining. What is the legal result under Article 27 and Council practice?",
+   "choices": [
+    "The resolution is adopted because abstention by a permanent member is not treated as a veto",
+    "The resolution is adopted only if the General Assembly later ratifies it by a two-thirds vote",
+    "The resolution fails unless China agrees in writing within thirty days that it will comply",
+    "The resolution fails because a permanent member did not vote in favour of it"
+   ]
+  },
+  {
+   "id": "law-intl-public.l14.q4",
+   "lessonId": "law-intl-public.l14",
+   "kind": "mcq",
+   "prompt": "State R's forces seize a border village in State S. S, which has not been attacked by anyone else, immediately launches necessary and proportionate counter-operations to recapture the village, and reports its action to the Security Council. State T, an ally of S that has not been asked by S for help, bombs R's capital citing collective self-defence. Using Nicaragua, what is the best analysis?",
+   "choices": [
+    "S's action is unlawful because it did not wait for the Council's decision, while T's action is lawful if T informs the Council",
+    "S's action may be lawful self-defence against armed attack",
+    "Both actions are lawful because any state may exercise collective self-defence on behalf of any other state it chooses",
+    "Neither is lawful, because self-defence is available only after the Security Council has authorised it"
+   ]
+  },
+  {
+   "id": "law-intl-public.l14.q5",
+   "lessonId": "law-intl-public.l14",
+   "kind": "mcq",
+   "prompt": "Armed rebels operating from State U's territory repeatedly attack State V's border posts. V cannot show that U directed or controlled the rebels, and U's government has not itself attacked V. V's forces enter U to destroy rebel bases. Using the reasoning in DRC v. Uganda (ICJ, 2005), what is the most likely assessment?",
+   "choices": [
+    "V's action is lawful because U is automatically responsible for all private groups operating on its territory",
+    "V's action is lawful because Article 51 allows force against any attack, whoever the author may be, without condition",
+    "V's claim of self-defence is doubtful on the Court's approach, since the attacks were not shown attributable to U",
+    "V's action is lawful because any threat from territory within a neighbouring state justifies force against that state"
+   ]
+  },
+  {
+   "id": "law-intl-public.l15.q1",
+   "lessonId": "law-intl-public.l15",
+   "kind": "mcq",
+   "prompt": "How many members does the UN Security Council have, and how many are permanent?",
+   "choices": [
+    "Fifteen members, of which ten are permanent",
+    "Eleven members, of which five are permanent",
+    "Twenty-one members, of which seven are permanent",
+    "Fifteen members, of which five are permanent"
+   ]
+  },
+  {
+   "id": "law-intl-public.l15.q2",
+   "lessonId": "law-intl-public.l15",
+   "kind": "mcq",
+   "prompt": "What is the legal effect of most General Assembly resolutions?",
+   "choices": [
+    "They are binding on all members once adopted by a two-thirds majority of members present",
+    "They are binding only on the members that voted in favour of them",
+    "They are generally recommendations, though internal matters such as the budget are binding",
+    "They are binding only if approved by all five permanent members of the Security Council"
+   ]
+  },
+  {
+   "id": "law-intl-public.l15.q3",
+   "lessonId": "law-intl-public.l15",
+   "kind": "mcq",
+   "prompt": "Under Article 4 of the UN Charter, how is a state admitted to membership?",
+   "choices": [
+    "By decision of the Secretary-General after consulting the Economic and Social Council",
+    "By decision of the General Assembly on the recommendation of the Security Council",
+    "By decision of the Security Council alone, without any role for the General Assembly",
+    "By a ruling of the International Court of Justice on whether the state meets the Montevideo criteria"
+   ]
+  },
+  {
+   "id": "law-intl-public.l15.q4",
+   "lessonId": "law-intl-public.l15",
+   "kind": "mcq",
+   "prompt": "A draft Security Council resolution imposing non-military sanctions on State W receives fourteen votes in favour and one vote against, cast by a permanent member. Which statement is most accurate?",
+   "choices": [
+    "The resolution is not adopted because a negative vote by a permanent member on a non-procedural matter blocks it",
+    "The resolution is adopted but may be overturned by the General Assembly by a two-thirds vote",
+    "The resolution is adopted because fourteen votes exceed the nine needed",
+    "The resolution is adopted because the permanent member is a party to the dispute and must abstain"
+   ]
+  },
+  {
+   "id": "law-intl-public.l15.q5",
+   "lessonId": "law-intl-public.l15",
+   "kind": "mcq",
+   "prompt": "The Security Council is deadlocked because of a veto when an apparent breach of the peace occurs. The General Assembly meets in an emergency special session under the Uniting for Peace resolution. What may the Assembly lawfully do?",
+   "choices": [
+    "Dissolve the Security Council and assume its powers until a new Council is elected",
+    "Order the International Court of Justice to issue a binding judgment on the legality of the conduct",
+    "Adopt a binding decision imposing sanctions in the same manner as a Chapter VII Council resolution",
+    "Consider the matter and recommend collective measures to members"
+   ]
+  },
+  {
+   "id": "law-intl-public.l16.q1",
+   "lessonId": "law-intl-public.l16",
+   "kind": "mcq",
+   "prompt": "How many judges sit on the ICJ, and for what term are they elected?",
+   "choices": [
+    "Fifteen judges, elected for a term of nine years",
+    "Seven judges, elected for a term of three years",
+    "Nine judges, elected for a term of five years",
+    "Twenty-one judges, elected for a term of twelve years"
+   ]
+  },
+  {
+   "id": "law-intl-public.l16.q2",
+   "lessonId": "law-intl-public.l16",
+   "kind": "mcq",
+   "prompt": "State A files a case against State B before the ICJ concerning a boundary. Neither has an optional clause declaration and no treaty between them contains a compromissory clause. B does not appear. What is the likely outcome?",
+   "choices": [
+    "The Court has jurisdiction because B is a UN member and so has consented to the Court under the Charter",
+    "The Court lacks jurisdiction unless B consents",
+    "The Court has jurisdiction because A has proved that its claim is well founded in international law",
+    "The Court has jurisdiction because boundary disputes are always within its compulsory jurisdiction"
+   ]
+  },
+  {
+   "id": "law-intl-public.l16.q3",
+   "lessonId": "law-intl-public.l16",
+   "kind": "mcq",
+   "prompt": "Who may request an advisory opinion from the ICJ?",
+   "choices": [
+    "Only the parties to a pending contentious case before the Court",
+    "Any state, which may request opinions on any dispute with another state",
+    "The General Assembly and Security Council",
+    "Private individuals and companies affected by a rule of international law"
+   ]
+  },
+  {
+   "id": "law-intl-public.l16.q4",
+   "lessonId": "law-intl-public.l16",
+   "kind": "mcq",
+   "prompt": "State X loses an ICJ judgment requiring it to pay compensation to State Y and refuses to pay. Which analysis is most accurate?",
+   "choices": [
+    "The judgment is binding on all UN members, who must jointly seize X's assets to satisfy it",
+    "The judgment can be appealed by X to the General Assembly, which may reverse the Court's decision",
+    "The judgment is not binding on X because the Court has no power to enforce it",
+    "The judgment binds X, and Y may seek action from the Security Council under Article 94(2)"
+   ]
+  },
+  {
+   "id": "law-intl-public.l16.q5",
+   "lessonId": "law-intl-public.l16",
+   "kind": "mcq",
+   "prompt": "State M has made an optional clause declaration under Article 36(2) excluding disputes concerning its maritime boundaries. State N, which has made a broader declaration, sues M over a maritime boundary. On what principle will the Court most likely decide the case?",
+   "choices": [
+    "M may rely on its own reservation, and on reciprocity N may too",
+    "The Court has jurisdiction over the dispute because N's broader declaration controls the relationship between the two states",
+    "The Court has jurisdiction because reservations to optional clause declarations are not permitted under the Statute",
+    "The Court has jurisdiction because a boundary dispute is a matter of general international law and no reservation can limit it"
+   ]
+  },
+  {
+   "id": "law-intl-public.l17.q1",
+   "lessonId": "law-intl-public.l17",
+   "kind": "mcq",
+   "prompt": "Under UNCLOS, which forum applies by default if the parties to a dispute have not accepted the same procedure under Article 287?",
+   "choices": [
+    "The International Tribunal for the Law of the Sea sitting as a full court",
+    "Arbitration under Annex VII",
+    "The Security Council, which has power to decide maritime disputes",
+    "The International Court of Justice, which has residual jurisdiction under the Convention"
+   ]
+  },
+  {
+   "id": "law-intl-public.l17.q2",
+   "lessonId": "law-intl-public.l17",
+   "kind": "mcq",
+   "prompt": "What principle governs the relationship between the International Criminal Court and national courts under the Rome Statute?",
+   "choices": [
+    "Complementarity, under which the ICC acts when states are unwilling or unable genuinely to investigate or prosecute",
+    "Primacy, under which the ICC may take over any case from a national court whenever it chooses",
+    "Subsidiarity to the Security Council, under which the ICC may act only on Council referrals",
+    "Exclusivity, under which national courts may never prosecute genocide or war crimes"
+   ]
+  },
+  {
+   "id": "law-intl-public.l17.q3",
+   "lessonId": "law-intl-public.l17",
+   "kind": "mcq",
+   "prompt": "What did the 2016 arbitral tribunal in the South China Sea case (Philippines v. China) conclude about China's nine-dash line claims?",
+   "choices": [
+    "That the tribunal could not hear any part of the case because China refused to take part in it",
+    "That all features in the Spratly Islands generate full exclusive economic zones under UNCLOS",
+    "That China had historic rights within the line that override the maritime entitlements in UNCLOS",
+    "That there was no legal basis for historic rights to resources within the line beyond UNCLOS entitlements"
+   ]
+  },
+  {
+   "id": "law-intl-public.l17.q4",
+   "lessonId": "law-intl-public.l17",
+   "kind": "mcq",
+   "prompt": "State P arrests a vessel flying State Q's flag and detains its crew. Both P and Q are UNCLOS parties, and neither made any Article 287 declaration. Q wants the vessel and crew released at once, and also wants a merits ruling. Which approach is best supported by UNCLOS?",
+   "choices": [
+    "Q may refer the dispute to the Security Council, which can order release and decide the merits in one resolution",
+    "Q must wait for the ICJ to decide, because the ICJ has compulsory jurisdiction over all UNCLOS disputes",
+    "Q may begin Annex VII arbitration for the merits",
+    "Q has no remedy, because UNCLOS contains no dispute settlement procedure binding on states"
+   ]
+  },
+  {
+   "id": "law-intl-public.l17.q5",
+   "lessonId": "law-intl-public.l17",
+   "kind": "mcq",
+   "prompt": "State T is a party to the Rome Statute. A national of non-party State U commits a war crime on T's territory. T declines to prosecute because the suspect is politically connected. Which assessment is most defensible?",
+   "choices": [
+    "The ICC cannot act, because only the Security Council may refer a situation involving a non-party's national",
+    "The ICC may have jurisdiction on the basis of territory",
+    "The ICC must defer to T indefinitely, since complementarity forbids the Court from acting once a state asserts jurisdiction",
+    "The ICC cannot act, because it can exercise jurisdiction only over nationals of states parties wherever the crime occurs"
+   ]
+  },
+  {
+   "id": "law-intl-public.l18.q1",
+   "lessonId": "law-intl-public.l18",
+   "kind": "mcq",
+   "prompt": "Under UNCLOS, what is the maximum breadth of the territorial sea measured from the baseline?",
+   "choices": [
+    "Twenty-four nautical miles, which is also the outer limit of the contiguous zone",
+    "Two hundred nautical miles, the same as the exclusive economic zone",
+    "Twelve nautical miles, subject to the right of innocent passage for foreign ships",
+    "Three nautical miles, the traditional cannon-shot distance preserved by the Convention"
+   ]
+  },
+  {
+   "id": "law-intl-public.l18.q2",
+   "lessonId": "law-intl-public.l18",
+   "kind": "mcq",
+   "prompt": "What rights does a coastal state have in its exclusive economic zone?",
+   "choices": [
+    "Only the right to enforce customs and immigration laws, with no rights over fish or seabed resources",
+    "Rights over fish only, while the seabed beyond the territorial sea belongs to the international community",
+    "Full territorial sovereignty over the zone, including the right to bar foreign ships and aircraft",
+    "Sovereign rights over natural resources and jurisdiction over specified matters"
+   ]
+  },
+  {
+   "id": "law-intl-public.l18.q3",
+   "lessonId": "law-intl-public.l18",
+   "kind": "mcq",
+   "prompt": "The seabed and subsoil beyond national jurisdiction, known as the Area, are governed by which principle?",
+   "choices": [
+    "The principle of the common heritage of mankind",
+    "The principle of equidistance, under which neighbouring states divide the seabed between them",
+    "The principle of first occupation, under which the first state to exploit an area acquires title",
+    "The principle of flag state sovereignty, under which each ship's state owns the seabed beneath it"
+   ]
+  },
+  {
+   "id": "law-intl-public.l18.q4",
+   "lessonId": "law-intl-public.l18",
+   "kind": "mcq",
+   "prompt": "A State F warship sails through State C's territorial sea without stopping, uses no force, and conducts no weapons exercises, but it did not notify or seek permission from C. C's coast guard orders it to leave, saying all foreign warships need prior authorisation. Using UNCLOS and Corfu Channel, what is the most defensible analysis?",
+   "choices": [
+    "C is entitled to bar the warship, because any ship passing through the territorial sea must have notified the coastal state in advance",
+    "C's demand is questionable, because innocent passage is a right of all ships and passage that does not prejudice peace",
+    "C is entitled to bar the warship, because the territorial sea is under C's full sovereignty without any foreign right of passage",
+    "C is entitled to bar the warship, because only merchant ships enjoy a right of innocent passage under Article 17"
+   ]
+  },
+  {
+   "id": "law-intl-public.l18.q5",
+   "lessonId": "law-intl-public.l18",
+   "kind": "mcq",
+   "prompt": "A foreign-flagged fishing vessel is found fishing without a licence 120 nautical miles off State C's coast, in C's EEZ, and flees onto the high seas when ordered to stop. C's patrol vessel pursues it continuously from the EEZ and arrests it 300 nautical miles from the coast. Which analysis is most accurate?",
+   "choices": [
+    "The arrest is unlawful, because hot pursuit is permitted only in the territorial sea and cannot start in the EEZ",
+    "The arrest is lawful only if the Security Council has authorised C to enforce its fishing laws on the high seas",
+    "The arrest is lawful as hot pursuit under Article 111",
+    "The arrest is unlawful, because on the high seas only the flag state may exercise jurisdiction over a ship in all circumstances"
+   ]
+  },
+  {
+   "id": "law-intl-public.l19.q1",
+   "lessonId": "law-intl-public.l19",
+   "kind": "mcq",
+   "prompt": "Which arbitration is the classic authority for the customary duty not to allow one's territory to be used to cause serious transboundary harm?",
+   "choices": [
+    "The Alabama Claims arbitration between the United States and the United Kingdom",
+    "The Lake Lanoux arbitration between France and Spain on river use",
+    "The Island of Palmas arbitration between the Netherlands and the United States",
+    "The Trail Smelter arbitration between the United States and Canada"
+   ]
+  },
+  {
+   "id": "law-intl-public.l19.q2",
+   "lessonId": "law-intl-public.l19",
+   "kind": "mcq",
+   "prompt": "What did the ICJ hold in Pulp Mills on the River Uruguay (2010) about environmental impact assessment?",
+   "choices": [
+    "It is required for every industrial project regardless of risk, with a content set by the Court itself",
+    "It is a requirement only for projects in shared watercourses, and not for any other kind of activity",
+    "It is a requirement of general international law where a proposed activity may have a significant transboundary impact, with its content left to national law",
+    "It is required only where a treaty expressly provides for it, and no general rule of that kind exists"
+   ]
+  },
+  {
+   "id": "law-intl-public.l19.q3",
+   "lessonId": "law-intl-public.l19",
+   "kind": "mcq",
+   "prompt": "How does the Paris Agreement 2015 primarily seek to reach its temperature goals?",
+   "choices": [
+    "Through legally binding national emission caps for each party set by the Agreement itself",
+    "Through nationally determined contributions prepared by each party",
+    "Through a global carbon tax collected by the UN and distributed to developing countries",
+    "Through a Security Council enforcement mechanism that sanctions states exceeding their quotas"
+   ]
+  },
+  {
+   "id": "law-intl-public.l19.q4",
+   "lessonId": "law-intl-public.l19",
+   "kind": "mcq",
+   "prompt": "State M's government approves a large mine on a river flowing into State N without a transboundary impact assessment and without notifying N, though the mine's discharge may seriously affect N's fisheries. M and N are not parties to any treaty on the river. M says its domestic law does not require an assessment. What is the best analysis?",
+   "choices": [
+    "M has probably breached customary international law",
+    "M has breached the polluter pays principle, which is a binding rule that fixes the amount of compensation",
+    "M has breached no rule, since the lack of a treaty means that no international rule on the matter exists",
+    "M is in breach only if serious harm has already occurred, because the duty arises only after harm is proved"
+   ]
+  },
+  {
+   "id": "law-intl-public.l19.q5",
+   "lessonId": "law-intl-public.l19",
+   "kind": "mcq",
+   "prompt": "A scientist argues that the Montreal Protocol 1987 succeeded partly because of design features such as phase-out schedules, trade restrictions on non-parties and a fund for developing countries. Which general conclusion about environmental treaty design does this example best support?",
+   "choices": [
+    "Environmental treaties succeed only where they are enforced by the Security Council through sanctions",
+    "Environmental treaties succeed only where they contain no differentiated obligations, since equal duties are essential",
+    "Environmental treaties cannot succeed unless every state in the world is a party at the moment they enter into force",
+    "Treaties that combine clear targets with incentives and assistance can induce broad participation and compliance without central enforcement"
+   ]
+  },
+  {
+   "id": "law-intl-public.l20.q1",
+   "lessonId": "law-intl-public.l20",
+   "kind": "mcq",
+   "prompt": "Which principle in Article II of the Outer Space Treaty 1967 applies to the Moon and other celestial bodies?",
+   "choices": [
+    "They are owned collectively by the United Nations, which allocates rights of use to member states",
+    "They may be divided among states by agreement according to each state's share of the world population",
+    "They may be claimed by the first state to land on them and establish a base",
+    "They are not subject to national appropriation by claim of sovereignty, use"
+   ]
+  },
+  {
+   "id": "law-intl-public.l20.q2",
+   "lessonId": "law-intl-public.l20",
+   "kind": "mcq",
+   "prompt": "Under Article VI of the Outer Space Treaty, who bears international responsibility for the space activities of a private company?",
+   "choices": [
+    "The company alone, since the treaty applies only to states acting through governmental agencies",
+    "The state of the company's incorporation and the state of its largest shareholder jointly and equally",
+    "The appropriate state, which must authorise and continuously supervise the company's activities",
+    "The UN Office for Outer Space Affairs, which licenses all private space operators worldwide"
+   ]
+  },
+  {
+   "id": "law-intl-public.l20.q3",
+   "lessonId": "law-intl-public.l20",
+   "kind": "mcq",
+   "prompt": "Under the Liability Convention 1972, on what basis is a launching state liable for damage caused by its space object to an aircraft in flight?",
+   "choices": [
+    "No liability, since aircraft are outside the Convention",
+    "Absolute liability, with no need to prove fault",
+    "Liability only on proof of fault by the launching state's officials",
+    "Liability only if the damage was caused deliberately by the launching state"
+   ]
+  },
+  {
+   "id": "law-intl-public.l20.q4",
+   "lessonId": "law-intl-public.l20",
+   "kind": "mcq",
+   "prompt": "A privately owned lunar mining company licensed by State A extracts regolith from the Moon and sells it. State B objects, saying that A's licence amounts to national appropriation, contrary to Article II. State A says it claims no sovereignty and only allows its company to own the extracted material. Which characterisation is most accurate?",
+   "choices": [
+    "The question is unsettled: the treaty bans appropriation of the bodies but is silent on resource extraction",
+    "The question is settled by the Moon Agreement 1979, which binds A and B because it is accepted by all space powers",
+    "The treaty clearly and expressly permits ownership of extracted resources, so B's objection is without merit",
+    "The treaty clearly and expressly forbids all extraction of resources, so A's licence is unlawful"
+   ]
+  },
+  {
+   "id": "law-intl-public.l20.q5",
+   "lessonId": "law-intl-public.l20",
+   "kind": "mcq",
+   "prompt": "A satellite of State P, launched by a private operator from State Q's territory on a rocket procured through State R, is struck in orbit by debris from a State S rocket stage, and S's fault is shown. Which analysis is most defensible under the Liability Convention?",
+   "choices": [
+    "P may claim against S on an absolute basis, because every space collision engages absolute liability",
+    "Neither P nor S may claim, since private operators' satellites fall outside the Liability Convention altogether",
+    "Only State S's launching state is liable, and P has no claim because the damage occurred in outer space",
+    "P may claim against S as a launching state on a fault basis"
+   ]
+  }
+ ]
+}

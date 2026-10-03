@@ -1,0 +1,1874 @@
+{
+ "courseId": "music-history-eras",
+ "label": "The Story of Music: Eras and Composers",
+ "lessons": [
+  {
+   "id": "music-history-eras.l01",
+   "title": "Music in the Ancient World",
+   "body": [
+    "Every known human culture makes music, but for most of history nobody wrote it down, so what we know about the ancient world comes from instruments, pictures, texts and a handful of notated fragments.",
+    "In Mesopotamia, a clay tablet from the city of Ugarit, dated to around 1400 BC, carries a Hurrian hymn with signs that scholars read as musical notation. Experts still debate how to interpret it, but it is among the oldest notated music known. Egyptian paintings and tomb finds show harps, flutes and the rattle called the sistrum used in temple ritual and at banquets.",
+    "Ancient Greece gave Western music much of its vocabulary. The words music, harmony and melody come from Greek, and thinkers such as the Pythagoreans studied how pitch relates to the length of a vibrating string. Two notated Greek pieces are well known: the Delphic Hymns to Apollo, from around the second century BC, and the Seikilos epitaph, a short song carved on a gravestone, from about the first century AD.",
+    "In China, a set of 65 bronze bells found in the tomb of Marquis Yi of Zeng, from around 433 BC, shows how advanced court music was. The guqin, a plucked zither, became a scholar's instrument. In India, the ancient treatise on performing arts called the Natya Shastra discusses melody and rhythm, and Indian music later developed the ideas of raga and tala. Its exact date is debated, so it is usually placed around two thousand years ago.",
+    "The lesson to carry forward: music is old and everywhere, but our sound-picture of the ancient world is incomplete."
+   ]
+  },
+  {
+   "id": "music-history-eras.l02",
+   "title": "Gregorian Chant and Hildegard of Bingen",
+   "body": [
+    "For much of the early Middle Ages, the main written music of Western Europe was the song of the Christian church. Gregorian chant, also called plainchant, is monophonic: everyone sings one melody, in Latin, without instruments or harmony, and the rhythm follows the flow of the words. The name honors Pope Gregory I, who lived around 600, but historians agree the repertory grew over several centuries and was gathered and standardized later, especially in the Frankish lands by around 900.",
+    "Chant is organized in modes, scale patterns that differ from the major and minor scales we know today. Its calm, floating sound shaped Western musical ear-training for a thousand years, and composers still quote its melodies, such as the Dies irae.",
+    "Hildegard of Bingen (1098 to 1179) was a German abbess, writer and composer. She is one of the first composers in Western music about whom we know a good deal, and a large body of her music survives. Her chants, collected in a cycle often called the Symphonia, soar over wider ranges and leap more adventurously than most chant. She also wrote Ordo Virtutum, a sung drama about the virtues and the devil, which is notable because the devil's part is spoken rather than sung.",
+    "Chant was not only a style but a foundation. Later polyphony, the combining of independent melodic lines, was first built by adding voices around chant melodies."
+   ]
+  },
+  {
+   "id": "music-history-eras.l03",
+   "title": "Guido of Arezzo and the Invention of Notation",
+   "body": [
+    "Early chant was passed on by memory. Around the ninth century, singers began adding small marks called neumes above the words to remind them whether the melody went up or down. Neumes showed the shape of a tune but not exact pitches, so you still had to know the song already.",
+    "Guido of Arezzo, an Italian monk and teacher who lived around the year 1000, is credited with advancing the idea that fixed the problem. He promoted the use of lines to show pitch, and he taught a staff of lines and spaces on which each note has a definite place. The system developed over time into the five-line staff we use today.",
+    "Guido is also associated with a teaching method that gave names to notes. Singers learned syllables, now known as ut, re, mi, fa, sol and la, taken from the opening of a Latin hymn to St. John, where each phrase begins one step higher than the last. Later, do replaced ut, and the system lives on in the do-re-mi of solfege. Treat the precise details of what Guido personally invented with some caution, since the system grew over generations, but his importance as a teacher of notation is well established.",
+    "Why does notation matter? It let composers create music that other people, far away or long after, could perform. It also made it possible to write more than one line at a time, which led to complex polyphony and eventually to the whole tradition of Western composition."
+   ]
+  },
+  {
+   "id": "music-history-eras.l04",
+   "title": "Notre Dame, Troubadours and Machaut",
+   "body": [
+    "Polyphony grew from a simple idea: add a second voice to a chant. This is called organum. At the cathedral of Notre Dame in Paris, in the late twelfth and early thirteenth centuries, composers took it much further. Leonin is credited with compiling the Magnus Liber Organi, the Great Book of Organum, for the church year. Perotin, who came slightly later, is known for writing organum in three and four voices, which was extraordinary for the time. Both are known mostly through later writers, so details of their lives are slim.",
+    "Meanwhile, outside the church, the troubadours of southern France sang songs of love and chivalry in the language of the region, from around 1100. Guilhem IX, Duke of Aquitaine, is the earliest troubadour whose songs survive. Their northern counterparts, the trouvères, did the same in northern French. Many of these melodies are preserved, though the rhythm and accompaniment are not clearly specified.",
+    "In the fourteenth century a new approach to rhythm, in which notes could be divided in flexible ways, gave rise to the label Ars Nova, or new art. Guillaume de Machaut (around 1300 to 1377), a poet and composer, is its most famous figure. His Messe de Nostre Dame is a landmark: it is often described as the earliest complete setting of the Mass ordinary attributed to a single composer. He also wrote many songs, including rondeaux and ballades."
+   ]
+  },
+  {
+   "id": "music-history-eras.l05",
+   "title": "The Renaissance: Josquin, Palestrina and the Printed Page",
+   "body": [
+    "The Renaissance in music runs roughly from around 1400 to 1600. Its most characteristic sound is vocal polyphony in which several voices of similar importance weave together, often imitating each other, with a smoother, more consonant sound than earlier styles.",
+    "Josquin des Prez (around 1450 to 1521), from the region that is now northern France and Belgium, worked in Italy and France and was widely admired as the leading composer of his time. His motets and masses show a close match between the music and the meaning of the words. Giovanni Pierluigi da Palestrina (around 1525 to 1594) worked mainly in Rome. His church music, including the Pope Marcellus Mass, became a model of clear, balanced counterpoint taught to students for centuries.",
+    "Outside the church, the madrigal became popular: a piece for a few voices, usually setting a poem in Italian, in which the music often paints the meaning of individual words. English composers such as Thomas Morley and Thomas Weelkes later wrote their own madrigals.",
+    "A key technology changed everything. Johannes Gutenberg's movable type, around 1450, led to printed books, and in 1501 Ottaviano Petrucci in Venice published the Harmonice Musices Odhecaton, a famous early collection of polyphonic songs printed using movable type. Printed music was cheaper and traveled farther than handwritten copies, so styles spread faster and amateurs could buy and sing music at home."
+   ]
+  },
+  {
+   "id": "music-history-eras.l06",
+   "title": "The Birth of Opera: Monteverdi, Caccini and Strozzi",
+   "body": [
+    "Around 1600, a group of Florentine thinkers and musicians wanted to revive what they imagined ancient Greek drama had sounded like. The result was a new style in which a solo singer, supported by a simple instrumental bass line, declaimed text with expression. This led to opera, drama sung throughout. Jacopo Peri's Euridice, performed in 1600, is one of the earliest operas that survives.",
+    "Claudio Monteverdi (1567 to 1643) turned the new form into lasting art. His L'Orfeo, first performed in Mantua in 1607, tells the myth of Orpheus and is regarded as the first great opera. Later he moved to Venice, where he wrote L'incoronazione di Poppea in 1643. By then opera had become a public entertainment: the first public opera house opened in Venice in 1637, so audiences who bought tickets, not only courtiers, could attend.",
+    "Women were part of this world. Francesca Caccini (1587 to after 1640), a singer and composer at the Medici court in Florence, wrote La liberazione di Ruggiero dall'isola d'Alcina in 1625, usually described as the earliest surviving opera by a woman. Barbara Strozzi (1619 to 1677), a Venetian singer and composer, published several volumes of her own vocal music, mostly cantatas and arias, which is remarkable for a woman of her time.",
+    "The new style of a solo voice over a bass line shaped the Baroque era."
+   ]
+  },
+  {
+   "id": "music-history-eras.l07",
+   "title": "The Baroque: Bach, Handel, Vivaldi and Purcell",
+   "body": [
+    "The Baroque era runs roughly from 1600 to 1750. Its music is dramatic and decorated, and it rests on basso continuo: a bass line played by a cello or similar instrument with a harpsichord or organ filling in the chords. Composers also grew more interested in tonality, the sense that music centers on a home key.",
+    "Henry Purcell (around 1659 to 1695) was the leading English composer; his opera Dido and Aeneas, composed in the 1680s (scholars still debate the exact year), is a landmark. Antonio Vivaldi (1678 to 1741) taught and composed in Venice and helped to standardize the concerto for a soloist and orchestra. His set of four violin concertos, The Four Seasons, was published in 1725.",
+    "Johann Sebastian Bach (1685 to 1750) and George Frideric Handel (1685 to 1759) were born in the same year, a few weeks apart and not far from each other in Germany. Bach spent his career in German churches and courts, becoming music director of Leipzig's main churches in 1723. His Brandenburg Concertos, Well-Tempered Clavier and St. Matthew Passion show mastery of counterpoint. Handel moved to England and wrote operas, then oratorios, English-language works for chorus and orchestra. His Messiah premiered in Dublin in 1742.",
+    "For a full picture of these two giants, see the composer profiles in the Music Figures course. Here, remember what the era invented: the concerto, the opera as a business, and harmony organized around a key."
+   ]
+  },
+  {
+   "id": "music-history-eras.l08",
+   "title": "Instruments, Patrons and Concert Halls",
+   "body": [
+    "Music does not exist in a vacuum. Who pays, where it is played and what instruments exist all shape what composers write.",
+    "In the Middle Ages, the church was the main patron; singers sang in monasteries and cathedrals. In the Renaissance and Baroque, courts and aristocrats employed composers as servants. Bach worked for churches and a prince; Haydn served the Esterhazy family for decades. A patron might demand a certain style, but also gave steady income.",
+    "Instruments developed too. The violin family was perfected in northern Italy in the sixteenth and seventeenth centuries, with Cremona famous for its makers. Around 1700, Bartolomeo Cristofori in Italy built the first piano, an instrument that could play both soft and loud, which is why it was named pianoforte. In the early nineteenth century, valves for brass instruments made it easier to play all the notes, and the modern orchestra grew larger and richer.",
+    "Public concerts began to replace private courts. Public concerts were being given in London in the later seventeenth century, and in the nineteenth century dedicated halls were built, such as the Musikverein in Vienna in 1870 and Carnegie Hall in New York in 1891. Printing and, later, copyright laws let composers earn from sales instead of relying on one patron.",
+    "Each shift, from church to court to public, changed who music was for."
+   ]
+  },
+  {
+   "id": "music-history-eras.l09",
+   "title": "The Classical Era: Haydn and Mozart",
+   "body": [
+    "The Classical era, from about 1750 to the early 1800s, grew alongside the Enlightenment, which valued reason, order and clarity. In music, that meant clear melodies, balanced phrases and well-planned forms.",
+    "The most important of these forms is sonata form, used for the first movement of many symphonies, sonatas and string quartets. It has three main parts: an exposition, which presents contrasting themes; a development, which plays with them; and a recapitulation, which brings them back. A symphony usually has four movements, and a string quartet is for two violins, a viola and a cello.",
+    "Joseph Haydn (1732 to 1809) worked for the wealthy Esterhazy family in Hungary for decades, and later became famous in London. He wrote more than one hundred symphonies and is often called the father of the symphony and of the string quartet, though he did not invent either alone. Wolfgang Amadeus Mozart (1756 to 1791), born in Salzburg, was a child prodigy who later settled in Vienna. He mastered nearly every genre, from piano concertos to operas such as The Marriage of Figaro (1786) and The Magic Flute (1791). His Requiem was left unfinished at his death at age 35.",
+    "Haydn and Mozart knew and admired each other. Together they set the pattern that Beethoven would inherit and break open."
+   ]
+  },
+  {
+   "id": "music-history-eras.l10",
+   "title": "Beethoven: From Classical to Romantic",
+   "body": [
+    "Ludwig van Beethoven (1770 to 1827), born in Bonn, moved to Vienna as a young man and became famous as a pianist and composer. He studied with Haydn and admired Mozart, and he began in the Classical style. But he steadily made his music larger, more intense and more personal.",
+    "In the early 1800s he began to lose his hearing. He grew deeply distressed, but kept composing, and eventually could not hear his own music. His Symphony No. 3, the Eroica, from 1804, was much longer and more dramatic than symphonies before it. His Symphony No. 5 is built from a four-note motif developed through the whole work. His Symphony No. 9, first performed in 1824, adds a chorus and soloists in the last movement, singing words from Friedrich Schiller's poem Ode to Joy.",
+    "Beethoven also wrote 32 piano sonatas and 16 string quartets, and the late quartets are among the most searching works in the repertory. Because he made his living by publishing, public concerts and commissions rather than serving a single employer, he is often seen as a model of the independent artist.",
+    "He is often described as a bridge: Classical in training, Romantic in spirit. Later composers felt both inspired and intimidated by his example."
+   ]
+  },
+  {
+   "id": "music-history-eras.l11",
+   "title": "Romantic Voices: Schubert, Schumann, Chopin and Liszt",
+   "body": [
+    "The Romantic era, from about 1820 to 1900, put feeling and imagination first. Composers wrote for the growing middle-class audience, and many linked music to poems, stories and nature.",
+    "Franz Schubert (1797 to 1828), who lived in Vienna and died at 31, wrote more than 600 songs, called Lieder, for voice and piano, along with symphonies, chamber music and piano pieces. His song cycles include Winterreise, a set of 24 songs on poems by Wilhelm Muller.",
+    "Robert Schumann (1810 to 1856) wrote piano music, songs and symphonies and also worked as a music critic. Clara Wieck Schumann (1819 to 1896) was one of the leading pianists of her century and a composer. They married in 1840. Her story continues in a later lesson.",
+    "Frederic Chopin (1810 to 1849), born in Poland, spent most of his adult life in Paris and wrote almost exclusively for the piano: nocturnes, waltzes, etudes, and mazurkas and polonaises that echo Polish dances. Franz Liszt (1811 to 1886), a Hungarian, was a dazzling virtuoso pianist whose recitals drew huge crowds. He also created the symphonic poem, a one-movement orchestral work based on a story or idea.",
+    "The piano of this period, with its stronger frame and wider range, helped make these styles possible."
+   ]
+  },
+  {
+   "id": "music-history-eras.l12",
+   "title": "Brahms, Verdi and Wagner",
+   "body": [
+    "Three composers born in the 1810s and 1830s show the range of the later nineteenth century.",
+    "Johannes Brahms (1833 to 1897), born in Hamburg and later based in Vienna, built on Beethoven's and Bach's example. He wrote four symphonies, concertos, chamber music and A German Requiem, which uses German texts chosen from the Bible rather than the traditional Latin Mass. Admirers saw him as a keeper of classical craft within a Romantic language.",
+    "Giuseppe Verdi (1813 to 1901) was the leading Italian opera composer of his century. Rigoletto (1851), La traviata (1853) and Aida (1871) remain staples of opera houses. His melodies are direct and emotionally powerful, and during the movement to unify Italy his name became a symbol of national feeling.",
+    "Richard Wagner (1813 to 1883) rethought opera as a total artwork, in which music, poetry and staging merge. He often used leitmotifs, short musical ideas linked to characters, objects or ideas that return and change through a work. His four-opera cycle The Ring of the Nibelung was first performed complete in 1876 in the Festspielhaus at Bayreuth, a theater he had built for the purpose. His harmony pushed tonality to new extremes, influencing generations after him.",
+    "Together these composers show that Romantic music did not mean one single style."
+   ]
+  },
+  {
+   "id": "music-history-eras.l13",
+   "title": "Musical Nationalism: Dvorak, Grieg, Tchaikovsky and Mussorgsky",
+   "body": [
+    "In the nineteenth century, as many European peoples sought national identity, composers drew on folk songs, dances, legends and landscapes of their homelands. This is called musical nationalism.",
+    "Antonin Dvorak (1841 to 1904) from Bohemia, now in the Czech Republic, wrote Slavonic Dances inspired by folk dance. In 1892 he moved to New York to lead the National Conservatory of Music, and there he wrote his Symphony No. 9, From the New World, premiered in 1893. He encouraged American composers to draw on their own musical heritage, including African American and Native American melodies.",
+    "Edvard Grieg (1843 to 1907) of Norway composed incidental music for Henrik Ibsen's play Peer Gynt, and a famous piano concerto, both colored by Norwegian folk music.",
+    "Pyotr Ilyich Tchaikovsky (1840 to 1893) of Russia wrote the ballets Swan Lake, The Sleeping Beauty and The Nutcracker, plus symphonies and the opera Eugene Onegin. His style blends Western European training with Russian melody.",
+    "Modest Mussorgsky (1839 to 1881) was one of a group of Russian composers who wanted to create distinctly Russian music. His piano suite Pictures at an Exhibition (1874) was later orchestrated by Maurice Ravel in 1922, and that version is the one most often heard today.",
+    "Nationalism meant that classical music was no longer dominated only by German-speaking lands."
+   ]
+  },
+  {
+   "id": "music-history-eras.l14",
+   "title": "Women Composers Across the Centuries: Part One",
+   "body": [
+    "Women have composed throughout the history of Western music, but for centuries they faced barriers: limited access to formal training, to church posts and to public performance. Many were overlooked because their work was not published or was not preserved. Recovery of this music is an ongoing project.",
+    "Hildegard of Bingen (1098 to 1179), who we met earlier, stands among the earliest composers in Western history whose name and music are firmly documented. As an abbess she had the authority to compose and direct sacred music for her community.",
+    "In the early seventeenth century, Francesca Caccini (1587 to after 1640) worked at the Medici court in Florence as a singer, teacher and composer. Her opera La liberazione di Ruggiero dall'isola d'Alcina, from 1625, is usually described as the earliest surviving opera by a woman.",
+    "Barbara Strozzi (1619 to 1677) lived in Venice, where she was a gifted singer who composed vocal music and published several volumes of cantatas and arias under her own name, a rare thing for a woman then. Her music combines expressive melodies with lively, speech-like phrasing.",
+    "These composers worked in different places and centuries, but their stories share a pattern: talent was often supported within religious communities or courts, while the wider musical world made it hard for women to become professional composers."
+   ]
+  },
+  {
+   "id": "music-history-eras.l15",
+   "title": "Women Composers Across the Centuries: Part Two",
+   "body": [
+    "In the nineteenth century, more women gained training, but social expectations still limited their careers.",
+    "Fanny Mendelssohn Hensel (1805 to 1847) was the older sister of the composer Felix Mendelssohn and as gifted musically. Her family discouraged her from publishing, and many of her works appeared only late or not at all in her lifetime, but she wrote hundreds of pieces, including songs and piano music, and organized a series of home concerts in Berlin.",
+    "Clara Wieck Schumann (1819 to 1896) was a child prodigy pianist who toured Europe for decades. She composed a piano concerto, a piano trio and many songs, and after the death of her husband Robert Schumann in 1856, she supported her family through performing and teaching and championed his music, as well as that of Brahms.",
+    "Amy Beach (1867 to 1944) of the United States was largely self-taught as a composer. Her Gaelic Symphony, premiered in 1896, is a major symphony by an American woman, and she became a prominent figure in American classical music.",
+    "Florence Price (1887 to 1953) was an African American composer who studied in Boston and later lived in Chicago. In 1933 her Symphony No. 1 in E minor was performed by the Chicago Symphony Orchestra, widely cited as the first symphony by a Black woman played by a major American orchestra. Her music blends Romantic style with spirituals and dance rhythms."
+   ]
+  },
+  {
+   "id": "music-history-eras.l16",
+   "title": "Impressionism and Debussy",
+   "body": [
+    "Around the end of the nineteenth century, some French artists painted light and atmosphere rather than sharp detail. The term Impressionism comes from painting, and critics later applied it to music, though Claude Debussy (1862 to 1918) himself disliked labels.",
+    "Debussy was born near Paris and studied at the Paris Conservatoire. He wanted music to suggest moods and images rather than follow strict formulas. His orchestral Prelude to the Afternoon of a Faun, from 1894, drifts instead of marching toward a clear goal, and many historians regard it as a turning point toward modern music. His opera Pelleas et Melisande (1902) uses subtle, speech-like singing, and his orchestral work La mer (1905) paints the sea in sound.",
+    "Several techniques are tied to his style: the whole-tone scale, which divides the octave into six equal steps; modal scales; and chords used for their color rather than their pull toward a resolution. He was impressed by the Javanese gamelan, an ensemble of gongs and metallophones, that he heard at the Paris Exposition of 1889, a reminder that non-Western music was already stirring European composers.",
+    "Maurice Ravel (1875 to 1937) is often grouped with him, though Ravel's style is more precise and classical. Both helped open the door to twentieth-century music."
+   ]
+  },
+  {
+   "id": "music-history-eras.l17",
+   "title": "Early Modernism: Stravinsky and Schoenberg",
+   "body": [
+    "By the early twentieth century, many composers felt that traditional harmony had been stretched as far as it could go. Two of them took very different paths.",
+    "Igor Stravinsky (1882 to 1971), Russian-born, first became famous in Paris with ballets for the Ballets Russes company: The Firebird (1910) and Petrushka (1911). Then came The Rite of Spring, premiered in Paris in 1913, with pounding, shifting rhythms and harsh harmonies. Accounts agree that the first performance provoked a noisy reaction from the audience. Later he turned to a cooler, more balanced neoclassical style, and later still he explored other methods. He eventually moved to the United States.",
+    "Arnold Schoenberg (1874 to 1951), born in Vienna, moved step by step away from the idea of a home key. In works such as Pierrot lunaire (1912), he used atonality, music without a key center. In the early 1920s he developed the twelve-tone method, in which a fixed ordering of all twelve notes of the chromatic scale organizes a piece. His students Alban Berg and Anton Webern, together with him, are called the Second Viennese School.",
+    "Whether or not listeners loved these works, they showed that the old rules were choices, not laws of nature, and opened many roads for later composers."
+   ]
+  },
+  {
+   "id": "music-history-eras.l18",
+   "title": "African American Roots: Spirituals, Ragtime and Blues",
+   "body": [
+    "African American musical traditions grew out of enslavement, resilience and creativity, and they shaped nearly all later American popular music.",
+    "Spirituals were religious songs created by enslaved people in the American South, often with call and response and expressive, bending melodies. After the Civil War, the Fisk Jubilee Singers, a group of students from Fisk University in Nashville formed in 1871, toured the United States and Europe and introduced arranged spirituals to wide audiences, raising money for their school.",
+    "Ragtime, a piano style with syncopated, off-beat melodies over a steady bass, flourished around the 1890s and early 1900s. Scott Joplin (1868 to 1917) is its best-known composer; his Maple Leaf Rag was published in 1899 and became a major hit in sheet music.",
+    "The blues emerged in the Deep South around the turn of the twentieth century. A typical blues has twelve bars with a repeating harmonic pattern and lyrics about hardship, love and resilience. It uses blue notes, bent pitches that fall between the usual piano notes. W. C. Handy helped bring the blues to wider audiences through published songs such as Memphis Blues in 1912 and St. Louis Blues in 1914, and Bessie Smith became one of its greatest singers on records in the 1920s.",
+    "These styles carried rhythm, improvisation and emotional directness that transformed popular music."
+   ]
+  },
+  {
+   "id": "music-history-eras.l19",
+   "title": "Jazz and Gospel",
+   "body": [
+    "Jazz took shape in the early twentieth century, with New Orleans as a famous early center. It blends blues, ragtime, brass band music and African-derived rhythm, and it values improvisation, in which players invent melodies on the spot over a harmonic framework. A 1917 recording by the Original Dixieland Jass Band is commonly cited as the first jazz record.",
+    "Louis Armstrong (1901 to 1971), a trumpeter and singer from New Orleans, helped make the soloist the star of jazz in recordings of the 1920s. Duke Ellington (1899 to 1974), a pianist and bandleader, composed for his orchestra for decades and treated jazz as a composer's art. Later styles included swing, bebop, cool jazz and many others.",
+    "Gospel is Black American religious music that fuses spirituals with blues-influenced feeling and rhythm, usually with powerful vocals, piano or organ and a chorus. Thomas A. Dorsey, a former blues musician, is widely called the father of gospel music for songs such as Precious Lord, Take My Hand, which he wrote in the 1930s. Mahalia Jackson, a singer from New Orleans, carried gospel to national and international audiences.",
+    "For detailed profiles of key jazz and gospel figures, see the Music Figures course. The key point here is the chain: spirituals, blues and ragtime fed jazz and gospel, and later fed soul, rock and hip-hop."
+   ]
+  },
+  {
+   "id": "music-history-eras.l20",
+   "title": "American Voices: Ives, Copland and Gershwin",
+   "body": [
+    "European composers long dominated concert halls in the United States, but in the twentieth century three composers developed American sounds.",
+    "Charles Ives (1874 to 1954) worked in the insurance business and composed on the side. His music layers hymns, marches and folk tunes, sometimes playing different rhythms or keys at the same time, as though two village bands were passing in the street. He was far ahead of his time, and his work was widely recognized only later in his life.",
+    "George Gershwin (1898 to 1937), a New York songwriter, brought jazz and popular song into the concert hall. His Rhapsody in Blue premiered in 1924 in a concert led by bandleader Paul Whiteman, with Gershwin at the piano. He also wrote the opera Porgy and Bess, from 1935, set in a Black community in South Carolina.",
+    "Aaron Copland (1900 to 1990) studied in Paris and then worked to create an accessible American style. His ballets Rodeo (1942) and Appalachian Spring (1944) use open harmonies and folk melodies, including the Shaker tune Simple Gifts. His Fanfare for the Common Man dates from 1942.",
+    "These composers show that American music was not copying Europe alone: it mixed hymns, jazz, folk songs and city life into something new."
+   ]
+  },
+  {
+   "id": "music-history-eras.l21",
+   "title": "John Cage and the Question of What Music Is",
+   "body": [
+    "After World War II, some composers asked a bold question: what counts as music? One of the most influential voices was the American composer John Cage (1912 to 1992).",
+    "In the late 1930s and 1940s, Cage developed the prepared piano, in which objects such as screws, bolts or pieces of rubber are placed between the strings, turning the piano into something like a percussion ensemble. He studied Asian philosophy and became interested in letting chance decide some musical choices, using methods such as coin tosses and the Chinese text I Ching to select notes and durations.",
+    "His best-known work is 4'33\", from 1952. The performer sits at the instrument and plays no notes for four minutes and thirty-three seconds, so the audience hears the sounds of the room. The pianist David Tudor gave the first performance. Cage did not mean it as a joke; he wanted listeners to notice that sounds around us are always part of the music.",
+    "At the same time, other composers in Europe such as Pierre Boulez and Karlheinz Stockhausen explored total control through serial methods, an extension of the twelve-tone idea. Cage's approach was the opposite: giving up control.",
+    "Whether you love it or not, his thinking shaped experimental music, sound art and performance for decades afterward."
+   ]
+  },
+  {
+   "id": "music-history-eras.l22",
+   "title": "Minimalism: Reich and Glass",
+   "body": [
+    "Minimalism emerged in the United States in the 1960s. Its music uses a few simple elements, steady pulse and repetition, and changes slowly so that the listener hears small shifts in detail.",
+    "An early landmark was In C by Terry Riley, from 1964, in which performers play through a set of short melodic patterns at their own pace over a steady pulse.",
+    "Steve Reich (born 1936) began with tape pieces such as It's Gonna Rain (1965), in which two identical loops of a recorded voice slowly drift out of sync. This technique, called phasing, he applied to live performers in Piano Phase (1967). His large work Music for 18 Musicians, from 1976, uses pulsing rhythms and slowly changing harmonies. In 1970 Reich traveled to Ghana to study drumming, and rhythmic ideas from African music fed into his work.",
+    "Philip Glass (born 1937) writes music made of repeating arpeggios and additive rhythms, in which small units are lengthened or shortened. With director Robert Wilson he created the opera Einstein on the Beach, premiered in 1976. He later composed many film scores.",
+    "Minimalism reached beyond concert halls. Its repeating loops and gradual layering influenced ambient music, electronic dance music and film soundtracks, and show how a pattern can be as expressive as a melody."
+   ]
+  },
+  {
+   "id": "music-history-eras.l23",
+   "title": "When World and Folk Traditions Met Western Music",
+   "body": [
+    "Western classical music has always borrowed from folk and non-Western traditions, and the exchange goes in both directions.",
+    "Hungarian composers Bela Bartok (1881 to 1945) and Zoltan Kodaly collected folk songs in villages in the early twentieth century, using early recording equipment. Bartok worked what he found into his own music, including string quartets and the Concerto for Orchestra, and he saw folk music as a source of renewal rather than decoration.",
+    "Claude Debussy heard Javanese gamelan at the Paris Exposition in 1889, and its sound helped shape his ideas about color and texture. Steve Reich, as noted, studied drumming in Ghana. Indian classical music reached a wide Western audience through the sitar player Ravi Shankar, who performed at the Monterey Pop Festival in 1967 after his friendship with George Harrison, who had used a sitar on the Beatles' recording of Norwegian Wood in 1965.",
+    "Such exchange raises real questions. Who gets credit? Who is paid? Does borrowing respect a tradition or flatten it? Musicians and scholars still debate these questions, and ethnomusicology, the study of music in its cultural context, was developed partly to approach other traditions on their own terms.",
+    "The best collaborations involve learning from tradition bearers, naming sources and sharing benefits, while the weakest treat other cultures as a supply of exotic sounds."
+   ]
+  },
+  {
+   "id": "music-history-eras.l24",
+   "title": "Recording Technology Changes Everything",
+   "body": [
+    "Until the late nineteenth century, to hear music you had to be in the room with the performers or play it yourself. Recording changed that.",
+    "Thomas Edison demonstrated the phonograph in 1877, recording sound on a cylinder. Emile Berliner developed the flat disc and gramophone in the 1880s, which became the standard format. Early recordings were made acoustically, by singing or playing into a horn. Electrical recording with microphones became standard in the mid-1920s, giving a fuller sound and making quiet singing styles, like crooning, possible.",
+    "Radio broadcasting grew in the 1920s and brought music into homes. After World War II, magnetic tape allowed recordings to be edited and layered. Multitrack recording let producers record parts separately and mix them later, so an album could be built in the studio, as in many rock and pop records of the 1960s. The long-playing record (LP), introduced by Columbia in 1948, held about twenty minutes a side, and stereo became common in the late 1950s.",
+    "The compact disc arrived in 1982, and later digital files and streaming made huge catalogs available instantly.",
+    "Recording had deep effects: it let listeners hear performances by artists who lived far away or had died, it created stars known mainly through records, and it made the studio itself an instrument. It also changed performance: musicians began to aim for the polish of recordings in live shows."
+   ]
+  },
+  {
+   "id": "music-history-eras.l25",
+   "title": "Film Music",
+   "body": [
+    "Silent films were not silent in theaters. They were usually shown with live music, from a pianist or organist to a full orchestra, which set mood and covered projector noise. Camille Saint-Saens wrote music for the 1908 film The Assassination of the Duke of Guise, often cited as one of the first original film scores.",
+    "Sound-on-film arrived with The Jazz Singer in 1927, and the studios soon hired composers. Max Steiner, whose score for King Kong (1933) is a landmark, helped establish the Hollywood style, using lush Romantic orchestration and leitmotifs borrowed from Wagner's practice. Erich Wolfgang Korngold, who had been a child prodigy in Vienna, brought a rich symphonic voice to adventure films.",
+    "Later composers extended the range. Bernard Herrmann's shrieking strings in Psycho (1960) showed how a small orchestra could create terror. Ennio Morricone's scores for Italian westerns used unusual instruments and sounds. John Williams revived the big orchestral approach with Star Wars in 1977, using themes for characters and ideas in the Wagnerian manner.",
+    "Film music also draws on jazz, pop and, more recently, electronic sounds and sound design. It is arguably the main route by which people today meet orchestral music.",
+    "A film score has a job: to support the story. Within that job, composers have found room for real artistry, and many scores are now performed in concert halls."
+   ]
+  },
+  {
+   "id": "music-history-eras.l26",
+   "title": "Electronic Music",
+   "body": [
+    "Electronic music uses electricity to make or shape sound. Its early story shows experimentation in many places.",
+    "The theremin, invented by Leon Theremin in Russia around 1920, is played without touching it: the performer's hands move near two antennas to control pitch and volume. In the late 1940s, in Paris, Pierre Schaeffer developed musique concrete, which builds music by recording real-world sounds and manipulating them, for instance by editing and looping tape. In the 1950s, composers in Cologne, including Karlheinz Stockhausen, built music from electronically generated tones.",
+    "In the 1960s, Robert Moog and others developed synthesizers that musicians could play. Wendy Carlos's album Switched-On Bach, from 1968, used a Moog synthesizer to perform Bach's music and became a surprise best seller, introducing the instrument to a mass audience. Synthesizers became central to rock, pop, film music and dance music.",
+    "In 1983, the MIDI standard let instruments and computers from different makers talk to each other, and over the following decades the digital audio workstation, software that records and edits music on a computer, put a studio into a laptop.",
+    "Electronic music raises a new question about what a performer is: a person playing, a person programming, or both. It also shows a pattern in this course: new tools bring new sounds, and new sounds bring new music."
+   ]
+  },
+  {
+   "id": "music-history-eras.l27",
+   "title": "Hip-Hop Production: The Next Chapter",
+   "body": [
+    "Hip-hop began in the Bronx, New York, in the 1970s, in neighborhood parties where DJs played records for dancers. Many histories point to a 1973 party hosted by DJ Kool Herc, who used two copies of the same record to extend the instrumental breaks that dancers loved, a method called the breakbeat. Rapping, graffiti and breaking grew up around the DJ's music as parts of one culture.",
+    "Early hip-hop DJs such as Grandmaster Flash refined the use of two turntables and a mixer, cutting between records. Rapper's Delight by the Sugarhill Gang, released in 1979, was one of the first hip-hop records to reach a wide audience.",
+    "In the 1980s, new machines joined the turntable. Drum machines such as the Roland TR-808, introduced in 1980, supplied a deep bass drum and crisp snare. Samplers, devices that record and replay snippets of sound, let producers build new tracks from pieces of older recordings, and the Akai MPC, which appeared at the end of the 1980s, became a favorite tool for beat making.",
+    "Sampling raised legal and artistic questions about copyright and credit, and courts and the industry set up systems of licensing in response.",
+    "Seen from the long view of this course, hip-hop production fits a familiar pattern: musicians used the technology at hand, here records, samplers and drum machines, to create a new sound and a new way of composing."
+   ]
+  },
+  {
+   "id": "music-history-eras.l28",
+   "title": "The Long View: How Tools, Money and Places Shaped Music",
+   "body": [
+    "Looking back over the course, the history of music is partly a history of tools and institutions, as well as of genius.",
+    "Notation made it possible to pass music across space and time, from neumes to the staff to printed scores. Printing, starting with Petrucci in 1501, spread styles across Europe. Instruments set the possibilities: the violin family, the piano and valved brass each helped create new music, while electronic instruments and samplers did so in the twentieth century.",
+    "Patronage shaped what composers wrote. The church, then courts, then paying public audiences and publishers, and finally record labels, radio and streaming each rewarded different kinds of music. Places mattered too: the cathedral at Notre Dame, the opera houses of Venice, the Esterhazy court, Bayreuth, Carnegie Hall, New Orleans clubs, and the Bronx block party each shaped its own style.",
+    "Also notice how often musicians borrowed: from chant to polyphony, from folk songs to symphonies, from spirituals and blues to jazz and rock, and from old records to samples. Innovation and tradition were not opposites but partners.",
+    "Finally, notice who was heard and who was overlooked. Women composers and Black musicians created major work, often with fewer opportunities, and recovering that story continues today.",
+    "If you remember one idea, let it be this: music changes when new tools, new audiences and new ideas meet, and that is still happening now."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "music-history-eras.l01.q1",
+   "lessonId": "music-history-eras.l01",
+   "kind": "tf",
+   "prompt": "Because no recordings exist, we know about ancient music only through instruments, pictures, texts and a few notated fragments.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l01.q2",
+   "lessonId": "music-history-eras.l01",
+   "kind": "mcq",
+   "prompt": "The Seikilos epitaph is a short notated song from which ancient culture?",
+   "choices": [
+    "India",
+    "Greece",
+    "Egypt",
+    "China"
+   ]
+  },
+  {
+   "id": "music-history-eras.l01.q3",
+   "lessonId": "music-history-eras.l01",
+   "kind": "mcq",
+   "prompt": "A Hurrian hymn on a clay tablet from Ugarit, dated to around 1400 BC, is notable because it is:",
+   "choices": [
+    "The earliest known printed music",
+    "A proven exact transcription of a modern song",
+    "One of the oldest notated pieces of music known",
+    "The first piece for a symphony orchestra"
+   ]
+  },
+  {
+   "id": "music-history-eras.l01.q4",
+   "lessonId": "music-history-eras.l01",
+   "kind": "mcq",
+   "prompt": "The 65 bronze bells found in the tomb of Marquis Yi of Zeng come from ancient:",
+   "choices": [
+    "Greece",
+    "Mesopotamia",
+    "Egypt",
+    "China"
+   ]
+  },
+  {
+   "id": "music-history-eras.l01.q5",
+   "lessonId": "music-history-eras.l01",
+   "kind": "tf",
+   "prompt": "Scholars agree on exactly how the Hurrian hymn should sound.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l02.q1",
+   "lessonId": "music-history-eras.l02",
+   "kind": "tf",
+   "prompt": "Gregorian chant is a single unaccompanied melody sung in Latin.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l02.q2",
+   "lessonId": "music-history-eras.l02",
+   "kind": "mcq",
+   "prompt": "Hildegard of Bingen was a:",
+   "choices": [
+    "German abbess, writer and composer",
+    "Venetian opera singer",
+    "French troubadour",
+    "Viennese pianist"
+   ]
+  },
+  {
+   "id": "music-history-eras.l02.q3",
+   "lessonId": "music-history-eras.l02",
+   "kind": "mcq",
+   "prompt": "Why is chant called Gregorian?",
+   "choices": [
+    "It was first written for the piano",
+    "It is traditionally linked to Pope Gregory I, though the repertory grew over centuries",
+    "It was invented in a single year by Pope Gregory I",
+    "It was named for a composer called Gregory in Notre Dame"
+   ]
+  },
+  {
+   "id": "music-history-eras.l02.q4",
+   "lessonId": "music-history-eras.l02",
+   "kind": "mcq",
+   "prompt": "In her sung drama Ordo Virtutum, what is unusual about the devil's part?",
+   "choices": [
+    "It is played only by an organ",
+    "It is silent",
+    "It is spoken, not sung",
+    "It is sung by a choir of men"
+   ]
+  },
+  {
+   "id": "music-history-eras.l02.q5",
+   "lessonId": "music-history-eras.l02",
+   "kind": "tf",
+   "prompt": "Chant was written in the major and minor scales we know today.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l03.q1",
+   "lessonId": "music-history-eras.l03",
+   "kind": "tf",
+   "prompt": "Neumes were early marks that showed the shape of a melody going up or down.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l03.q2",
+   "lessonId": "music-history-eras.l03",
+   "kind": "mcq",
+   "prompt": "Guido of Arezzo is remembered as a teacher who advanced:",
+   "choices": [
+    "The printing press",
+    "The piano",
+    "The twelve-tone method",
+    "The staff and the naming of notes with syllables"
+   ]
+  },
+  {
+   "id": "music-history-eras.l03.q3",
+   "lessonId": "music-history-eras.l03",
+   "kind": "mcq",
+   "prompt": "The syllables ut, re, mi, fa, sol, la were taken from:",
+   "choices": [
+    "A Latin hymn to St. John",
+    "A madrigal by Morley",
+    "A song by a troubadour",
+    "A Greek epitaph"
+   ]
+  },
+  {
+   "id": "music-history-eras.l03.q4",
+   "lessonId": "music-history-eras.l03",
+   "kind": "mcq",
+   "prompt": "Which syllable later replaced ut in the solfege system?",
+   "choices": [
+    "fa",
+    "do",
+    "ti",
+    "sol"
+   ]
+  },
+  {
+   "id": "music-history-eras.l03.q5",
+   "lessonId": "music-history-eras.l03",
+   "kind": "tf",
+   "prompt": "Notation helped make it possible to write more than one melodic line at a time.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l04.q1",
+   "lessonId": "music-history-eras.l04",
+   "kind": "tf",
+   "prompt": "Notre Dame cathedral in Paris was a center for early polyphony called organum.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l04.q2",
+   "lessonId": "music-history-eras.l04",
+   "kind": "mcq",
+   "prompt": "Which composer is known for organum in three and four voices?",
+   "choices": [
+    "Purcell",
+    "Peri",
+    "Perotin",
+    "Palestrina"
+   ]
+  },
+  {
+   "id": "music-history-eras.l04.q3",
+   "lessonId": "music-history-eras.l04",
+   "kind": "mcq",
+   "prompt": "Troubadours were poet-musicians who sang songs of courtly love in:",
+   "choices": [
+    "Northern Germany",
+    "Venice",
+    "Hungary",
+    "Southern France"
+   ]
+  },
+  {
+   "id": "music-history-eras.l04.q4",
+   "lessonId": "music-history-eras.l04",
+   "kind": "mcq",
+   "prompt": "Guillaume de Machaut is best known as a figure of:",
+   "choices": [
+    "Ars Nova, a fourteenth-century style with new rhythmic flexibility",
+    "Early opera in Florence",
+    "Romantic nationalism",
+    "Minimalism"
+   ]
+  },
+  {
+   "id": "music-history-eras.l04.q5",
+   "lessonId": "music-history-eras.l04",
+   "kind": "tf",
+   "prompt": "Machaut's Messe de Nostre Dame is often described as the earliest complete Mass ordinary attributed to a single composer.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l05.q1",
+   "lessonId": "music-history-eras.l05",
+   "kind": "tf",
+   "prompt": "Ottaviano Petrucci published an early collection of polyphonic songs printed with movable type in Venice in 1501.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l05.q2",
+   "lessonId": "music-history-eras.l05",
+   "kind": "mcq",
+   "prompt": "Josquin des Prez was admired as a leading composer of the:",
+   "choices": [
+    "Minimalist era",
+    "Renaissance",
+    "Baroque",
+    "Romantic era"
+   ]
+  },
+  {
+   "id": "music-history-eras.l05.q3",
+   "lessonId": "music-history-eras.l05",
+   "kind": "mcq",
+   "prompt": "A madrigal is best described as:",
+   "choices": [
+    "A symphony for orchestra",
+    "A chant sung by monks",
+    "A secular piece for a few voices that often paints the meaning of words",
+    "A solo for organ"
+   ]
+  },
+  {
+   "id": "music-history-eras.l05.q4",
+   "lessonId": "music-history-eras.l05",
+   "kind": "mcq",
+   "prompt": "Palestrina's church music became a model of:",
+   "choices": [
+    "Atonal harmony",
+    "Jazz improvisation",
+    "Electronic sound",
+    "Clear, balanced counterpoint"
+   ]
+  },
+  {
+   "id": "music-history-eras.l05.q5",
+   "lessonId": "music-history-eras.l05",
+   "kind": "tf",
+   "prompt": "Printing made music cheaper and helped styles travel faster across Europe.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l06.q1",
+   "lessonId": "music-history-eras.l06",
+   "kind": "tf",
+   "prompt": "Monteverdi's L'Orfeo, first performed in 1607, is regarded as the first great opera.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l06.q2",
+   "lessonId": "music-history-eras.l06",
+   "kind": "mcq",
+   "prompt": "Opera began around 1600 in which country?",
+   "choices": [
+    "Italy",
+    "England",
+    "Russia",
+    "United States"
+   ]
+  },
+  {
+   "id": "music-history-eras.l06.q3",
+   "lessonId": "music-history-eras.l06",
+   "kind": "mcq",
+   "prompt": "What happened in Venice in 1637?",
+   "choices": [
+    "The first symphony was performed",
+    "The first public opera house opened",
+    "Printing of music began",
+    "The piano was invented"
+   ]
+  },
+  {
+   "id": "music-history-eras.l06.q4",
+   "lessonId": "music-history-eras.l06",
+   "kind": "mcq",
+   "prompt": "Francesca Caccini's La liberazione di Ruggiero is usually described as:",
+   "choices": [
+    "A ragtime piano piece",
+    "A symphony for chorus",
+    "The earliest surviving opera by a woman",
+    "The first Mass setting in four voices"
+   ]
+  },
+  {
+   "id": "music-history-eras.l06.q5",
+   "lessonId": "music-history-eras.l06",
+   "kind": "tf",
+   "prompt": "Barbara Strozzi published volumes of her own vocal music in Venice.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l07.q1",
+   "lessonId": "music-history-eras.l07",
+   "kind": "tf",
+   "prompt": "Bach and Handel were both born in 1685 in Germany.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l07.q2",
+   "lessonId": "music-history-eras.l07",
+   "kind": "mcq",
+   "prompt": "Which composer wrote The Four Seasons?",
+   "choices": [
+    "Purcell",
+    "Handel",
+    "Haydn",
+    "Vivaldi"
+   ]
+  },
+  {
+   "id": "music-history-eras.l07.q3",
+   "lessonId": "music-history-eras.l07",
+   "kind": "mcq",
+   "prompt": "Basso continuo consists of:",
+   "choices": [
+    "A bass line with chords filled in on keyboard or similar instrument",
+    "A solo flute without accompaniment",
+    "A group of unaccompanied voices",
+    "A recorded drum track"
+   ]
+  },
+  {
+   "id": "music-history-eras.l07.q4",
+   "lessonId": "music-history-eras.l07",
+   "kind": "mcq",
+   "prompt": "Handel's Messiah, a work for chorus and orchestra in English, premiered in:",
+   "choices": [
+    "Leipzig in 1523",
+    "Dublin in 1742",
+    "Vienna in 1786",
+    "Paris in 1913"
+   ]
+  },
+  {
+   "id": "music-history-eras.l07.q5",
+   "lessonId": "music-history-eras.l07",
+   "kind": "tf",
+   "prompt": "Purcell's Dido and Aeneas is a Baroque opera by an English composer.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l08.q1",
+   "lessonId": "music-history-eras.l08",
+   "kind": "tf",
+   "prompt": "The church was the main patron of music in the Middle Ages.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l08.q2",
+   "lessonId": "music-history-eras.l08",
+   "kind": "mcq",
+   "prompt": "Who built the first piano around 1700?",
+   "choices": [
+    "Johannes Gutenberg",
+    "Thomas Edison",
+    "Bartolomeo Cristofori",
+    "Antonio Stradivari"
+   ]
+  },
+  {
+   "id": "music-history-eras.l08.q3",
+   "lessonId": "music-history-eras.l08",
+   "kind": "mcq",
+   "prompt": "Haydn spent decades in the service of which patron family?",
+   "choices": [
+    "Medici",
+    "Habsburg-Lorraine only",
+    "Wagner",
+    "Esterhazy"
+   ]
+  },
+  {
+   "id": "music-history-eras.l08.q4",
+   "lessonId": "music-history-eras.l08",
+   "kind": "mcq",
+   "prompt": "Which hall opened in Vienna in 1870?",
+   "choices": [
+    "The Musikverein",
+    "Carnegie Hall",
+    "The Festspielhaus",
+    "Teatro San Cassiano"
+   ]
+  },
+  {
+   "id": "music-history-eras.l08.q5",
+   "lessonId": "music-history-eras.l08",
+   "kind": "tf",
+   "prompt": "Valves for brass instruments in the early nineteenth century made it easier to play all the notes.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l09.q1",
+   "lessonId": "music-history-eras.l09",
+   "kind": "tf",
+   "prompt": "A symphony usually has four movements.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l09.q2",
+   "lessonId": "music-history-eras.l09",
+   "kind": "mcq",
+   "prompt": "The three parts of sonata form are:",
+   "choices": [
+    "Prelude, fugue, coda",
+    "Exposition, development, recapitulation",
+    "Overture, aria, finale",
+    "Verse, chorus, bridge"
+   ]
+  },
+  {
+   "id": "music-history-eras.l09.q3",
+   "lessonId": "music-history-eras.l09",
+   "kind": "mcq",
+   "prompt": "Haydn is often called the father of the:",
+   "choices": [
+    "Opera and ballet",
+    "Concerto and fugue",
+    "Symphony and string quartet",
+    "Piano and organ"
+   ]
+  },
+  {
+   "id": "music-history-eras.l09.q4",
+   "lessonId": "music-history-eras.l09",
+   "kind": "mcq",
+   "prompt": "Which opera is by Mozart?",
+   "choices": [
+    "Rigoletto",
+    "Aida",
+    "Dido and Aeneas",
+    "The Marriage of Figaro"
+   ]
+  },
+  {
+   "id": "music-history-eras.l09.q5",
+   "lessonId": "music-history-eras.l09",
+   "kind": "tf",
+   "prompt": "The Classical era grew alongside Enlightenment ideas of reason, order and clarity.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l10.q1",
+   "lessonId": "music-history-eras.l10",
+   "kind": "tf",
+   "prompt": "Beethoven continued to compose after he lost his hearing.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l10.q2",
+   "lessonId": "music-history-eras.l10",
+   "kind": "mcq",
+   "prompt": "Beethoven's Symphony No. 9 includes in its last movement:",
+   "choices": [
+    "A chorus and soloists",
+    "A jazz band",
+    "A synthesizer",
+    "A solo theremin"
+   ]
+  },
+  {
+   "id": "music-history-eras.l10.q3",
+   "lessonId": "music-history-eras.l10",
+   "kind": "mcq",
+   "prompt": "Beethoven was born in which city?",
+   "choices": [
+    "Paris",
+    "Bonn",
+    "Salzburg",
+    "Leipzig"
+   ]
+  },
+  {
+   "id": "music-history-eras.l10.q4",
+   "lessonId": "music-history-eras.l10",
+   "kind": "mcq",
+   "prompt": "How many piano sonatas did Beethoven write?",
+   "choices": [
+    "104",
+    "600",
+    "32",
+    "9"
+   ]
+  },
+  {
+   "id": "music-history-eras.l10.q5",
+   "lessonId": "music-history-eras.l10",
+   "kind": "tf",
+   "prompt": "Beethoven's Eroica Symphony, from 1804, was shorter and simpler than symphonies before it.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l11.q1",
+   "lessonId": "music-history-eras.l11",
+   "kind": "tf",
+   "prompt": "Franz Schubert wrote more than 600 songs for voice and piano.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l11.q2",
+   "lessonId": "music-history-eras.l11",
+   "kind": "mcq",
+   "prompt": "Chopin wrote almost exclusively for:",
+   "choices": [
+    "The organ",
+    "The symphony orchestra",
+    "The guitar",
+    "The piano"
+   ]
+  },
+  {
+   "id": "music-history-eras.l11.q3",
+   "lessonId": "music-history-eras.l11",
+   "kind": "mcq",
+   "prompt": "Liszt created the symphonic poem, which is:",
+   "choices": [
+    "A one-movement orchestral work based on a story or idea",
+    "A song cycle for voice and piano",
+    "A four-movement symphony",
+    "An opera with spoken dialogue"
+   ]
+  },
+  {
+   "id": "music-history-eras.l11.q4",
+   "lessonId": "music-history-eras.l11",
+   "kind": "mcq",
+   "prompt": "Robert Schumann and Clara Wieck married in:",
+   "choices": [
+    "1861",
+    "1840",
+    "1790",
+    "1920"
+   ]
+  },
+  {
+   "id": "music-history-eras.l11.q5",
+   "lessonId": "music-history-eras.l11",
+   "kind": "tf",
+   "prompt": "Schubert's Winterreise is a cycle of 24 songs on poems by Wilhelm Muller.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l12.q1",
+   "lessonId": "music-history-eras.l12",
+   "kind": "tf",
+   "prompt": "Brahms's A German Requiem uses German texts rather than the traditional Latin Mass.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l12.q2",
+   "lessonId": "music-history-eras.l12",
+   "kind": "mcq",
+   "prompt": "Which opera is by Verdi?",
+   "choices": [
+    "Dido and Aeneas",
+    "Porgy and Bess",
+    "La traviata",
+    "The Magic Flute"
+   ]
+  },
+  {
+   "id": "music-history-eras.l12.q3",
+   "lessonId": "music-history-eras.l12",
+   "kind": "mcq",
+   "prompt": "A leitmotif is:",
+   "choices": [
+    "A type of piano",
+    "A rhythm borrowed from jazz",
+    "A printed edition of a score",
+    "A short musical idea linked to a character, object or idea"
+   ]
+  },
+  {
+   "id": "music-history-eras.l12.q4",
+   "lessonId": "music-history-eras.l12",
+   "kind": "mcq",
+   "prompt": "Wagner's Ring cycle was first performed complete in 1876 at:",
+   "choices": [
+    "Bayreuth",
+    "Carnegie Hall",
+    "Notre Dame",
+    "The Musikverein"
+   ]
+  },
+  {
+   "id": "music-history-eras.l12.q5",
+   "lessonId": "music-history-eras.l12",
+   "kind": "tf",
+   "prompt": "Verdi and Wagner were both born in 1813.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l13.q1",
+   "lessonId": "music-history-eras.l13",
+   "kind": "tf",
+   "prompt": "Musical nationalism uses folk songs, dances and stories of a composer's homeland.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l13.q2",
+   "lessonId": "music-history-eras.l13",
+   "kind": "mcq",
+   "prompt": "Dvorak's Symphony No. 9 is nicknamed:",
+   "choices": [
+    "Unfinished",
+    "From the New World",
+    "Eroica",
+    "Pastoral"
+   ]
+  },
+  {
+   "id": "music-history-eras.l13.q3",
+   "lessonId": "music-history-eras.l13",
+   "kind": "mcq",
+   "prompt": "Grieg composed incidental music for a play by:",
+   "choices": [
+    "Friedrich Schiller",
+    "Victor Hugo",
+    "Henrik Ibsen",
+    "William Shakespeare"
+   ]
+  },
+  {
+   "id": "music-history-eras.l13.q4",
+   "lessonId": "music-history-eras.l13",
+   "kind": "mcq",
+   "prompt": "Who orchestrated Mussorgsky's piano suite Pictures at an Exhibition in 1922?",
+   "choices": [
+    "Claude Debussy",
+    "Johannes Brahms",
+    "Aaron Copland",
+    "Maurice Ravel"
+   ]
+  },
+  {
+   "id": "music-history-eras.l13.q5",
+   "lessonId": "music-history-eras.l13",
+   "kind": "tf",
+   "prompt": "Tchaikovsky composed the ballets Swan Lake and The Nutcracker.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l14.q1",
+   "lessonId": "music-history-eras.l14",
+   "kind": "tf",
+   "prompt": "Hildegard of Bingen is among the earliest composers in Western history whose name and music are firmly documented.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l14.q2",
+   "lessonId": "music-history-eras.l14",
+   "kind": "mcq",
+   "prompt": "Francesca Caccini worked at the court of which family in Florence?",
+   "choices": [
+    "Medici",
+    "Esterhazy",
+    "Habsburg",
+    "Gonzaga"
+   ]
+  },
+  {
+   "id": "music-history-eras.l14.q3",
+   "lessonId": "music-history-eras.l14",
+   "kind": "mcq",
+   "prompt": "Barbara Strozzi is best known for:",
+   "choices": [
+    "Electronic works",
+    "Cantatas and arias, published under her own name",
+    "Symphonies",
+    "Film scores"
+   ]
+  },
+  {
+   "id": "music-history-eras.l14.q4",
+   "lessonId": "music-history-eras.l14",
+   "kind": "mcq",
+   "prompt": "Which was a common barrier faced by women composers in earlier centuries?",
+   "choices": [
+    "A rule that women could only compose in minor keys",
+    "A shortage of instruments",
+    "Limited access to training, church posts and public performance",
+    "A ban on writing music for the piano"
+   ]
+  },
+  {
+   "id": "music-history-eras.l14.q5",
+   "lessonId": "music-history-eras.l14",
+   "kind": "tf",
+   "prompt": "Hildegard, Caccini and Strozzi all lived in the same century.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l15.q1",
+   "lessonId": "music-history-eras.l15",
+   "kind": "tf",
+   "prompt": "Fanny Mendelssohn Hensel was the older sister of Felix Mendelssohn.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l15.q2",
+   "lessonId": "music-history-eras.l15",
+   "kind": "mcq",
+   "prompt": "Clara Wieck Schumann was famous as a:",
+   "choices": [
+    "Opera singer only",
+    "Organ builder",
+    "Conductor of film orchestras",
+    "Concert pianist and composer"
+   ]
+  },
+  {
+   "id": "music-history-eras.l15.q3",
+   "lessonId": "music-history-eras.l15",
+   "kind": "mcq",
+   "prompt": "Amy Beach's Gaelic Symphony premiered in:",
+   "choices": [
+    "1896",
+    "1721",
+    "1933",
+    "1976"
+   ]
+  },
+  {
+   "id": "music-history-eras.l15.q4",
+   "lessonId": "music-history-eras.l15",
+   "kind": "mcq",
+   "prompt": "Florence Price's Symphony No. 1 was played in 1933 by the:",
+   "choices": [
+    "Paris Opera",
+    "Chicago Symphony Orchestra",
+    "Vienna Philharmonic",
+    "Boston Pops only"
+   ]
+  },
+  {
+   "id": "music-history-eras.l15.q5",
+   "lessonId": "music-history-eras.l15",
+   "kind": "tf",
+   "prompt": "Florence Price blended Romantic style with spirituals and dance rhythms.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l16.q1",
+   "lessonId": "music-history-eras.l16",
+   "kind": "tf",
+   "prompt": "The term Impressionism first came from painting.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l16.q2",
+   "lessonId": "music-history-eras.l16",
+   "kind": "mcq",
+   "prompt": "Debussy's Prelude to the Afternoon of a Faun dates from:",
+   "choices": [
+    "1794",
+    "1994",
+    "1894",
+    "1594"
+   ]
+  },
+  {
+   "id": "music-history-eras.l16.q3",
+   "lessonId": "music-history-eras.l16",
+   "kind": "mcq",
+   "prompt": "The whole-tone scale:",
+   "choices": [
+    "Has twelve notes in a fixed row",
+    "Uses only black piano keys",
+    "Is the major scale",
+    "Divides the octave into six equal steps"
+   ]
+  },
+  {
+   "id": "music-history-eras.l16.q4",
+   "lessonId": "music-history-eras.l16",
+   "kind": "mcq",
+   "prompt": "Debussy heard which ensemble at the Paris Exposition of 1889?",
+   "choices": [
+    "A Javanese gamelan",
+    "A jazz band",
+    "A Gregorian choir",
+    "A synthesizer ensemble"
+   ]
+  },
+  {
+   "id": "music-history-eras.l16.q5",
+   "lessonId": "music-history-eras.l16",
+   "kind": "tf",
+   "prompt": "Debussy enthusiastically embraced the label Impressionist for his music.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l17.q1",
+   "lessonId": "music-history-eras.l17",
+   "kind": "tf",
+   "prompt": "The Rite of Spring was first performed in Paris in 1913.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l17.q2",
+   "lessonId": "music-history-eras.l17",
+   "kind": "mcq",
+   "prompt": "Atonality means music:",
+   "choices": [
+    "Without any rhythm",
+    "Without a key center",
+    "Played very quietly",
+    "Using only the black keys"
+   ]
+  },
+  {
+   "id": "music-history-eras.l17.q3",
+   "lessonId": "music-history-eras.l17",
+   "kind": "mcq",
+   "prompt": "Schoenberg developed the twelve-tone method in the:",
+   "choices": [
+    "Late 1950s",
+    "1990s",
+    "Early 1920s",
+    "Early 1720s"
+   ]
+  },
+  {
+   "id": "music-history-eras.l17.q4",
+   "lessonId": "music-history-eras.l17",
+   "kind": "mcq",
+   "prompt": "The Second Viennese School consisted of Schoenberg and his students:",
+   "choices": [
+    "Haydn and Mozart",
+    "Bartok and Kodaly",
+    "Reich and Glass",
+    "Berg and Webern"
+   ]
+  },
+  {
+   "id": "music-history-eras.l17.q5",
+   "lessonId": "music-history-eras.l17",
+   "kind": "tf",
+   "prompt": "Stravinsky wrote The Firebird before The Rite of Spring.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l18.q1",
+   "lessonId": "music-history-eras.l18",
+   "kind": "tf",
+   "prompt": "Spirituals were created by enslaved African Americans.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l18.q2",
+   "lessonId": "music-history-eras.l18",
+   "kind": "mcq",
+   "prompt": "The Fisk Jubilee Singers were formed in:",
+   "choices": [
+    "1871",
+    "1771",
+    "1971",
+    "1671"
+   ]
+  },
+  {
+   "id": "music-history-eras.l18.q3",
+   "lessonId": "music-history-eras.l18",
+   "kind": "mcq",
+   "prompt": "Scott Joplin's Maple Leaf Rag was published in:",
+   "choices": [
+    "1699",
+    "1899",
+    "1799",
+    "1999"
+   ]
+  },
+  {
+   "id": "music-history-eras.l18.q4",
+   "lessonId": "music-history-eras.l18",
+   "kind": "mcq",
+   "prompt": "A typical blues form lasts how many bars?",
+   "choices": [
+    "Thirty-two",
+    "Sixty-four",
+    "Twelve",
+    "Four"
+   ]
+  },
+  {
+   "id": "music-history-eras.l18.q5",
+   "lessonId": "music-history-eras.l18",
+   "kind": "tf",
+   "prompt": "Blue notes are bent pitches between the usual piano notes.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l19.q1",
+   "lessonId": "music-history-eras.l19",
+   "kind": "tf",
+   "prompt": "Improvisation is a central feature of jazz.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l19.q2",
+   "lessonId": "music-history-eras.l19",
+   "kind": "mcq",
+   "prompt": "Which city is a famous early center of jazz?",
+   "choices": [
+    "Vienna",
+    "Venice",
+    "Leipzig",
+    "New Orleans"
+   ]
+  },
+  {
+   "id": "music-history-eras.l19.q3",
+   "lessonId": "music-history-eras.l19",
+   "kind": "mcq",
+   "prompt": "Duke Ellington was known as a:",
+   "choices": [
+    "Pianist, bandleader and composer",
+    "Opera tenor",
+    "Theremin player",
+    "Sitar master"
+   ]
+  },
+  {
+   "id": "music-history-eras.l19.q4",
+   "lessonId": "music-history-eras.l19",
+   "kind": "mcq",
+   "prompt": "Thomas A. Dorsey is widely called the father of:",
+   "choices": [
+    "Minimalism",
+    "Gospel music",
+    "Opera",
+    "Bebop"
+   ]
+  },
+  {
+   "id": "music-history-eras.l19.q5",
+   "lessonId": "music-history-eras.l19",
+   "kind": "tf",
+   "prompt": "Gospel combines spirituals with blues-influenced feeling and rhythm.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l20.q1",
+   "lessonId": "music-history-eras.l20",
+   "kind": "tf",
+   "prompt": "Gershwin's Rhapsody in Blue premiered in 1924.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l20.q2",
+   "lessonId": "music-history-eras.l20",
+   "kind": "mcq",
+   "prompt": "Charles Ives earned his living in:",
+   "choices": [
+    "Military bands",
+    "Film studios",
+    "Insurance",
+    "Opera singing"
+   ]
+  },
+  {
+   "id": "music-history-eras.l20.q3",
+   "lessonId": "music-history-eras.l20",
+   "kind": "mcq",
+   "prompt": "Copland's Appalachian Spring uses which Shaker tune?",
+   "choices": [
+    "Amazing Grace",
+    "Ode to Joy",
+    "Maple Leaf Rag",
+    "Simple Gifts"
+   ]
+  },
+  {
+   "id": "music-history-eras.l20.q4",
+   "lessonId": "music-history-eras.l20",
+   "kind": "mcq",
+   "prompt": "Porgy and Bess is an opera by:",
+   "choices": [
+    "George Gershwin",
+    "Aaron Copland",
+    "Charles Ives",
+    "Scott Joplin"
+   ]
+  },
+  {
+   "id": "music-history-eras.l20.q5",
+   "lessonId": "music-history-eras.l20",
+   "kind": "tf",
+   "prompt": "Ives's music sometimes layers different rhythms or keys at the same time.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l21.q1",
+   "lessonId": "music-history-eras.l21",
+   "kind": "tf",
+   "prompt": "Cage's 4'33\" asks the performer to play no notes for four minutes and thirty-three seconds.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l21.q2",
+   "lessonId": "music-history-eras.l21",
+   "kind": "mcq",
+   "prompt": "A prepared piano has:",
+   "choices": [
+    "No strings",
+    "Objects placed between the strings",
+    "Extra keys added",
+    "An electric amplifier only"
+   ]
+  },
+  {
+   "id": "music-history-eras.l21.q3",
+   "lessonId": "music-history-eras.l21",
+   "kind": "mcq",
+   "prompt": "Who gave the first performance of 4'33\" in 1952?",
+   "choices": [
+    "Philip Glass",
+    "Duke Ellington",
+    "David Tudor",
+    "Steve Reich"
+   ]
+  },
+  {
+   "id": "music-history-eras.l21.q4",
+   "lessonId": "music-history-eras.l21",
+   "kind": "mcq",
+   "prompt": "Which Chinese text did Cage use for chance procedures?",
+   "choices": [
+    "Analects",
+    "Tao Te Ching only",
+    "The Art of War",
+    "I Ching"
+   ]
+  },
+  {
+   "id": "music-history-eras.l21.q5",
+   "lessonId": "music-history-eras.l21",
+   "kind": "tf",
+   "prompt": "Cage and the serialists such as Boulez both favored total control of every detail.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l22.q1",
+   "lessonId": "music-history-eras.l22",
+   "kind": "tf",
+   "prompt": "Minimalism builds music from repeating patterns that change gradually.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l22.q2",
+   "lessonId": "music-history-eras.l22",
+   "kind": "mcq",
+   "prompt": "Phasing is the technique in which:",
+   "choices": [
+    "Two identical patterns slowly drift out of sync",
+    "A piece is played backward",
+    "A melody is sung in Latin",
+    "Instruments are tuned a half step lower"
+   ]
+  },
+  {
+   "id": "music-history-eras.l22.q3",
+   "lessonId": "music-history-eras.l22",
+   "kind": "mcq",
+   "prompt": "Who wrote the opera Einstein on the Beach with Robert Wilson?",
+   "choices": [
+    "Terry Riley",
+    "Philip Glass",
+    "Steve Reich",
+    "John Cage"
+   ]
+  },
+  {
+   "id": "music-history-eras.l22.q4",
+   "lessonId": "music-history-eras.l22",
+   "kind": "mcq",
+   "prompt": "Terry Riley's In C dates from:",
+   "choices": [
+    "1764",
+    "1984",
+    "1964",
+    "1864"
+   ]
+  },
+  {
+   "id": "music-history-eras.l22.q5",
+   "lessonId": "music-history-eras.l22",
+   "kind": "tf",
+   "prompt": "Reich traveled to Ghana in 1970 to study drumming.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l23.q1",
+   "lessonId": "music-history-eras.l23",
+   "kind": "tf",
+   "prompt": "Bartok and Kodaly collected folk songs in villages.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l23.q2",
+   "lessonId": "music-history-eras.l23",
+   "kind": "mcq",
+   "prompt": "Ravi Shankar is famous as a player of the:",
+   "choices": [
+    "Theremin",
+    "Harpsichord",
+    "Gamelan",
+    "Sitar"
+   ]
+  },
+  {
+   "id": "music-history-eras.l23.q3",
+   "lessonId": "music-history-eras.l23",
+   "kind": "mcq",
+   "prompt": "George Harrison used a sitar on the Beatles' song:",
+   "choices": [
+    "Norwegian Wood",
+    "Yesterday",
+    "Hey Jude",
+    "Let It Be"
+   ]
+  },
+  {
+   "id": "music-history-eras.l23.q4",
+   "lessonId": "music-history-eras.l23",
+   "kind": "mcq",
+   "prompt": "Ethnomusicology is the study of:",
+   "choices": [
+    "Concert hall acoustics",
+    "Music in its cultural context",
+    "Only European art music",
+    "Instrument manufacturing"
+   ]
+  },
+  {
+   "id": "music-history-eras.l23.q5",
+   "lessonId": "music-history-eras.l23",
+   "kind": "tf",
+   "prompt": "Cross-cultural borrowing in music never raises questions of credit or payment.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l24.q1",
+   "lessonId": "music-history-eras.l24",
+   "kind": "tf",
+   "prompt": "Thomas Edison demonstrated the phonograph in 1877.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l24.q2",
+   "lessonId": "music-history-eras.l24",
+   "kind": "mcq",
+   "prompt": "Emile Berliner is associated with the:",
+   "choices": [
+    "Compact disc",
+    "MP3",
+    "Flat disc and gramophone",
+    "Magnetic tape"
+   ]
+  },
+  {
+   "id": "music-history-eras.l24.q3",
+   "lessonId": "music-history-eras.l24",
+   "kind": "mcq",
+   "prompt": "Electrical recording with microphones became standard in the:",
+   "choices": [
+    "Mid-1880s",
+    "Mid-1960s",
+    "Mid-2000s",
+    "Mid-1920s"
+   ]
+  },
+  {
+   "id": "music-history-eras.l24.q4",
+   "lessonId": "music-history-eras.l24",
+   "kind": "mcq",
+   "prompt": "The LP was introduced by Columbia in:",
+   "choices": [
+    "1948",
+    "1908",
+    "1988",
+    "1868"
+   ]
+  },
+  {
+   "id": "music-history-eras.l24.q5",
+   "lessonId": "music-history-eras.l24",
+   "kind": "tf",
+   "prompt": "Multitrack recording let producers record parts separately and mix them later.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l25.q1",
+   "lessonId": "music-history-eras.l25",
+   "kind": "tf",
+   "prompt": "Silent films were usually shown with live music.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l25.q2",
+   "lessonId": "music-history-eras.l25",
+   "kind": "mcq",
+   "prompt": "Which film from 1927 introduced sound to feature films?",
+   "choices": [
+    "Star Wars",
+    "The Jazz Singer",
+    "King Kong",
+    "Psycho"
+   ]
+  },
+  {
+   "id": "music-history-eras.l25.q3",
+   "lessonId": "music-history-eras.l25",
+   "kind": "mcq",
+   "prompt": "Max Steiner scored which 1933 film?",
+   "choices": [
+    "Star Wars",
+    "Citizen Kane",
+    "King Kong",
+    "Psycho"
+   ]
+  },
+  {
+   "id": "music-history-eras.l25.q4",
+   "lessonId": "music-history-eras.l25",
+   "kind": "mcq",
+   "prompt": "Bernard Herrmann's Psycho score is famous for:",
+   "choices": [
+    "A synthesizer lead",
+    "A solo guitar",
+    "A choir only",
+    "Shrieking strings"
+   ]
+  },
+  {
+   "id": "music-history-eras.l25.q5",
+   "lessonId": "music-history-eras.l25",
+   "kind": "tf",
+   "prompt": "John Williams used themes for characters in Star Wars in the manner of Wagner's leitmotifs.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l26.q1",
+   "lessonId": "music-history-eras.l26",
+   "kind": "tf",
+   "prompt": "The theremin is played without touching the instrument.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l26.q2",
+   "lessonId": "music-history-eras.l26",
+   "kind": "mcq",
+   "prompt": "Musique concrete builds music from:",
+   "choices": [
+    "Recorded real-world sounds",
+    "Only synthesized tones",
+    "Printed scores alone",
+    "Folk melodies"
+   ]
+  },
+  {
+   "id": "music-history-eras.l26.q3",
+   "lessonId": "music-history-eras.l26",
+   "kind": "mcq",
+   "prompt": "Switched-On Bach (1968) was performed on a:",
+   "choices": [
+    "Theremin",
+    "Moog synthesizer",
+    "Harpsichord",
+    "Pipe organ"
+   ]
+  },
+  {
+   "id": "music-history-eras.l26.q4",
+   "lessonId": "music-history-eras.l26",
+   "kind": "mcq",
+   "prompt": "MIDI was standardized in:",
+   "choices": [
+    "1783",
+    "1993",
+    "1983",
+    "1883"
+   ]
+  },
+  {
+   "id": "music-history-eras.l26.q5",
+   "lessonId": "music-history-eras.l26",
+   "kind": "tf",
+   "prompt": "A digital audio workstation is software for recording and editing music on a computer.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l27.q1",
+   "lessonId": "music-history-eras.l27",
+   "kind": "tf",
+   "prompt": "Hip-hop began in the Bronx, New York, in the 1970s.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l27.q2",
+   "lessonId": "music-history-eras.l27",
+   "kind": "mcq",
+   "prompt": "The breakbeat technique involves:",
+   "choices": [
+    "Slowing a record down to half speed",
+    "Recording on magnetic tape only",
+    "Adding a choir to a drum track",
+    "Extending instrumental breaks using two copies of a record"
+   ]
+  },
+  {
+   "id": "music-history-eras.l27.q3",
+   "lessonId": "music-history-eras.l27",
+   "kind": "mcq",
+   "prompt": "Rapper's Delight, released in 1979, was by:",
+   "choices": [
+    "The Sugarhill Gang",
+    "Grandmaster Flash",
+    "Public Enemy",
+    "Run-DMC"
+   ]
+  },
+  {
+   "id": "music-history-eras.l27.q4",
+   "lessonId": "music-history-eras.l27",
+   "kind": "mcq",
+   "prompt": "The Roland TR-808 is a:",
+   "choices": [
+    "Radio",
+    "Drum machine",
+    "Sampler",
+    "Turntable"
+   ]
+  },
+  {
+   "id": "music-history-eras.l27.q5",
+   "lessonId": "music-history-eras.l27",
+   "kind": "tf",
+   "prompt": "A sampler records snippets of sound that producers replay in new tracks.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l28.q1",
+   "lessonId": "music-history-eras.l28",
+   "kind": "tf",
+   "prompt": "Printing helped spread musical styles across Europe starting with Petrucci in 1501.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "music-history-eras.l28.q2",
+   "lessonId": "music-history-eras.l28",
+   "kind": "mcq",
+   "prompt": "Which sequence matches changing music patrons in Europe?",
+   "choices": [
+    "Courts, radio, church",
+    "Radio, church, courts",
+    "Church, courts, public audiences",
+    "Public audiences, courts, church"
+   ]
+  },
+  {
+   "id": "music-history-eras.l28.q3",
+   "lessonId": "music-history-eras.l28",
+   "kind": "mcq",
+   "prompt": "Which pair shows borrowing across traditions in this course?",
+   "choices": [
+    "Opera replacing chant overnight",
+    "Printing replacing the piano",
+    "Silence replacing sound",
+    "Spirituals and blues feeding jazz"
+   ]
+  },
+  {
+   "id": "music-history-eras.l28.q4",
+   "lessonId": "music-history-eras.l28",
+   "kind": "mcq",
+   "prompt": "Which is the best summary of how music changes?",
+   "choices": [
+    "New tools, audiences and ideas meet",
+    "Only through a single genius",
+    "Only through government order",
+    "Only through printing"
+   ]
+  },
+  {
+   "id": "music-history-eras.l28.q5",
+   "lessonId": "music-history-eras.l28",
+   "kind": "tf",
+   "prompt": "Women composers and Black musicians created major work, often with fewer opportunities.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  }
+ ]
+}

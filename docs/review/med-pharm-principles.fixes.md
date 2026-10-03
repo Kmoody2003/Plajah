@@ -1,0 +1,8 @@
+# med-pharm-principles fixes (asOf 2026-10)
+
+- l03/l13 induction and high-extraction drugs. Was: "little effect on high-extraction drugs." Now: true for IV systemic clearance only; oral bioavailability falls sharply (rifampin, oral verapamil ~25-fold). l13.q3 rewritten (IV clearance vs oral bioavailability); l03 lesson text qualified; verapamil anchor added. Source opened: https://pubmed.ncbi.nlm.nih.gov/3180898/ (blocked by cookie wall) and Fromm 1996 Hepatology summary via https://journals.lww.com/hep/fulltext/10.1002/hep.510240407~differential-induction-of-prehepatic-and-hepatic-metabolism
+- l04 biliary threshold. Was: "300 to 500 daltons". Now: ~500 Da classically cited for humans, ~475 Da for anions in a later analysis, none for cations. Source: https://pmc.ncbi.nlm.nih.gov/articles/PMC2758117/
+- l16 codeine. Was: "avoided after tonsillectomy and in breastfeeding ultrarapid mothers". Now: FDA 2017 contraindication under 12, warning for obese/OSA/lung disease adolescents, breastfeeding not recommended. Source: https://cacmap.fda.gov/drugs/drug-safety-and-availability/fda-drug-safety-communication-fda-restricts-use-prescription-codeine-pain-and-cough-medicines-and (direct fda.gov URL 404; confirmed via search summary)
+- l15 HIT. Was: stated as Gell-Coombs type II. Now: antibody-mediated (IgG to PF4-heparin), often grouped with type II but does not fit cleanly. Question key unchanged. Source: https://www.ncbi.nlm.nih.gov/pmc/articles/PMC11355627/ (via search; NCBI fetch blocked).
+- l06.q4, l07.q4 stems reworded (target range wording; renal perfusion cause stated). Keys unchanged.
+- Not changed: verifier notes on l09.q5, l11.q4, l12.q5 (wording only, key correct).

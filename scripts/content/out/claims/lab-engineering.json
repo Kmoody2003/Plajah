@@ -1,0 +1,767 @@
+{
+ "courseId": "lab-engineering",
+ "label": "Engineering",
+ "lessons": [
+  {
+   "id": "lab-engineering.l01",
+   "title": "Static Equilibrium",
+   "body": [
+    "Every structural analysis starts with one idea: if a body is not accelerating, the forces on it must balance. Engineers write this as two conditions. The sum of all forces is zero, and the sum of all moments is zero. A moment is a turning effect, force times the perpendicular distance from a pivot, measured in newton-metres (N·m).",
+    "You need both conditions. Two equal and opposite forces cancel as forces only; if they act along different lines they form a couple. The net force is zero, yet the body still spins, because the moments do not cancel.",
+    "A seesaw shows the moment condition. A heavy child sits close to the pivot and a light child sits far away. The turning effects balance when weight times distance matches on both sides. For example, a 400 N child at 1 m balances a 200 N child at 2 m, since 400 x 1 equals 200 x 2.",
+    "Once forces and moments balance, engineers can find the unknown support reactions of a beam, bridge or crane before checking whether the material can survive them."
+   ]
+  },
+  {
+   "id": "lab-engineering.l02",
+   "title": "Stress and Strain",
+   "body": [
+    "Force alone does not tell you whether a material will fail. A 1000 N pull is trivial for a thick steel bar and fatal to a thin thread. Engineers therefore use stress, the internal force carried per unit area. Stress is measured in pascals (Pa), which is newtons per square metre.",
+    "Strain describes how much the material deforms as a fraction of its original length. If a 2 m rod stretches by 2 mm, the strain is 0.002 m divided by 2 m, which is 0.001. Strain has no units.",
+    "In the elastic range, the two are proportional. This is Hooke's law: stress equals Young's modulus times strain, written sigma = E x epsilon. Young's modulus E is the material's stiffness. Steel is about 200 GPa, while rubber is thousands of times less stiff.",
+    "Pull far enough and the material passes its yield point. It then deforms permanently, and with more load it eventually fractures. A tensile test pulls a specimen to failure and records the whole stress-strain curve, which reveals stiffness, strength, ductility and toughness in a single plot.",
+    "Everyday example: a paperclip bends back elastically when flexed slightly, but stays bent once you push it beyond yield."
+   ]
+  },
+  {
+   "id": "lab-engineering.l03",
+   "title": "Axial Deformation",
+   "body": [
+    "Stress and strain combine into a handy formula for how far a straight bar stretches when pulled or squashed along its length. The elongation is delta = P x L / (A x E), where P is the axial load, L the bar length, A the cross-sectional area and E the elastic modulus.",
+    "Read the formula like a sentence. A heavier load stretches the bar more. A longer bar stretches more, because every extra metre adds its own strain. A thicker bar stretches less, because the same load is spread over more area. A stiffer material stretches less. Doubling the length doubles the stretch, while doubling the area halves it.",
+    "Units matter. Use newtons, metres, square metres and pascals, and the answer comes out in metres. A steel cable of 10 m with a 10 kN load and an area of 100 mm2 (0.0001 m2) and E of 200 GPa stretches by 10000 x 10 / (0.0001 x 200e9), which is 0.005 m, or 5 mm.",
+    "Engineers use this to check deflection limits. A bridge hanger or a lift cable that is strong enough can still stretch too much to be usable."
+   ]
+  },
+  {
+   "id": "lab-engineering.l04",
+   "title": "Bending of Beams",
+   "body": [
+    "When a beam carries a load across a span, it bends. The top fibres are squeezed and the bottom fibres are stretched, with a neutral axis between them that carries no bending stress. The flexure formula gives the stress at any point: sigma = M x c / I.",
+    "M is the bending moment at that section, in N·m. c is the distance from the neutral axis to the point you care about, in metres. I is the second moment of area of the cross-section, in m^4. It measures how effectively the shape's material is arranged to resist bending, and it depends strongly on shape, not just on how much material there is.",
+    "Two lessons follow. First, the stress is greatest at the outermost fibres, where c is biggest, which is why beams crack or yield at their surfaces. Second, because I grows fast when material is placed far from the neutral axis, engineers shape beams as I-sections, with wide flanges at top and bottom and a thin web between.",
+    "Everyday example: a plank laid flat on two supports sags readily, but the same plank turned on its edge is far stiffer, because more of its material sits far from the neutral axis."
+   ]
+  },
+  {
+   "id": "lab-engineering.l05",
+   "title": "Buckling and Stability",
+   "body": [
+    "Press down on the ends of a thin plastic ruler. Long before the plastic could be crushed, the ruler suddenly bows sideways. This is buckling, a stability failure rather than a strength failure.",
+    "Leonhard Euler derived the critical axial load for a slender elastic column in 1744: P_cr = pi^2 x E x I / (K x L)^2. E is the elastic modulus, I the second moment of area, L the column length, and K an effective-length factor that captures the end conditions, such as pinned, fixed or free.",
+    "The formula shows what matters. Stiffer material and a larger I raise the critical load. Length is squared in the denominator, so doubling the length cuts the critical load to a quarter. A smaller K, meaning better-restrained ends, raises it.",
+    "This is why long, thin struts need bracing, why tubes are favoured over solid rods of the same weight (a tube has a larger I), and why designers check slenderness as well as crushing strength. Laboratory tests on slender struts confirm that lateral bowing occurs far below the stress that would crush the material.",
+    "Buckling is dangerous because it can be sudden, so engineers treat it as its own design check."
+   ]
+  },
+  {
+   "id": "lab-engineering.l06",
+   "title": "Factor of Safety",
+   "body": [
+    "No engineer knows the real loads on a structure exactly. Wind gusts, crowds, corrosion, manufacturing flaws and material variations all add uncertainty. The factor of safety is the number that absorbs it: FS = failure stress divided by allowable working stress, or sigma_ult / sigma_allow.",
+    "If a steel part fails at 400 MPa and the design uses an allowable stress of 200 MPa, the factor of safety is 2. The part is designed to work at half the stress that would break it. Choosing a larger factor gives a bigger margin but costs more material, weight and money.",
+    "Selecting the factor is a judgement. It rises when consequences of failure are severe, when loads are uncertain, or when the material is variable. It can be lower when loads are well known and weight is critical, as in aircraft. Redundancy and failure analysis work alongside the factor: if one member fails, another carries the load.",
+    "Notice the word working. A factor of safety of 1 would mean the part runs at its failure stress every day, with no margin whatsoever.",
+    "Everyday example: a lift cable rated for many times the weight of a full car is deliberately over-built so that wear, shock loads and manufacturing variation cannot bring it down."
+   ]
+  },
+  {
+   "id": "lab-engineering.l07",
+   "title": "The First Law of Thermodynamics",
+   "body": [
+    "Thermodynamics governs heat, work and energy conversion, and its first law is conservation of energy. The internal energy of a system changes by the heat added to it minus the work it does: delta U = Q - W.",
+    "The signs matter in this convention. Heat added to the system, Q, raises its internal energy. Work done by the system on its surroundings, W, lowers it. Suppose a gas absorbs 500 J of heat and pushes a piston, doing 200 J of work. Its internal energy rises by 500 - 200 = 300 J.",
+    "Joule's paddle-wheel experiment of 1845 showed that mechanical work and heat are interchangeable forms of energy, by stirring water with falling weights and measuring the temperature rise.",
+    "For an engine running in a repeating cycle, the system returns to its starting state, so delta U over a full cycle is zero. That forces the net work out to equal the net heat in. No engine can deliver more work than the heat it absorbs, and a machine claiming to do so breaks the first law.",
+    "The second law adds direction: heat flows spontaneously only from hot to cold, and no cyclic engine turns heat completely into work."
+   ]
+  },
+  {
+   "id": "lab-engineering.l08",
+   "title": "Carnot Efficiency",
+   "body": [
+    "In 1824 Sadi Carnot asked how much work a heat engine could possibly extract. His answer depends only on the temperatures of the hot and cold reservoirs: eta = 1 - T_C / T_H.",
+    "Temperatures must be absolute, in kelvin. An engine taking heat at 600 K and rejecting it at 300 K has a maximum efficiency of 1 - 300/600 = 0.5, or 50 percent. No design, however clever, can exceed that, and real engines fall short because of friction and irreversibility.",
+    "The formula explains engineering practice. To raise the ceiling you either raise the hot temperature or lower the cold one, which is why power plants chase ever-higher combustion temperatures, limited by what materials can survive. Efficiency reaches 100 percent only if the cold reservoir sits at absolute zero, which is unattainable.",
+    "Carnot imagined a reversible ideal cycle as the benchmark. It founded the second law of thermodynamics, even though it was written when steam engines were already running and engineers wanted to understand their limits.",
+    "Everyday example: a car engine is nowhere near Carnot's limit, but the same logic tells designers why running hotter and rejecting heat to cooler surroundings improves efficiency."
+   ]
+  },
+  {
+   "id": "lab-engineering.l09",
+   "title": "Fluid Flow: Bernoulli and Reynolds",
+   "body": [
+    "Fluid mechanics follows pressure, speed and energy through liquids and gases. Bernoulli's equation says that along a streamline of ideal flow, P + (1/2) x rho x v^2 + rho x g x h stays constant. Pressure, kinetic energy and height trade off against each other.",
+    "For a horizontal pipe, the height term is fixed, so where the fluid speeds up the pressure falls. Water squeezing through a narrowed section moves faster, and its static pressure drops there. This is the idea behind flow meters, and it contributes to the lift on a wing.",
+    "The Reynolds number, Re = rho x v x L / mu, compares inertial forces with viscous forces. Low values mean smooth, layered laminar flow. High values mean chaotic turbulence. Osborne Reynolds revealed the transition in 1883 by injecting dye into pipe flow.",
+    "For water (density 1000 kg/m3, viscosity 0.001 Pa·s) moving at 2 m/s in a pipe of 0.05 m diameter, Re = 1000 x 2 x 0.05 / 0.001 = 100,000, which is firmly turbulent.",
+    "These ideas size everything from aircraft wings to municipal pipe networks."
+   ]
+  },
+  {
+   "id": "lab-engineering.l10",
+   "title": "Ohm's Law and Electrical Power",
+   "body": [
+    "Georg Ohm showed in 1827 that the voltage across a resistor is proportional to the current through it: V = I x R. Voltage is measured in volts, current in amperes and resistance in ohms. A 12 V supply across a 4 ohm resistor drives a current of 12 / 4 = 3 A.",
+    "The electrical power delivered to or dissipated in a circuit element is P = V x I. Combine this with Ohm's law and you get P = I^2 x R. For the 4 ohm resistor carrying 3 A, the power is 3^2 x 4 = 36 W, which equals 12 V x 3 A.",
+    "The I^2 form shows why current is so important to heating. Double the current in a fixed resistor and the heat rises fourfold. This is how engineers size conductors, heat sinks and power supplies: a wire that is too thin for its current wastes energy as heat and can become dangerous.",
+    "Ohm's law applies to ideal resistors. Many devices, such as diodes and transistors, do not follow a straight-line voltage-current relation, but the law remains the starting point for analysing real circuits.",
+    "Everyday example: a phone charger cable that runs warm is dissipating I^2 x R in its small internal resistance."
+   ]
+  },
+  {
+   "id": "lab-engineering.l11",
+   "title": "Kirchhoff's Laws",
+   "body": [
+    "Ohm's law handles a single resistor. To solve a whole network, Gustav Kirchhoff formalised two conservation rules in 1845.",
+    "The current law says that the currents entering any node add up to zero, counting currents leaving as negative. In plain terms, whatever current flows into a junction must flow out, because charge cannot pile up at a point. If 5 A and 2 A flow into a junction and 4 A leaves along one branch, the remaining branch must carry 5 + 2 - 4 = 3 A.",
+    "The voltage law says the voltage rises and drops around any closed loop sum to zero. A charge that travels all the way round a loop and returns to its start gains and loses the same energy overall, so this is conservation of energy. In a loop with a 12 V source and two resistors in series, if one resistor drops 5 V, the other must drop 7 V.",
+    "Write one equation per node and per loop, add Ohm's law for each resistor, and you obtain enough equations to solve every unknown in any linear circuit. The same node-and-loop bookkeeping scales from a flashlight to the power distribution inside a microprocessor."
+   ]
+  },
+  {
+   "id": "lab-engineering.l12",
+   "title": "Feedback and PID Control",
+   "body": [
+    "A feedback controller measures a system's output, compares it with a desired setpoint and acts on the difference, called the error: error = setpoint minus measurement. Thermostats, cruise control and autopilots all work this way. James Watt's centrifugal governor of 1788, which regulated steam-engine speed automatically, was an early hardware example, and Maxwell's 1868 paper On Governors founded the mathematics of control.",
+    "The workhorse design is the PID controller: u(t) = Kp x e(t) + Ki x (integral of e) + Kd x (rate of change of e). The proportional term reacts to the present error, the integral term reacts to the accumulated past error and removes lingering offset, and the derivative term anticipates the future error from its trend.",
+    "Suppose a heating system with Kp = 2 sees a room 3 degrees below the setpoint. The proportional output is 2 x 3 = 6 units of heating command.",
+    "Negative feedback stabilises a system and rejects disturbances, but too much gain or too much delay makes it overcorrect, then overcorrect again the other way, so the loop oscillates or becomes unstable. Harold Black's negative-feedback amplifier of 1927 traded raw gain for stability and low distortion, making long-distance telephone repeaters practical."
+   ]
+  },
+  {
+   "id": "lab-engineering.l13",
+   "title": "Semiconductors and Information Limits",
+   "body": [
+    "A semiconductor such as silicon conducts only under the right conditions of doping and bias. That lets a small voltage or current control a much larger one, which is the essence of both switching and amplification. In 1947 Bardeen, Brattain and Shockley at Bell Labs demonstrated amplification in a point-contact germanium device, the first transistor. It was a solid-state device with no moving parts, and in 1958-59 Kilby and Noyce showed how to place many devices on a single chip, the integrated circuit.",
+    "Once switching is cheap, the next question is how fast information can be sent. Claude Shannon's 1948 work defined the bit and proved a ceiling on error-free communication over a noisy channel. The Shannon-Hartley formula is C = B x log2(1 + S/N), where B is bandwidth in hertz and S/N the signal-to-noise ratio.",
+    "With B = 1 MHz and S/N = 3, C = 1,000,000 x log2(4) = 2,000,000 bit/s, or 2 Mbit/s. More bandwidth or a cleaner signal raises the ceiling, but no coding trick can exceed it.",
+    "Modems, mobile networks and Wi-Fi all approach this limit as closely as they can."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "lab-engineering.l01.q1",
+   "lessonId": "lab-engineering.l01",
+   "kind": "mcq",
+   "prompt": "Which pair of conditions must hold for a body to be in static equilibrium?",
+   "choices": [
+    "The sum of forces is zero and the sum of moments is zero",
+    "The sum of moments is zero and the total mass is zero",
+    "The sum of forces equals the weight of the body",
+    "The sum of forces is zero, and the body is made of rigid material"
+   ]
+  },
+  {
+   "id": "lab-engineering.l01.q2",
+   "lessonId": "lab-engineering.l01",
+   "kind": "mcq",
+   "prompt": "What are the usual SI units of a moment?",
+   "choices": [
+    "N/m2 per second",
+    "N·m",
+    "N",
+    "Pa"
+   ]
+  },
+  {
+   "id": "lab-engineering.l01.q3",
+   "lessonId": "lab-engineering.l01",
+   "kind": "mcq",
+   "prompt": "A seesaw is balanced on a central pivot. A child weighing 300 N sits 2 m from the pivot. What force at 1.5 m on the other side will balance it?",
+   "choices": [
+    "225 N",
+    "300 N",
+    "400 N",
+    "450 N"
+   ]
+  },
+  {
+   "id": "lab-engineering.l01.q4",
+   "lessonId": "lab-engineering.l01",
+   "kind": "mcq",
+   "prompt": "Two equal and opposite forces act on a plank at different points along it. The net force is zero, yet the plank rotates. Why?",
+   "choices": [
+    "Equilibrium only needs forces in the vertical direction",
+    "The forces are not really equal",
+    "Friction with the air creates extra force",
+    "The moments of the two forces do not cancel"
+   ]
+  },
+  {
+   "id": "lab-engineering.l02.q1",
+   "lessonId": "lab-engineering.l02",
+   "kind": "mcq",
+   "prompt": "What is stress?",
+   "choices": [
+    "Total force applied to a body",
+    "The energy stored in a spring",
+    "Fractional change in length",
+    "Internal force per unit area"
+   ]
+  },
+  {
+   "id": "lab-engineering.l02.q2",
+   "lessonId": "lab-engineering.l02",
+   "kind": "mcq",
+   "prompt": "Strain is best described as",
+   "choices": [
+    "A dimensionless fractional deformation",
+    "A force in newtons",
+    "A pressure in pascals",
+    "The stiffness of a material"
+   ]
+  },
+  {
+   "id": "lab-engineering.l02.q3",
+   "lessonId": "lab-engineering.l02",
+   "kind": "mcq",
+   "prompt": "A steel bar has Young's modulus of 200 GPa and is stretched elastically to a strain of 0.001. What is the stress?",
+   "choices": [
+    "20 MPa",
+    "200 MPa",
+    "2000 MPa",
+    "0.2 MPa"
+   ]
+  },
+  {
+   "id": "lab-engineering.l02.q4",
+   "lessonId": "lab-engineering.l02",
+   "kind": "mcq",
+   "prompt": "Steel has a much larger Young's modulus than rubber. What does this tell you?",
+   "choices": [
+    "Steel cannot deform elastically",
+    "Steel stretches farther than rubber under the same stress",
+    "Steel needs much more stress than rubber to reach the same strain",
+    "Steel always fails at a lower stress than rubber"
+   ]
+  },
+  {
+   "id": "lab-engineering.l03.q1",
+   "lessonId": "lab-engineering.l03",
+   "kind": "mcq",
+   "prompt": "In the axial deformation formula delta = PL / AE, what happens to the elongation if the bar length doubles (all else equal)?",
+   "choices": [
+    "It halves",
+    "It stays the same",
+    "It doubles",
+    "It quadruples"
+   ]
+  },
+  {
+   "id": "lab-engineering.l03.q2",
+   "lessonId": "lab-engineering.l03",
+   "kind": "mcq",
+   "prompt": "Which property of a material appears in the axial deformation formula?",
+   "choices": [
+    "Melting point",
+    "Density",
+    "Electrical resistance",
+    "Elastic modulus E"
+   ]
+  },
+  {
+   "id": "lab-engineering.l03.q3",
+   "lessonId": "lab-engineering.l03",
+   "kind": "mcq",
+   "prompt": "A steel bar (E = 200 GPa) is 2 m long with a cross-sectional area of 500 mm2 (0.0005 m2) and carries an axial load of 10 kN. How much does it stretch?",
+   "choices": [
+    "0.2 mm",
+    "2 mm",
+    "20 mm",
+    "0.02 mm"
+   ]
+  },
+  {
+   "id": "lab-engineering.l03.q4",
+   "lessonId": "lab-engineering.l03",
+   "kind": "mcq",
+   "prompt": "A rod carries the same load, but its diameter is doubled while its length and material stay the same. By what factor does its elongation change?",
+   "choices": [
+    "It halves",
+    "It becomes one quarter",
+    "It stays the same",
+    "It doubles"
+   ]
+  },
+  {
+   "id": "lab-engineering.l04.q1",
+   "lessonId": "lab-engineering.l04",
+   "kind": "mcq",
+   "prompt": "Where in a beam cross-section is the bending stress greatest?",
+   "choices": [
+    "At the neutral axis",
+    "At the outermost fibres, farthest from the neutral axis",
+    "Exactly at the centre of mass of the load",
+    "It is equal everywhere"
+   ]
+  },
+  {
+   "id": "lab-engineering.l04.q2",
+   "lessonId": "lab-engineering.l04",
+   "kind": "mcq",
+   "prompt": "In sigma = Mc / I, what does I represent?",
+   "choices": [
+    "Current through the beam",
+    "Impact force",
+    "The second moment of area of the cross-section",
+    "The internal moment of the load"
+   ]
+  },
+  {
+   "id": "lab-engineering.l04.q3",
+   "lessonId": "lab-engineering.l04",
+   "kind": "mcq",
+   "prompt": "A beam section carries a bending moment of 1000 N·m. The farthest fibre is 0.1 m from the neutral axis and I = 5 x 10^-5 m^4. What is the maximum bending stress?",
+   "choices": [
+    "20 MPa",
+    "200 MPa",
+    "0.5 MPa",
+    "2 MPa"
+   ]
+  },
+  {
+   "id": "lab-engineering.l04.q4",
+   "lessonId": "lab-engineering.l04",
+   "kind": "mcq",
+   "prompt": "Why are steel beams commonly shaped as I-sections rather than solid squares of the same weight?",
+   "choices": [
+    "Placing material far from the neutral axis greatly increases I, so the beam resists bending better for its weight",
+    "I-sections have no neutral axis",
+    "It makes the beam longer",
+    "The web adds electrical insulation"
+   ]
+  },
+  {
+   "id": "lab-engineering.l05.q1",
+   "lessonId": "lab-engineering.l05",
+   "kind": "mcq",
+   "prompt": "Buckling of a slender column is best described as",
+   "choices": [
+    "A sideways bowing stability failure",
+    "A brittle fracture in tension",
+    "A slow creep failure from heat",
+    "A crushing failure of the material"
+   ]
+  },
+  {
+   "id": "lab-engineering.l05.q2",
+   "lessonId": "lab-engineering.l05",
+   "kind": "mcq",
+   "prompt": "In Euler's critical load formula P_cr = pi^2 EI / (KL)^2, which change raises the critical load?",
+   "choices": [
+    "Increasing the length L",
+    "Increasing the stiffness EI",
+    "Increasing the factor K",
+    "Reducing the elastic modulus E"
+   ]
+  },
+  {
+   "id": "lab-engineering.l05.q3",
+   "lessonId": "lab-engineering.l05",
+   "kind": "mcq",
+   "prompt": "A pinned column of length 3 m has a critical load of 40 kN. Another identical column, but 6 m long, has what critical load?",
+   "choices": [
+    "5 kN",
+    "80 kN",
+    "10 kN",
+    "20 kN"
+   ]
+  },
+  {
+   "id": "lab-engineering.l05.q4",
+   "lessonId": "lab-engineering.l05",
+   "kind": "mcq",
+   "prompt": "Why can a long, thin strut fail at a load far below what would crush the same material in a short block?",
+   "choices": [
+    "Thin struts have a lower elastic modulus",
+    "Crushing only happens in tension",
+    "Long struts weigh more",
+    "Its critical load falls with the square of length, so instability occurs before the crushing stress is reached"
+   ]
+  },
+  {
+   "id": "lab-engineering.l06.q1",
+   "lessonId": "lab-engineering.l06",
+   "kind": "mcq",
+   "prompt": "What does the factor of safety measure?",
+   "choices": [
+    "The weight of the structure divided by its length",
+    "The number of workers needed to build it",
+    "The ratio of cost to strength",
+    "The ratio of failure stress to allowable working stress"
+   ]
+  },
+  {
+   "id": "lab-engineering.l06.q2",
+   "lessonId": "lab-engineering.l06",
+   "kind": "tf",
+   "prompt": "A factor of safety of exactly 1 means the part is designed to work at its failure stress, leaving no margin.",
+   "choices": [
+    "True",
+    "False"
+   ]
+  },
+  {
+   "id": "lab-engineering.l06.q3",
+   "lessonId": "lab-engineering.l06",
+   "kind": "mcq",
+   "prompt": "A steel part fails at an ultimate stress of 400 MPa. If the design uses a factor of safety of 2.5, what is the allowable working stress?",
+   "choices": [
+    "1000 MPa",
+    "160 MPa",
+    "100 MPa",
+    "200 MPa"
+   ]
+  },
+  {
+   "id": "lab-engineering.l06.q4",
+   "lessonId": "lab-engineering.l06",
+   "kind": "mcq",
+   "prompt": "Why do engineers not simply use a very large factor of safety on every design?",
+   "choices": [
+    "Large factors are forbidden by law",
+    "It would weaken the material",
+    "It adds cost and weight, so the factor must balance risk against practicality",
+    "The factor can never exceed 2"
+   ]
+  },
+  {
+   "id": "lab-engineering.l07.q1",
+   "lessonId": "lab-engineering.l07",
+   "kind": "mcq",
+   "prompt": "The first law of thermodynamics is a statement of",
+   "choices": [
+    "The direction of heat flow",
+    "The maximum engine efficiency",
+    "Conservation of energy",
+    "Conservation of momentum"
+   ]
+  },
+  {
+   "id": "lab-engineering.l07.q2",
+   "lessonId": "lab-engineering.l07",
+   "kind": "mcq",
+   "prompt": "In delta U = Q - W, what does a positive W mean?",
+   "choices": [
+    "The surroundings do work on the system",
+    "The temperature is below zero",
+    "Heat is added to the system",
+    "The system does work on its surroundings, lowering its internal energy"
+   ]
+  },
+  {
+   "id": "lab-engineering.l07.q3",
+   "lessonId": "lab-engineering.l07",
+   "kind": "mcq",
+   "prompt": "A gas absorbs 500 J of heat and does 200 J of work on a piston. What is the change in its internal energy?",
+   "choices": [
+    "300 J",
+    "-300 J",
+    "100 J",
+    "700 J"
+   ]
+  },
+  {
+   "id": "lab-engineering.l07.q4",
+   "lessonId": "lab-engineering.l07",
+   "kind": "mcq",
+   "prompt": "An inventor claims a cyclic engine absorbs 1000 J of heat per cycle and delivers 1200 J of work per cycle. What is wrong?",
+   "choices": [
+    "Nothing, engines can exceed their heat input",
+    "Over a full cycle delta U is zero, so work out cannot exceed net heat in",
+    "Heat cannot be measured in joules",
+    "Work must always equal exactly half the heat"
+   ]
+  },
+  {
+   "id": "lab-engineering.l08.q1",
+   "lessonId": "lab-engineering.l08",
+   "kind": "mcq",
+   "prompt": "The Carnot efficiency of a heat engine depends only on",
+   "choices": [
+    "The working fluid used",
+    "The temperatures of the hot and cold reservoirs",
+    "The size of the piston",
+    "The fuel cost"
+   ]
+  },
+  {
+   "id": "lab-engineering.l08.q2",
+   "lessonId": "lab-engineering.l08",
+   "kind": "mcq",
+   "prompt": "Which temperature scale must be used in the Carnot formula?",
+   "choices": [
+    "Fahrenheit",
+    "Either Celsius or Fahrenheit",
+    "Kelvin (absolute)",
+    "Celsius"
+   ]
+  },
+  {
+   "id": "lab-engineering.l08.q3",
+   "lessonId": "lab-engineering.l08",
+   "kind": "mcq",
+   "prompt": "An ideal engine takes heat at 600 K and rejects it at 300 K. What is its maximum efficiency?",
+   "choices": [
+    "100 percent",
+    "25 percent",
+    "75 percent",
+    "50 percent"
+   ]
+  },
+  {
+   "id": "lab-engineering.l08.q4",
+   "lessonId": "lab-engineering.l08",
+   "kind": "mcq",
+   "prompt": "A manufacturer claims a heat engine running between 600 K and 300 K is 60 percent efficient. What can you conclude?",
+   "choices": [
+    "It is impossible, since the Carnot limit is 50 percent",
+    "It is plausible if the fuel is diesel",
+    "The claim is exactly the Carnot value",
+    "It is plausible if built carefully"
+   ]
+  },
+  {
+   "id": "lab-engineering.l09.q1",
+   "lessonId": "lab-engineering.l09",
+   "kind": "mcq",
+   "prompt": "According to Bernoulli's principle, in steady ideal flow along a horizontal streamline, where the fluid speeds up the static pressure",
+   "choices": [
+    "Falls",
+    "Stays exactly constant",
+    "Becomes zero",
+    "Rises"
+   ]
+  },
+  {
+   "id": "lab-engineering.l09.q2",
+   "lessonId": "lab-engineering.l09",
+   "kind": "mcq",
+   "prompt": "The Reynolds number compares which two quantities?",
+   "choices": [
+    "Pressure and temperature",
+    "Inertial forces and viscous forces",
+    "Gravity and friction",
+    "Speed and density only"
+   ]
+  },
+  {
+   "id": "lab-engineering.l09.q3",
+   "lessonId": "lab-engineering.l09",
+   "kind": "mcq",
+   "prompt": "Water (density 1000 kg/m3, viscosity 0.001 Pa·s) flows at 2 m/s in a pipe of 0.05 m diameter. What is the Reynolds number?",
+   "choices": [
+    "10,000",
+    "1,000,000",
+    "100,000",
+    "1,000"
+   ]
+  },
+  {
+   "id": "lab-engineering.l09.q4",
+   "lessonId": "lab-engineering.l09",
+   "kind": "mcq",
+   "prompt": "Water flows through a horizontal pipe that narrows. What happens in the narrow section?",
+   "choices": [
+    "Speed decreases and static pressure rises",
+    "Speed and pressure both rise",
+    "Nothing changes",
+    "Speed increases and static pressure falls"
+   ]
+  },
+  {
+   "id": "lab-engineering.l10.q1",
+   "lessonId": "lab-engineering.l10",
+   "kind": "mcq",
+   "prompt": "Ohm's law states that",
+   "choices": [
+    "V = R / I",
+    "V = I + R",
+    "V = I / R",
+    "V = I x R"
+   ]
+  },
+  {
+   "id": "lab-engineering.l10.q2",
+   "lessonId": "lab-engineering.l10",
+   "kind": "mcq",
+   "prompt": "Which expression gives the power dissipated in a resistor in terms of current and resistance?",
+   "choices": [
+    "I^2 x R",
+    "V / I^2",
+    "I x R",
+    "I / R"
+   ]
+  },
+  {
+   "id": "lab-engineering.l10.q3",
+   "lessonId": "lab-engineering.l10",
+   "kind": "mcq",
+   "prompt": "A 10 ohm resistor carries a current of 2 A. How much power does it dissipate?",
+   "choices": [
+    "80 W",
+    "40 W",
+    "20 W",
+    "5 W"
+   ]
+  },
+  {
+   "id": "lab-engineering.l10.q4",
+   "lessonId": "lab-engineering.l10",
+   "kind": "mcq",
+   "prompt": "The current through a fixed resistor is doubled. What happens to the heat it produces?",
+   "choices": [
+    "It doubles",
+    "It halves",
+    "It becomes four times larger",
+    "It stays the same"
+   ]
+  },
+  {
+   "id": "lab-engineering.l11.q1",
+   "lessonId": "lab-engineering.l11",
+   "kind": "mcq",
+   "prompt": "Kirchhoff's current law says that at any node",
+   "choices": [
+    "Resistance adds up to zero",
+    "Current always splits equally among branches",
+    "The currents into the node sum to zero (current in equals current out)",
+    "Voltage is the same on every branch"
+   ]
+  },
+  {
+   "id": "lab-engineering.l11.q2",
+   "lessonId": "lab-engineering.l11",
+   "kind": "mcq",
+   "prompt": "Kirchhoff's voltage law is a consequence of conservation of",
+   "choices": [
+    "Temperature",
+    "Momentum",
+    "Mass",
+    "Energy"
+   ]
+  },
+  {
+   "id": "lab-engineering.l11.q3",
+   "lessonId": "lab-engineering.l11",
+   "kind": "mcq",
+   "prompt": "At a junction, 5 A and 2 A flow in. One branch carries 4 A out. What current does the other branch carry out?",
+   "choices": [
+    "3 A",
+    "7 A",
+    "11 A",
+    "1 A"
+   ]
+  },
+  {
+   "id": "lab-engineering.l11.q4",
+   "lessonId": "lab-engineering.l11",
+   "kind": "mcq",
+   "prompt": "A 12 V source drives two resistors in series. If the first resistor drops 5 V, the second drops 7 V. Why must these drops add to 12 V?",
+   "choices": [
+    "Resistors always share voltage equally",
+    "Around the closed loop, the voltage rise from the source equals the total drop, reflecting conservation of energy",
+    "Voltage is destroyed by the second resistor",
+    "Because current is zero in the loop"
+   ]
+  },
+  {
+   "id": "lab-engineering.l12.q1",
+   "lessonId": "lab-engineering.l12",
+   "kind": "mcq",
+   "prompt": "In a feedback controller, the error is",
+   "choices": [
+    "Measurement minus setpoint, ignoring sign",
+    "Setpoint minus measurement",
+    "The controller gain",
+    "The sensor noise"
+   ]
+  },
+  {
+   "id": "lab-engineering.l12.q2",
+   "lessonId": "lab-engineering.l12",
+   "kind": "mcq",
+   "prompt": "Which term of a PID controller responds to the accumulated past error?",
+   "choices": [
+    "Proportional",
+    "Derivative",
+    "Integral",
+    "Setpoint"
+   ]
+  },
+  {
+   "id": "lab-engineering.l12.q3",
+   "lessonId": "lab-engineering.l12",
+   "kind": "mcq",
+   "prompt": "A proportional controller has Kp = 2 and the measured error is 3 degrees. What is the proportional output?",
+   "choices": [
+    "9",
+    "1.5",
+    "5",
+    "6"
+   ]
+  },
+  {
+   "id": "lab-engineering.l12.q4",
+   "lessonId": "lab-engineering.l12",
+   "kind": "mcq",
+   "prompt": "Why can too much feedback gain make a system oscillate?",
+   "choices": [
+    "The controller overcorrects, overshoots the setpoint and then overcorrects the other way",
+    "High gain removes the error entirely",
+    "Gain only affects the setpoint",
+    "Large gains slow the sensor"
+   ]
+  },
+  {
+   "id": "lab-engineering.l13.q1",
+   "lessonId": "lab-engineering.l13",
+   "kind": "mcq",
+   "prompt": "What key capability does a transistor provide?",
+   "choices": [
+    "A small voltage or current controls a much larger one, enabling switching and amplification",
+    "It stores energy like a battery",
+    "It generates heat for chips",
+    "It transmits light through fibre"
+   ]
+  },
+  {
+   "id": "lab-engineering.l13.q2",
+   "lessonId": "lab-engineering.l13",
+   "kind": "mcq",
+   "prompt": "Where and when was the first transistor demonstrated?",
+   "choices": [
+    "Intel, 1958",
+    "Bell Labs, 1947",
+    "IBM, 1971",
+    "Westinghouse, 1888"
+   ]
+  },
+  {
+   "id": "lab-engineering.l13.q3",
+   "lessonId": "lab-engineering.l13",
+   "kind": "mcq",
+   "prompt": "A channel has a bandwidth of 1 MHz and a signal-to-noise ratio of 3. What is its Shannon capacity?",
+   "choices": [
+    "3 Mbit/s",
+    "4 Mbit/s",
+    "2 Mbit/s",
+    "1 Mbit/s"
+   ]
+  },
+  {
+   "id": "lab-engineering.l13.q4",
+   "lessonId": "lab-engineering.l13",
+   "kind": "mcq",
+   "prompt": "A vendor claims error-free transmission at 5 Mbit/s over the channel above (capacity 2 Mbit/s). What does Shannon's theorem say?",
+   "choices": [
+    "It is possible only at night",
+    "It is possible if the bandwidth is reduced",
+    "It is possible with a smarter modem",
+    "It is impossible, since no coding can exceed the channel capacity for error-free communication"
+   ]
+  }
+ ]
+}

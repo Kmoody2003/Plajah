@@ -1,0 +1,373 @@
+{
+  "id": "review-evite-supper-copy-85d2cba6-cc1e-45b1-a75d-cc76c553a698",
+  "ownerId": "local-review",
+  "title": "Supper Club · review copy",
+  "createdAt": 1790719091243,
+  "updatedAt": 1790719091243,
+  "frames": [
+    {
+      "id": "review-evite-supper-frame",
+      "kind": "BOARD",
+      "preset": "FREE",
+      "x": 0,
+      "y": 0,
+      "w": 600,
+      "h": 800,
+      "deviceIds": [
+        "review-evite-supper-vector"
+      ],
+      "label": "Supper Club"
+    }
+  ],
+  "devices": {
+    "review-evite-supper-vector": {
+      "id": "review-evite-supper-vector",
+      "type": "VECTOR",
+      "name": "Supper Club",
+      "width": 600,
+      "height": 800,
+      "objects": [
+        {
+          "id": "review-evite-supper-ground",
+          "kind": "RECT",
+          "x": 0,
+          "y": 0,
+          "w": 600,
+          "h": 800,
+          "fill": "#f4dfc4",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "templateRole": "GROUND"
+        },
+        {
+          "id": "review-evite-supper-plate",
+          "kind": "ELLIPSE",
+          "x": 172,
+          "y": 75,
+          "w": 330,
+          "h": 270,
+          "fill": "#c79c54",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-supper-plate-inner",
+          "kind": "ELLIPSE",
+          "x": 187,
+          "y": 90,
+          "w": 300,
+          "h": 240,
+          "fill": "#f4dfc4",
+          "stroke": "#c65738",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-supper-fork",
+          "kind": "LINE",
+          "x": 96,
+          "y": 125,
+          "w": 0,
+          "h": 200,
+          "fill": "none",
+          "stroke": "#6a2c22",
+          "strokeWidth": 4,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            96,
+            125,
+            96,
+            325
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-supper-prong-0",
+          "kind": "LINE",
+          "x": 84,
+          "y": 110,
+          "w": 0,
+          "h": 44,
+          "fill": "none",
+          "stroke": "#6a2c22",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            84,
+            110,
+            84,
+            154
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-supper-prong-1",
+          "kind": "LINE",
+          "x": 92,
+          "y": 110,
+          "w": 0,
+          "h": 44,
+          "fill": "none",
+          "stroke": "#6a2c22",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            92,
+            110,
+            92,
+            154
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-supper-prong-2",
+          "kind": "LINE",
+          "x": 100,
+          "y": 110,
+          "w": 0,
+          "h": 44,
+          "fill": "none",
+          "stroke": "#6a2c22",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            100,
+            110,
+            100,
+            154
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-supper-prong-3",
+          "kind": "LINE",
+          "x": 108,
+          "y": 110,
+          "w": 0,
+          "h": 44,
+          "fill": "none",
+          "stroke": "#6a2c22",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            108,
+            110,
+            108,
+            154
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-supper-eyebrow",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 32,
+          "w": 496,
+          "h": 16.200000000000003,
+          "fill": "#6a2c22",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "YOU ARE INVITED",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-supper-divider",
+          "kind": "LINE",
+          "x": 52,
+          "y": 410,
+          "w": 496,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#c79c54",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            52,
+            410,
+            548,
+            410
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-supper-title",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 446,
+          "w": 496,
+          "h": 55.35,
+          "fill": "#6a2c22",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "A seat for you",
+          "fontSize": 41,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "HEADLINE"
+        },
+        {
+          "id": "review-evite-supper-subtitle",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 511,
+          "w": 492,
+          "h": 21.6,
+          "fill": "#6a2c22",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "An intimate seasonal supper",
+          "fontSize": 16,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-supper-date",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 588,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#6a2c22",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "SATURDAY, 18 OCTOBER",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-supper-time",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 617,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#6a2c22",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "7:30 PM · THE STUDIO",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-supper-venue",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 646,
+          "w": 492,
+          "h": 16.200000000000003,
+          "fill": "#6a2c22",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "24 GARDEN LANE · SAMPLE CITY",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-supper-rsvp",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 704,
+          "w": 490,
+          "h": 24.3,
+          "fill": "#6a2c22",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Kindly RSVP by 10 October",
+          "fontSize": 18,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-supper-sample",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 765,
+          "w": 490,
+          "h": 13.5,
+          "fill": "#6a2c22",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "FICTIONAL EVENT · DESIGN PREVIEW",
+          "fontSize": 10,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        }
+      ]
+    }
+  },
+  "bindings": [],
+  "templatePreset": {
+    "schemaVersion": 1,
+    "templateId": "review-evite-supper",
+    "status": "review",
+    "motion": {
+      "duration": 6000,
+      "tracks": [
+        {
+          "objectId": "review-evite-supper-plate",
+          "property": "opacity",
+          "from": 1,
+          "to": 0.8,
+          "delay": 0,
+          "duration": 2800
+        },
+        {
+          "objectId": "review-evite-supper-plate-inner",
+          "property": "opacity",
+          "from": 1,
+          "to": 0.8,
+          "delay": 140,
+          "duration": 3060
+        }
+      ]
+    },
+    "audio": {
+      "notes": [
+        49,
+        56,
+        61,
+        63
+      ],
+      "tempo": 76
+    }
+  }
+}

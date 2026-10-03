@@ -22,7 +22,9 @@
 // the sermon point, exactly as ProPresenter and FreeShow do it. Putting
 // scripture on the `slide` slot would make it replace the slide instead, which
 // is a different and much weaker product.
-export const LAYER_ORDER = ['background', 'fill', 'slide', 'scripture', 'prop', 'overlay', 'audio', 'mask'] as const;
+// 'lyrics' is its own slot (Chora lyric sync) so it can sit over a slide or a
+// verse without replacing either, and never collides with an audio bed.
+export const LAYER_ORDER = ['background', 'fill', 'slide', 'scripture', 'lyrics', 'prop', 'overlay', 'audio', 'mask'] as const;
 export type LayerSlot = typeof LAYER_ORDER[number];
 
 export const LAYER_LABEL: Record<LayerSlot, string> = {
@@ -30,6 +32,7 @@ export const LAYER_LABEL: Record<LayerSlot, string> = {
   fill: 'Media fill',
   slide: 'Slide',
   scripture: 'Scripture',
+  lyrics: 'Lyrics',
   prop: 'Props',
   overlay: 'Overlay',
   audio: 'Audio Track',
@@ -113,7 +116,20 @@ export type LayerContent =
   | { kind: 'CLOCK'; format?: string }
   | { kind: 'LIVE'; inputId: string; stream?: MediaStream; label?: string; fit?: 'cover' | 'contain' | 'fill' }
   | { kind: 'WEB'; url: string }
+  /** Chora lyric sync. Every window computes the song position itself from
+   *  the clock anchor (wall time → song time), so the type animates locally at
+   *  full frame rate and a projector never waits on the studio for a frame. */
+  | { kind: 'LYRICS'; lines: Array<{ time: number; text: string }>; styleId: string;
+      title?: string; artist?: string; trackId?: string; bpm?: number; firstBeat?: number;
+      clock: LyricClock }
   | { kind: 'CLEAR' };
+
+/** Song position = playing ? anchorPos + (Date.now() − anchorMs)/1000 × rate : anchorPos */
+export interface LyricClock { anchorMs: number; anchorPos: number; rate: number; playing: boolean }
+
+export function lyricClockPos(c: LyricClock, nowMs = Date.now()): number {
+  return c.playing ? c.anchorPos + ((nowMs - c.anchorMs) / 1000) * c.rate : c.anchorPos;
+}
 
 export interface SlideLayer {
   id: string;

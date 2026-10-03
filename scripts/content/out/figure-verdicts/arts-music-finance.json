@@ -1,0 +1,268 @@
+[
+ {
+  "lesson": "audio-engineering.l01",
+  "id": "wavelength-vs-frequency",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "audio-engineering.l01",
+  "id": "wavelength-table",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "audio-engineering.l02",
+  "id": "db-voltage-ratio",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "audio-engineering.l02",
+  "id": "niosh-exposure-time",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "audio-engineering.l03",
+  "id": "harmonic-series-220",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "audio-engineering.l03",
+  "id": "octave-doubling",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "audio-engineering.l04",
+  "id": "alias-fold",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "audio-engineering.l04",
+  "id": "nyquist-by-rate",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "audio-engineering.l17",
+  "id": "eq-regions",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "audio-engineering.l21",
+  "id": "lufs-normalization",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lighting-design.l01",
+  "id": "inverse-square-lux",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lighting-design.l01",
+  "id": "stops-lost-distance",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lighting-design.l04",
+  "id": "kelvin-ladder",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "lighting-design.l10",
+  "id": "ratio-to-stops",
+  "verdict": "ok",
+  "issue": "log2 values verified. Convention (lit side : shadow side) matches lesson and caption warns conventions vary; cinematography often quotes (key+fill):fill, which differs.",
+  "fix": ""
+ },
+ {
+  "lesson": "color-theory.l04",
+  "id": "ryb-complements",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "color-theory.l04",
+  "id": "rgb-complements",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "color-theory.l06",
+  "id": "triadic-schemes",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "color-theory.l06",
+  "id": "split-complement-blue",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "color-theory.l12",
+  "id": "wcag-grey-on-white",
+  "verdict": "ok",
+  "issue": "Recomputed 4.5422:1 for #767676 (0x76=118) on white, 21:1 black, 1:1 white. Threshold constant 0.03928 vs 0.04045 makes no difference here.",
+  "fix": ""
+ },
+ {
+  "lesson": "music-theory-elementary.l08",
+  "id": "c-major-steps",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "music-theory-elementary.l10",
+  "id": "key-signature-ladder",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "music-history-eras.l07",
+  "id": "baroque-dates",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "music-history-eras.l24",
+  "id": "recording-timeline",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "design-movements.l06",
+  "id": "weimar-bauhaus",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "design-movements.l07",
+  "id": "bauhaus-after-weimar",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "film-business.l09",
+  "id": "capital-stack-5m",
+  "verdict": "ok",
+  "issue": "Sum 1.0+1.5+1.0+1.5=5.0M and equity 30% verified. Pre-sale MGs are not a loan, but caption only claims lenders rank ahead of equity.",
+  "fix": ""
+ },
+ {
+  "lesson": "film-business.l16",
+  "id": "waterfall-10m",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "film-business.l16",
+  "id": "waterfall-6m",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "entertainment-finance.l08",
+  "id": "recoupment-1-5m",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "fl-save-2",
+  "id": "simple-vs-compound",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "fl-save-2",
+  "id": "start-early-vs-late",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "fl-credit-1",
+  "id": "loan-balance-36-vs-72",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "fl-credit-1",
+  "id": "interest-vs-principal-72",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "ec-mkt-1",
+  "id": "sd-equilibrium",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "ec-mkt-1",
+  "id": "sd-shift",
+  "verdict": "ok",
+  "issue": "Minor: \"higher incomes shifts demand right\" holds only for a normal good (inferior goods shift left). Numbers verified: equilibria (4,6) and (6,8).",
+  "fix": "Optional: say \"for a normal good, higher incomes shift...\""
+ },
+ {
+  "lesson": "ec-money-1",
+  "id": "three-jobs-of-money",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ },
+ {
+  "lesson": "ec-money-1",
+  "id": "loan-creates-deposit",
+  "verdict": "ok",
+  "issue": "Simplified (also true for other money-creation channels such as central-bank operations); matches lesson text and is labelled simplified.",
+  "fix": ""
+ },
+ {
+  "lesson": "ec-money-2",
+  "id": "policy-rate-chain",
+  "verdict": "ok",
+  "issue": "",
+  "fix": ""
+ }
+]

@@ -1,0 +1,380 @@
+{
+  "id": "review-evite-tea-copy-0fb2e351-e4c2-4e8a-a899-f1c82edf139f",
+  "ownerId": "local-review",
+  "title": "Tea & Time · review copy",
+  "createdAt": 1790719091426,
+  "updatedAt": 1790719091426,
+  "frames": [
+    {
+      "id": "review-evite-tea-frame",
+      "kind": "BOARD",
+      "preset": "FREE",
+      "x": 0,
+      "y": 0,
+      "w": 600,
+      "h": 800,
+      "deviceIds": [
+        "review-evite-tea-vector"
+      ],
+      "label": "Tea & Time"
+    }
+  ],
+  "devices": {
+    "review-evite-tea-vector": {
+      "id": "review-evite-tea-vector",
+      "type": "VECTOR",
+      "name": "Tea & Time",
+      "width": 600,
+      "height": 800,
+      "objects": [
+        {
+          "id": "review-evite-tea-ground",
+          "kind": "RECT",
+          "x": 0,
+          "y": 0,
+          "w": 600,
+          "h": 800,
+          "fill": "#e5dedf",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "templateRole": "GROUND"
+        },
+        {
+          "id": "review-evite-tea-saucer",
+          "kind": "ELLIPSE",
+          "x": 159,
+          "y": 302,
+          "w": 300,
+          "h": 35,
+          "fill": "#9c7583",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-tea-cup",
+          "kind": "RECT",
+          "x": 200,
+          "y": 198,
+          "w": 185,
+          "h": 118,
+          "fill": "#acba9c",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "rx": 48
+        },
+        {
+          "id": "review-evite-tea-handle",
+          "kind": "ELLIPSE",
+          "x": 355,
+          "y": 216,
+          "w": 66,
+          "h": 62,
+          "fill": "none",
+          "stroke": "#acba9c",
+          "strokeWidth": 13,
+          "rotation": 0,
+          "opacity": 1
+        },
+        {
+          "id": "review-evite-tea-steam-0",
+          "kind": "PATH",
+          "x": 240,
+          "y": 84,
+          "w": 20,
+          "h": 88,
+          "fill": "none",
+          "stroke": "#9c7583",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            240,
+            171,
+            231,
+            143,
+            249,
+            116,
+            241,
+            89
+          ]
+        },
+        {
+          "id": "review-evite-tea-steam-1",
+          "kind": "PATH",
+          "x": 279,
+          "y": 84,
+          "w": 20,
+          "h": 88,
+          "fill": "none",
+          "stroke": "#9c7583",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            279,
+            171,
+            270,
+            143,
+            288,
+            116,
+            280,
+            89
+          ]
+        },
+        {
+          "id": "review-evite-tea-steam-2",
+          "kind": "PATH",
+          "x": 318,
+          "y": 84,
+          "w": 20,
+          "h": 88,
+          "fill": "none",
+          "stroke": "#9c7583",
+          "strokeWidth": 2,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            318,
+            171,
+            309,
+            143,
+            327,
+            116,
+            319,
+            89
+          ]
+        },
+        {
+          "id": "review-evite-tea-eyebrow",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 32,
+          "w": 496,
+          "h": 16.200000000000003,
+          "fill": "#51434a",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "YOU ARE INVITED",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-tea-divider",
+          "kind": "LINE",
+          "x": 52,
+          "y": 410,
+          "w": 496,
+          "h": 0,
+          "fill": "none",
+          "stroke": "#acba9c",
+          "strokeWidth": 1,
+          "rotation": 0,
+          "opacity": 1,
+          "points": [
+            52,
+            410,
+            548,
+            410
+          ],
+          "templateRole": "RULE"
+        },
+        {
+          "id": "review-evite-tea-title",
+          "kind": "TEXT",
+          "x": 52,
+          "y": 446,
+          "w": 496,
+          "h": 55.35,
+          "fill": "#51434a",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Take your time",
+          "fontSize": 41,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "HEADLINE"
+        },
+        {
+          "id": "review-evite-tea-subtitle",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 511,
+          "w": 492,
+          "h": 21.6,
+          "fill": "#51434a",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Tea, small treats & conversation",
+          "fontSize": 16,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-tea-date",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 588,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#51434a",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "SATURDAY, 18 OCTOBER",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-tea-time",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 617,
+          "w": 492,
+          "h": 18.900000000000002,
+          "fill": "#51434a",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "7:30 PM · THE STUDIO",
+          "fontSize": 14,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-tea-venue",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 646,
+          "w": 492,
+          "h": 16.200000000000003,
+          "fill": "#51434a",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "24 GARDEN LANE · SAMPLE CITY",
+          "fontSize": 12,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-tea-rsvp",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 704,
+          "w": 490,
+          "h": 24.3,
+          "fill": "#51434a",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "Kindly RSVP by 10 October",
+          "fontSize": 18,
+          "fontFamily": "Georgia",
+          "fontWeight": 400,
+          "templateRole": "LABEL"
+        },
+        {
+          "id": "review-evite-tea-sample",
+          "kind": "TEXT",
+          "x": 54,
+          "y": 765,
+          "w": 490,
+          "h": 13.5,
+          "fill": "#51434a",
+          "stroke": "none",
+          "strokeWidth": 0,
+          "rotation": 0,
+          "opacity": 1,
+          "text": "FICTIONAL EVENT · DESIGN PREVIEW",
+          "fontSize": 10,
+          "fontFamily": "Arial",
+          "fontWeight": 700,
+          "templateRole": "LABEL"
+        }
+      ]
+    }
+  },
+  "bindings": [],
+  "templatePreset": {
+    "schemaVersion": 1,
+    "templateId": "review-evite-tea",
+    "status": "review",
+    "motion": {
+      "duration": 6000,
+      "tracks": [
+        {
+          "objectId": "review-evite-tea-saucer",
+          "property": "opacity",
+          "from": 1,
+          "to": 0.8,
+          "delay": 0,
+          "duration": 2800
+        },
+        {
+          "objectId": "review-evite-tea-cup",
+          "property": "opacity",
+          "from": 1,
+          "to": 0.8,
+          "delay": 140,
+          "duration": 3060
+        },
+        {
+          "objectId": "review-evite-tea-handle",
+          "property": "opacity",
+          "from": 1,
+          "to": 0.8,
+          "delay": 280,
+          "duration": 3320
+        },
+        {
+          "objectId": "review-evite-tea-steam-0",
+          "property": "opacity",
+          "from": 1,
+          "to": 0.8,
+          "delay": 420,
+          "duration": 3580
+        },
+        {
+          "objectId": "review-evite-tea-steam-1",
+          "property": "opacity",
+          "from": 1,
+          "to": 0.8,
+          "delay": 560,
+          "duration": 3840
+        }
+      ]
+    },
+    "audio": {
+      "notes": [
+        55,
+        62,
+        67,
+        69
+      ],
+      "tempo": 100
+    }
+  }
+}

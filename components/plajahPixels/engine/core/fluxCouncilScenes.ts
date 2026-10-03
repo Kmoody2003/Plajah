@@ -2,6 +2,7 @@
 // The earlier Lattice/Tunnel/Aurora studies remain available in the catalog.
 // Tapestry II now lives in its own transforming-embroidery implementation.
 import type { SceneInst } from './flux';
+import { PLAJAH_BRAND_GLSL } from './fluxBrand';
 
 function stage(T: any) {
   const scene = new T.Scene();
@@ -107,6 +108,7 @@ export function buildLattice(T: any): SceneInst {
       varying vec3 vCol;
       varying float vAlpha;
 
+      ${PLAJAH_BRAND_GLSL}
       void main() {
         vec3 p0 = position;
         float r0 = length(p0);
@@ -158,7 +160,7 @@ export function buildLattice(T: any): SceneInst {
           crest = smoothstep(0.0, 1.0, ringBand) * 0.5;
         }
 
-        c = mix(c, c.bgr, (uHue - 0.5) * 0.35);
+        c = plajahBrand(c, (uHue - 0.5) + uTime * 0.01);
         vCol = c;
         vAlpha = (0.7 + crest * 0.45) * (0.75 + uEnergy * 0.25);
 
@@ -283,6 +285,7 @@ export function buildTunnel(T: any): SceneInst {
       varying vec3 vCol;
       varying float vAlpha;
 
+      ${PLAJAH_BRAND_GLSL}
       void main() {
         float L = 120.0;
         // Mids drive the speed
@@ -323,7 +326,7 @@ export function buildTunnel(T: any): SceneInst {
         c = mix(c, colKick, clamp(kickPulse * 0.85, 0.0, 1.0));
         c += colSpark * (spark * 1.5);
 
-        c = mix(c, c.bgr, (uHue - 0.5) * 0.35);
+        c = plajahBrand(c, (uHue - 0.5) + uTime * 0.01);
 
         // Distance fog fade and fade out smoothly before reaching camera
         float depthFade = smoothstep(-120.0, -75.0, z) * (1.0 - smoothstep(-8.0, -1.0, z));
@@ -452,6 +455,7 @@ export function buildAurora(T: any): SceneInst {
       varying vec3 vCol;
       varying float vAlpha;
 
+      ${PLAJAH_BRAND_GLSL}
       void main() {
         float u = aUv.x;
         float v = aUv.y;
@@ -500,7 +504,7 @@ export function buildAurora(T: any): SceneInst {
         c *= (1.0 + kickSurge * 0.45);
         c += colJade * (kickSurge * 0.3);
 
-        c = mix(c, c.bgr, (uHue - 0.5) * 0.4);
+        c = plajahBrand(c, (uHue - 0.5) + uTime * 0.01);
         
         c *= 1.4;
 
@@ -640,6 +644,7 @@ export function buildSanctum(T: any): SceneInst {
       varying vec2 vUv;
       varying vec3 vWorldPos;
 
+      ${PLAJAH_BRAND_GLSL}
       void main() {
         vec2 uv = (vUv - 0.5) * 32.0;
         float dist = length(vWorldPos.xz);
@@ -673,7 +678,7 @@ export function buildSanctum(T: any): SceneInst {
         // Distance falloff
         col *= smoothstep(20.0, 4.0, dist);
 
-        gl_FragColor = vec4(col, 1.0);
+        gl_FragColor = vec4(plajahBrand(col, 0.0), 1.0);
       }
     `,
   }));
@@ -707,6 +712,7 @@ export function buildSanctum(T: any): SceneInst {
       varying vec3 vPos;
       varying vec2 vUv;
 
+      ${PLAJAH_BRAND_GLSL}
       void main() {
         // Drifting atmospheric haze
         float haze = fbm3(vec3(vPos.xz * 0.6, vPos.y * 0.25 - uTime * 0.16));
@@ -720,7 +726,7 @@ export function buildSanctum(T: any): SceneInst {
         vec3 lightCol = vec3(0.94, 0.91, 0.82);
         float alpha = beamIntensity * vertFade * (0.05 + edge * 0.22);
 
-        gl_FragColor = vec4(lightCol, alpha * 0.32);
+        gl_FragColor = vec4(plajahBrand(lightCol, 0.15), alpha * 0.32);
       }
     `,
   }));
@@ -791,6 +797,7 @@ export function buildSanctum(T: any): SceneInst {
     fragmentShader: `
       uniform float uFlare;
       varying vec2 vUv;
+      ${PLAJAH_BRAND_GLSL}
       void main() {
         vec2 p = vUv - 0.5;
         float r = length(p);
@@ -799,7 +806,7 @@ export function buildSanctum(T: any): SceneInst {
         float rays = pow(0.5 + 0.5 * cos(atan(p.y, p.x) * 8.0), 8.0) * exp(-r * 3.5);
         vec3 col = mix(vec3(0.5, 0.85, 1.0), vec3(1.0, 0.9, 0.6), uFlare);
         float alpha = (core * 1.4 + rays * 0.8) * uFlare;
-        gl_FragColor = vec4(col, alpha);
+        gl_FragColor = vec4(plajahBrand(col, 0.3), alpha);
       }
     `,
   }));
@@ -869,12 +876,13 @@ export function buildSanctum(T: any): SceneInst {
       precision highp float;
       varying vec3 vCol;
       varying float vAlpha;
+      ${PLAJAH_BRAND_GLSL}
       void main() {
         vec2 d = gl_PointCoord - 0.5;
         float r = length(d);
         if (r > 0.5) discard;
         float core = smoothstep(0.5, 0.0, r);
-        gl_FragColor = vec4(vCol, core * vAlpha);
+        gl_FragColor = vec4(plajahBrand(vCol, 0.45), core * vAlpha);
       }
     `,
   }));

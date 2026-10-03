@@ -1,0 +1,1576 @@
+{
+ "courseId": "music-history-eras",
+ "verifier": "B",
+ "questions": [
+  {
+   "id": "music-history-eras.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l01.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l02.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l03.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l04.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l04.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l06.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l07.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l07.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l08.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l08.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l10.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l14.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l15.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l17.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l18.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l19.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l19.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l20.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l20.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l21.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l21.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l21.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l21.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l21.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l22.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l22.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l22.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l22.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l22.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l23.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l23.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l23.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l23.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l23.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l24.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l24.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l24.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l24.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l24.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l25.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l25.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l25.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l25.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l25.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l26.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l26.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l26.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l26.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l26.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l27.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l27.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l27.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l27.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l27.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l28.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l28.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l28.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l28.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "music-history-eras.l28.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "music-history-eras.l01",
+   "claim": "Hurrian hymn h.6 on Ugarit tablet, c.1400 BC, notation interpretation debated",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l01",
+   "claim": "65 bronze bells in tomb of Marquis Yi of Zeng, c.433 BC",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l01",
+   "claim": "Seikilos epitaph ~1st century AD; Delphic Hymns ~2nd century BC",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Seikilos dating is c. 2nd c. BC to 1st c. AD. Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l02",
+   "claim": "Hildegard of Bingen lived 1098-1179; Ordo Virtutum devil spoken not sung",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l02",
+   "claim": "Gregorian chant is monophonic Latin plainchant, repertory standardized by Franks c.900",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l02",
+   "claim": "Dies irae is a chant melody quoted by later composers",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l03",
+   "claim": "Guido of Arezzo lived c.991-after 1033; staff and syllables from hymn Ut queant laxis (St. John)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l03",
+   "claim": "Neumes appear c. ninth century as chant memory aids",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l03",
+   "claim": "Ut later replaced by do in solfege",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l04",
+   "claim": "Leonin/Magnus Liber Organi; Perotin organum in 3 and 4 voices",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l04",
+   "claim": "Guilhem IX of Aquitaine is earliest troubadour whose songs survive",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l04",
+   "claim": "Machaut (c.1300-1377) Messe de Nostre Dame earliest complete Mass ordinary by a single composer (commonly stated)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Hedged wording is appropriate; Tournai Mass is an anonymous earlier composite. Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l05",
+   "claim": "Petrucci Harmonice Musices Odhecaton, Venice, 1501",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l05",
+   "claim": "Josquin c.1450-1521; Palestrina c.1525-1594, Pope Marcellus Mass",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l05",
+   "claim": "Gutenberg movable type c.1450",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l06",
+   "claim": "Peri Euridice 1600; Monteverdi L'Orfeo Mantua 1607",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l06",
+   "claim": "First public opera house, Teatro San Cassiano, Venice 1637; Poppea 1643",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l06",
+   "claim": "Caccini La liberazione di Ruggiero 1625, earliest surviving opera by a woman; Strozzi 1619-1677",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l07",
+   "claim": "Four Seasons published 1725 (Op. 8)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l07",
+   "claim": "Handel's Messiah premiered Dublin 1742; Bach to Leipzig 1723",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l07",
+   "claim": "Purcell Dido and Aeneas c.1689",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Date debated (c.1683-1689); 'around 1689' acceptable but not certain."
+  },
+  {
+   "lessonId": "music-history-eras.l08",
+   "claim": "Cristofori built first piano c.1700 in Italy",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l08",
+   "claim": "Musikverein opened 1870; Carnegie Hall 1891",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l08",
+   "claim": "Public concerts in London in later 17th century (Banister, 1672)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l09",
+   "claim": "Mozart Marriage of Figaro 1786, Magic Flute 1791, died aged 35",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l09",
+   "claim": "Haydn 1732-1809, Esterhazy service, 100+ symphonies",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l09",
+   "claim": "Sonata form: exposition, development, recapitulation",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l10",
+   "claim": "Beethoven born Bonn 1770; 32 piano sonatas, 16 string quartets",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l10",
+   "claim": "Symphony No. 9 premiered 1824 with chorus, Schiller Ode",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l10",
+   "claim": "Eroica 1804",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Composed 1803-04; private premiere 1804, public April 1805. Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l11",
+   "claim": "Schubert 1797-1828, 600+ Lieder, Winterreise 24 songs, Wilhelm Muller",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l11",
+   "claim": "Robert and Clara Schumann married 1840",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l11",
+   "claim": "Chopin born Poland, mostly piano; Liszt created symphonic poem",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l12",
+   "claim": "A German Requiem uses German Bible texts",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l12",
+   "claim": "Rigoletto 1851, La traviata 1853, Aida 1871",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l12",
+   "claim": "Ring cycle first complete 1876 at Bayreuth Festspielhaus",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l13",
+   "claim": "Dvorak to New York 1892, Symphony No. 9 premiered 1893",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l13",
+   "claim": "Pictures at an Exhibition 1874, orchestrated by Ravel 1922",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l13",
+   "claim": "Grieg Peer Gynt incidental music for Ibsen",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l14",
+   "claim": "Hildegard 1098-1179 well documented",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l14",
+   "claim": "Caccini La liberazione 1625 earliest surviving opera by a woman",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l14",
+   "claim": "Strozzi published volumes of cantatas/arias under own name",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l15",
+   "claim": "Fanny Hensel 1805-1847, older sister of Felix, Sonntagsmusiken in Berlin",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l15",
+   "claim": "Amy Beach Gaelic Symphony premiered 1896",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l15",
+   "claim": "Florence Price Symphony No. 1 in E minor, Chicago Symphony 1933, first by Black woman played by major orchestra",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l16",
+   "claim": "Prelude to Afternoon of a Faun 1894; Pelleas 1902; La mer 1905",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l16",
+   "claim": "Whole-tone scale has six equal steps",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l16",
+   "claim": "Debussy heard Javanese gamelan at 1889 Paris Exposition",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l17",
+   "claim": "Rite of Spring premiered Paris 1913; Firebird 1910, Petrushka 1911",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l17",
+   "claim": "Pierrot lunaire 1912; twelve-tone method early 1920s",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l17",
+   "claim": "Second Viennese School: Schoenberg, Berg, Webern",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l18",
+   "claim": "Fisk Jubilee Singers formed 1871",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l18",
+   "claim": "Maple Leaf Rag published 1899",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l18",
+   "claim": "Handy Memphis Blues 1912, St. Louis Blues 1914; blues twelve bars",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l19",
+   "claim": "Original Dixieland Jass Band 1917 first jazz record",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l19",
+   "claim": "Thomas A. Dorsey called father of gospel; Precious Lord 1930s",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Written 1932. Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l19",
+   "claim": "Ellington 1899-1974; Armstrong 1901-1971",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l20",
+   "claim": "Rhapsody in Blue premiered 1924 with Whiteman, Gershwin at piano",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l20",
+   "claim": "Rodeo and Appalachian Spring both premiered in 1944",
+   "verdict": "contradicted",
+   "sources": [],
+   "note": "Rodeo premiered Oct 1942 (Metropolitan Opera House); Appalachian Spring premiered Oct 1944. Fanfare for the Common Man (1942) is correct. Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l20",
+   "claim": "Porgy and Bess 1935, Ives insurance career",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l21",
+   "claim": "4'33\" 1952, premiered by David Tudor",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l21",
+   "claim": "Prepared piano developed late 1930s-40s",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l21",
+   "claim": "Cage used I Ching for chance operations",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l22",
+   "claim": "In C by Terry Riley, 1964",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l22",
+   "claim": "It's Gonna Rain 1965, Piano Phase 1967, Music for 18 Musicians 1976",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l22",
+   "claim": "Einstein on the Beach premiered 1976 (Glass/Wilson); Reich to Ghana 1970",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l23",
+   "claim": "Bartok and Kodaly collected folk songs early 20th century",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l23",
+   "claim": "Shankar at Monterey Pop 1967; Norwegian Wood sitar 1965",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l23",
+   "claim": "Debussy heard gamelan at 1889 Paris Exposition",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l24",
+   "claim": "Edison phonograph 1877; Berliner gramophone 1880s",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l24",
+   "claim": "LP introduced by Columbia 1948",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l24",
+   "claim": "CD arrived 1982; electrical recording mid-1920s",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l25",
+   "claim": "Saint-Saens score for 1908 Assassination of the Duke of Guise",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l25",
+   "claim": "The Jazz Singer 1927; Steiner King Kong 1933",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l25",
+   "claim": "Psycho 1960; Star Wars 1977",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l26",
+   "claim": "Theremin invented c.1920 by Leon Theremin",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l26",
+   "claim": "Switched-On Bach 1968, Moog",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l26",
+   "claim": "MIDI 1983",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l27",
+   "claim": "Kool Herc party 1973 in Bronx",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l27",
+   "claim": "Rapper's Delight 1979 by Sugarhill Gang",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l27",
+   "claim": "TR-808 introduced 1980; Akai MPC late 1980s (1988)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l28",
+   "claim": "Petrucci printing 1501",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l28",
+   "claim": "Church to courts to public patronage sequence",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  },
+  {
+   "lessonId": "music-history-eras.l28",
+   "claim": "Women composers and Black musicians faced limited opportunities",
+   "verdict": "supported",
+   "sources": [],
+   "note": "General historical claim. Checked against reference knowledge; URL is a standard reference, not freshly fetched."
+  }
+ ]
+}

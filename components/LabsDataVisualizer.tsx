@@ -23,7 +23,7 @@ import {
 } from 'lucide-react';
 import {
   AreaChart, Area, LineChart, Line, BarChart, Bar, ScatterChart, Scatter,
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine,
 } from 'recharts';
 import {
   fetchRecentEarthquakes, fetchNASANEO, fetchNASAApod,
@@ -66,6 +66,8 @@ export interface DataVizConfig {
   xKey?: string;
   yLabel?: string;
   xLabel?: string;
+  /** Optional least-squares line drawn over a SCATTER chart (used by the Investigation Studio). */
+  fitLine?: { slope: number; intercept: number };
   // Table
   tableHeaders?: string[];
   tableRows?: (string | number)[][];
@@ -242,12 +244,17 @@ const ChartRenderer: React.FC<{ config: DataVizConfig }> = ({ config }) => {
       <ResponsiveContainer width="100%" height={220}>
         <ScatterChart {...shared}>
           <CartesianGrid strokeDasharray="2 4" stroke="rgba(255,255,255,0.04)" />
-          <XAxis type="number" dataKey={xKey} name={xLabel ?? xKey} {...commonAxisProps} />
-          <YAxis type="number" dataKey={series[0]?.key} name={yLabel} {...commonAxisProps} />
+          <XAxis type="number" dataKey={xKey} name={xLabel ?? xKey} domain={['auto', 'auto']} label={xLabel ? { value: xLabel, position: 'insideBottom', offset: -2, fill: 'rgba(255,255,255,0.5)', fontSize: 10 } : undefined} {...commonAxisProps} />
+          <YAxis type="number" dataKey={series[0]?.key} name={yLabel} domain={['auto', 'auto']} label={yLabel ? { value: yLabel, angle: -90, position: 'insideLeft', fill: 'rgba(255,255,255,0.5)', fontSize: 10 } : undefined} {...commonAxisProps} />
           <Tooltip cursor={{ strokeDasharray: '3 3', stroke: 'rgba(255,255,255,0.1)' }} content={<CustomTooltip />} />
           {series.map(s => (
             <Scatter key={s.key} name={s.label} data={chartData} fill={s.color} fillOpacity={0.7} />
           ))}
+          {config.fitLine && chartData.length > 1 && (() => {
+            const xs = chartData.map(d => Number(d[xKey])).filter(Number.isFinite);
+            const x1 = Math.min(...xs), x2 = Math.max(...xs); const { slope, intercept } = config.fitLine!;
+            return <ReferenceLine segment={[{ x: x1, y: slope * x1 + intercept }, { x: x2, y: slope * x2 + intercept }]} stroke="#FFD24A" strokeDasharray="5 4" strokeWidth={2} ifOverflow="extendDomain" />;
+          })()}
         </ScatterChart>
       </ResponsiveContainer>
     );

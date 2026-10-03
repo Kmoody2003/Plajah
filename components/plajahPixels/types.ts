@@ -37,6 +37,11 @@ export enum VisualizerMode {
   VelvetBloom = 'FLUX_VELVET_BLOOM',
   PrismArchive = 'FLUX_PRISM_ARCHIVE',
   DecoMorph = 'FLUX_DECO_MORPH',
+  EgyptTemple = 'FLUX_EGYPT_TEMPLE',
+  VenetianMaiolica = 'FLUX_VENETIAN_MAIOLICA',
+  HellenicMarble = 'FLUX_HELLENIC_MARBLE',
+  JapaneseInk = 'FLUX_JAPANESE_INK',
+  AfricanBogolan = 'FLUX_AFRICAN_BOGOLAN',
 
   // ─── Council Masterworks (Milkdrop-Grade Audio-Reactive Generative Shaders) ───
   CouncilOceanLeviathan = 'COUNCIL_OCEAN_LEVIATHAN',
@@ -94,6 +99,11 @@ export const MODE_TO_FLUX_SCENE: Record<string, string> = {
   [VisualizerMode.VelvetBloom]: 'velvet-bloom',
   [VisualizerMode.PrismArchive]: 'prism-archive',
   [VisualizerMode.DecoMorph]: 'deco-morph',
+  [VisualizerMode.EgyptTemple]: 'egypt-temple',
+  [VisualizerMode.VenetianMaiolica]: 'venetian-maiolica',
+  [VisualizerMode.HellenicMarble]: 'hellenic-marble',
+  [VisualizerMode.JapaneseInk]: 'japanese-ink',
+  [VisualizerMode.AfricanBogolan]: 'african-bogolan',
 };
 export const FLUX_SCENE_TO_MODE: Record<string, VisualizerMode> =
   Object.fromEntries(Object.entries(MODE_TO_FLUX_SCENE).map(([k, v]) => [v, k as VisualizerMode]));

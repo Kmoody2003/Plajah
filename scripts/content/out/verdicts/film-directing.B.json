@@ -1,0 +1,1315 @@
+{
+ "courseId": "film-directing",
+ "verifier": "B",
+ "note": "Only Wikipedia pages were opened (WebFetch); no primary sources. Claims not matched to an opened page are marked unverifiable. Question answers are from knowledge; the course is conventional film-craft teaching with few volatile facts.",
+ "fetched": 18,
+ "questions": [
+  {
+   "id": "film-directing.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l01.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l02.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l03.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l05.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l06.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l07.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l07.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l08.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l09.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l10.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l10.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Dolly_zoom"
+   ]
+  },
+  {
+   "id": "film-directing.l11.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l12.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l14.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l15.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l17.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Battleship_Potemkin"
+   ]
+  },
+  {
+   "id": "film-directing.l18.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l18.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l19.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l19.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l19.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l20.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l20.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l21.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l21.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l21.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Nanook_of_the_North"
+   ]
+  },
+  {
+   "id": "film-directing.l21.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l21.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l22.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rear_Window"
+   ]
+  },
+  {
+   "id": "film-directing.l22.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l22.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l22.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Barry_Lyndon"
+   ]
+  },
+  {
+   "id": "film-directing.l22.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l23.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l23.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l23.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l23.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l23.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l24.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l24.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l24.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l24.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-directing.l24.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "film-directing.l01",
+   "claim": "A producer usually handles money, schedules, hiring and business decisions",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l01",
+   "claim": "Final cut is usually set by contract",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l01",
+   "claim": "Director works with cinematographer on camera placement",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l02",
+   "claim": "Four broad production stages",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l02",
+   "claim": "First AD runs the schedule on set",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l02",
+   "claim": "Pickups are extra shooting after principal photography",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l03",
+   "claim": "Three-act structure: setup, confrontation, resolution",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l03",
+   "claim": "Subtext definition",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l03",
+   "claim": "Plot vs theme",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l04",
+   "claim": "Tone as overall mood/attitude",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l04",
+   "claim": "Statement of intent and references",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l04",
+   "claim": "Tone shifts need preparation",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l05",
+   "claim": "Casting directors organise auditions; callbacks",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l05",
+   "claim": "Chemistry reads",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l05",
+   "claim": "Casting affected by availability, budget",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l06",
+   "claim": "Table read: cast reads whole script aloud",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l06",
+   "claim": "Improvisation in rehearsal",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l06",
+   "claim": "Rehearsal amount varies",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l07",
+   "claim": "Term blocking comes from theatre",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l07",
+   "claim": "Marks are tape on floor",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l07",
+   "claim": "Stagger-through before lighting",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l08",
+   "claim": "Many modern acting approaches descend from Stanislavski, who stressed what a character wants and tries to do",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Konstantin_Stanislavski"
+   ],
+   "note": "Page: system built on objectives/tasks and action"
+  },
+  {
+   "lessonId": "film-directing.l08",
+   "claim": "Actors act on actions rather than results",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l08",
+   "claim": "Stanislavski was a Russian theatre practitioner",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Konstantin_Stanislavski"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l09",
+   "claim": "Script supervisor keeps continuity notes",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l09",
+   "claim": "Close-ups call for smaller performance scale",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l09",
+   "claim": "Directors watch on a monitor",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l10",
+   "claim": "Standard shot sizes",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l10",
+   "claim": "Low angle looks up and can seem imposing",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l10",
+   "claim": "Dutch angle tilts the horizon",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l11",
+   "claim": "Pan/tilt/dolly/zoom definitions",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l11",
+   "claim": "Steadicam is a body-worn stabilising rig",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l11",
+   "claim": "Dolly zoom is closely associated with Hitchcock's Vertigo (1958)",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Dolly_zoom"
+   ],
+   "note": "Page credits Irmin Roberts devising it for Vertigo"
+  },
+  {
+   "lessonId": "film-directing.l12",
+   "claim": "Shorter focal length gives wider view; telephoto compresses space",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l12",
+   "claim": "Depth of field depends on aperture, focal length, distance",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l12",
+   "claim": "Millimetre ranges depend on sensor/frame size",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l13",
+   "claim": "Master shot and coverage definitions",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l13",
+   "claim": "Cutting in camera",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l13",
+   "claim": "Cutaway/insert usage",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l14",
+   "claim": "180-degree rule: camera stays on one side of the axis so characters keep screen positions",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/180-degree_rule"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l14",
+   "claim": "Ozu is among directors who ignored the 180-degree rule at times",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/180-degree_rule"
+   ],
+   "note": "Page lists Ozu among filmmakers who ignored it"
+  },
+  {
+   "lessonId": "film-directing.l14",
+   "claim": "30-degree rule: consecutive shots differ by about 30 degrees",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Page mentions it only in See also; common editing guideline"
+  },
+  {
+   "lessonId": "film-directing.l15",
+   "claim": "Shot list contents",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l15",
+   "claim": "Animatic is moving storyboard with timing",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l15",
+   "claim": "Hitchcock known for meticulous advance planning",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Alfred_Hitchcock"
+   ],
+   "note": "Page notes storyboard/pre-planned approach; weakly specific"
+  },
+  {
+   "lessonId": "film-directing.l16",
+   "claim": "Mise-en-scene means placing on stage",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l16",
+   "claim": "Rule of thirds 3x3 grid",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l16",
+   "claim": "Colour meaning depends on culture",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l17",
+   "claim": "Battleship Potemkin (1925) by Eisenstein is a prime example of Soviet montage",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Battleship_Potemkin"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l17",
+   "claim": "Match on action cuts mid-movement",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l17",
+   "claim": "Jump cut skips time within a single angle",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l18",
+   "claim": "ADR = automated dialogue replacement",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l18",
+   "claim": "Foley artists perform effects to picture",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l18",
+   "claim": "Diegetic vs non-diegetic music",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l19",
+   "claim": "DP responsible for lighting and image",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l19",
+   "claim": "Production designer leads art department",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l19",
+   "claim": "Editors often cut during shoot",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l20",
+   "claim": "First AD runs the set, producer schedules",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l20",
+   "claim": "Call sheet lists next day's scenes and call times",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l20",
+   "claim": "Intimacy coordinators increasingly used",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l21",
+   "claim": "Nanook of the North (1922) by Flaherty included staged scenes",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Nanook_of_the_North"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l21",
+   "claim": "A feature is usually over about 40 minutes (AMPAS/AFI/BFI); some unions/countries higher",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Feature_film"
+   ],
+   "note": "Page: SAG-AFTRA 60, Germany 79"
+  },
+  {
+   "lessonId": "film-directing.l21",
+   "claim": "Documentary ethics: consent, fairness, representation",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l22",
+   "claim": "Hitchcock 1899-1980; Rear Window (1954) largely in one apartment",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Rear_Window"
+   ],
+   "note": "Dates confirmed on Alfred_Hitchcock page"
+  },
+  {
+   "lessonId": "film-directing.l22",
+   "claim": "Kurosawa 1910-1998; Rashomon (1950), Seven Samurai (1954); often edited own films",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Akira_Kurosawa"
+   ],
+   "note": "Multiple-camera claim not confirmed on page"
+  },
+  {
+   "lessonId": "film-directing.l22",
+   "claim": "Ozu 1903-1963; Tokyo Story (1953); low camera",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Yasujir%C5%8D_Ozu"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l22",
+   "claim": "Barry Lyndon (1975) candlelit scenes with very fast lenses",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Barry_Lyndon"
+   ],
+   "note": "Zeiss 50mm f/0.7"
+  },
+  {
+   "lessonId": "film-directing.l22",
+   "claim": "Varda 1928-2019; Cleo from 5 to 7 (1962); Gleaners and I (2000); associated with French New Wave",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Agn%C3%A8s_Varda"
+   ],
+   "note": "Often called Left Bank, but described as mother of the New Wave"
+  },
+  {
+   "lessonId": "film-directing.l22",
+   "claim": "Do the Right Thing (1989) by Spike Lee; double dolly",
+   "verdict": "unverifiable",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Do_the_Right_Thing"
+   ],
+   "note": "1989 and NYC confirmed; double dolly not mentioned on page"
+  },
+  {
+   "lessonId": "film-directing.l22",
+   "claim": "DuVernay: Selma (2014), 13th (2016), When They See Us (2019); ARRAY distribution for Black/underrepresented filmmakers",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Ava_DuVernay"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l22",
+   "claim": "Kubrick 1928-1999 known for exacting control",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Stanley_Kubrick"
+   ],
+   "note": "Page gives death 1999"
+  },
+  {
+   "lessonId": "film-directing.l23",
+   "claim": "Picture lock definition",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l23",
+   "claim": "Final cut set by contract",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l23",
+   "claim": "Test screenings record sample audience reactions",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l24",
+   "claim": "Festivals charge fees and may require premieres",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  },
+  {
+   "lessonId": "film-directing.l24",
+   "claim": "Directors Guild of America sets standards for professional directors in the US",
+   "verdict": "supported",
+   "sources": [
+    "https://en.wikipedia.org/wiki/Directors_Guild_of_America"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "film-directing.l24",
+   "claim": "Sundance, Cannes, Venice, Berlin, Toronto, SXSW are well-known festivals",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Common film-craft definition; no page opened"
+  }
+ ]
+}

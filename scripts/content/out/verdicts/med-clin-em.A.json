@@ -1,0 +1,1127 @@
+{
+ "courseId": "med-clin-em",
+ "verifier": "A",
+ "questions": [
+  {
+   "id": "med-clin-em.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l01.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l02.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l02.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l04.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l04.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l04.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l06.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l06.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l07.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l07.q5",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": true,
+   "note": "Aspirin also causes AG acidosis, but the osmolar gap points to methanol.",
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l08.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l08.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l10.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l10.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l10.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l10.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l10.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l11.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l11.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l11.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l11.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l11.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l12.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l12.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l12.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l12.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l12.q5",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": true,
+   "note": "At 12 h CT sensitivity falls; LP or CTA both acceptable and offered together.",
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l13.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l13.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l13.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l13.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l13.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l14.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l14.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l14.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l14.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l14.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l15.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l15.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l15.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l15.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l15.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l16.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l16.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l16.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l16.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l17.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l17.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l17.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l17.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l17.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l18.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l18.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l18.q3",
+   "answer": 1,
+   "confidence": "low",
+   "ambiguous": true,
+   "note": "Winter expected PaCO2 = 23 +/- 2 (21-25); 20 is marginally below, and pH 7.20 is inconsistent with HCO3 10/PaCO2 20 (calc ~7.32). Choices 0 and 1 both defensible.",
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l18.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "med-clin-em.l18.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "med-clin-em.l01",
+   "claim": "Succinylcholine contraindicated in extensive burns, crush, denervation, immobility (hyperkalemia)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK499928/"
+   ],
+   "note": "Standard reference; from knowledge"
+  },
+  {
+   "lessonId": "med-clin-em.l01",
+   "claim": "Waveform capnography is the most reliable confirmation of tube position",
+   "verdict": "supported",
+   "sources": [
+    "https://cpr.heart.org/en/resuscitation-science/cpr-and-ecc-guidelines"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l01",
+   "claim": "Needle cricothyrotomy used in young children",
+   "verdict": "supported",
+   "sources": [
+    "https://www.facs.org/quality-programs/trauma/education/advanced-trauma-life-support/"
+   ],
+   "note": "ATLS: under about 10-12 years"
+  },
+  {
+   "lessonId": "med-clin-em.l02",
+   "claim": "ATLS hemorrhage classes: I <15%, II 15-30%, III 30-40%, IV >40%",
+   "verdict": "supported",
+   "sources": [
+    "https://www.facs.org/quality-programs/trauma/education/advanced-trauma-life-support/"
+   ],
+   "note": "ATLS 10th ed"
+  },
+  {
+   "lessonId": "med-clin-em.l02",
+   "claim": "TXA within three hours reduced death from bleeding in CRASH-2",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/20554319/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l02",
+   "claim": "SHOCK trial: early revascularization improved long-term survival",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/10546049/"
+   ],
+   "note": "Benefit at 6 months/1 year, not 30 days"
+  },
+  {
+   "lessonId": "med-clin-em.l03",
+   "claim": "AHA CPR/ACLS guidelines updated in 2020 and again in 2025",
+   "verdict": "supported",
+   "sources": [
+    "https://cpr.heart.org/en/resuscitation-science/cpr-and-ecc-guidelines"
+   ],
+   "note": "2025 guidelines published Oct 2025"
+  },
+  {
+   "lessonId": "med-clin-em.l03",
+   "claim": "Epinephrine is given after the second shock in the shockable pathway",
+   "verdict": "supported",
+   "sources": [
+    "https://cpr.heart.org/-/media/CPR-Files/CPR-Guidelines-Files/2025-Algorithms/Algorithm-ACLS-CA-250527.pdf?sc_lang=en"
+   ],
+   "note": "2020 algorithm wording; 2025 text says after initial defibrillation attempts have failed. Lesson hedges to consult current document; acceptable."
+  },
+  {
+   "lessonId": "med-clin-em.l03",
+   "claim": "15:2 compression-ventilation ratio for two rescuers in children and infants",
+   "verdict": "supported",
+   "sources": [
+    "https://cpr.heartandstroke.ca/resource/GuidelinesHighlightsEN2025"
+   ],
+   "note": "2025: 15:2 pre-pubertal with 2 rescuers; 30:2 single rescuer or post-pubertal"
+  },
+  {
+   "lessonId": "med-clin-em.l04",
+   "claim": "Sepsis-3: SOFA rise >=2; septic shock vasopressors for MAP>=65 and lactate >2",
+   "verdict": "supported",
+   "sources": [
+    "https://jamanetwork.com/journals/jama/fullarticle/2492881"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l04",
+   "claim": "SSC 2021: antibiotics within 1 h for shock/high likelihood, within 3 h if possible sepsis without shock",
+   "verdict": "supported",
+   "sources": [
+    "https://www.sccm.org/survivingsepsiscampaign/guidelines-and-resources/surviving-sepsis-campaign-adult-guidelines"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l04",
+   "claim": "EGDT not superior in ProCESS, ARISE, ProMISe",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/25272316/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l05",
+   "claim": "2021 ACC/AHA chest pain guideline: ECG within 10 minutes",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ahajournals.org/doi/10.1161/CIR.0000000000001029"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l05",
+   "claim": "STEMI: FMC-to-device <=90 min; fibrinolysis within 30 min when PCI not possible within 120 min",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ahajournals.org/doi/10.1161/CIR.0b013e3182742cf6"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l05",
+   "claim": "Torsades: IV magnesium; stable SVT: vagal then adenosine; bradycardia: atropine",
+   "verdict": "supported",
+   "sources": [
+    "https://cpr.heart.org/en/resuscitation-science/cpr-and-ecc-guidelines"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l06",
+   "claim": "Needle decompression 2nd ICS MCL or 4th-5th ICS anterior axillary line",
+   "verdict": "supported",
+   "sources": [
+    "https://www.facs.org/quality-programs/trauma/education/advanced-trauma-life-support/"
+   ],
+   "note": "ATLS 10th prefers 5th ICS AAL; both accepted"
+  },
+  {
+   "lessonId": "med-clin-em.l06",
+   "claim": "IM epinephrine anterolateral thigh first-line in anaphylaxis",
+   "verdict": "supported",
+   "sources": [
+    "https://www.worldallergy.org/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l06",
+   "claim": "COPD oxygen target about 88-92%",
+   "verdict": "supported",
+   "sources": [
+    "https://goldcopd.org/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l07",
+   "claim": "Poison control 1-800-222-1222",
+   "verdict": "supported",
+   "sources": [
+    "https://www.poison.org/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l07",
+   "claim": "Charcoal does not bind iron, lithium, alcohols, acids/alkalis",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK482294/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l07",
+   "claim": "Isopropyl alcohol: ketosis without acidosis",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK499976/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l08",
+   "claim": "Naloxone duration 30-90 min, shorter than methadone",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK441910/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l08",
+   "claim": "Rumack-Matthew nomogram starts at 4 h, single acute ingestion only",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK441917/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l08",
+   "claim": "Antidote pairings: warfarin vit K/PCC, heparin protamine, dabigatran idarucizumab, Xa inhibitors andexanet/PCC; glucagon for beta-blockers",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK441917/"
+   ],
+   "note": "Glucagon first-line for beta-blocker is conventional; many toxicologists now lead with HIET/calcium. Andexanet US marketing was reportedly withdrawn in 2025; verify."
+  },
+  {
+   "lessonId": "med-clin-em.l09",
+   "claim": "CO binds Hb ~200x more than O2; pulse oximetry falsely normal",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK430740/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l09",
+   "claim": "Hydroxocobalamin for cyanide; nitrites avoided with CO co-exposure",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK537092/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l09",
+   "claim": "Fomepizole for toxic alcohols; bicarbonate for TCA QRS widening; physostigmine contraindicated",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK537087/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l10",
+   "claim": "Heat stroke: core >~40 C plus CNS dysfunction; cold water immersion; target ~38.9 C",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/28806018/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l10",
+   "claim": "Hypothermia grades 32-35/28-32/<28 C; ECMO preferred in hypothermic arrest; K >12 stops resuscitation",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ahajournals.org/doi/10.1161/CIR.0000000000000916"
+   ],
+   "note": "Swiss staging differs"
+  },
+  {
+   "lessonId": "med-clin-em.l10",
+   "claim": "Drowning resuscitation starts with rescue breaths (A-B-C)",
+   "verdict": "supported",
+   "sources": [
+    "https://cpr.heart.org/en/resuscitation-science/cpr-and-ecc-guidelines"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l11",
+   "claim": "Pit viper: no tourniquet, incision/suction, or ice",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK470378/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l11",
+   "claim": "HAPE: descent, oxygen, nifedipine; AMS prevention acetazolamide",
+   "verdict": "supported",
+   "sources": [
+    "https://www.wms.org/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l11",
+   "claim": "Prussian blue for cesium/thallium; DTPA for plutonium; KI for thyroid",
+   "verdict": "supported",
+   "sources": [
+    "https://www.cdc.gov/radiation-emergencies/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l12",
+   "claim": "DKA: hold insulin if K <3.3 mEq/L",
+   "verdict": "supported",
+   "sources": [
+    "https://diabetesjournals.org/care/article/32/7/1335/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l12",
+   "claim": "Thrombectomy up to 24 h per DAWN and DEFUSE-3",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ahajournals.org/doi/10.1161/STR.0000000000000211"
+   ],
+   "note": "DAWN 6-24 h; DEFUSE-3 6-16 h; lesson lumps them"
+  },
+  {
+   "lessonId": "med-clin-em.l12",
+   "claim": "AES 2016 status epilepticus: benzodiazepine first line, then fosphenytoin/valproate/levetiracetam",
+   "verdict": "supported",
+   "sources": [
+    "https://www.aesnet.org/clinical-care/clinical-guidelines"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l13",
+   "claim": "ATLS cABCDE; control catastrophic hemorrhage first",
+   "verdict": "supported",
+   "sources": [
+    "https://www.facs.org/quality-programs/trauma/education/advanced-trauma-life-support/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l13",
+   "claim": "Massive hemothorax >1,500 mL initial or >200 mL/h",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK538166/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l13",
+   "claim": "PROPPR 1:1:1 transfusion",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/25647203/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l14",
+   "claim": "Epidural hematoma: middle meningeal artery, biconvex, not crossing sutures",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK518982/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l14",
+   "claim": "GCS severity 13-15 mild, 9-12 moderate, <=8 severe",
+   "verdict": "supported",
+   "sources": [
+    "https://www.glasgowcomascale.org/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l14",
+   "claim": "Blood at urethral meatus: retrograde urethrogram before catheter",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK534194/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l15",
+   "claim": "Parkland 4 mL/kg/%TBSA, half in first 8 h, lactated Ringer's",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK537190/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l15",
+   "claim": "Rule of nines: leg 18%, arm 9%, head 9%",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK513287/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l15",
+   "claim": "Hydrofluoric acid burns: calcium gluconate",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK499861/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l16",
+   "claim": "Tidal volume 6-8 mL/kg PBW; plateau <30 cmH2O",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK448186/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l16",
+   "claim": "Peak up with stable plateau = resistance problem",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK448186/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l16",
+   "claim": "RSBI <~105 predicts weaning success",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/1406382/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l17",
+   "claim": "Berlin definition P/F: 200-300, 100-200, <=100 with PEEP>=5",
+   "verdict": "supported",
+   "sources": [
+    "https://jamanetwork.com/journals/jama/fullarticle/1160659"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l17",
+   "claim": "ARMA 2000: 6 vs 12 mL/kg PBW reduced mortality",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/10793162/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l17",
+   "claim": "PROSEVA prone positioning reduced mortality in severe ARDS",
+   "verdict": "supported",
+   "sources": [
+    "https://pubmed.ncbi.nlm.nih.gov/23688302/"
+   ],
+   "note": "Lesson says 12-16 h; trial mean about 17 h/day, minor"
+  },
+  {
+   "lessonId": "med-clin-em.l18",
+   "claim": "Winter formula PaCO2 = 1.5 x HCO3 + 8 +/- 2",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK482310/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l18",
+   "claim": "2023 AAN/AAP/CNS/SCCM brain death guideline; UDDA",
+   "verdict": "supported",
+   "sources": [
+    "https://www.aan.com/Guidelines/home/GuidelineDetail/1090"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "med-clin-em.l18",
+   "claim": "Anion gap Na-Cl-HCO3 normal ~8-12; chronic respiratory acidosis 3-4 mEq/L per 10 mmHg",
+   "verdict": "supported",
+   "sources": [
+    "https://www.ncbi.nlm.nih.gov/books/NBK482310/"
+   ],
+   "note": ""
+  }
+ ]
+}

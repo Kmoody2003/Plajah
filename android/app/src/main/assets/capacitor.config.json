@@ -32,7 +32,6 @@
 		}
 	},
 	"server": {
-		"url": "https://plajah.com",
 		"cleartext": false,
 		"androidScheme": "https",
 		"hostname": "plajah.app",

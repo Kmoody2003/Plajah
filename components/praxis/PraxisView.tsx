@@ -342,6 +342,11 @@ const Intake: React.FC<{ uid?: string; onBack?: () => void; onCreate: (v: Ventur
             </div>
           </Field>
 
+          <button type="button" onClick={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'BIZ_SIM' } }))} className="w-full rounded-2xl px-4 py-3 text-left border border-[#06D6A0]/30 bg-[#06D6A0]/[0.06] hover:bg-[#06D6A0]/10 transition-all">
+            <div className="text-[12px] font-black">Want to practise running a business first?</div>
+            <div className="text-[10px] text-white/50 mt-0.5 leading-snug">Venture Lab is a game version: pick a business, set prices, protect your idea and see what happens. Then come back and build the real thing.</div>
+          </button>
+
           <Field label="Real or practice?" hint="Practice runs everything in a safe sandbox — great for learning first.">
             <div className="grid grid-cols-2 gap-2">
               {([['real', 'Build for real', 'Real forms, real deep-links, real business page.'], ['simulate', 'Practice run', 'A sandbox venture — fail safely, learn the ropes.']] as const).map(([id, t, d]) => (

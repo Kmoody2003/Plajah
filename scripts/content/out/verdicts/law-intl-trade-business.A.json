@@ -1,0 +1,1200 @@
+{
+ "courseId": "law-intl-trade-business",
+ "verifier": "A",
+ "note": "Web tools worked; ICSID, WIPO PCT, CFIUS pages failed or lacked text, so those claims are unverifiable. No option text cut off mid-sentence. DPF, FCPA, GRATK, IEEPA items rest on search results only.",
+ "fetched": 22,
+ "questions": [
+  {
+   "id": "law-intl-trade-business.l01.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l01.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l01.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l01.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l01.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l02.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l02.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.wto.org/english/tratop_e/trips_e/pharmpatent_e.htm"
+   ]
+  },
+  {
+   "id": "law-intl-trade-business.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l02.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l03.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.wto.org/english/tratop_e/dispu_e/dsu_e.htm"
+   ]
+  },
+  {
+   "id": "law-intl-trade-business.l03.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.wto.org/english/tratop_e/dispu_e/appellate_body_e.htm"
+   ]
+  },
+  {
+   "id": "law-intl-trade-business.l03.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.wto.org/english/news_e/news26_e/mc14_28mar26_350_e.htm"
+   ]
+  },
+  {
+   "id": "law-intl-trade-business.l03.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l03.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l04.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l04.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l04.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l05.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l05.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l05.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l05.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l05.q5",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Wording muddles Art XXIV with bindings; option 2 best.",
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l06.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l06.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l06.q4",
+   "answer": 2,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Section 592 fits gross negligence/fraud; from knowledge.",
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l06.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l07.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l07.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l07.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l07.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l08.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l08.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l08.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l09.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://uncitral.un.org/sites/uncitral.un.org/files/media-documents/uncitral/en/19-09951_e_ebook.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-trade-business.l09.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l09.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l09.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l09.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://uncitral.un.org/sites/uncitral.un.org/files/media-documents/uncitral/en/19-09951_e_ebook.pdf"
+   ]
+  },
+  {
+   "id": "law-intl-trade-business.l10.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l10.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l10.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l10.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l11.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l11.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l11.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l11.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l11.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l12.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l12.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l12.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l12.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l12.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://www.newyorkconvention.org/english"
+   ]
+  },
+  {
+   "id": "law-intl-trade-business.l13.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l13.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l13.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l13.q4",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l13.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l14.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l14.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l14.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l14.q5",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "USMCA ISDS arrangement from knowledge; not re-fetched.",
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l15.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://ofac.treasury.gov/faqs/398"
+   ]
+  },
+  {
+   "id": "law-intl-trade-business.l15.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l15.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l15.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l15.q5",
+   "answer": 1,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "Entity List review policy varies by entry (presumption of denial or case-by-case); option 1 still best.",
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l16.q1",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l16.q2",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l16.q3",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l16.q4",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l16.q5",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l17.q1",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l17.q2",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l17.q3",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l17.q4",
+   "answer": 0,
+   "confidence": "medium",
+   "ambiguous": false,
+   "note": "DPF adequacy in force as of Latombe dismissal (Sept 2025); CJEU appeal possible, so status should be rechecked.",
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l17.q5",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l18.q2",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l18.q3",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l18.q4",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l18.q5",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l19.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l19.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l19.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l19.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l19.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l20.q1",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l20.q2",
+   "answer": 0,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l20.q3",
+   "answer": 3,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  },
+  {
+   "id": "law-intl-trade-business.l20.q4",
+   "answer": 2,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": [
+    "https://ofac.treasury.gov/faqs/398"
+   ]
+  },
+  {
+   "id": "law-intl-trade-business.l20.q5",
+   "answer": 1,
+   "confidence": "high",
+   "ambiguous": false,
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "law-intl-trade-business.l01",
+   "claim": "Marrakesh Agreement entered into force 1 Jan 1995; single undertaking with plurilaterals optional",
+   "verdict": "supported",
+   "sources": [
+    "https://www.wto.org/english/docs_e/legal_e/04-wto_e.htm"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l01",
+   "claim": "Art II bindings: applied rate may be at/below bound rate, not above",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened against GATT text."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l01",
+   "claim": "Art I MFN / Art III national treatment / Art XI quota ban structure",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Not opened against GATT text."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l02",
+   "claim": "TRIPS Art 31bis amendment took effect January 2017 allowing export of medicines under compulsory licence",
+   "verdict": "supported",
+   "sources": [
+    "https://www.wto.org/english/tratop_e/trips_e/pharmpatent_e.htm"
+   ],
+   "note": "Page confirms 2017 entry into force."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l02",
+   "claim": "TRIPS patent term minimum 20 years from filing; patents in all fields of technology",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l02",
+   "claim": "GATS four modes; XVI/XVII apply only to scheduled sectors",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l03",
+   "claim": "Appellate Body: seven members, four-year terms, ~90 days per appeal; last term expired Nov 2020; not restored",
+   "verdict": "supported",
+   "sources": [
+    "https://www.wto.org/english/tratop_e/dispu_e/appellate_body_e.htm",
+    "https://www.wto.org/english/tratop_e/dispu_e/dsu_e.htm"
+   ],
+   "note": "WTO page: zero members, 21 appeals pending; MC14 (Mar 2026) did not restore it."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l03",
+   "claim": "MPIA parties include EU, China, Canada, Australia; US and India not among them",
+   "verdict": "supported",
+   "sources": [
+    "https://www.wto.org/english/news_e/news26_e/mc14_28mar26_350_e.htm"
+   ],
+   "note": "Participant list (34 incl. EU) from search results lacks US and India; MC14 page opened confirms MPIA is a stopgap."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l03",
+   "claim": "Panel established at second request unless consensus against; adoption by negative consensus (Art 6.1, 16.4, 17.14)",
+   "verdict": "supported",
+   "sources": [
+    "https://www.wto.org/english/tratop_e/dispu_e/dsu_e.htm"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l04",
+   "claim": "US - Shrimp 1998 / EC - Asbestos 2001 outcomes",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l04",
+   "claim": "Russia - Traffic in Transit (DS512) panel 2019 rejected pure self-judging reading of Art XXI",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l04",
+   "claim": "Dec 2022 US steel/aluminium s.232 panels rejected security justification, US appealed into void",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l05",
+   "claim": "USMCA in force 1 July 2020; joint review scheduled for 2026 with uncertain result",
+   "verdict": "contradicted",
+   "sources": [
+    "https://www.bhfs.com/insight/trump-administration-decides-against-renewing-usmca-opts-for-annual-review-process/"
+   ],
+   "note": "Stale: on 1 July 2026 the US declined to confirm the 16-year extension, triggering annual joint reviews to 2036; agreement stays in force."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l05",
+   "claim": "Turkey - Textiles AB 1999 holding on Art XXIV defence",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l05",
+   "claim": "Art XXIV conditions: substantially all trade; outsiders not on the whole higher",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l06",
+   "claim": "HS in force since 1988, revised about every five years; six-digit code",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l06",
+   "claim": "s.232 Trade Expansion Act 1962, s.301 Trade Act 1974, s.592 Tariff Act 1930",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Currency gap: lesson omits Learning Resources v. Trump (SCOTUS, 20 Feb 2026) holding IEEPA does not authorise tariffs (search results only)."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l06",
+   "claim": "Valuation: transaction value primary, fallback identical, similar, deductive, computed",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l07",
+   "claim": "EC - Hormones 1998 and US - Clove Cigarettes 2012 holdings",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l07",
+   "claim": "TBT Art 2.2 necessity test wording",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l07",
+   "claim": "SPS Art 3 and Codex standards; Art 5.7",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l08",
+   "claim": "Safeguards: serious injury; MFN basis; 4 years extendable to 8; retaliation after three years",
+   "verdict": "supported",
+   "sources": [
+    "https://www.wto.org/english/tratop_e/safeg_e/safeg_e.htm"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l08",
+   "claim": "Anti-dumping measures lapse after five years unless sunset review",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l08",
+   "claim": "US Title VII: Commerce margin, ITC injury",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l09",
+   "claim": "CISG in force 1 Jan 1988; UK and India not parties; US Art 1(1)(b) declaration",
+   "verdict": "supported",
+   "sources": [
+    "https://uncitral.un.org/en/texts/salegoods/conventions/sale_of_goods/cisg/status",
+    "https://uncitral.un.org/sites/uncitral.un.org/files/media-documents/uncitral/en/19-09951_e_ebook.pdf"
+   ],
+   "note": "Status page: 97 parties, UK/India absent, US declaration on Art 1(1)(b). China Art 95 not individually confirmed."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l09",
+   "claim": "Art 18(2) acceptance effective on reaching offeror; Art 19(3) material alterations",
+   "verdict": "supported",
+   "sources": [
+    "https://uncitral.un.org/sites/uncitral.un.org/files/media-documents/uncitral/en/19-09951_e_ebook.pdf"
+   ],
+   "note": "Fetch tool noted poor PDF scan quality."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l09",
+   "claim": "MCC-Marble (11th Cir. 1998) parol evidence rule inapplicable under CISG",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l10",
+   "claim": "Art 39(2) two-year cut-off; Art 25 fundamental breach",
+   "verdict": "supported",
+   "sources": [
+    "https://uncitral.un.org/sites/uncitral.un.org/files/media-documents/uncitral/en/19-09951_e_ebook.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l10",
+   "claim": "Incoterms 2020: eleven rules, not law unless incorporated",
+   "verdict": "supported",
+   "sources": [
+    "https://iccwbo.org/business-solutions/incoterms-rules/incoterms-2020/"
+   ],
+   "note": "Page did not detail FOB/CIF risk points."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l10",
+   "claim": "Delchi Carrier v. Rotorex (2d Cir. 1995) lost profits under Art 74",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l11",
+   "claim": "Prima Paint 1967, Buckeye 2006, First Options 1995",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l11",
+   "claim": "UNCITRAL Model Law 1985 amended 2006; Art 16 separability",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l11",
+   "claim": "Seat determines lex arbitri and supervising courts",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l12",
+   "claim": "NYC concluded 1958, in force 1959; more than 170 parties",
+   "verdict": "supported",
+   "sources": [
+    "https://uncitral.un.org/en/texts/arbitration/conventions/foreign_arbitral_awards/status2",
+    "https://www.newyorkconvention.org/english"
+   ],
+   "note": "172 parties per UNCITRAL status page."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l12",
+   "claim": "Art V grounds, Art VI adjournment, reciprocity and commercial reservations",
+   "verdict": "supported",
+   "sources": [
+    "https://www.newyorkconvention.org/english"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l12",
+   "claim": "Scherk 1974 and Mitsubishi 1985",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l13",
+   "claim": "ICSID Art 25, 52, 53, 54, 55 content",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "ICSID overview page fetched lacked article text."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l13",
+   "claim": "Metalclad 2000 and Methanex 2005 holdings",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l13",
+   "claim": "FET and indirect expropriation standards",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l14",
+   "claim": "EU has moved to withdraw from the Energy Charter Treaty (as of this writing)",
+   "verdict": "contradicted",
+   "sources": [
+    "https://energy.ec.europa.eu/topics/international-cooperation/international-organisations-and-initiatives/energy-charter_en"
+   ],
+   "note": "Stale: EU and Euratom withdrawal became effective 28 June 2025."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l14",
+   "claim": "Achmea 2018 and Komstroy 2021; 2020 intra-EU termination agreement",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l14",
+   "claim": "USMCA ISDS changes; ICSID Rules July 2022; Philip Morris Asia 2015",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l15",
+   "claim": "OFAC 50 percent rule: aggregate ownership of 50% or more by blocked persons",
+   "verdict": "supported",
+   "sources": [
+    "https://ofac.treasury.gov/faqs/398"
+   ],
+   "note": "Some programmes use other criteria."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l15",
+   "claim": "BNP Paribas 2014 plea about 8.9 billion dollars",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l15",
+   "claim": "EAR/ECRA, deemed export, ITAR, Wassenaar nonbinding",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l16",
+   "claim": "FCPA enforcement paused and revised guidelines in 2025",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Search results only (EO 14209 of 10 Feb 2025; Blanche guidelines June 2025) support it; no page opened."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l16",
+   "claim": "UK Bribery Act s.7 failure to prevent with adequate procedures defence",
+   "verdict": "supported",
+   "sources": [
+    "https://www.legislation.gov.uk/ukpga/2010/23/section/7"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l16",
+   "claim": "CFIUS history; EU 2019 regulation; UK NSIA 2021",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "CFIUS page redirected, not opened."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l17",
+   "claim": "GDPR Art 83: up to 20m euros or 4% turnover for most serious infringements",
+   "verdict": "supported",
+   "sources": [
+    "https://gdpr-info.eu/art-83-gdpr/"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l17",
+   "claim": "DPF adequacy July 2023; General Court dismissed challenge in 2025",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Search results only (Latombe T-553/23, 3 Sept 2025); consistent with text; no page opened."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l17",
+   "claim": "Schrems I 2015, Schrems II 2020, SCCs 2021",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l18",
+   "claim": "Paris priority 12 months/6 months; PCT national phase 30 months",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "WIPO PCT page returned 404."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l18",
+   "claim": "Berne: no formalities, life+50 minimum, moral rights",
+   "verdict": "supported",
+   "sources": [
+    "https://www.wipo.int/treaties/en/ip/berne/summary_berne.html"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l18",
+   "claim": "2024 WIPO GRATK treaty not yet in force; needs 15 ratifications",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Search results only: 15 needed, Malawi first, not in force early 2026."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l19",
+   "claim": "Hague Judgments Convention in force 1 Sept 2023, US signed not ratified",
+   "verdict": "supported",
+   "sources": [
+    "https://www.hcch.net/en/instruments/conventions/status-table/?cid=137"
+   ],
+   "note": "33 parties as of May 2025."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l19",
+   "claim": "Choice of Court Convention in force 2015 for EU, Mexico, Singapore; US signed only",
+   "verdict": "supported",
+   "sources": [
+    "https://www.hcch.net/en/instruments/conventions/status-table/?cid=98"
+   ],
+   "note": "Singapore effective 1 Oct 2016, not 2015; minor."
+  },
+  {
+   "lessonId": "law-intl-trade-business.l19",
+   "claim": "Bremen v. Zapata 1972; UCP 600; FSIA 1976",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l20",
+   "claim": "50 percent rule illustration in worked example",
+   "verdict": "supported",
+   "sources": [
+    "https://ofac.treasury.gov/faqs/398"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l20",
+   "claim": "CISG applies by default when both states are parties absent exclusion",
+   "verdict": "supported",
+   "sources": [
+    "https://uncitral.un.org/sites/uncitral.un.org/files/media-documents/uncitral/en/19-09951_e_ebook.pdf"
+   ],
+   "note": ""
+  },
+  {
+   "lessonId": "law-intl-trade-business.l20",
+   "claim": "Export control licence gating and FCPA red flags",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": ""
+  }
+ ]
+}

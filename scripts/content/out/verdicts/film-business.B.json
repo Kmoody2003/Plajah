@@ -1,0 +1,979 @@
+{
+ "courseId": "film-business",
+ "verifier": "B",
+ "questions": [
+  {
+   "id": "film-business.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l01.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": [],
+   "note": "20,000/2,020,000 = 0.99%, rounds to 1%."
+  },
+  {
+   "id": "film-business.l01.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l01.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l01.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l02.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l02.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l02.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l02.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l02.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l03.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l03.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l03.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l03.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l03.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l04.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l04.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l04.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l04.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l04.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l05.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l05.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l05.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l05.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l06.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l06.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l06.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l06.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l06.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l07.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l07.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l07.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l07.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l07.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l08.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l08.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l08.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l08.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l08.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l09.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l09.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l09.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l09.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l10.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l10.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l10.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l11.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l11.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l12.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l12.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": [],
+   "note": "Cover needs sync from the composition owner; master is newly owned by the production."
+  },
+  {
+   "id": "film-business.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l14.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l14.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l14.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l14.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l15.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l15.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l16.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l16.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l16.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l17.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l18.q1",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l18.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l18.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l18.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l19.q1",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l19.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "film-business.l19.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "film-business.l01",
+   "claim": "Seven-stage film lifecycle (development to exploitation)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard industry framing."
+  },
+  {
+   "lessonId": "film-business.l01",
+   "claim": "Financiers commonly require insurance and completion guarantees",
+   "verdict": "supported",
+   "sources": [],
+   "note": "General industry practice."
+  },
+  {
+   "lessonId": "film-business.l01",
+   "claim": "Worked arithmetic: $20k option vs $2M shoot",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic only."
+  },
+  {
+   "lessonId": "film-business.l02",
+   "claim": "Chain of title = documented rights transfers; recordation with US Copyright Office",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-business.l02",
+   "claim": "E&O insurers typically require chain-of-title docs, title report and copyright search",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Widely stated industry practice."
+  },
+  {
+   "lessonId": "film-business.l02",
+   "claim": "First-publication-only magazine contract does not convey film rights",
+   "verdict": "supported",
+   "sources": [],
+   "note": "17 USC 201(c)."
+  },
+  {
+   "lessonId": "film-business.l03",
+   "claim": "Option = exclusive right for fixed period to buy rights; fees often applicable against price",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard industry practice."
+  },
+  {
+   "lessonId": "film-business.l03",
+   "claim": "Life rights are chiefly consent/release, not a standalone property right",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Common legal commentary."
+  },
+  {
+   "lessonId": "film-business.l03",
+   "claim": "Work made for hire: employee in scope, or specially commissioned in listed categories (incl. motion picture) with signed writing",
+   "verdict": "supported",
+   "sources": [],
+   "note": "17 USC 101."
+  },
+  {
+   "lessonId": "film-business.l04",
+   "claim": "Turnaround: new buyer reimburses studio's development costs, often plus premium",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Industry practice."
+  },
+  {
+   "lessonId": "film-business.l04",
+   "claim": "Pay-or-play means paid even if not used",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard definition."
+  },
+  {
+   "lessonId": "film-business.l04",
+   "claim": "First-look deal obliges bringing projects to company first",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard definition."
+  },
+  {
+   "lessonId": "film-business.l05",
+   "claim": "ATL vs BTL split as described",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard convention."
+  },
+  {
+   "lessonId": "film-business.l05",
+   "claim": "Contingency commonly about 10 percent; bond companies expect one",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Common benchmark."
+  },
+  {
+   "lessonId": "film-business.l05",
+   "claim": "Worked example 900k + 10% = 990k; 90k-40k = 50k",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic."
+  },
+  {
+   "lessonId": "film-business.l06",
+   "claim": "Subtotals sum to 900k; +10% = 990k",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic verified."
+  },
+  {
+   "lessonId": "film-business.l06",
+   "claim": "BTL = half of subtotal; post 22.2%",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic."
+  },
+  {
+   "lessonId": "film-business.l06",
+   "claim": "Marketing, festival fees, loan interest often outside budget",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Common practice."
+  },
+  {
+   "lessonId": "film-business.l07",
+   "claim": "Scene length in eighths; 1 3/8 = 11 eighths",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard convention."
+  },
+  {
+   "lessonId": "film-business.l07",
+   "claim": "90 pages: 18 days at 5/day; 22.5->23 at 4/day",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic."
+  },
+  {
+   "lessonId": "film-business.l07",
+   "claim": "Stripboard used for scheduling",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "film-business.l08",
+   "claim": "Gap financing lends against unsold territories; pre-sales support bank loans",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "film-business.l08",
+   "claim": "Equity repaid after lenders, riskiest",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "film-business.l08",
+   "claim": "Completion bond is a guarantee, not a funding source",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "film-business.l09",
+   "claim": "Stack sums to $5,000,000; equity 30%",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic."
+  },
+  {
+   "lessonId": "film-business.l09",
+   "claim": "Equity recoupment at 120 percent example",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Illustrative; premiums vary."
+  },
+  {
+   "lessonId": "film-business.l09",
+   "claim": "Senior lenders repaid before equity",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "film-business.l10",
+   "claim": "SPE/LLC contains liability; veil piercing possible if funds mixed",
+   "verdict": "supported",
+   "sources": [],
+   "note": "State law varies."
+  },
+  {
+   "lessonId": "film-business.l10",
+   "claim": "$100k of $1M = 10%; 50% pool share -> 5% of net",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic."
+  },
+  {
+   "lessonId": "film-business.l10",
+   "claim": "Lenders prefer a defined asset free of other-project claims",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "film-business.l11",
+   "claim": "E&O covers infringement, defamation, privacy; distributors require it",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "film-business.l11",
+   "claim": "Typical E&O limits $1M per claim / $3M aggregate",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Commonly cited; varies."
+  },
+  {
+   "lessonId": "film-business.l11",
+   "claim": "Completion bond fee about 3 to 5 percent",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Commonly cited; roughly 2-6% elsewhere."
+  },
+  {
+   "lessonId": "film-business.l12",
+   "claim": "SAG-AFTRA, WGA, IATSE roles; negotiate with AMPTP",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-business.l12",
+   "claim": "DGA covers directors, ADs, UPMs and stage managers",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-business.l12",
+   "claim": "Guilds require financial assurances from signatories",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Typically deposits/security."
+  },
+  {
+   "lessonId": "film-business.l13",
+   "claim": "Music needs sync (composition) and master use (recording) licenses",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-business.l13",
+   "claim": "Cover recorded by production: sync still needed, master owned by production",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard practice."
+  },
+  {
+   "lessonId": "film-business.l13",
+   "claim": "Public locations generally need local film-office permit",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Varies by locality."
+  },
+  {
+   "lessonId": "film-business.l14",
+   "claim": "Registration (or refusal) prerequisite to suing for US work",
+   "verdict": "supported",
+   "sources": [],
+   "note": "17 USC 411(a); Fourth Estate v. Wall-Street.com (2019) requires an actual registration decision."
+  },
+  {
+   "lessonId": "film-business.l14",
+   "claim": "Statutory damages/fees need registration before infringement or within 3 months of first publication",
+   "verdict": "supported",
+   "sources": [],
+   "note": "17 USC 412."
+  },
+  {
+   "lessonId": "film-business.l14",
+   "claim": "Worked date examples correct",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Correct under 412(2)."
+  },
+  {
+   "lessonId": "film-business.l15",
+   "claim": "Four-walling: filmmaker rents cinema and keeps ticket income",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "film-business.l15",
+   "claim": "TVOD/SVOD/AVOD definitions",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "film-business.l15",
+   "claim": "Traditional window order",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Windows have shortened."
+  },
+  {
+   "lessonId": "film-business.l16",
+   "claim": "CAMA: neutral third party collects and disburses per priority",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Not independently fetched."
+  },
+  {
+   "lessonId": "film-business.l16",
+   "claim": "Waterfall arithmetic ($10M -> $1M net, $500k to producers pool)",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic."
+  },
+  {
+   "lessonId": "film-business.l16",
+   "claim": "$6M scenario: equity gets $1.6M of $3.6M owed",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic."
+  },
+  {
+   "lessonId": "film-business.l17",
+   "claim": "Many festivals value premiere status",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Common festival rule."
+  },
+  {
+   "lessonId": "film-business.l17",
+   "claim": "20 x $75 = 1500; 14 x $75 = 1050; savings 450",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic."
+  },
+  {
+   "lessonId": "film-business.l17",
+   "claim": "Festivals not primarily revenue sources",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Common view."
+  },
+  {
+   "lessonId": "film-business.l18",
+   "claim": "AFM, Marche du Film, European Film Market are major markets",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "film-business.l18",
+   "claim": "MGs total $1.1M; 15% = $165k; $935k remains",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic."
+  },
+  {
+   "lessonId": "film-business.l18",
+   "claim": "MG is a fixed advance, overages after recoupment",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Standard."
+  },
+  {
+   "lessonId": "film-business.l19",
+   "claim": "Not legal/financial advice disclaimer",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Appropriate."
+  },
+  {
+   "lessonId": "film-business.l19",
+   "claim": "Plajah tool descriptions (Fabula, production suite, Taleo)",
+   "verdict": "unverifiable",
+   "sources": [],
+   "note": "Internal product claims; cannot verify externally. Check that in-platform distribution claim matches the shipped product."
+  },
+  {
+   "lessonId": "film-business.l19",
+   "claim": "Worked example: 18-day shoot, 2 unsigned cues, 6 weeks",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Arithmetic."
+  }
+ ]
+}

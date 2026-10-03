@@ -10,13 +10,14 @@
 // (purple→magenta gradient primary, orange = live wire, cyan = preview, gold =
 // scripture), with per-group colour rails.
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ChevronLeft, MonitorPlay, Plus, Pencil, BookOpen, Video, Tv, Radio,
   RefreshCw, Settings, Check, Wifi, AlertCircle, Sliders, Copy, Trash2,
   Eye, Play, Layers, Ban, Power, VolumeX, EyeOff, Wand2, ChevronDown, Upload,
   Grid, RotateCcw, Repeat, Shuffle, FolderOpen, SkipForward, Film, X,
   Save, FileText, FilePlus, Download, FolderPlus, ExternalLink, Sparkles,
+  Zap, Music, Smartphone, Monitor
 } from 'lucide-react';
 import {
   applySlide, clearLayer, newId, LAYER_ORDER, LAYER_LABEL, type LiveStack, type Show, type Slide,
@@ -37,6 +38,8 @@ import { DEMO_LIBRARY, DEMO_PLAYLIST, slideText } from '../../services/ambo/serv
 import {
   publishAmboLiveOutput, detectScreens, autoDetectOutputResolution,
   type DetectedScreenInfo, type AmboOutput, makeOutput, OutputRouter,
+  detectSelfDevice, buildOutputsFromDevices, subscribeToDisplayChanges,
+  generatePairingInfo, getActivePairing, flashAllDisplayIdentifiers
 } from '../../services/ambo/outputRouter';
 import {
   listNativeSources, scanNdiStreams, type NativeSourceInfo,
@@ -66,6 +69,12 @@ import { AmboNewShowModal } from './AmboNewShowModal';
 import { AmboProjectSwitcherModal } from './AmboProjectSwitcherModal';
 import { AmboImportModal } from './AmboImportModal';
 import AmboDJTrackPlayer, { type AmboDJTrack } from './AmboDJTrackPlayer';
+import AmboAudioBus from './AmboAudioBus';
+import AmboLyricsControl from './AmboLyricsControl';
+import AmboMixer from './AmboMixer';
+import { amboAudio } from '../../services/ambo/amboAudioEngine';
+import { bus as audioBus } from '../../services/ambo/audioBus';
+import { setProgramVideoAudible } from '../../services/ambo/audioPriority';
 import { AmboLedWallCanvas } from './AmboLedWallCanvas';
 import { AmboVideoTransportBar } from './AmboVideoTransportBar';
 import AmboPartyEventModal from './AmboPartyEventModal';
@@ -73,7 +82,7 @@ import {
   type PartyEventSession, type PartyEventDevice, type EventDeviceDutyType,
   listenToPartyEventSession, listenToEventDevices, broadcastMasterSource,
   setMasterSync, assignDeviceDuty, setDeviceSlaved, setDeviceAudioMute,
-  pingDevice, applyPlaylistItemDuties,
+  pingDevice, applyPlaylistItemDuties, registerEventDevice,
 } from '../../services/ambo/amboPartyEventService';
 import { useContextMenu } from '../ui/ContextMenu';
 import { auth } from '../../services/backendService';
@@ -95,7 +104,7 @@ const line = 'rgba(255,255,255,0.09)';
 const line2 = 'rgba(255,255,255,0.15)';
 
 /** A live canvas driven by the shared renderer — same compositor the outputs run. */
-const OutputMonitor: React.FC<{ stack: LiveStack; audio?: boolean; className?: string }> = ({ stack, audio, className }) => {
+const OutputMonitor = React.memo<{ stack: LiveStack; audio?: boolean; className?: string }>(({ stack, audio, className }) => {
   const ref = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<LayerRenderer | null>(null);
   useEffect(() => {
@@ -118,7 +127,7 @@ const OutputMonitor: React.FC<{ stack: LiveStack; audio?: boolean; className?: s
   }, [audio]);
   useEffect(() => { rendererRef.current?.setStack(stack); }, [stack]);
   return <canvas ref={ref} className={`w-full block bg-black ${className ?? ''}`} />;
-};
+});
 
 const fmt = (s: number) => {
   const m = Math.floor(s / 60), ss = s % 60;
@@ -137,6 +146,67 @@ function withText(slide: Slide, text: string): Slide {
   });
   return { ...slide, layers };
 }
+
+// Simple QR code-like pairing display (uses a text-based code + link)
+const PairingPanel = React.memo(({ info, onRefresh }: { info: any; onRefresh: () => void }) => {
+  if (!info) return null;
+  const [copied, setCopied] = useState(false);
+  
+  const copyLink = () => {
+    navigator.clipboard?.writeText(info.pairingUrl).catch(() => {});
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+  
+  return (
+    <div className="p-3 bg-black/60 rounded-xl border border-white/10 space-y-2 max-w-xs">
+      <div className="text-[10px] font-extrabold uppercase tracking-wider text-white/50">Pair a Device</div>
+      
+      {/* Big pairing code */}
+      <div className="flex items-center justify-center gap-1 py-2">
+        {info.pairingCode.split('').map((ch: string, i: number) => (
+          <span key={i} className="w-8 h-10 flex items-center justify-center bg-white/10 rounded-lg text-lg font-mono font-bold text-[#00DAF3] border border-[#00DAF3]/30">
+            {ch}
+          </span>
+        ))}
+      </div>
+      
+      {/* Instructions */}
+      <p className="text-[10px] text-white/50 text-center">
+        Open Plajah on any device and enter this code, or scan the QR code / use the link below
+      </p>
+      
+      {/* Link */}
+      <div className="flex items-center gap-1">
+        <input
+          readOnly
+          value={info.pairingUrl}
+          className="flex-1 px-2 py-1 rounded bg-white/5 border border-white/10 text-[9px] text-white/60 font-mono truncate"
+          onClick={e => (e.target as HTMLInputElement).select()}
+        />
+        <button
+          onClick={copyLink}
+          className="px-2 py-1 rounded bg-[#00DAF3]/15 text-[#00DAF3] text-[9px] font-bold hover:bg-[#00DAF3]/25 transition-all"
+        >
+          {copied ? 'Copied!' : 'Copy'}
+        </button>
+      </div>
+      
+      {/* Refresh */}
+      <button
+        onClick={onRefresh}
+        className="w-full py-1 rounded bg-white/5 hover:bg-white/10 text-[9px] text-white/40 transition-all"
+      >
+        Generate New Code
+      </button>
+      
+      {/* Expiry */}
+      <div className="text-[8px] text-white/30 text-center">
+        Expires in {Math.max(0, Math.round((info.expiresAt - Date.now()) / 60000))} min
+      </div>
+    </div>
+  );
+});
 
 const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
   const [currentProject, setCurrentProject] = useState<AmboProject>(() => {
@@ -181,20 +251,90 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
   // Physical Display & Resolution Auto-Detection
   const [screens, setScreens] = useState<DetectedScreenInfo[]>([]);
   const [targetDisplayIndex, setTargetDisplayIndex] = useState<number>(1);
-  const [outputs, setOutputs] = useState<AmboOutput[]>([
-    makeOutput('PROGRAM', 'Audience Output', { autoDetectDisplay: true }),
-    makeOutput('STAGE', 'Stage Display', { autoDetectDisplay: true }),
-    makeOutput('KEY', 'Key / Alpha', { autoDetectDisplay: false, width: 1920, height: 1080 }),
-    makeOutput('AUX', 'Lobby / Aux', { autoDetectDisplay: true, enabled: false }),
-    makeOutput('SIGNAGE', 'Facility Digital Signage', { autoDetectDisplay: false, enabled: true }),
-    makeOutput('LED_WALL', 'Main Sanctuary LED Wall', { autoDetectDisplay: false, enabled: true }),
-  ]);
+  const [outputs, setOutputs] = useState<AmboOutput[]>([]);
+
+// ── Auto-detect devices & build outputs ──
+const [pairingInfo, setPairingInfo] = useState<any>(null);
+const [selfDevice, setSelfDevice] = useState<any>(null);
+
+useEffect(() => {
+  let cleanup: (() => void)[] = [];
+  let mounted = true;
+  
+  const init = async () => {
+    // 1. Detect this device
+    const self = await detectSelfDevice();
+    if (!mounted) return;
+    setSelfDevice(self);
+    
+    const uid = auth.currentUser?.uid;
+    
+    if (uid) {
+      // 2. Register this device in Firestore (heartbeat)
+      const unregister = registerEventDevice();
+      cleanup.push(unregister);
+      
+      // 3. Listen for all devices signed in under this account
+      const unsubDevices = listenToEventDevices(uid, (devices) => {
+        if (!mounted) return;
+        const built = buildOutputsFromDevices(self, devices);
+        // Merge with any hardcoded defaults that aren't device-based
+        setOutputs(prev => {
+          // Keep the built device-based outputs + any manually added outputs
+          const manualOutputs = prev.filter(o => !o.deviceTag && !o.id.startsWith('self_') && !o.id.startsWith('mesh_'));
+          // Ensure we always have Program, Stage, Stream if not already present
+          const hasProgram = built.some(o => o.kind === 'PROGRAM') || manualOutputs.some(o => o.kind === 'PROGRAM');
+          const hasStage = built.some(o => o.kind === 'STAGE') || manualOutputs.some(o => o.kind === 'STAGE');
+          const hasStream = built.some(o => o.kind === 'STREAM') || manualOutputs.some(o => o.kind === 'STREAM');
+          
+          const defaults: AmboOutput[] = [];
+          if (!hasProgram) defaults.push(makeOutput('PROGRAM', 'Program Out'));
+          if (!hasStage) defaults.push(makeOutput('STAGE', 'Stage Display'));
+          if (!hasStream) defaults.push(makeOutput('STREAM', 'Stream Bus'));
+          
+          return [...defaults, ...built, ...manualOutputs];
+        });
+      });
+      cleanup.push(unsubDevices);
+      
+      // 4. Generate pairing info for QR code
+      const pairing = generatePairingInfo(uid);
+      setPairingInfo(pairing);
+    } else {
+      // Not signed in — use hardcoded defaults
+      setOutputs([
+        makeOutput('PROGRAM', 'Program Out'),
+        makeOutput('KEY', 'Broadcast Key', { alpha: true }),
+        makeOutput('STAGE', 'Stage Display'),
+        makeOutput('AUX', 'Aux / Overflow'),
+        makeOutput('STREAM', 'Stream Bus'),
+      ]);
+    }
+    
+    // 5. Subscribe to physical display changes
+    const unsubDisplays = subscribeToDisplayChanges(async (screens) => {
+      if (!mounted) return;
+      // Re-detect and rebuild
+      const updatedSelf = await detectSelfDevice();
+      setSelfDevice(updatedSelf);
+    });
+    cleanup.push(unsubDisplays);
+  };
+  
+  init();
+  
+  return () => {
+    mounted = false;
+    cleanup.forEach(fn => fn());
+  };
+}, []);
 
   // ── Master Controls: Blackout, Program Enable & Modals ──
   const [isBlackout, setIsBlackout] = useState<boolean>(false);
   const [isMasterProgramOn, setIsMasterProgramOn] = useState<boolean>(true);
   const [isNewShowModalOpen, setIsNewShowModalOpen] = useState<boolean>(false);
   const [isLedWallModalOpen, setIsLedWallModalOpen] = useState<boolean>(false);
+  const [showPairing, setShowPairing] = useState(false);
 
   // Reusable custom media assets in this project
   const handleAddCustomAsset = (asset: AmboMediaSourceItem) => {
@@ -491,6 +631,8 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
   const [activeDjTrack, setActiveDjTrack] = useState<AmboDJTrack | null>(null);
   const [isDjLiveOnProgram, setIsDjLiveOnProgram] = useState(false);
   const [isDjCuedInPreview, setIsDjCuedInPreview] = useState(false);
+  const [djVisualizerEnabled, setDjVisualizerEnabled] = useState(false);
+  const [djVisualizerMode, setDjVisualizerMode] = useState<'SPECTRUM' | 'MILKDROP' | 'SHADER' | 'FLUX'>('SPECTRUM');
 
   // Party / Event Mode Mesh State (Ambo Central Command)
   const [isPartyModalOpen, setIsPartyModalOpen] = useState(false);
@@ -564,14 +706,67 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
     }
   }, [outputs]);
 
+  // Inject DJ Visualizer Background
+  useEffect(() => {
+    if (activeDjTrack && isDjLiveOnProgram && djVisualizerEnabled) {
+      const vizLayer: SlideLayer = { 
+        id: 'viz_layer', 
+        slot: 'background', 
+        content: { 
+          kind: 'GENERATOR', 
+          mode: djVisualizerMode === 'SPECTRUM' ? 'AUDIO_WAVE_SPECTRUM' : djVisualizerMode 
+        } 
+      };
+      setLive(prev => {
+        if (!prev.background) {
+          return { ...prev, background: vizLayer };
+        }
+        return prev;
+      });
+    } else {
+      setLive(prev => {
+        if (prev.background?.id === 'viz_layer') {
+          return { ...prev, background: undefined };
+        }
+        return prev;
+      });
+    }
+  }, [activeDjTrack, isDjLiveOnProgram, djVisualizerEnabled, djVisualizerMode]);
+
   // ── Unified Effective Live Stack (drives both in-app program monitor & physical outputs) ──
   const effectiveLiveStack = useMemo(() => {
     if (isBlackout) return {};
     if (!isMasterProgramOn) {
-      return { ...live, slide: undefined, scripture: undefined, prop: undefined };
+      return { ...live, slide: undefined, scripture: undefined, lyrics: undefined, prop: undefined };
     }
     return live;
   }, [live, isBlackout, isMasterProgramOn]);
+
+  // Video priority: tell the audio playlist (and, if the operator chose, every
+  // other audio source) whether Program carries a video that's making sound.
+  useEffect(() => {
+    const audible = Object.values(effectiveLiveStack).some((l: any) => {
+      const c = l?.content;
+      return c?.kind === 'VIDEO' && !c.muted && (c.volume ?? 1) > 0;
+    });
+    setProgramVideoAudible(audible);
+  }, [effectiveLiveStack]);
+  // Chora lyric sync — its own slot on Program, driven by AmboLyricsControl.
+  const liveLyrics = live.lyrics?.content?.kind === 'LYRICS' ? (live.lyrics.content as Extract<LayerContent, { kind: 'LYRICS' }>) : null;
+  const setLyricsLayer = useCallback((c: Extract<LayerContent, { kind: 'LYRICS' }> | null) => {
+    setLive(prev => {
+      if (!c) {
+        if (!prev.lyrics) return prev;
+        const { lyrics: _drop, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, lyrics: { id: 'lyrics_live', slot: 'lyrics', content: c, since: prev.lyrics?.since ?? Date.now() } as any };
+    });
+  }, []);
+
+  // Build the Ambo mixer up front so every visualizer reads the real mix from
+  // the first frame. The playlist must not outlive its controls.
+  useEffect(() => { amboAudio.ensure(); return () => { audioBus.release(); setProgramVideoAudible(false); }; }, []);
 
   // Sync Live Stack & Timers to physical output windows
   useEffect(() => {
@@ -635,8 +830,8 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
     const success = routerRef.current.openWindow(patchedPgm, screenList);
     if (success) {
       setIsProgramWindowOpen(true);
-      const effectiveStack = isBlackout ? {} : live;
-      routerRef.current.send(effectiveStack, { elapsed });
+      // Same stack the program monitor shows — master-off and blackout included.
+      routerRef.current.send(effectiveLiveStack, { elapsed });
     }
   };
 
@@ -1053,6 +1248,8 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
             bgContent = { kind: 'LIVE', inputId: item.inputId || item.id, label: item.name };
           } else if (item.kind === 'GENERATOR') {
             bgContent = { kind: 'GENERATOR', mode: item.mode || 'STUDIO_AURORA' };
+          } else if (item.kind === 'SHADER') {
+            bgContent = { kind: 'SHADER', src: item.src || item.mode || '' };
           } else if (item.kind === 'VIDEO') {
             bgContent = { kind: 'VIDEO', src: item.src || '', loop: true };
           } else if (item.kind === 'IMAGE') {
@@ -1413,13 +1610,16 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
   const isResizingMultiviewRef = useRef(false);
   const isResizingBottomRef = useRef(false);
   const isResizingRightRef = useRef(false);
+  const dragStartYRef = useRef(0);
+  const dragStartHeightRef = useRef(0);
 
   useEffect(() => {
     const onMouseMove = (e: MouseEvent) => {
       if (isResizingMultiviewRef.current) {
+        const delta = e.clientY - dragStartYRef.current;
         const dockOffset = libraryCollapsed ? 32 : bottomHeight;
-        const availableHeight = window.innerHeight - 56 - dockOffset;
-        const newH = Math.max(120, Math.min(availableHeight - 100, e.clientY - 56));
+        const maxH = window.innerHeight - 200 - dockOffset;
+        const newH = Math.max(110, Math.min(maxH, dragStartHeightRef.current + delta));
         setMultiviewHeight(newH);
       }
       if (isResizingBottomRef.current) {
@@ -1458,6 +1658,8 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
   const startMultiviewResize = (e: React.MouseEvent) => {
     e.preventDefault();
     isResizingMultiviewRef.current = true;
+    dragStartYRef.current = e.clientY;
+    dragStartHeightRef.current = multiviewHeight;
     document.body.style.cursor = 'ns-resize';
     document.body.style.userSelect = 'none';
   };
@@ -1547,6 +1749,13 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
     : (previewSlide?.label || 'Preview Video');
 
   const take = (s: Slide) => {
+    // Ensure PROGRAM output exists and is enabled as the primary target
+    const programOut = outputs.find(o => o.kind === 'PROGRAM');
+    if (programOut && !programOut.enabled) {
+      // Auto-enable PROGRAM output on take
+      setOutputs(prev => prev.map(o => o.id === programOut.id ? { ...o, enabled: true } : o));
+    }
+
     setLive(prev => applySlide(prev, s, Date.now()));
     setLiveSlideId(s.id);
     setLiveSlideObj(s);
@@ -1835,8 +2044,8 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
     ? `${primaryOut.width}×${primaryOut.height}${primaryOut.aspectRatio ? ` (${primaryOut.aspectRatio})` : ''}`
     : '1920×1080 (16:9)';
 
-  const OutputPreview: React.FC<{ compact?: boolean }> = ({ compact }) => (
-    <div className={compact ? '' : 'p-3.5'}>
+  const renderOutputPreview = (compact?: boolean) => (
+    <div className={compact ? '' : 'p-3.5'} style={{ willChange: 'transform', transform: 'translateZ(0)', backfaceVisibility: 'hidden' }}>
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] font-bold uppercase tracking-[0.14em]" style={{ color: ORANGE }}>● Audience Output</span>
@@ -1908,8 +2117,10 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
 
   return (
     <div className="fixed inset-0 z-[120] flex flex-col" style={{ background: GROUND }}>
-      {/* toolbar */}
-      <header className="flex items-center gap-3 px-4 py-2.5 border-b backdrop-blur-xl flex-none" style={{ borderColor: line, background: HEADER }}>
+      {/* toolbar — split into 2 rows so controls never collide with native window buttons */}
+      <div className="flex-none border-b backdrop-blur-xl" style={{ borderColor: line, background: HEADER }}>
+      {/* ── ROW 1: App Bar — identity, menus, project info ── */}
+      <header className="flex items-center gap-3 px-4 py-1.5 border-b border-white/[0.04]" style={{ paddingRight: 'calc(max(1rem, 140px))' }}>
         {onBack && (
           <button onClick={onBack} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white/70 hover:text-white hover:bg-white/5 transition-colors">
             <ChevronLeft size={16} /> Exit
@@ -2382,6 +2593,9 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
           </button>
         </div>
         <div className="flex-1" />
+      </header>
+      {/* ── ROW 2: Transport Bar — bus clearing, stage, scripture, party, program out, clock, TAKE ── */}
+      <div className="flex items-center gap-2 px-4 py-1.5">
         {/* ProPresenter Master Layer Clear & Bus Architecture Controls */}
         <div className="flex items-center gap-1.5 px-2 py-1 rounded-xl border border-white/10 bg-black/40">
           <div className="flex items-center gap-1 text-[10px] text-white/50 pr-1 border-r border-white/10">
@@ -2523,6 +2737,44 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
             <span>{partySession?.masterSyncEngaged ? 'Sync On' : 'Sync Muted'}</span>
           </button>
         )}
+        
+        {/* Identify Displays Button */}
+        <button
+          onClick={() => flashAllDisplayIdentifiers(outputs)}
+          className="px-2 py-1.5 h-9 rounded-lg text-[10px] font-bold bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border border-white/10 transition-all flex items-center gap-1"
+          title="Flash display names on all outputs for 3 seconds"
+        >
+          <Monitor size={12} />
+          <span>Identify</span>
+        </button>
+
+        {/* Pair Device Button */}
+        <div className="relative">
+          <button
+            onClick={() => setShowPairing(!showPairing)}
+            className={`px-2 py-1.5 h-9 rounded-lg text-[10px] font-bold transition-all flex items-center gap-1 ${
+              showPairing
+                ? 'bg-[#00DAF3]/20 text-[#00DAF3] border border-[#00DAF3]/40'
+                : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white border border-white/10'
+            }`}
+            title="Pair another device as output"
+          >
+            <Smartphone size={12} />
+            <span>Pair</span>
+          </button>
+          {showPairing && pairingInfo && (
+            <div className="absolute top-full mt-1 right-0 z-50">
+              <PairingPanel
+                info={pairingInfo}
+                onRefresh={() => {
+                  const uid = auth.currentUser?.uid;
+                  if (uid) setPairingInfo(generatePairingInfo(uid));
+                }}
+              />
+            </div>
+          )}
+        </div>
+
         {/* Dedicated Physical Program Out Window Control */}
         <div className="relative">
           <button
@@ -2588,6 +2840,7 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
             </div>
           )}
         </div>
+        <div className="flex-1" />
         <span className="inline-flex items-center gap-2 h-[26px] px-3 rounded-full text-[11.5px] font-bold text-white border" style={{ background: 'rgba(255,140,0,0.14)', borderColor: 'rgba(255,140,0,0.5)', boxShadow: '0 0 22px rgba(255,140,0,0.3)' }}>
           <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: ORANGE }} /> ON AIR
         </span>
@@ -2598,7 +2851,8 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
         <button onClick={takeSelected} className="h-11 px-6 rounded-xl text-white font-extrabold tracking-wide text-[14.5px]" style={{ background: 'linear-gradient(135deg,#D40055,#FF8C00)', boxShadow: '0 0 22px rgba(255,140,0,0.3)' }}>
           TAKE ▸
         </button>
-      </header>
+      </div>
+      </div>
 
       {/* ── LOOPDECK & WATCH FOLDER CONTROL STRIP ── */}
       <div
@@ -2845,7 +3099,7 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
             </div>
           </div>
 
-          {placement === 'top' && (
+          {multiviewCollapsed && placement === 'top' && (
             <div className="grid gap-3.5 px-4.5 pt-4 pb-1 border-b" style={{ gridTemplateColumns: '1.5fr 1fr', borderColor: line, paddingLeft: 18, paddingRight: 18 }}>
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-[0.14em] mb-1.5" style={{ color: ORANGE }}>● Audience Output</div>
@@ -3070,89 +3324,28 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
           </div>
         </div>
 
-        {/* DRAGGABLE VERTICAL SPLITTER */}
-        <div
-          onMouseDown={startRightResize}
-          className="w-1.5 hover:w-2 bg-black/60 hover:bg-[#00DAF3]/40 cursor-ew-resize transition-all border-l border-r flex items-center justify-center group flex-none z-10"
-          style={{ borderColor: line }}
-          title="Drag to resize right panel"
-        >
-          <div className="w-1 h-12 rounded-full bg-white/20 group-hover:bg-[#00DAF3] transition-colors" />
-        </div>
-
-        {/* RIGHT: output preview + media bin + outputs */}
-        <aside
-          className="border-l overflow-y-auto flex flex-col min-w-0 flex-none"
-          style={{ width: `${rightWidth}px`, borderColor: line, background: 'rgba(0,0,0,0.16)' }}
-        >
-          {placement === 'right' && <OutputPreview />}
-
-          {/* Visual Source & Media Bin with Single-click Preview & Double-click Take */}
-          <div className="flex-none">
-            <AmboMediaBin
-              nativeSources={nativeSources}
-              onScanNdi={handleScanNdi}
-              isScanningNdi={isScanningNdi}
-              onPreviewSource={handlePreviewSource}
-              onProgramSource={handleProgramSource}
-              currentLiveInputId={live.background?.content?.kind === 'LIVE' ? live.background.content.inputId : (live.background?.content?.kind === 'GENERATOR' ? live.background.content.mode : null)}
-              currentPreviewInputId={cuedPreviewSourceId}
-              customAssets={currentProject.savedAssets || []}
-              onAddAsset={handleAddCustomAsset}
-              onRemoveAsset={handleRemoveCustomAsset}
-            />
-          </div>
-
-          <div className="flex items-center justify-between px-3.5 pt-2.5 pb-1.5 border-t flex-none" style={{ borderColor: line }}>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[9.5px] font-bold uppercase tracking-[0.14em] text-white/40">Outputs</span>
-              {screens.length > 0 && (
-                <span className="font-mono text-[8px] text-emerald-400 bg-emerald-500/10 px-1 rounded">
-                  {screens.length} Display{screens.length > 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-            <button
-              onClick={probeDisplays}
-              title="Rescan connected physical displays"
-              className="font-mono text-[9px] text-white/40 hover:text-white flex items-center gap-1 transition-colors"
+        {/* RIGHT: only the audience output preview remains here, and only when
+            the multiview is collapsed with placement 'right'. The media bin
+            moved into the library (Visualizers / Live Feeds tabs) and the
+            output toggles into the multiview. */}
+        {multiviewCollapsed && placement === 'right' && (
+          <>
+            <div
+              onMouseDown={startRightResize}
+              className="w-1.5 hover:w-2 bg-black/60 hover:bg-[#00DAF3]/40 cursor-ew-resize transition-all border-l border-r flex items-center justify-center group flex-none z-10"
+              style={{ borderColor: line }}
+              title="Drag to resize right panel"
             >
-              <RefreshCw size={9} />
-              <span>Probe</span>
-            </button>
-          </div>
-          <div className="px-3 pb-4 flex flex-col gap-2 flex-none">
-            {outputs.map(out => {
-              const resW = out.width || 1920;
-              const resH = out.height || 1080;
-              const resRatio = out.aspectRatio || '16:9';
-              const resHz = out.refreshRate ? ` @ ${out.refreshRate}Hz` : ' @ 60Hz';
-              const resText = `${resW}×${resH} (${resRatio})${resHz}`;
-              return (
-                <div
-                  key={out.id}
-                  onClick={() => toggleOutput(out.id)}
-                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg border cursor-pointer transition-all hover:border-white/20"
-                  style={{ borderColor: line, background: glass }}
-                >
-                  <MonitorPlay size={15} style={{ color: out.enabled ? ORANGE : 'rgba(255,255,255,0.4)' }} />
-                  <div className="flex-1 leading-tight min-w-0">
-                    <div className="text-[12px] font-semibold truncate flex items-center gap-1.5">
-                      <span>{out.name}</span>
-                      {out.autoDetectDisplay && (
-                        <span className="text-[8px] font-mono px-1 rounded bg-[#FF8C00]/20 text-[#FF8C00]">AUTO</span>
-                      )}
-                    </div>
-                    <div className="font-mono text-[9.5px] text-white/40 truncate">{resText}</div>
-                  </div>
-                  <span className="w-8 h-5 rounded-full relative flex-none" style={{ background: out.enabled ? ORANGE : 'rgba(255,255,255,0.2)' }}>
-                    <span className="absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all" style={{ left: out.enabled ? 16 : 2 }} />
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        </aside>
+              <div className="w-1 h-12 rounded-full bg-white/20 group-hover:bg-[#00DAF3] transition-colors" />
+            </div>
+            <aside
+              className="border-l overflow-y-auto flex flex-col min-w-0 flex-none"
+              style={{ width: `${rightWidth}px`, borderColor: line, background: 'rgba(0,0,0,0.16)' }}
+            >
+              {renderOutputPreview()}
+            </aside>
+          </>
+        )}
 
         {/* 4th Column: Slide & Layer Inspector */}
         {inspectorOpen && (
@@ -3167,6 +3360,9 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
           />
         )}
       </div>
+
+      {/* ── AUDIO PLAYLIST BUS — independent of the layer stack ── */}
+      <AmboAudioBus controlsSlot={<><AmboMixer /><AmboLyricsControl live={liveLyrics} onSet={setLyricsLayer} /></>} />
 
       {/* ── BROADCAST PER-TRACK DJ AUDIO PLAYER & HORIZONTAL WAVEFORM ── */}
       {activeDjTrack && (
@@ -3188,6 +3384,10 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
               setIsDjCuedInPreview(true);
             }}
             autoPlay={true}
+            visualizerEnabled={djVisualizerEnabled}
+            onToggleVisualizer={() => setDjVisualizerEnabled(v => !v)}
+            visualizerMode={djVisualizerMode}
+            onSetVisualizerMode={setDjVisualizerMode}
           />
         </div>
       )}
@@ -3213,6 +3413,9 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
         nextSlide={nextSlide}
         elapsedSec={elapsed}
         outputs={outputs}
+        onToggleOutput={toggleOutput}
+        onProbeDisplays={probeDisplays}
+        displaysCount={screens.length}
         isCollapsed={multiviewCollapsed}
         onToggleCollapse={toggleMultiviewCollapsed}
         onTakePreview={takeSelected}
@@ -3287,7 +3490,7 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
           nativeSources={nativeSources}
           onScanNdi={handleScanNdi}
           isScanningNdi={isScanningNdi}
-          currentLiveInputId={live.background?.content?.kind === 'LIVE' ? live.background.content.inputId : (live.background?.content?.kind === 'GENERATOR' ? live.background.content.mode : null)}
+          currentLiveInputId={live.background?.content?.kind === 'LIVE' ? live.background.content.inputId : (live.background?.content?.kind === 'GENERATOR' ? live.background.content.mode : live.background?.content?.kind === 'SHADER' ? live.background.content.src : null)}
           currentPreviewInputId={cuedPreviewSourceId}
           shows={library}
           activeShowId={activeShowId}

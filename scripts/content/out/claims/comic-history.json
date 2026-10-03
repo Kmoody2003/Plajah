@@ -1,0 +1,809 @@
+{
+ "courseId": "comic-history",
+ "label": "Comics and Manga: A History",
+ "lessons": [
+  {
+   "id": "comic-history.l01",
+   "title": "Panels and Page Layout",
+   "body": [
+    "A panel is a single framed picture on a comic page, the basic unit of sequential art. A layout is the arrangement of panels on the page. The comic studio in Plajah describes layouts as lists of panel rectangles in page-percent space, each with an x position, a y position, a width and a height, so a page is just a set of boxes that add up to 100 percent.",
+    "The preset layouts show the common shapes. A splash is one panel filling the whole page. The 2 · Stacked layout puts two panels in rows, and 3 · Tiers gives three rows, called tiers. Grid layouts divide the page evenly: 4 · Grid is two columns by two rows, 6 · Grid is two by three, and 9 · Grid is three by three. The Classic layout has a wide top panel, two middle panels side by side and a wide bottom panel. Hero + Strip has one large panel above a strip of three.",
+    "Changing layout changes how the page feels. A tight grid gives a steady, even beat. A big panel gives importance and space. Creators choose how many panels to use and how big to make each one, so the layout itself becomes part of the storytelling."
+   ]
+  },
+  {
+   "id": "comic-history.l02",
+   "title": "The Gutter and Panel Spacing",
+   "body": [
+    "The gutter is the gap between panels. It may look like empty space, but it does real work: the reader's mind jumps across it to connect one picture to the next. Nothing is drawn there, yet that is where time passes and events are implied. A character raises a fist in one panel and a wall cracks in the next; the gutter carries the punch.",
+    "In Plajah's ComicPanelBuilder, the gutter is a setting you can adjust. The slider runs from 0 to 20, and a page's panelGutter defaults to 6. Each panel is drawn a little smaller than its slot, inset by half the gutter on each side, so wider gutters make the panels float further apart on the page. At 0 panels touch edge to edge.",
+    "Gutter size gives a creator a quiet control over tempo. Narrow gutters make panels feel close together in time, with fast action. Wide gutters slow the reader and give each image room. Some pages remove the gutters altogether, or let a picture break its frame, to create a sense of speed or of a world with no borders. The lesson is that blank space on a page is a storytelling tool, not leftover room."
+   ]
+  },
+  {
+   "id": "comic-history.l03",
+   "title": "Speech Balloons, Captions and Sound Effects",
+   "body": [
+    "Words in comics come in distinct types, each with its own look. The panel builder defines six bubble types. A speech balloon is white with dark text and carries ordinary dialogue. A thought balloon is rounder and softer, used for what a character thinks but does not say. A shout balloon is yellow with heavy, bold text and sharper corners for loud speech. A whisper balloon is pale grey with thin, light text for quiet speech.",
+    "The other two are not spoken. A caption, labelled narration in the data, is a dark box with white text, used for the narrator's voice, scene setting or the passage of time. An SFX, short for sound effect, is lettering drawn right into the picture, in bold red in the builder, with sample text like POW. Panels can also carry a separate caption bar at the top or bottom, and a sound-effect text style, with a larger manga style.",
+    "Balloon shape and lettering style tell the reader how something sounds without any audio. Balloons also guide the eye, because readers move from one to the next. A creator places them to follow the reading order, and keeps them out of the way of faces and key action in the art."
+   ]
+  },
+  {
+   "id": "comic-history.l04",
+   "title": "Reading Direction: Left to Right and Right to Left",
+   "body": [
+    "Western comics read left to right and top to bottom, like English text. Japanese manga traditionally reads right to left. A reader opens a manga from what Western readers would call the back, starts at the top right of the page, and moves left and down. Panels, balloons and even the page order follow that direction.",
+    "Plajah builds this into its tools. The ComicReader has a reading direction setting that can be ltr or rtl, with a button that toggles between them. In right-to-left mode, the arrow keys swap meaning: the left arrow moves forward and the right arrow moves back. In double-page spread mode, the pages are laid out in reverse, so the right page comes first. Tapping the left or right third of the screen also follows the direction.",
+    "The panel builder follows the same rule when ordering panels. For manga, it sorts panels so that the ones with larger x positions, further right, come first, and then goes top to bottom. For Western comics it sorts top to bottom and then left to right. When a layout is made for manga, it still sets panels in page-percent coordinates, but the order the reader meets them reverses. Good creators plan balloons and action to flow with the direction."
+   ]
+  },
+  {
+   "id": "comic-history.l05",
+   "title": "Pacing: Silence, Reveals and the Big Panel",
+   "body": [
+    "Pacing in comics is the speed at which a reader moves through a story, and creators control it mostly with panels. More small panels in a row feel fast; a single large panel makes the reader pause. The layout presets in Plajah show this.",
+    "The Splash layout is one huge panel for a dramatic moment. Inset Reveal fills the page with one image and places two small insets over it, so the reader sees a large scene and then notices details. The Cinematic 5 layout runs a thin wide panel across the top like a film's establishing shot before dropping into smaller panels below. Manga · Silence gives nearly half the page to a wide opening panel, then uses smaller panels beneath for a quiet beat. Manga · Reaction uses a large panel and stacked smaller ones to show a character's response. Webtoon · Reveal separates three vertical strips with gaps, so that the last big strip lands after the reader scrolls past empty space.",
+    "The idea behind them is simple: space is time. Give an image room, and the reader stays with it. Cut to small panels and the story accelerates. Great pages mix both, building to a large panel for impact."
+   ]
+  },
+  {
+   "id": "comic-history.l06",
+   "title": "The Strip and the Newsstand",
+   "body": [
+    "The museum's timeline for Western comics begins in the 1890s to 1930s with The Strip and the Newsstand. In these decades, newspaper strips built a mass audience. The museum names three examples: the Yellow Kid, Little Nemo and Krazy Kat. Because newspapers reached daily readers, strips taught a huge public to read pictures in sequence.",
+    "The era ends with a turning point in 1938, when Action Comics #1 introduced Superman and, in the museum's words, the comic book was born. This is a different format from the strip: a stapled magazine of stories rather than a few panels in a paper.",
+    "The museum also lets visitors read public-domain comics, preserved from the Internet Archive, and its collections include a shelf for Newspaper Strips alongside the Golden Age shelf. Two creators from this period appear among its legends. Hergé's The Adventures of Tintin began in 1929 and he is described as a master of the clear line style who defined European comics, called bande dessinee. Will Eisner, active from the 1930s, is credited with pioneering sequential-art storytelling."
+   ]
+  },
+  {
+   "id": "comic-history.l07",
+   "title": "The Golden and Silver Ages",
+   "body": [
+    "The museum divides superhero history into ages. The Golden Age runs from 1938 to 1956. Superheroes explode, with Superman, Batman, Wonder Woman and Captain America, as comics become a wartime and postwar staple for millions of readers.",
+    "The Silver Age runs from 1956 to 1970, and the museum calls it a science-fueled revival. Marvel's Stan Lee, Jack Kirby and Steve Ditko create flawed, human heroes, such as Spider-Man, the X-Men and the Fantastic Four, who redefine the genre. These heroes had everyday troubles as well as powers.",
+    "The museum's profiles of the creators explain why. Jack Kirby, an artist active from the 1940s to the 1980s, is called the King of Comics, and his dynamic, cosmic art built the Marvel Universe and the visual language of the superhero. His works include Fantastic Four, X-Men, Captain America and New Gods. Stan Lee, a writer active from the 1960s, co-created Marvel's pantheon with Spider-Man, X-Men, Hulk and Avengers, and gave superheroes real, relatable humanity, flawed people behind the masks. Together they show how a writer and an artist shape a character from two sides."
+   ]
+  },
+  {
+   "id": "comic-history.l08",
+   "title": "Bronze Age to Modern Age",
+   "body": [
+    "The Bronze Age runs from 1970 to 1985. The museum says stories grew darker and more socially aware, dealing with addiction, race and grief, while horror and sword-and-sorcery pushed the medium's boundaries.",
+    "The Modern Age begins in 1986 and runs to today. In the museum's words, Watchmen and The Dark Knight Returns legitimize comics as literature, and independent presses and the graphic-novel movement broaden who tells stories and how.",
+    "Several modern creators are profiled. Alan Moore, a writer from the 1980s, redefined comics as literature with dense, deconstructive masterworks such as Watchmen, V for Vendetta and From Hell. Frank Miller, a writer-artist, brought noir grit and cinematic edge in The Dark Knight Returns, Sin City and 300. Neil Gaiman wove myth, dream and literary fantasy into The Sandman, which the museum calls the first comic to win a literary award. Will Eisner, with A Contract with God, championed the term graphic novel as a serious literary form. Charles Schulz's Peanuts, running from 1950 to 2000, shows a daily strip becoming a half-century meditation on childhood and failure."
+   ]
+  },
+  {
+   "id": "comic-history.l09",
+   "title": "Graphic Novels and the Creators Who Built Them",
+   "body": [
+    "A graphic novel is a long-form comic published as a book rather than as a monthly pamphlet. The museum credits Will Eisner, a writer-artist active from the 1930s to the 2000s, with pioneering sequential-art storytelling and championing the graphic novel as a serious literary form. His best known works in the data are The Spirit and A Contract with God.",
+    "Other creators in the museum's gallery show what the book form allowed. Alan Moore's Watchmen, V for Vendetta and From Hell are dense and deconstructive. Frank Miller's The Dark Knight Returns, Sin City and 300 are noir and cinematic. Neil Gaiman's The Sandman is a long saga. Hergé's Tintin albums define European comics, known as bande dessinee, and Charles Schulz's Peanuts shows the strip at its most personal.",
+    "The museum also includes a Global Library tab that searches Open Library for books worldwide, and the Lorea reader can open comics as graphic novels, in image pages or PDF format. Together these show how a form that started in newspapers and magazines grew into shelves of books, where a single creator can carry a long story from the first page to the last."
+   ]
+  },
+  {
+   "id": "comic-history.l10",
+   "title": "Roots of Manga",
+   "body": [
+    "The museum's manga timeline begins with a period labelled Edo to 1930s, titled Roots. It says that from Hokusai's sketch manga to early twentieth-century strips and kamishibai street theatre, Japan built a deep visual-story tradition. The word manga was already in use for sketches before it meant a story medium.",
+    "Kamishibai means paper theatre. A storyteller showed illustrated cards on a street stage and told the tale aloud, which trained audiences to follow a story told in pictures. These earlier forms prepared the ground for the modern medium.",
+    "The manga era list in the museum starts later, with Post-war Foundations from 1945. The museum notes Tezuka and the birth of story manga there. The roots period matters because it shows that manga was not a copy of Western comics. It grew from its own traditions of picture-telling that included woodblock sketches, magazine strips and street performance.",
+    "The museum also lets visitors explore a century of manga, manhwa and manhua through AniList data. Manhwa is the Korean term and manhua the Chinese term. They have their own histories but belong to the same wide family of illustrated storytelling in East Asia."
+   ]
+  },
+  {
+   "id": "comic-history.l11",
+   "title": "Tezuka and the Birth of Story Manga",
+   "body": [
+    "Osamu Tezuka is called the God of Manga in the museum. Active from 1946 to 1989, he is known for Astro Boy, Black Jack and Phoenix. The museum says he invented modern story manga and its cinematic panel language, and calls him the father of the industry.",
+    "The manga timeline describes the period 1945 to the 1960s as Story Manga is Born. Tezuka's cinematic New Treasure Island and Astro Boy established modern, novelistic manga: long-form, emotional and drawn like film. Instead of short gag strips, stories could unfold over many pages with close-ups, wide shots and changing angles, much like a movie camera.",
+    "That film-like approach is why panel layouts in the studio vary so widely. Layouts such as Manga · Action use diagonal panel shapes, called diag-right and diag-left, to add movement and energy. Panels in manga often run larger or smaller depending on the weight of a moment, and silent panels give pauses.",
+    "The Post-war Foundations era in the museum begins at 1945 and is described as Tezuka and the birth of story manga. He shows how one creator can change what a medium thinks it can do, by borrowing the language of another art form."
+   ]
+  },
+  {
+   "id": "comic-history.l12",
+   "title": "Shonen, Shojo and the Magazine Boom",
+   "body": [
+    "The museum marks the period 1968 to the 1980s as the Shonen Boom. Weekly Shonen Jump launches, and serialized action, sports and adventure reach tens of millions of readers, setting the industry's engine running. Shonen means aimed at boys. Creators in this vein include Akira Toriyama, whose Dragon Ball and Dr. Slump made shonen a global phenomenon, and Go Nagai, active from 1967, who created the piloted-robot and dark-fantasy genres with Devilman, Mazinger Z and Cutie Honey.",
+    "In the 1970s the museum describes the Shojo Revolution. Shojo means aimed at girls. The Year 24 Group, with Moto Hagio, Takemiya and their peers, transformed girls' manga into psychologically rich, boundary-pushing literary work. Moto Hagio, active from 1969, is known for The Poe Clan and They Were Eleven. Rumiko Takahashi, active from 1978, wrote Ranma 1/2, Inuyasha and Urusei Yatsura and is called the queen of the romantic comedy.",
+    "The panel studio reflects these genres. Its manga layouts include Manga · Romance, with a large opening panel and two panels beneath, and Manga · Action, with angled panels for speed. Weekly deadlines favoured clear, readable pages that kept a reader coming back each week."
+   ]
+  },
+  {
+   "id": "comic-history.l13",
+   "title": "The Global Era",
+   "body": [
+    "The museum's final manga period is 1990s to Today, titled The Global Era. It says that Dragon Ball, Sailor Moon, One Piece and Naruto broke out worldwide, and that digital publishing and simultaneous translation made manga a global language. The manga eras shown in the museum's browser also include Golden 80s to 90s, from 1985, with global breakout classics, and Modern, from 2005, with digital and worldwide simulpub.",
+    "Several creators represent this reach. Eiichiro Oda, active from 1997, is the author of One Piece, called the best-selling manga of all time, a decades-long adventure of staggering scale. Katsuhiro Otomo's Akira brought cyberpunk manga, and anime, to the whole world through a hyper-detailed, kinetic vision. Naoki Urasawa, whose works include Monster, 20th Century Boys and Pluto, is called a master of the literary thriller in manga form.",
+    "The global spread changed reading habits too. Many international publishers keep manga in its original right-to-left order, so readers abroad learn the direction. Plajah's ComicReader supports this with an RTL toggle, so a manga and a Western comic can sit in the same reader."
+   ]
+  },
+  {
+   "id": "comic-history.l14",
+   "title": "Webtoons: Comics for the Scroll",
+   "body": [
+    "A webtoon is a comic designed to be read by scrolling vertically, usually on a phone, instead of turning pages. In Plajah's layout data, webtoon is its own category beside comic and manga. The presets are Webtoon · 4, which is four equal rows stacked from top to bottom, Webtoon · 5, which is five rows, and Webtoon · Reveal.",
+    "Each webtoon layout uses full-width panels. In the Reveal layout, three strips of different heights sit with deliberate gaps between them. Because the reader scrolls, the gap becomes a pause: they scroll through empty space, then the next image arrives. This makes use of the same gutter idea as in print, but gives it a longer, more controlled effect.",
+    "The museum's manga browser mentions manhwa and manhua, the Korean and Chinese cousins of manga. These forms share the East Asian tradition of illustrated storytelling, and the webtoon format is closely associated with that world's digital publishing.",
+    "Webtoon panels are not paired side by side, so reading direction is simple: top to bottom. That also makes them easy to adapt for different languages. The lesson is that every new screen shape invites new layouts, just as newspapers once did for strips."
+   ]
+  }
+ ],
+ "questions": [
+  {
+   "id": "comic-history.l01.q1",
+   "lessonId": "comic-history.l01",
+   "kind": "mcq",
+   "prompt": "What is a panel in a comic?",
+   "choices": [
+    "The cover of the book",
+    "A speech balloon",
+    "A single framed picture on a page",
+    "A page number"
+   ]
+  },
+  {
+   "id": "comic-history.l01.q2",
+   "lessonId": "comic-history.l01",
+   "kind": "mcq",
+   "prompt": "What does a splash layout contain?",
+   "choices": [
+    "No panels at all",
+    "One panel filling the whole page",
+    "Nine equal panels",
+    "Four tall panels"
+   ]
+  },
+  {
+   "id": "comic-history.l01.q3",
+   "lessonId": "comic-history.l01",
+   "kind": "mcq",
+   "prompt": "In the studio presets, how is the 6 · Grid arranged?",
+   "choices": [
+    "Two columns by three rows",
+    "Three columns by three rows",
+    "One column by six rows",
+    "Six columns by one row"
+   ]
+  },
+  {
+   "id": "comic-history.l01.q4",
+   "lessonId": "comic-history.l01",
+   "kind": "mcq",
+   "prompt": "Why does choosing a layout affect storytelling?",
+   "choices": [
+    "It changes the language of the text",
+    "It decides who owns the copyright",
+    "It controls the printing cost only",
+    "Panel count and size change the rhythm and emphasis of a page"
+   ]
+  },
+  {
+   "id": "comic-history.l02.q1",
+   "lessonId": "comic-history.l02",
+   "kind": "mcq",
+   "prompt": "What is the gutter in a comic page?",
+   "choices": [
+    "A type of lettering",
+    "The title banner",
+    "The gap between panels",
+    "The border of the cover"
+   ]
+  },
+  {
+   "id": "comic-history.l02.q2",
+   "lessonId": "comic-history.l02",
+   "kind": "mcq",
+   "prompt": "In the ComicPanelBuilder, what is the default panelGutter value?",
+   "choices": [
+    "20",
+    "6",
+    "0",
+    "12"
+   ]
+  },
+  {
+   "id": "comic-history.l02.q3",
+   "lessonId": "comic-history.l02",
+   "kind": "mcq",
+   "prompt": "What range does the gutter slider in the panel builder cover?",
+   "choices": [
+    "0 to 20",
+    "1 to 100",
+    "5 to 6",
+    "10 to 50"
+   ]
+  },
+  {
+   "id": "comic-history.l02.q4",
+   "lessonId": "comic-history.l02",
+   "kind": "mcq",
+   "prompt": "What does a wide gutter usually do to the feel of a page?",
+   "choices": [
+    "Makes the action feel faster",
+    "Removes the need for a story",
+    "Changes the reading direction",
+    "Slows the reader and gives each image room"
+   ]
+  },
+  {
+   "id": "comic-history.l03.q1",
+   "lessonId": "comic-history.l03",
+   "kind": "mcq",
+   "prompt": "Which balloon type is used for what a character thinks but does not say?",
+   "choices": [
+    "Caption box",
+    "SFX lettering",
+    "Thought balloon",
+    "Shout balloon"
+   ]
+  },
+  {
+   "id": "comic-history.l03.q2",
+   "lessonId": "comic-history.l03",
+   "kind": "mcq",
+   "prompt": "What does SFX stand for in comics?",
+   "choices": [
+    "Story format exchange",
+    "Sound effects",
+    "Special framing extras",
+    "Single frame exposure"
+   ]
+  },
+  {
+   "id": "comic-history.l03.q3",
+   "lessonId": "comic-history.l03",
+   "kind": "mcq",
+   "prompt": "In the panel builder, which bubble type uses a dark box with white text for narrator voice?",
+   "choices": [
+    "Narration (caption)",
+    "Whisper",
+    "Shout",
+    "Thought"
+   ]
+  },
+  {
+   "id": "comic-history.l03.q4",
+   "lessonId": "comic-history.l03",
+   "kind": "mcq",
+   "prompt": "Why do creators arrange balloons carefully on a page?",
+   "choices": [
+    "They determine the colour printing",
+    "They set the page count",
+    "They choose the publisher",
+    "They guide the eye in reading order and should not cover key art"
+   ]
+  },
+  {
+   "id": "comic-history.l04.q1",
+   "lessonId": "comic-history.l04",
+   "kind": "mcq",
+   "prompt": "In which direction do traditional manga pages read?",
+   "choices": [
+    "Bottom to top only",
+    "Diagonally from the centre",
+    "Right to left",
+    "Left to right"
+   ]
+  },
+  {
+   "id": "comic-history.l04.q2",
+   "lessonId": "comic-history.l04",
+   "kind": "mcq",
+   "prompt": "How do Western comics normally read?",
+   "choices": [
+    "Randomly",
+    "Left to right, top to bottom",
+    "Right to left, top to bottom",
+    "Bottom to top"
+   ]
+  },
+  {
+   "id": "comic-history.l04.q3",
+   "lessonId": "comic-history.l04",
+   "kind": "mcq",
+   "prompt": "In the ComicReader in right-to-left mode, what does the left arrow key do?",
+   "choices": [
+    "Moves forward a page",
+    "Moves back a page",
+    "Zooms in",
+    "Closes the reader"
+   ]
+  },
+  {
+   "id": "comic-history.l04.q4",
+   "lessonId": "comic-history.l04",
+   "kind": "mcq",
+   "prompt": "How does the panel builder order panels for manga?",
+   "choices": [
+    "Leftmost panels first",
+    "By panel colour",
+    "Alphabetically",
+    "Rightmost panels first, then top to bottom"
+   ]
+  },
+  {
+   "id": "comic-history.l05.q1",
+   "lessonId": "comic-history.l05",
+   "kind": "mcq",
+   "prompt": "What does a single large panel usually do to the reading pace?",
+   "choices": [
+    "Removes the plot",
+    "Changes the direction",
+    "Makes the reader pause",
+    "Makes the story feel faster"
+   ]
+  },
+  {
+   "id": "comic-history.l05.q2",
+   "lessonId": "comic-history.l05",
+   "kind": "mcq",
+   "prompt": "Which preset layout puts one image across the page with small insets on top?",
+   "choices": [
+    "Webtoon 5",
+    "Inset Reveal",
+    "Grid 9",
+    "Two Stacked"
+   ]
+  },
+  {
+   "id": "comic-history.l05.q3",
+   "lessonId": "comic-history.l05",
+   "kind": "mcq",
+   "prompt": "Which layout category does Webtoon · Reveal belong to?",
+   "choices": [
+    "Webtoon",
+    "Comic",
+    "Manga",
+    "Magazine"
+   ]
+  },
+  {
+   "id": "comic-history.l05.q4",
+   "lessonId": "comic-history.l05",
+   "kind": "mcq",
+   "prompt": "What principle sits behind pacing in panel layouts?",
+   "choices": [
+    "More words always means better",
+    "Every page needs nine panels",
+    "Pages must be symmetrical",
+    "Space on the page works like time in the story"
+   ]
+  },
+  {
+   "id": "comic-history.l06.q1",
+   "lessonId": "comic-history.l06",
+   "kind": "mcq",
+   "prompt": "Which event does the museum say launched the comic book?",
+   "choices": [
+    "The founding of Weekly Shonen Jump",
+    "The publication of Watchmen",
+    "Action Comics #1 introducing Superman in 1938",
+    "The first Tintin book"
+   ]
+  },
+  {
+   "id": "comic-history.l06.q2",
+   "lessonId": "comic-history.l06",
+   "kind": "mcq",
+   "prompt": "Which of these is a newspaper strip named by the museum?",
+   "choices": [
+    "Sandman",
+    "Krazy Kat",
+    "Watchmen",
+    "Astro Boy"
+   ]
+  },
+  {
+   "id": "comic-history.l06.q3",
+   "lessonId": "comic-history.l06",
+   "kind": "mcq",
+   "prompt": "Which creator is described as master of the clear line style?",
+   "choices": [
+    "Herge",
+    "Stan Lee",
+    "Jack Kirby",
+    "Frank Miller"
+   ]
+  },
+  {
+   "id": "comic-history.l06.q4",
+   "lessonId": "comic-history.l06",
+   "kind": "mcq",
+   "prompt": "Why did newspaper strips matter to the history of comics?",
+   "choices": [
+    "They replaced all novels",
+    "They were only read in schools",
+    "They were the first manga",
+    "They reached daily readers and built a mass audience for sequential pictures"
+   ]
+  },
+  {
+   "id": "comic-history.l07.q1",
+   "lessonId": "comic-history.l07",
+   "kind": "mcq",
+   "prompt": "Which era does the museum date from 1938 to 1956?",
+   "choices": [
+    "The Bronze Age",
+    "The Modern Age",
+    "The Golden Age",
+    "The Silver Age"
+   ]
+  },
+  {
+   "id": "comic-history.l07.q2",
+   "lessonId": "comic-history.l07",
+   "kind": "mcq",
+   "prompt": "Who is called the King of Comics in the museum?",
+   "choices": [
+    "Neil Gaiman",
+    "Jack Kirby",
+    "Alan Moore",
+    "Will Eisner"
+   ]
+  },
+  {
+   "id": "comic-history.l07.q3",
+   "lessonId": "comic-history.l07",
+   "kind": "mcq",
+   "prompt": "What is the Silver Age described as in the museum?",
+   "choices": [
+    "A science-fueled revival with flawed human heroes",
+    "A period with no superheroes",
+    "A time of only newspaper strips",
+    "The start of manga"
+   ]
+  },
+  {
+   "id": "comic-history.l07.q4",
+   "lessonId": "comic-history.l07",
+   "kind": "mcq",
+   "prompt": "What did Stan Lee add to superheroes, per the museum?",
+   "choices": [
+    "Only larger muscles",
+    "A new reading direction",
+    "A switch to color printing",
+    "Real relatable humanity: flawed people behind the masks"
+   ]
+  },
+  {
+   "id": "comic-history.l08.q1",
+   "lessonId": "comic-history.l08",
+   "kind": "mcq",
+   "prompt": "Which two works does the museum say legitimized comics as literature in the Modern Age?",
+   "choices": [
+    "Tintin and Peanuts",
+    "Spider-Man and Hulk",
+    "Watchmen and The Dark Knight Returns",
+    "Astro Boy and Akira"
+   ]
+  },
+  {
+   "id": "comic-history.l08.q2",
+   "lessonId": "comic-history.l08",
+   "kind": "mcq",
+   "prompt": "Who wrote The Sandman?",
+   "choices": [
+    "Frank Miller",
+    "Neil Gaiman",
+    "Alan Moore",
+    "Stan Lee"
+   ]
+  },
+  {
+   "id": "comic-history.l08.q3",
+   "lessonId": "comic-history.l08",
+   "kind": "mcq",
+   "prompt": "What themes does the museum say grew in the Bronze Age?",
+   "choices": [
+    "Addiction, race and grief",
+    "Only space travel",
+    "Cooking and sports",
+    "Silent films"
+   ]
+  },
+  {
+   "id": "comic-history.l08.q4",
+   "lessonId": "comic-history.l08",
+   "kind": "mcq",
+   "prompt": "Which comic is credited with a half-century run from 1950 to 2000?",
+   "choices": [
+    "Watchmen",
+    "Sin City",
+    "Akira",
+    "Peanuts"
+   ]
+  },
+  {
+   "id": "comic-history.l09.q1",
+   "lessonId": "comic-history.l09",
+   "kind": "mcq",
+   "prompt": "Which creator is credited with championing the graphic novel as a serious literary form?",
+   "choices": [
+    "Stan Lee",
+    "Eiichiro Oda",
+    "Will Eisner",
+    "Akira Toriyama"
+   ]
+  },
+  {
+   "id": "comic-history.l09.q2",
+   "lessonId": "comic-history.l09",
+   "kind": "mcq",
+   "prompt": "What is a graphic novel?",
+   "choices": [
+    "A type of speech balloon",
+    "A long-form comic published as a book",
+    "A newspaper strip",
+    "A movie poster"
+   ]
+  },
+  {
+   "id": "comic-history.l09.q3",
+   "lessonId": "comic-history.l09",
+   "kind": "mcq",
+   "prompt": "Which pair of works is by Alan Moore?",
+   "choices": [
+    "Watchmen and V for Vendetta",
+    "Sin City and 300",
+    "Peanuts and Tintin",
+    "Astro Boy and Black Jack"
+   ]
+  },
+  {
+   "id": "comic-history.l09.q4",
+   "lessonId": "comic-history.l09",
+   "kind": "mcq",
+   "prompt": "How does the museum describe the term bande dessinee?",
+   "choices": [
+    "Japanese manga",
+    "American superhero comics",
+    "Korean webtoons",
+    "European comics, defined by Herge's clear line"
+   ]
+  },
+  {
+   "id": "comic-history.l10.q1",
+   "lessonId": "comic-history.l10",
+   "kind": "mcq",
+   "prompt": "Which artist's sketches does the museum cite as early manga?",
+   "choices": [
+    "Kirby",
+    "Schulz",
+    "Hokusai",
+    "Tezuka"
+   ]
+  },
+  {
+   "id": "comic-history.l10.q2",
+   "lessonId": "comic-history.l10",
+   "kind": "mcq",
+   "prompt": "What was kamishibai?",
+   "choices": [
+    "A kind of speech balloon",
+    "Street theatre using illustrated cards",
+    "A manga magazine",
+    "A film studio"
+   ]
+  },
+  {
+   "id": "comic-history.l10.q3",
+   "lessonId": "comic-history.l10",
+   "kind": "mcq",
+   "prompt": "What is the museum's title for the earliest manga era in its timeline?",
+   "choices": [
+    "Roots",
+    "The Golden Age",
+    "The Shonen Boom",
+    "The Global Era"
+   ]
+  },
+  {
+   "id": "comic-history.l10.q4",
+   "lessonId": "comic-history.l10",
+   "kind": "mcq",
+   "prompt": "Which term does the museum use alongside manga for Korean comics?",
+   "choices": [
+    "Manhua",
+    "Bande dessinee",
+    "Kamishibai",
+    "Manhwa"
+   ]
+  },
+  {
+   "id": "comic-history.l11.q1",
+   "lessonId": "comic-history.l11",
+   "kind": "mcq",
+   "prompt": "Which creator is called the God of Manga?",
+   "choices": [
+    "Eiichiro Oda",
+    "Go Nagai",
+    "Osamu Tezuka",
+    "Rumiko Takahashi"
+   ]
+  },
+  {
+   "id": "comic-history.l11.q2",
+   "lessonId": "comic-history.l11",
+   "kind": "mcq",
+   "prompt": "Which of these is a Tezuka work in the museum?",
+   "choices": [
+    "Akira",
+    "Astro Boy",
+    "Dragon Ball",
+    "One Piece"
+   ]
+  },
+  {
+   "id": "comic-history.l11.q3",
+   "lessonId": "comic-history.l11",
+   "kind": "mcq",
+   "prompt": "What did Tezuka bring to manga, according to the museum?",
+   "choices": [
+    "A cinematic panel language",
+    "A switch to vertical scroll",
+    "The invention of kamishibai",
+    "Right-to-left reading"
+   ]
+  },
+  {
+   "id": "comic-history.l11.q4",
+   "lessonId": "comic-history.l11",
+   "kind": "mcq",
+   "prompt": "Which panel shape feature in the studio adds dynamic angled cuts in manga layouts?",
+   "choices": [
+    "Circular panels only",
+    "Panels with no frame",
+    "Panels stacked in a single column only",
+    "Diagonal panels (diag-left and diag-right)"
+   ]
+  },
+  {
+   "id": "comic-history.l12.q1",
+   "lessonId": "comic-history.l12",
+   "kind": "mcq",
+   "prompt": "Which magazine launch does the museum use to mark the Shonen Boom?",
+   "choices": [
+    "The Sandman",
+    "Peanuts",
+    "Weekly Shonen Jump",
+    "Action Comics"
+   ]
+  },
+  {
+   "id": "comic-history.l12.q2",
+   "lessonId": "comic-history.l12",
+   "kind": "mcq",
+   "prompt": "Which creator is associated with Dragon Ball?",
+   "choices": [
+    "Katsuhiro Otomo",
+    "Akira Toriyama",
+    "Moto Hagio",
+    "Naoki Urasawa"
+   ]
+  },
+  {
+   "id": "comic-history.l12.q3",
+   "lessonId": "comic-history.l12",
+   "kind": "mcq",
+   "prompt": "What is the Year 24 Group credited with in the museum?",
+   "choices": [
+    "Transforming girls' manga into psychologically rich literary work",
+    "Inventing the comic book",
+    "Creating kamishibai",
+    "Founding Marvel"
+   ]
+  },
+  {
+   "id": "comic-history.l12.q4",
+   "lessonId": "comic-history.l12",
+   "kind": "mcq",
+   "prompt": "Which statement about Rumiko Takahashi matches the museum?",
+   "choices": [
+    "She created Astro Boy",
+    "She wrote Watchmen",
+    "She launched Weekly Shonen Jump",
+    "She is called the queen of the romantic comedy"
+   ]
+  },
+  {
+   "id": "comic-history.l13.q1",
+   "lessonId": "comic-history.l13",
+   "kind": "mcq",
+   "prompt": "Which creator wrote One Piece?",
+   "choices": [
+    "Naoki Urasawa",
+    "Go Nagai",
+    "Eiichiro Oda",
+    "Katsuhiro Otomo"
+   ]
+  },
+  {
+   "id": "comic-history.l13.q2",
+   "lessonId": "comic-history.l13",
+   "kind": "mcq",
+   "prompt": "What does the museum say made manga a global language?",
+   "choices": [
+    "Banning translation",
+    "Digital publishing and simultaneous translation",
+    "Newspaper strips only",
+    "Ending serialisation"
+   ]
+  },
+  {
+   "id": "comic-history.l13.q3",
+   "lessonId": "comic-history.l13",
+   "kind": "mcq",
+   "prompt": "Which work brought cyberpunk manga and anime to the world?",
+   "choices": [
+    "Akira",
+    "Peanuts",
+    "Tintin",
+    "Black Jack"
+   ]
+  },
+  {
+   "id": "comic-history.l13.q4",
+   "lessonId": "comic-history.l13",
+   "kind": "mcq",
+   "prompt": "Which of these is named as a title that broke out worldwide in the Global Era?",
+   "choices": [
+    "Little Nemo",
+    "Krazy Kat",
+    "Phoenix",
+    "Sailor Moon"
+   ]
+  },
+  {
+   "id": "comic-history.l14.q1",
+   "lessonId": "comic-history.l14",
+   "kind": "mcq",
+   "prompt": "How is a webtoon normally read?",
+   "choices": [
+    "By unfolding a poster",
+    "By listening to audio",
+    "By scrolling vertically",
+    "By turning pages right to left"
+   ]
+  },
+  {
+   "id": "comic-history.l14.q2",
+   "lessonId": "comic-history.l14",
+   "kind": "mcq",
+   "prompt": "How many rows does the Webtoon · 5 layout have?",
+   "choices": [
+    "Two",
+    "Five",
+    "Four",
+    "Nine"
+   ]
+  },
+  {
+   "id": "comic-history.l14.q3",
+   "lessonId": "comic-history.l14",
+   "kind": "mcq",
+   "prompt": "In the Webtoon · Reveal layout, what do the gaps between strips create?",
+   "choices": [
+    "A pause as the reader scrolls before the next image",
+    "A reading direction change",
+    "A second page",
+    "A sound effect"
+   ]
+  },
+  {
+   "id": "comic-history.l14.q4",
+   "lessonId": "comic-history.l14",
+   "kind": "mcq",
+   "prompt": "Which statement about reading order in webtoon layouts is correct?",
+   "choices": [
+    "They always read right to left",
+    "They read bottom to top",
+    "They have no order",
+    "Panels are stacked in rows, so the order is simply top to bottom"
+   ]
+  }
+ ]
+}

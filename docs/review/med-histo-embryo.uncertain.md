@@ -1,0 +1,25 @@
+# med-histo-embryo: claims for expert review
+
+- l01: Golgi "hof" / perinuclear halo in plasma cells; keratin vs vimentin as carcinoma vs sarcoma shorthand (simplified; many exceptions).
+- l02: stereocilia in epididymis and inner ear described as long microvilli; Kartagener sperm immotility phrasing.
+- l03: "fibrillin-1 on which elastic fibres are assembled"; type V collagen linked to classic Ehlers-Danlos only loosely stated ("some forms"); lysyl oxidase copper dependence.
+- l04: RANKL/osteoprotegerin and denosumab statement; growth plate zone order; achondroplasia described as sparing intramembranous bone.
+- l05: triads at A-I junction in mammalian skeletal muscle (true for mammals; amphibian differs); diads at Z disc in cardiac muscle (simplified); "calcium-induced calcium release through extracellular calcium entry".
+- l06: microglia yolk sac origin; Wallerian degeneration and Schwann cell guidance; Guillain-Barre as autoimmune Schwann cell myelin attack (subtype dependent: AIDP vs axonal forms).
+- l07: reticulocyte count wording; erythroid stage in which nucleus is extruded (orthochromatic); thrombopoietin made "mainly" by liver; IL-5 for eosinophils.
+- l08: "negative selection mainly at corticomedullary junction and medulla"; thymic cortex vs medulla details; fenestrated capillaries: glomerulus listed as without diaphragms.
+- l09: club cell functions (secretory protein, P450, progenitor); Kulchitsky cells as origin of small cell carcinoma ("likely"); L/S ratio above about 2 threshold; gestation 34 weeks for surfactant; antenatal steroid statement; type I pneumocytes ~95% of surface.
+- l10: oesophageal muscularis composition by thirds; Brunner gland and Peyer patch locations; M cells over Peyer patches; vitamin B12 absorption in terminal ileum.
+- l11: zone 1/3 assignments and Rappaport acinus; acetaminophen zone 3 necrosis; CCK from I cells; islet cell percentages (70/20) approximate; exocrine pancreas ~98%.
+- l12: 80% cortical nephrons approximation; proximal tubule two thirds reabsorption; Alport triad; macula densa chloride sensing.
+- l13: B-FLAT mnemonic; Herring bodies; Rathke pouch origin; zonation GFR with ACTH vs angiotensin II on glomerulosa; chromaffin cells and cholinergic preganglionic input.
+- l14: spermatogenesis duration 64-74 days; epididymal transit about two weeks; prostate zones; prostatic acid phosphatase/PSA listing.
+- l15: LH on theca interna / FSH on aromatase (two-cell model); corpus luteum lifespan 14 days; ampulla as most common ectopic site (true); Rokitansky not used; transformation zone and HPV.
+- l16: epidermal turnover 28 to 40 days; Birbeck granules; Merkel cell carcinoma origin is debated (Merkel cell vs pre/pro-B cell); pemphigus/pemphigoid targets.
+- l17: oocyte counts at birth and puberty approximate; ZP3 binding and ZP2 cleavage after cortical reaction (model details); claim that most trisomy 21 is maternal meiosis I error (commonly stated, meiosis II also occurs).
+- l18: hCG detectable days 8 to 10; alcohol at gastrulation producing holoprosencephaly (textbook claim); neuropore closure days 25 and 27; extraembryonic mesoderm origin from epiblast (some texts say hypoblast/yolk sac).
+- l19: "everything that is blood vessel... is mesodermal" simplification; thyroid origin; anal canal ectoderm below pectinate line; RET in Hirschsprung disease.
+- l20: sinus venosus and chamber derivations; ductus closure mechanisms (oxygen, falling PGE2); egg-on-a-string sign; 22q11 deletion association with tetralogy.
+- l21: arch derivatives lists; recurrent laryngeal nerve course; thalidomide window about days 24 to 36; palate fusion weeks 8 to 12; cleft lip anticonvulsant and smoking association.
+- l22: 3 percent major malformation rate and about half unknown; lithium and Ebstein anomaly (modest, debated); methimazole embryopathy; warfarin in later pregnancy CNS damage; "no safe level" of alcohol is a consensus position.
+- l23: placental barrier layer count and cytotrophoblast thinning; progesterone takeover at weeks 8 to 10; twin timing windows (days 4 to 8, 8 to 12) are approximate; Meckel diverticulum "rule of twos" mentioned without detail.

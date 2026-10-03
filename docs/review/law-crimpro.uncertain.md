@@ -1,0 +1,30 @@
+# law-crimpro: claims for expert review
+
+- l01: Carpenter "seven days or more" threshold and "narrow" characterization; status of tower dumps and real-time location is described as unsettled.
+- l01: Kyllo "not in general public use" formulation applied to a worked example; Riley (1989) plurality-based aerial rule stated as settled.
+- l02: Coolidge v. New Hampshire (1971) offered as the neutral-magistrate example; Michigan v. Summers (1981) scope.
+- l02: Hudson v. Michigan (2006) stated as the current rule on knock-and-announce suppression; later cases may have narrowed it.
+- l03: Collins v. Virginia (2018) stated as curtilage limit on the automobile exception; Houghton (1999) passenger belongings.
+- l04: Lange v. California (2021) and Caniglia v. Strom (2021) characterizations (no categorical misdemeanor-pursuit exigency; no home community-caretaking exception).
+- l04: Fernandez v. California (2014) summary (lawfully removed objector).
+- l05: Torres v. Madrid (2021) summary; Navarette v. California (2014) 911-tip holding; 48-hour presumption wording.
+- l06: Byrd v. United States (2018) rental-car driver summary; Pennsylvania Board v. Scott (1998) parole; Brown v. Illinois factors; Davis v. United States (2011).
+- l07: Vega v. Tekoh (2022) stated as barring section 1983 damages for Miranda violations; Maryland v. Shatzer 14-day figure; Salinas v. Texas (2013) is deliberately omitted.
+- l08: Rothgery (2008) attachment at initial appearance; Montejo (2009) waiver rule; Garrity (1967) and Hubbell (2000) summaries; Cobb offense-specific test described via Blockburger.
+- l08 q5: assumes an arraignment invocation is not an Edwards invocation (McNeil v. Wisconsin, 1991, not cited); the question relies on the offense-specific rule and Miranda waiver.
+- l09: Evans v. Michigan (2013) holding on judge-directed acquittals based on legal error; Hudson v. United States (1997); wording on Puerto Rico and tribal dual-sovereignty is general only.
+- l09 worked example: wording about Ashe and separate sovereigns is loosely phrased and should be tightened.
+- l10: grand jury size 16 to 23 members; 48-hour McLaughlin standard; Bail Reform Act standards (preponderance for flight, clear and convincing for danger is the common reading, circuits agree but the statute is not explicit); rebuttable presumption categories (drug and firearm offenses); Rule 5.1 preliminary hearing hearsay statement is general.
+- l11: United States v. Ruiz (2002) as limited to impeachment material before a plea; Connick v. Thompson (2011) description; Brady "upon request" vs. no-request duty (Agurs, 1976, not cited).
+- l12: "well over 90 percent" plea statistic; Class v. United States (2018); Lee v. United States (2017) cited for prejudice standard; Mezzanatto (1995) waiver; Rule 11(f) reference.
+- l13: Alabama v. Shelton (2002) suspended-sentence holding; McCoy v. Louisiana (2018) described as structural error; Wheat (1988) conflicts.
+- l14: Smith v. Arizona (2024) summary (very recent); Williams v. Illinois (2012) "no majority rationale"; Ohio v. Clark (2015) and Bryant (2011) characterizations; Giles (2008) intent requirement.
+- l15: Erlinger v. United States (2024) description; Edwards v. Vannoy (2021) non-retroactivity of Ramos; Doggett 8.5-year figure; "approaching a year" as presumptive prejudice trigger is a lower-court convention; Speedy Trial Act 30/70 day figures; Flowers v. Mississippi (2019) summary; Blanton (1989) petty offense threshold.
+- l16: Jones v. Mississippi (2021) summary; Hall v. Florida (2014) and Moore v. Texas (2017) summary (Moore is only referenced in an explanation); Bucklew (2019) alternative-method requirement; statement that "a majority of states retain capital punishment" is time-sensitive.
+- l16 q4: IQ-72 hypothetical depends on Hall's rule that scores near 70 require consideration of the standard error of measurement.
+- l17: Safford (2009), Chandler v. Miller (1997), Lidster (2004) summaries; statement that border device searches remain unresolved at the Supreme Court is time-sensitive (circuit split).
+- l18: Cooper v. Oklahoma (1996); Perry v. New Hampshire (2012); Weaver v. Massachusetts (2017); list of structural errors; Presley v. Georgia (2010).
+- l19: 14-day federal notice of appeal deadline (FRAP 4(b)); 18 U.S.C. section 3731 reference; Kotteakos harmless standard; the "defendant must show reasonable probability" gloss on Olano prong three.
+- l19 q5: exceptions to appeal waivers (illegal sentence, ineffective assistance) vary by circuit.
+- l20: Shinn v. Ramirez (2022) and Martinez v. Ryan (2012) interplay; Herrera v. Collins (1993) description; McQuiggin v. Perkins (2013); Boumediene (2008); Kimmelman v. Morrison (1986) is cited in the l20 q5 answer only.
+- Case years and courts were written from memory throughout; all case anchors should be spot-checked.

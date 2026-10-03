@@ -12,8 +12,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   ChevronDown, ChevronUp, MonitorPlay, Radio, Clock, Play, Eye,
   Volume2, VolumeX, Wifi, Tv, Layers, Maximize2, Sparkles, Check,
-  Laptop, Tablet, Smartphone, Music, Film, Zap, ExternalLink
-} from 'lucide-react';
+  Laptop, Tablet, Smartphone, Music, Film, Zap, ExternalLink, Power, RefreshCw } from 'lucide-react';
 import { type LiveStack, type Slide } from '../../services/ambo/showModel';
 import { LayerRenderer } from '../../services/ambo/layerRenderer';
 import { type AmboOutput } from '../../services/ambo/outputRouter';
@@ -46,6 +45,10 @@ interface AmboHorizontalMultiviewProps {
   onToggleDeviceSlave?: (deviceId: string, isSlaved: boolean) => void;
   onToggleDeviceMute?: (deviceId: string, isMuted: boolean) => void;
   onPingDevice?: (deviceId: string) => void;
+  onToggleOutput?: (outputId: string) => void;
+  /** Rescan physical displays (moved here with the output toggles). */
+  onProbeDisplays?: () => void;
+  displaysCount?: number;
 }
 
 const ORANGE = '#FF8C00';
@@ -108,6 +111,9 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
   onToggleDeviceSlave,
   onToggleDeviceMute,
   onPingDevice,
+  onToggleOutput,
+  onProbeDisplays,
+  displaysCount = 0,
 }) => {
   // Real-time local digital clock for stage confidence monitor
   const [timeStr, setTimeStr] = useState('');
@@ -148,6 +154,65 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
       case 'MOBILE': return <Smartphone size={12} className="text-pink-400" />;
       default: return <Laptop size={12} className="text-emerald-400" />;
     }
+  };
+
+  // Broadcast tile output lookups (used in TAB 2)
+  const pgmOut = outputs.find(o => o.kind === 'PROGRAM');
+  const stageOut = outputs.find(o => o.kind === 'STAGE');
+  const auxOut = outputs.find(o => o.kind === 'AUX');
+  const streamOut = outputs.find(o => o.kind === 'STREAM');
+  const handledKinds = new Set(['PROGRAM', 'STAGE', 'AUX', 'STREAM', 'KEY']);
+  const extraOutputs = outputs.filter(o => !handledKinds.has(o.kind));
+
+  // Output toggles — the operator's on/off for every physical output, visible
+  // in the multiview whether it's expanded or collapsed (they used to live in
+  // their own side panel).
+  const outputToggles = outputs.length > 0 && onToggleOutput ? (
+            <div className="flex items-center gap-1 pr-2 mr-1 border-r border-white/10">
+              <span className="text-[8.5px] font-extrabold uppercase tracking-wider text-white/35">Outputs</span>
+              {outputs.map(out => (
+                <button
+                  key={out.id}
+                  onClick={(e) => { e.stopPropagation(); onToggleOutput(out.id); }}
+                  title={`${out.name} · ${out.width || 1920}×${out.height || 1080}${out.autoDetectDisplay ? ' · auto-detect' : ''} — click to ${out.enabled ? 'disable' : 'enable'}`}
+                  className={`flex items-center gap-1 px-1.5 py-0.5 rounded-md border text-[9px] font-bold transition-all max-w-[130px] ${
+                    out.enabled
+                      ? 'bg-[#FF8C00]/15 border-[#FF8C00]/50 text-[#FFB866]'
+                      : 'bg-white/5 border-white/10 text-white/40 hover:text-white/70'
+                  }`}
+                >
+                  <Power size={9} className="flex-none" />
+                  <span className="truncate">{out.name}</span>
+                </button>
+              ))}
+              {onProbeDisplays && (
+                <button
+                  onClick={onProbeDisplays}
+                  title="Rescan connected physical displays"
+                  className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[9px] font-mono text-white/40 hover:text-white hover:bg-white/10"
+                >
+                  <RefreshCw size={9} />
+                  {displaysCount > 0 ? `${displaysCount} disp` : 'Probe'}
+                </button>
+              )}
+            </div>
+          ) : null;
+
+  const renderToggle = (out: AmboOutput | undefined) => {
+    if (!out) return null;
+    return (
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggleOutput?.(out.id); }}
+        className={`absolute bottom-1 right-1 p-1 rounded-full transition-all z-10 ${
+          out.enabled
+            ? 'bg-emerald-500/30 text-emerald-400'
+            : 'bg-red-500/20 text-red-400/60'
+        }`}
+        title={out.enabled ? 'Disable output' : 'Enable output'}
+      >
+        <Power size={10} />
+      </button>
+    );
   };
 
   if (isCollapsed) {
@@ -207,6 +272,7 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
             </button>
           )}
 
+          {outputToggles}
           <span className="font-mono text-[9px] text-white/40">
             {activeScreensCount > 0 ? `${activeScreensCount} Output(s) Live` : 'Multiview Ready'}
           </span>
@@ -306,6 +372,7 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
         </div>
 
         <div className="flex items-center gap-2">
+          {outputToggles}
           {onOpenPartyModal && (
             <button
               onClick={onOpenPartyModal}
@@ -491,18 +558,20 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
         </div>
       )}
 
-      {/* ── TAB 2: 5 CLASSIC BROADCAST TILES ──────────────────────────── */}
+      {/* ── TAB 2: BROADCAST TILES & EXTRA OUTPUTS ──────────────────────────── */}
       {activeTab === 'broadcast' && (
-        <div className="grid grid-cols-5 gap-2.5 p-2.5 overflow-x-auto flex-1 min-h-0 items-stretch">
+        <div className="flex gap-2.5 p-2.5 overflow-x-auto flex-1 min-h-0 items-stretch">
           {/* TILE 1: PROGRAM OUT */}
           <div
-            className="flex flex-col rounded-lg overflow-hidden border-2 p-1.5 transition-all relative"
+            className={`flex flex-col min-w-[200px] flex-1 rounded-lg overflow-hidden border-2 p-1.5 transition-all relative ${pgmOut?.enabled === false ? 'opacity-40' : ''}`}
             style={{
               borderColor: isBlackout ? 'rgba(239,68,68,0.85)' : 'rgba(255,140,0,0.85)',
               background: isBlackout ? 'rgba(0,0,0,0.95)' : 'rgba(255,140,0,0.03)',
               boxShadow: isBlackout ? '0 0 16px rgba(239,68,68,0.3)' : '0 0 16px rgba(255,140,0,0.2)',
             }}
           >
+            {renderToggle(pgmOut)}
+            {pgmOut?.enabled === false && <div className="absolute top-1 right-1 px-1 py-0.5 bg-red-500/80 text-white font-bold text-[8px] rounded z-10">OFF</div>}
             <div className="flex items-center justify-between mb-1">
               <span className="text-[9.5px] font-extrabold uppercase tracking-wide flex items-center gap-1.5" style={{ color: isBlackout ? '#ef4444' : '#FF8C00' }}>
                 <span className="w-2 h-2 rounded-full animate-ping" style={{ background: isBlackout ? '#ef4444' : '#FF8C00' }} />
@@ -542,7 +611,7 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
 
           {/* TILE 2: PREVIEW / NEXT */}
           <div
-            className="flex flex-col rounded-lg overflow-hidden border p-1.5 transition-all"
+            className="flex flex-col min-w-[200px] flex-1 rounded-lg overflow-hidden border p-1.5 transition-all relative"
             style={{
               borderColor: 'rgba(0,218,243,0.7)',
               background: 'rgba(0,218,243,0.03)',
@@ -567,12 +636,14 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
 
           {/* TILE 3: STAGE DISPLAY / FOLDBACK */}
           <div
-            className="flex flex-col rounded-lg overflow-hidden border p-1.5"
+            className={`flex flex-col min-w-[200px] flex-1 rounded-lg overflow-hidden border p-1.5 transition-all relative ${stageOut?.enabled === false ? 'opacity-40' : ''}`}
             style={{
               borderColor: 'rgba(208,188,255,0.4)',
               background: 'rgba(208,188,255,0.03)',
             }}
           >
+            {renderToggle(stageOut)}
+            {stageOut?.enabled === false && <div className="absolute top-1 right-1 px-1 py-0.5 bg-red-500/80 text-white font-bold text-[8px] rounded z-10">OFF</div>}
             <div className="flex items-center justify-between mb-1">
               <span className="text-[9.5px] font-extrabold uppercase tracking-wide flex items-center gap-1 text-[#D0BCFF]">
                 <Clock size={11} />
@@ -602,18 +673,20 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
             </div>
             <div className="flex items-center justify-between mt-1 text-[9px] text-white/40">
               <span>Musicians & Speaker</span>
-              <span className="text-emerald-400 font-mono text-[8px]">ACTIVE</span>
+              <span className="text-emerald-400 font-mono text-[8px]">{stageOut?.enabled !== false ? 'ACTIVE' : 'OFFLINE'}</span>
             </div>
           </div>
 
           {/* TILE 4: AUX / LOBBY DISPLAY */}
           <div
-            className="flex flex-col rounded-lg overflow-hidden border p-1.5"
+            className={`flex flex-col min-w-[200px] flex-1 rounded-lg overflow-hidden border p-1.5 transition-all relative ${auxOut?.enabled === false ? 'opacity-40' : ''}`}
             style={{
               borderColor: 'rgba(16,185,129,0.4)',
               background: 'rgba(16,185,129,0.03)',
             }}
           >
+            {renderToggle(auxOut)}
+            {auxOut?.enabled === false && <div className="absolute top-1 right-1 px-1 py-0.5 bg-red-500/80 text-white font-bold text-[8px] rounded z-10">OFF</div>}
             <div className="flex items-center justify-between mb-1">
               <span className="text-[9.5px] font-extrabold uppercase tracking-wide flex items-center gap-1 text-emerald-400">
                 <Tv size={11} />
@@ -631,18 +704,20 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
             </div>
             <div className="flex items-center justify-between mt-1 text-[9px] text-white/40">
               <span>HDMI / Matrix Out</span>
-              <span className="text-emerald-400 font-mono text-[8px]">ONLINE</span>
+              <span className="text-emerald-400 font-mono text-[8px]">{auxOut?.enabled !== false ? 'ONLINE' : 'OFFLINE'}</span>
             </div>
           </div>
 
           {/* TILE 5: STREAM BUS / NDI */}
           <div
-            className="flex flex-col rounded-lg overflow-hidden border p-1.5"
+            className={`flex flex-col min-w-[200px] flex-1 rounded-lg overflow-hidden border p-1.5 transition-all relative ${streamOut?.enabled === false ? 'opacity-40' : ''}`}
             style={{
               borderColor: 'rgba(124,156,232,0.4)',
               background: 'rgba(124,156,232,0.03)',
             }}
           >
+            {renderToggle(streamOut)}
+            {streamOut?.enabled === false && <div className="absolute top-1 right-1 px-1 py-0.5 bg-red-500/80 text-white font-bold text-[8px] rounded z-10">OFF</div>}
             <div className="flex items-center justify-between mb-1">
               <span className="text-[9.5px] font-extrabold uppercase tracking-wide flex items-center gap-1 text-[#7c9ce8]">
                 <Radio size={11} />
@@ -660,13 +735,44 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
             </div>
             <div className="flex items-center justify-between mt-1 text-[9px] text-white/40">
               <span>Switcher Feed</span>
-              <span className="text-[#00DAF3] font-mono text-[8px]">TRANSMITTING</span>
+              <span className="text-[#00DAF3] font-mono text-[8px]">{streamOut?.enabled !== false ? 'TRANSMITTING' : 'OFFLINE'}</span>
             </div>
           </div>
+
+          {/* EXTRA OUTPUTS */}
+          {extraOutputs.map(out => (
+            <div
+              key={out.id}
+              className={`flex flex-col min-w-[140px] flex-1 rounded-lg overflow-hidden border p-1.5 transition-all relative ${out.enabled === false ? 'opacity-40' : ''}`}
+              style={{
+                borderColor: 'rgba(255,255,255,0.2)',
+                background: 'rgba(255,255,255,0.02)',
+              }}
+            >
+              {renderToggle(out)}
+              {out.enabled === false && <div className="absolute top-1 right-1 px-1 py-0.5 bg-red-500/80 text-white font-bold text-[8px] rounded z-10">OFF</div>}
+              
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[9.5px] font-extrabold uppercase tracking-wide flex items-center gap-1 text-white/80">
+                  <MonitorPlay size={11} />
+                  {out.name || out.kind}
+                </span>
+                <span className="text-[8px] font-mono text-white/40">{out.kind}</span>
+              </div>
+              <div className="w-full aspect-video bg-[#0a0a0a] rounded-lg border border-white/10 relative overflow-hidden flex flex-col items-center justify-center p-2 text-center">
+                <MonitorPlay size={20} className="text-white/20 mb-1" />
+                <span className="text-[9px] font-medium text-white/60">Dynamic Output</span>
+              </div>
+              <div className="flex items-center justify-between mt-1 text-[9px] text-white/40">
+                <span>{out.autoDetectDisplay ? 'Auto Res' : `${out.width}x${out.height}`}</span>
+                <span className="text-white/50 font-mono text-[8px]">{out.enabled ? 'ONLINE' : 'OFFLINE'}</span>
+              </div>
+            </div>
+          ))}
         </div>
       )}
     </div>
   );
 };
 
-export default AmboHorizontalMultiview;
+export default React.memo(AmboHorizontalMultiview);

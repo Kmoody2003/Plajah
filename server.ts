@@ -36,12 +36,20 @@ import { kithSightingsRouter } from './routes/kithSightings';
 import { veoRouter } from './routes/veo';
 import { taleoRouter, enqueueIfReady as taleoEnqueueIfReady } from './routes/taleo';
 import { authMethodsRouter } from './routes/authMethods';
+import { fseGamesRouter } from './routes/fseGames';
+import { threatProtectionRouter } from './routes/threatProtection';
+import { homeDiscoveryRouter } from './routes/homeDiscovery';
+import { matterRouter } from './routes/matterRoutes';
 import { createCustomToken, fsGet, fsSet, fsPatch, fsDelete } from './services/firebaseAdminRest';
 // Fabula generation agent — server-side only (these carry the user's provider API key).
 import {
   submitMagnific as magnificSubmit, pollMagnific as magnificPoll, verifyMagnificKey,
   opForInput as magnificOpFor, mysticAspect as magnificAspect, fetchAsBase64,
 } from './services/fabula/magnificApi';
+import {
+  submitRunway as runwaySubmit, pollRunway as runwayPoll, verifyRunwayKey,
+  opForRunwayInput as runwayOpFor, runwayAspect,
+} from './services/fabula/runwayApi';
 import {
   saveKey as genVaultSaveKey, readKey as genVaultReadKey, revokeKey as genVaultRevokeKey,
   listLinked as genVaultListLinked, type VaultStore as GenVaultStore,
@@ -58,6 +66,23 @@ import {
   runChoraTranscodeWorker, startChoraTranscodeScheduler, PROCESSING_STALE_MS,
   type ChoraTranscodeDeps, type TrackCandidate as ChoraTrackCandidate,
 } from './services/choraTranscodeWorker.js';
+import {
+  type ChoraVoiceTrack,
+  handleAlexaRequest,
+  searchChora,
+  getChoraTrackByToken,
+  verifyAlexaSignature,
+} from './services/alexaService.js';
+import { handleGoogleActionRequest } from './services/googleHomeService.js';
+import { handleBixbyRequest } from './services/bixbyService.js';
+import {
+  DEFAULT_CHART, sysAccountsOf, accountDocId, journalDocId, payoutDocId, payoutLineDocId, onlineGiftDocId,
+  onlineGiftEntry, feeEntry, refundEntry, disputeFeeEntry, payoutEntry,
+  type DraftJournal, type SysAccounts,
+} from './services/acctPosting';
+import { grossUpCents, giftCentsFromGross, applicationFeePercent } from './services/giftFees';
+import { createBilling } from './routes/billing';
+import { deriveAlerts as pulseDeriveAlerts, alertAudience as pulseAudience, prefAllows as pulsePrefAllows } from './services/acctPulse';
 
 // Load .env.local (development) or .env (production) — no dotenv dependency needed
 for (const envFile of ['.env.local', '.env']) {
@@ -455,7 +480,7 @@ async function ensureDefaultCard(objectPath: string): Promise<{ buf: Buffer | nu
 /** Resolve the best cover/thumbnail URL for a shareable asset (by type/id, optional track). */
 async function resolveShareCover(type: string, id: string, track?: string): Promise<string> {
   const collectionFor: Record<string, string> = {
-    video: 'videos', album: 'albums', track: 'albums', book: 'albums', movie: 'albums',
+    video: 'videos', album: 'albums', track: 'albums', book: 'albums', movie: 'albums', mix: 'albums',
     article: 'articles', game: 'games', videoPlaylist: 'video_playlists',
   };
   const collection = collectionFor[type];
@@ -843,7 +868,7 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
 
    // Every shareable asset type → its Firestore collection. Books/songs live in `albums`.
    const collectionFor: Record<string, string> = {
-     video: 'videos', album: 'albums', track: 'albums', book: 'albums',
+     video: 'videos', reello: 'videos', album: 'albums', track: 'albums', book: 'albums',
      movie: 'albums',
      article: 'articles', game: 'games', feed: 'global_posts', post: 'global_posts',
      videoPlaylist: 'video_playlists',
@@ -886,7 +911,7 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
        const ta = tf?.artist?.stringValue;
        if (ta && !isPlaceholderArtist(ta)) artist = ta; // only a real track artist wins
      } else {
-       const fallback = type === 'book' ? 'Book' : type === 'game' ? 'Game' : type === 'article' ? 'Article' : type === 'video' ? 'Video' : type === 'videoPlaylist' ? 'Playlist' : type === 'movie' ? 'Film' : 'Album';
+       const fallback = type === 'mix' ? 'Mix' : type === 'book' ? 'Book' : type === 'game' ? 'Game' : type === 'article' ? 'Article' : type === 'video' ? 'Video' : type === 'videoPlaylist' ? 'Playlist' : type === 'movie' ? 'Film' : 'Album';
        title = pick(['title', 'name']) || fallback;
      }
      // Still missing or a placeholder → fall back to the album owner's display name.
@@ -914,19 +939,19 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
        desc = `Playlist · ${count} video${count === 1 ? '' : 's'} on Plajah`;
      } else if (artist) {
        // The requested share body: creator-forward, drives back to the app.
-       desc = `Check out ${title} by ${artist} on Plajah.com`;
+       desc = `Check out ${title} by ${artist} on Plajah`;
      } else {
        // No resolvable artist — keep the same on-brand copy, just without the "by".
-       desc = `Check out ${title} on Plajah.com`;
+       desc = `Check out ${title} on Plajah`;
      }
      // Only audio/video get an inline player card; the rest use a large-image card.
-     if (!(type === 'video' || type === 'album' || type === 'track')) playerUrl = '';
+     if (!(type === 'video' || type === 'reello' || type === 'album' || type === 'track' || type === 'mix')) playerUrl = '';
    }
 
    // Route the cover through /social-image so the crawler always gets a Meta-safe
    // (<8 MB, correctly-dimensioned 1200×630) JPEG. Raw covers are 20–30 MB PNGs that
    // Facebook silently drops — the #1 reason album art wasn't previewing.
-   const resizable = new Set(['album', 'track', 'video', 'movie', 'book', 'game', 'article', 'videoPlaylist']);
+   const resizable = new Set(['album', 'track', 'video', 'reello', 'movie', 'book', 'game', 'article', 'videoPlaylist', 'mix']);
    const cardImage = (image && resizable.has(String(type)))
      ? `https://${host}/social-image?type=${encodeURIComponent(String(type))}&id=${encodeURIComponent(String(id))}${track ? `&track=${encodeURIComponent(String(track))}` : ''}`
      : image;
@@ -955,7 +980,7 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
    // LinkedIn still get an inline player from the og:video set below (now that /embed is
    // reachable + framable + resolves Mux). Always a large-image card on X.
    metaTags += `\n    <meta name="twitter:card" content="summary_large_image" />`;
-   const isMusic = (type === 'album' || type === 'track');
+   const isMusic = (type === 'album' || type === 'track' || type === 'mix');
    if (isMusic) {
      // Music → a real cover+audio MP4 (og:video:type=video/mp4) so it plays INLINE on
      // Facebook/Instagram, which don't autoplay HTML/audio players. Square 720×720.
@@ -1035,7 +1060,15 @@ async function secureTokenCerts(): Promise<Record<string, string>> {
 // Verify a Firebase ID token by its RS256 signature + claims — no API key needed
 // (so it survives a referrer-restricted Web API key, which rejects server-side
 // accounts:lookup). Standard checks: alg/kid, exp, iat, aud, iss, sub, signature.
-async function verifyIdTokenViaJwt(token: string): Promise<string | null> {
+export interface VerifiedAuthToken {
+  uid: string;
+  isAnonymous: boolean;
+}
+
+// Verify a Firebase ID token by its RS256 signature + claims — no API key needed
+// (so it survives a referrer-restricted Web API key, which rejects server-side
+// accounts:lookup). Standard checks: alg/kid, exp, iat, aud, iss, sub, signature.
+async function verifyIdTokenViaJwt(token: string): Promise<VerifiedAuthToken | null> {
   const parts = token.split('.');
   if (parts.length !== 3) return null;
   let header: any, payload: any;
@@ -1056,14 +1089,16 @@ async function verifyIdTokenViaJwt(token: string): Promise<string | null> {
     const cert = certs[header.kid];
     if (!cert) return null;
     const ok = nodeCrypto.verify('RSA-SHA256', Buffer.from(`${parts[0]}.${parts[1]}`), cert, Buffer.from(parts[2], 'base64url'));
-    return ok ? payload.sub : null;
+    if (!ok) return null;
+    const isAnonymous = payload.firebase?.sign_in_provider === 'anonymous';
+    return { uid: payload.sub, isAnonymous };
   } catch (e: any) {
     console.error('[Auth] JWT signature verify error:', e.message);
     return null;
   }
 }
 
-async function verifyFirebaseToken(token: string): Promise<string | null> {
+async function verifyFirebaseToken(token: string): Promise<VerifiedAuthToken | null> {
   // Primary: Identity Toolkit lookup — works when FIREBASE_API_KEY is present and
   // NOT referrer-restricted.
   const apiKey = process.env.FIREBASE_API_KEY || process.env.VITE_FIREBASE_API_KEY;
@@ -1076,8 +1111,12 @@ async function verifyFirebaseToken(token: string): Promise<string | null> {
       });
       if (res.ok) {
         const data = await res.json() as any;
-        const uid = data.users?.[0]?.localId;
-        if (uid) return uid;
+        const user = data.users?.[0];
+        const uid = user?.localId;
+        if (uid) {
+          const isAnonymous = !user.providerUserInfo || user.providerUserInfo.length === 0;
+          return { uid, isAnonymous };
+        }
       }
     } catch (err: any) {
       console.error('[Auth] lookup error (falling back to JWT verify):', err.message);
@@ -1091,9 +1130,79 @@ async function authMiddleware(req: any, res: any, next: any) {
   const auth = req.headers.authorization;
   if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'Unauthorized' });
   const token = auth.slice(7);
-  const uid = await verifyFirebaseToken(token);
-  if (!uid) return res.status(401).json({ error: 'Invalid token' });
-  req.uid = uid;
+  const result = await verifyFirebaseToken(token);
+  if (!result) return res.status(401).json({ error: 'Invalid token' });
+  req.uid = result.uid;
+  req.isAnonymous = result.isAnonymous;
+  next();
+}
+
+/**
+ * Gate for endpoints that cost money, mutate shared content, or trigger heavy compute.
+ * Prohibits anonymous/guest accounts to eliminate scripted token burning and bot spam.
+ */
+function requireRegisteredUser(req: any, res: any, next: any) {
+  if (req.isAnonymous) {
+    return res.status(403).json({
+      error: 'A registered account is required for this feature. Please sign in with email or OAuth.',
+      code: 'ANONYMOUS_NOT_ALLOWED'
+    });
+  }
+  next();
+}
+
+// ── App Check verification ──────────────────────────────────────────────────
+let _appCheckCerts: { certs: Record<string, string>; exp: number } | null = null;
+async function appCheckCerts(): Promise<Record<string, string>> {
+  if (_appCheckCerts && Date.now() < _appCheckCerts.exp) return _appCheckCerts.certs;
+  const res = await fetch('https://firebaseappcheck.googleapis.com/v1beta/jwks', { signal: AbortSignal.timeout(6000) });
+  if (!res.ok) throw new Error(`App Check JWKS HTTP ${res.status}`);
+  const data = await res.json() as { keys?: Array<{ kid: string; x5c?: string[] }> };
+  const certs: Record<string, string> = {};
+  for (const k of data.keys ?? []) {
+    if (k.kid && k.x5c?.[0]) {
+      certs[k.kid] = `-----BEGIN CERTIFICATE-----\n${k.x5c[0]}\n-----END CERTIFICATE-----\n`;
+    }
+  }
+  _appCheckCerts = { certs, exp: Date.now() + 3_600_000 };
+  return certs;
+}
+
+async function verifyAppCheckToken(token: string): Promise<boolean> {
+  const parts = token.split('.');
+  if (parts.length !== 3) return false;
+  let header: any, payload: any;
+  try {
+    header = JSON.parse(Buffer.from(parts[0], 'base64url').toString('utf8'));
+    payload = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
+  } catch { return false; }
+  if (header.alg !== 'RS256' || !header.kid) return false;
+  const now = Math.floor(Date.now() / 1000);
+  if (!(typeof payload.exp === 'number' && payload.exp > now)) return false;
+  try {
+    const certs = await appCheckCerts();
+    const cert = certs[header.kid];
+    if (!cert) return false;
+    return nodeCrypto.verify('RSA-SHA256', Buffer.from(`${parts[0]}.${parts[1]}`), cert, Buffer.from(parts[2], 'base64url'));
+  } catch {
+    return false;
+  }
+}
+
+// Optional App Check: verifies if header is present, blocks if ENFORCE_APP_CHECK=true
+async function appCheckMiddleware(req: any, res: any, next: any) {
+  const token = req.headers['x-firebase-appcheck'];
+  if (process.env.ENFORCE_APP_CHECK === 'true') {
+    if (!token || typeof token !== 'string') {
+      return res.status(401).json({ error: 'App Check token required' });
+    }
+    const valid = await verifyAppCheckToken(token);
+    if (!valid) {
+      return res.status(401).json({ error: 'Invalid App Check token' });
+    }
+  } else if (token && typeof token === 'string') {
+    req.appCheckValid = await verifyAppCheckToken(token);
+  }
   next();
 }
 
@@ -1300,6 +1409,373 @@ async function firestorePatchDeep(collection: string, id: string, fieldsJs: Reco
   } catch { return false; }
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+// Elevate: Stripe → ledger automation. Church money people never type a Stripe number:
+// gifts, renewals, refunds, disputes, payouts and the double-entry journals all flow from
+// webhooks (/api/stripe/webhook, /api/stripe/connect-webhook) and the pull-sync
+// (POST /api/elevate/stripe/sync). EVERY write uses the deterministic ids from
+// services/acctPosting so webhooks, retries, backfills and the client can never double-post.
+// Journals/enrichment must never throw a webhook — failures are logged and skipped.
+// ════════════════════════════════════════════════════════════════════════════
+const ELEVATE_TZ = process.env.ELEVATE_TZ || 'America/Detroit';
+const elevDate = (sec: number) => new Date(sec * 1000).toLocaleDateString('en-CA', { timeZone: ELEVATE_TZ });
+const utcDate = (sec: number) => new Date(sec * 1000).toISOString().slice(0, 10);
+const usd = (cents: number) => Math.round(cents || 0) / 100;
+const round2c = (n: number) => Math.round(n * 100) / 100;
+const deepClean = <T,>(o: T): T => JSON.parse(JSON.stringify(o));   // drops undefined (Firestore rejects it)
+const idOf = (x: any): string | undefined => (typeof x === 'string' ? x : x?.id) || undefined;
+
+const _chartCache = new Map<string, { sys: SysAccounts; exp: number }>();
+/** Seed DEFAULT_CHART into acctAccounts (deterministic ids, NEVER overwrites) and return systemKey → accountId. */
+async function ensureOrgChart(orgId: string): Promise<SysAccounts> {
+  const hit = _chartCache.get(orgId);
+  if (hit && hit.exp > Date.now()) return hit.sys;
+  const existing = await fsQueryDocs('acctAccounts', [{ field: 'orgId', op: 'EQUAL', value: orgId }], 500);
+  const haveIds = new Set(existing.map(d => d.id));
+  const haveCodes = new Set(existing.map(d => String(d.data.code)));
+  const haveKeys = new Set(existing.map(d => d.data.systemKey).filter(Boolean));
+  const accounts: Array<{ id: string; systemKey?: any }> = existing.map(d => ({ id: d.id, systemKey: d.data.systemKey }));
+  let failed = false;
+  for (const seed of DEFAULT_CHART) {
+    const id = accountDocId(orgId, seed.code);
+    if (haveIds.has(id) || haveCodes.has(seed.code) || (seed.systemKey && haveKeys.has(seed.systemKey))) continue;
+    const ok = await firestorePatchDeep('acctAccounts', id, deepClean({ ...seed, id, orgId, createdAt: Date.now() }));
+    if (ok) accounts.push({ id, systemKey: seed.systemKey }); else failed = true;
+  }
+  const sys = sysAccountsOf(accounts);
+  _chartCache.set(orgId, { sys, exp: Date.now() + (failed ? 30_000 : 10 * 60_000) });
+  return sys;
+}
+
+/** Idempotent journal write: id = journalDocId(orgId, draft.key), so a replay is a no-op. Never throws. */
+async function postJournal(orgId: string, draft: DraftJournal): Promise<string | null> {
+  try {
+    if (!draft.key || !draft.lines.length) return null;
+    const id = journalDocId(orgId, draft.key);
+    if (await firestoreRead('acctJournals', id)) return id;
+    const ok = await firestorePatchDeep('acctJournals', id, deepClean({ ...draft, id, orgId, status: 'POSTED', createdBy: 'stripe', createdAt: Date.now() }));
+    return ok ? id : null;
+  } catch (e: any) { console.error('[Elevate] journal write failed:', e?.message); return null; }
+}
+/** Build + post a journal against the org's chart (seeding it first). Never throws. */
+async function autoPost(orgId: string, make: (sys: SysAccounts) => DraftJournal): Promise<string | null> {
+  try { return await postJournal(orgId, make(await ensureOrgChart(orgId))); }
+  catch (e: any) { console.error('[Elevate] journal skipped:', e?.message); return null; }
+}
+
+/** Finance-staff gate, read server-side from the org doc (never trust the client). */
+async function assertOrgFinanceAccess(uid: string, orgId: string): Promise<{ org: Record<string, any> } | { error: string; status: number }> {
+  const org = await firestoreGetDeep('organizations', orgId);
+  if (!org) return { error: 'Organization not found', status: 404 };
+  const inList = (k: string) => Array.isArray(org[k]) && org[k].includes(uid);
+  if (org.creatorId === uid || inList('admins') || inList('financeUids') || inList('accountingUids') || inList('pastorUids')) return { org };
+  try { if (await fetchFirebaseDoc('admins', uid)) return { org }; } catch { /* fall through */ }
+  return { error: 'Finance access required', status: 403 };
+}
+
+async function stripeStateWrite(orgId: string, patch: Record<string, any>) {
+  await firestorePatchDeep('chmsFinanceMeta', `stripe_${orgId}`, deepClean({ ...patch, id: `stripe_${orgId}`, orgId, kind: 'STRIPE_STATE', createdAt: Date.now(), createdBy: 'stripe' }));
+}
+async function orgForStripeAccount(acct: string): Promise<string | null> {
+  const r = await fsQueryDocs('organizations', [{ field: 'stripeAccountId', op: 'EQUAL', value: acct }], 1);
+  return r[0]?.id || null;
+}
+
+/** Create (or complete) the ChmsContribution for one online gift + post its journal. Idempotent. */
+async function recordOnlineGift(a: {
+  orgId: string; paymentId: string; chargeId?: string; amountCents: number; createdSec: number; fundName?: string;
+  uid?: string; giverName?: string; subscriptionId?: string; invoiceId?: string;
+  /** Extra the donor paid on top to cover processing; the ledger gift is amountCents - feeCoveredCents. */
+  feeCoveredCents?: number;
+}): Promise<{ id: string; created: boolean }> {
+  const id = onlineGiftDocId(a.orgId, a.paymentId);
+  const existing = await firestoreRead('chmsContributions', id);
+  const feeCovered = Math.max(0, a.feeCoveredCents || 0);
+  const amount = usd(giftCentsFromGross(a.amountCents, feeCovered));
+  let fundId = '', fundName = a.fundName || 'General', date = elevDate(a.createdSec), giver = a.giverName;
+  if (existing) { fundId = existing.fundId; fundName = existing.fundName; date = existing.date; giver = existing.giverName; }
+  else {
+    const org = await firestoreGetDeep('organizations', a.orgId);
+    const funds: any[] = Array.isArray(org?.givingFunds) ? org!.givingFunds : [];
+    const want = fundName.trim().toLowerCase();
+    const f = funds.find(x => String(x?.name || '').trim().toLowerCase() === want || x?.id === a.fundName);
+    fundId = f?.id || fundName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'general';
+    fundName = f?.name || fundName;
+    let personId: string | undefined, householdId: string | undefined;
+    if (a.uid) {
+      const p = (await fsQueryDocs('chmsPeople', [{ field: 'orgId', op: 'EQUAL', value: a.orgId }, { field: 'linkedUid', op: 'EQUAL', value: a.uid }], 1))[0];
+      if (p) { personId = p.id; householdId = p.data.householdId || undefined; }
+    }
+    const ok = await firestorePatchDeep('chmsContributions', id, deepClean({
+      id, orgId: a.orgId, personId, householdId, giverName: personId ? undefined : (a.giverName || 'Online giver'),
+      fundId, fundName, amount, date, method: 'ONLINE', deductible: true, stripePaymentId: a.paymentId,
+      stripeChargeId: a.chargeId, stripeSubscriptionId: a.subscriptionId, stripeInvoiceId: a.invoiceId,
+      status: 'POSTED', enteredBy: 'stripe', createdAt: a.createdSec * 1000, linkedUid: a.uid,
+      ...(feeCovered ? { feeCoveredByDonor: usd(feeCovered), grossCharged: usd(a.amountCents) } : {}),
+    }));
+    if (!ok) return { id, created: false };
+  }
+  await autoPost(a.orgId, sys => onlineGiftEntry(sys, { id, date, amount, fundId, fundName, giver, stripePaymentId: a.paymentId }));
+  if (a.chargeId && existing?.stripeFee === undefined) await attachGiftFinancials(a.orgId, id, a.chargeId, feeCovered).catch((e: any) => console.error('[Elevate] fee attach failed:', e?.message));
+  return { id, created: !existing };
+}
+
+/** Attach Stripe fee/net (via balance_transaction) to the contribution; post the fee journal only if the ORG bears it. */
+async function attachGiftFinancials(orgId: string, giftId: string, chargeId: string, feeCoveredCents = 0) {
+  const ch = await getStripe().charges.retrieve(chargeId, { expand: ['balance_transaction'] });
+  const bt = ch.balance_transaction;
+  if (!bt || typeof bt === 'string') return;
+  const stripeFee = usd(bt.fee);
+  // Destination charge: the PLATFORM's balance pays Stripe's fee; the church receives the full amount.
+  const platformPaid = !!(ch.transfer_data?.destination || ch.transfer);
+  const fee = platformPaid ? 0 : stripeFee;
+  // Donor-covered: the church nets the full gift (gross - the fee the donor added); Stripe's cost came out of the platform's application fee.
+  const donorPaid = feeCoveredCents > 0;
+  await firestorePatchDeep('chmsContributions', giftId, { stripeChargeId: ch.id, stripeFee, fee, net: round2c(usd(ch.amount) - (donorPaid ? usd(feeCoveredCents) : fee)), feePaidBy: donorPaid ? 'donor' : (platformPaid ? 'platform' : 'org') });
+  if (fee > 0) {
+    const g = await firestoreRead('chmsContributions', giftId);
+    await autoPost(orgId, sys => feeEntry(sys, { id: bt.id, date: elevDate(ch.created), amount: fee, fundId: g?.fundId, memo: 'Stripe processing fee' }));
+  }
+}
+
+async function handleChurchSessionPaid(session: any) {
+  const meta = session.metadata || {};
+  const orgId: string | undefined = meta.churchId;
+  const pi = idOf(session.payment_intent);
+  if (!orgId || !pi) return;   // subscription first payment arrives via invoice.paid
+  let chargeId: string | undefined;
+  try { chargeId = idOf((await getStripe().paymentIntents.retrieve(pi)).latest_charge); } catch { /* fee attach is best-effort */ }
+  await recordOnlineGift({
+    orgId, paymentId: pi, chargeId, amountCents: session.amount_total ?? Math.round(parseFloat(meta.amount || '0') * 100),
+    createdSec: session.created || Math.floor(Date.now() / 1000), fundName: meta.fund, uid: meta.uid, giverName: session.customer_details?.name || undefined,
+    feeCoveredCents: parseInt(meta.feeCoveredCents || '0', 10) || 0,
+  });
+}
+
+/** Recurring renewals (and the first monthly payment): one contribution per paid invoice. */
+async function handleChurchInvoicePaid(invoice: any) {
+  const subId = idOf(invoice.subscription);
+  if (!subId || !(invoice.amount_paid > 0)) return;
+  let meta: Record<string, string> = invoice.subscription_details?.metadata || {};
+  if (meta.type !== 'church_donation') {
+    try { meta = (await getStripe().subscriptions.retrieve(subId)).metadata || {}; } catch { meta = {}; }
+  }
+  let orgId = meta.type === 'church_donation' ? meta.churchId : undefined, uid = meta.uid, fund = meta.fund;
+  if (!orgId) {   // gifts created before subscription metadata was added: find the originating donation row
+    const d = (await fsQueryDocs('donations', [{ field: 'stripeSubscriptionId', op: 'EQUAL', value: subId }], 1))[0];
+    if (!d) return;
+    orgId = d.data.churchId; uid = d.data.fromId; fund = d.data.fund;
+  }
+  if (!orgId) return;
+  await recordOnlineGift({
+    orgId, paymentId: idOf(invoice.payment_intent) || invoice.id, chargeId: idOf(invoice.charge),
+    amountCents: invoice.amount_paid, createdSec: invoice.status_transitions?.paid_at || invoice.created,
+    fundName: fund, uid, giverName: invoice.customer_name || undefined, subscriptionId: subId, invoiceId: invoice.id,
+    feeCoveredCents: parseInt(meta.feeCoveredCents || '0', 10) || 0,
+  });
+}
+
+/** py_ (connected-account side of a destination charge) → the platform charge; or the direct charge itself. */
+async function resolveCharge(chargeId: string, acct?: string): Promise<{ charge: any; direct: boolean } | null> {
+  const stripe = getStripe();
+  const ch = acct ? await stripe.charges.retrieve(chargeId, {}, { stripeAccount: acct }) : await stripe.charges.retrieve(chargeId);
+  const trId = idOf(ch.source_transfer);
+  if (acct && trId) {
+    const src = idOf((await stripe.transfers.retrieve(trId)).source_transaction);
+    return src ? { charge: await stripe.charges.retrieve(src), direct: false } : null;
+  }
+  return { charge: ch, direct: !!acct };
+}
+async function giftOfCharge(charge: any): Promise<{ id: string; data: Record<string, any> } | null> {
+  const pi = idOf(charge.payment_intent);
+  if (!pi) return null;
+  return (await fsQueryDocs('chmsContributions', [{ field: 'stripePaymentId', op: 'EQUAL', value: pi }], 1))[0] || null;
+}
+
+/** Refund → mark the gift (VOID when fully refunded) and post a refund journal for what actually left the church's balance. */
+async function applyChargeRefund(charge: any, direct: boolean) {
+  const g = await giftOfCharge(charge);
+  if (!g) return;
+  const gift = g.data;
+  const refundedC = charge.amount_refunded || 0;
+  let reversedC = refundedC;   // direct charge (or no destination): the full refund hits the org
+  if (!direct && charge.transfer) {
+    // Destination charge: the church only loses money if the transfer was reversed (refund with "reverse transfer").
+    try { reversedC = Math.min(refundedC, (await getStripe().transfers.retrieve(idOf(charge.transfer)!)).amount_reversed || 0); } catch { reversedC = 0; }
+  }
+  const prevRefundedC = Math.round((gift.refunded || 0) * 100), prevJournaledC = Math.round((gift.refundJournaled || 0) * 100);
+  if (refundedC <= prevRefundedC && reversedC <= prevJournaledC) return;
+  if (reversedC > prevJournaledC) {
+    await autoPost(gift.orgId, sys => refundEntry(sys, { id: `${charge.id}_${reversedC}`, date: elevDate(Date.now() / 1000), amount: usd(reversedC - prevJournaledC), fundId: gift.fundId, memo: `Refund — ${gift.fundName || 'gift'}` }));
+  }
+  const patch: Record<string, any> = { refunded: usd(refundedC), refundJournaled: usd(Math.max(reversedC, prevJournaledC)) };
+  if (refundedC >= (charge.amount || 0) && gift.status !== 'VOID') Object.assign(patch, { status: 'VOID', voidReason: 'Stripe refund', voidedBy: 'stripe', voidedAt: Date.now() });
+  await firestorePatchDeep('chmsContributions', g.id, patch);
+}
+
+/** Dispute lifecycle: flag the gift; post the dispute fee / lost chargeback only when the org's own balance bears it. */
+async function applyDispute(dispute: any, kind: 'created' | 'closed', acct?: string) {
+  const chId = idOf(dispute.charge);
+  if (!chId) return;
+  const r = await resolveCharge(chId, acct);
+  if (!r) return;
+  const g = await giftOfCharge(r.charge);
+  if (!g) return;
+  const gift = g.data;
+  const open = !['won', 'warning_closed', 'lost'].includes(dispute.status);
+  const patch: Record<string, any> = { disputed: open, disputeStatus: dispute.status };
+  if (r.direct) {
+    const feeC = (dispute.balance_transactions || []).reduce((s: number, b: any) => s + (b.fee || 0), 0);
+    if (feeC > 0) await autoPost(gift.orgId, sys => disputeFeeEntry(sys, { id: dispute.id, date: elevDate(dispute.created), amount: usd(feeC), memo: 'Dispute fee' }));
+    if (kind === 'closed' && dispute.status === 'lost') {
+      await autoPost(gift.orgId, sys => refundEntry(sys, { id: `dispute_${dispute.id}`, date: elevDate(Date.now() / 1000), amount: usd(dispute.amount), fundId: gift.fundId, memo: 'Chargeback lost' }));
+      if (gift.status !== 'VOID') Object.assign(patch, { status: 'VOID', voidReason: 'Stripe chargeback lost', voidedBy: 'stripe', voidedAt: Date.now() });
+    }
+  }
+  await firestorePatchDeep('chmsContributions', g.id, patch);
+}
+
+const PAY_TYPES = new Set(['payment', 'charge']);
+const REFUND_TYPES = new Set(['payment_refund', 'refund', 'payment_failure_refund']);
+const FEE_TYPES = new Set(['stripe_fee', 'application_fee']);
+const SKIP_TYPES = new Set(['payout', 'payout_cancel', 'payout_failure']);
+
+/** Set by createBilling() wiring: payment intent → Plajah Billing invoice (so payout reconciliation recognises invoice payments). */
+let billingInvoiceLookup: ((pi: string) => Promise<{ id: string; entityKey: string } | null>) | null = null;
+
+/** Upsert one payout (+ its lines, matched to gifts) and, once paid, post the payout/fee journals. */
+async function processPayout(orgId: string, acct: string, po: any, withLines: boolean): Promise<{ lines: number; matched: number; unmatched: number; reconciled: boolean }> {
+  const stripe = getStripe();
+  const poId = payoutDocId(orgId, po.id);
+  const base: Record<string, any> = {
+    id: poId, orgId, stripeAccountId: acct, stripePayoutId: po.id, amount: usd(po.amount), currency: po.currency || 'usd',
+    arrivalDate: utcDate(po.arrival_date || po.created), createdAt: (po.created || 0) * 1000,
+    status: ['pending', 'in_transit', 'paid', 'failed', 'canceled'].includes(po.status) ? po.status : 'pending',
+    method: po.method, bankLast4: po.destination && typeof po.destination === 'object' ? po.destination.last4 : undefined, syncedAt: Date.now(),
+  };
+  if (!withLines) {
+    const prev = await firestoreRead('chmsPayouts', poId);
+    await firestorePatchDeep('chmsPayouts', poId, deepClean({ ...base, reconciled: prev?.reconciled === true }));
+    return { lines: 0, matched: 0, unmatched: 0, reconciled: prev?.reconciled === true };
+  }
+
+  let gross = 0, fees = 0, refunds = 0, adjustments = 0, net = 0, lines = 0, matched = 0, unmatched = 0, unitemized = false;
+  const trCache = new Map<string, any>();
+  const refundWork: Array<{ chargeId: string; direct: boolean }> = [];
+  const feeJournals: Array<{ id: string; date: string; amount: number; fundId?: string }> = [];
+  try {
+    for await (const bt of stripe.balanceTransactions.list({ payout: po.id, limit: 100, expand: ['data.source'] }, { stripeAccount: acct })) {
+      if (SKIP_TYPES.has(bt.type)) continue;
+      const amount = usd(bt.amount), fee = usd(bt.fee), btNet = usd(bt.net);
+      let paymentId: string | undefined, chargeId: string | undefined, contributionId: string | undefined;
+      try {
+        const src = bt.source && typeof bt.source === 'object' ? bt.source : null;
+        if (src && PAY_TYPES.has(bt.type)) {
+          if (src.source_transfer) {
+            const k = idOf(src.source_transfer)!;
+            if (!trCache.has(k)) { const tr = await stripe.transfers.retrieve(k); trCache.set(k, tr.source_transaction ? await stripe.charges.retrieve(idOf(tr.source_transaction)!) : null); }
+            const pc = trCache.get(k);
+            paymentId = idOf(pc?.payment_intent); chargeId = pc?.id;
+            // Webhook missed it but the PaymentIntent carried the gift metadata → backfill from the charge.
+            if (pc && paymentId && pc.metadata?.churchId === orgId && !(await firestoreRead('chmsContributions', onlineGiftDocId(orgId, paymentId)))) {
+              await recordOnlineGift({ orgId, paymentId, chargeId: pc.id, amountCents: pc.amount, createdSec: pc.created, fundName: pc.metadata.fund, uid: pc.metadata.uid });
+            }
+          } else if (src.payment_intent) { paymentId = idOf(src.payment_intent); chargeId = src.id; }
+        } else if (src && REFUND_TYPES.has(bt.type)) {
+          const ch = idOf(src.charge);
+          const r = ch ? await resolveCharge(ch, acct) : null;
+          if (r) { paymentId = idOf(r.charge.payment_intent); chargeId = r.charge.id; refundWork.push({ chargeId: r.charge.id, direct: r.direct }); }
+        }
+      } catch (e: any) { console.error('[Elevate] payout line resolve failed:', bt.id, e?.message); }
+      if (paymentId) {
+        const gid = onlineGiftDocId(orgId, paymentId);
+        if (await firestoreRead('chmsContributions', gid)) contributionId = gid;
+      }
+      lines++;
+      // Plajah Billing invoice payments are legitimate non-gift lines: count them as matched (AR is cleared by the invoice journal).
+      let billingInvoicePaid = false;
+      if (!contributionId && paymentId && PAY_TYPES.has(bt.type)) { try { const bi = billingInvoiceLookup ? await billingInvoiceLookup(paymentId) : null; billingInvoicePaid = !!bi && bi.entityKey === `ORG:${orgId}`; } catch { /* */ } }
+      if (PAY_TYPES.has(bt.type)) { gross += amount; fees += fee; if (contributionId) { matched++; await firestorePatchDeep('chmsContributions', contributionId, { payoutId: poId }); } else if (billingInvoicePaid) matched++; else unmatched++; }
+      else if (REFUND_TYPES.has(bt.type)) refunds += Math.abs(amount);
+      else if (FEE_TYPES.has(bt.type)) fees += Math.abs(amount);
+      else adjustments += amount;
+      net += btNet;
+      if (PAY_TYPES.has(bt.type) && fee > 0) feeJournals.push({ id: bt.id, date: utcDate(bt.created), amount: fee, fundId: contributionId ? (await firestoreRead('chmsContributions', contributionId))?.fundId : undefined });
+      if (FEE_TYPES.has(bt.type)) feeJournals.push({ id: bt.id, date: utcDate(bt.created), amount: Math.abs(amount) });
+      await firestorePatchDeep('chmsPayoutLines', payoutLineDocId(orgId, bt.id), deepClean({
+        id: payoutLineDocId(orgId, bt.id), orgId, payoutId: poId, stripeId: bt.id, type: bt.type, amount, fee, net: btNet,
+        date: utcDate(bt.created), description: bt.description || undefined, contributionId, stripePaymentId: paymentId,
+      }));
+    }
+  } catch (e: any) {
+    unitemized = true;   // manual payouts can't be itemised by Stripe
+    console.warn('[Elevate] payout not itemisable:', po.id, e?.message);
+  }
+  for (const w of refundWork) { try { const r = await resolveCharge(w.chargeId); if (r) await applyChargeRefund(r.charge, w.direct); } catch (e: any) { console.error('[Elevate] refund catch-up failed:', e?.message); } }
+
+  const difference = round2c(usd(po.amount) - net);
+  const reconciled = !unitemized && lines > 0 && unmatched === 0 && Math.abs(difference) < 0.01;
+  let journalId: string | undefined;
+  if (base.status === 'paid') {
+    journalId = (await autoPost(orgId, sys => payoutEntry(sys, { id: po.id, date: base.arrivalDate, amount: base.amount }))) || undefined;
+    for (const f of feeJournals) await autoPost(orgId, sys => feeEntry(sys, { id: f.id, date: f.date, amount: f.amount, fundId: f.fundId, memo: 'Stripe fee (connected account)' }));
+  }
+  await firestorePatchDeep('chmsPayouts', poId, deepClean({
+    ...base, gross: round2c(gross), fees: round2c(fees), refunds: round2c(refunds), adjustments: round2c(adjustments), net: round2c(net), lineCount: lines,
+    matchedCount: matched, unmatchedCount: unmatched, difference, unitemized, reconciled, journalId,
+  }));
+  return { lines, matched, unmatched, reconciled };
+}
+
+/** Pull online gifts the webhook missed: paid church_donation checkout sessions + their subscriptions' invoices. */
+async function backfillChurchGifts(orgId: string, sinceSec: number): Promise<number> {
+  const stripe = getStripe();
+  let added = 0, seen = 0;
+  const subs = new Set<string>();
+  const donated = await fsQueryDocs('donations', [{ field: 'churchId', op: 'EQUAL', value: orgId }, { field: 'recurring', op: 'EQUAL', value: true }], 1000);
+  donated.forEach(d => { if (d.data.stripeSubscriptionId) subs.add(d.data.stripeSubscriptionId); });
+  for await (const s of stripe.checkout.sessions.list({ created: { gte: sinceSec }, limit: 100 })) {
+    if (++seen > 3000) break;
+    const meta = s.metadata || {};
+    if (meta.type !== 'church_donation' || meta.churchId !== orgId || s.payment_status !== 'paid') continue;
+    if (s.mode === 'subscription') { const sid = idOf(s.subscription); if (sid) subs.add(sid); continue; }
+    const pi = idOf(s.payment_intent);
+    if (!pi) continue;
+    let chargeId: string | undefined;
+    try { chargeId = idOf((await stripe.paymentIntents.retrieve(pi)).latest_charge); } catch { /* best-effort */ }
+    const r = await recordOnlineGift({ orgId, paymentId: pi, chargeId, amountCents: s.amount_total || 0, createdSec: s.created, fundName: meta.fund, uid: meta.uid, giverName: s.customer_details?.name || undefined, feeCoveredCents: parseInt(meta.feeCoveredCents || '0', 10) || 0 });
+    if (r.created) added++;
+  }
+  for (const subId of subs) {
+    try {
+      for await (const inv of stripe.invoices.list({ subscription: subId, status: 'paid', created: { gte: sinceSec }, limit: 100 })) {
+        const before = await firestoreRead('chmsContributions', onlineGiftDocId(orgId, idOf(inv.payment_intent) || inv.id));
+        await handleChurchInvoicePaid(inv);
+        if (!before) added++;
+      }
+    } catch (e: any) { console.error('[Elevate] invoice backfill failed:', subId, e?.message); }
+  }
+  return added;
+}
+
+const _syncing = new Set<string>();
+async function syncOrgStripe(orgId: string, acct: string, sinceDays: number) {
+  const stripe = getStripe();
+  const sinceSec = Math.floor(Date.now() / 1000) - Math.max(1, Math.min(sinceDays, 730)) * 86400;
+  await ensureOrgChart(orgId);
+  const giftsAdded = await backfillChurchGifts(orgId, sinceSec);
+  let payouts = 0, lines = 0, mismatches = 0;
+  for await (const po of stripe.payouts.list({ created: { gte: sinceSec }, limit: 100, expand: ['data.destination'] }, { stripeAccount: acct })) {
+    if (payouts >= 300) break;
+    payouts++;
+    const r = await processPayout(orgId, acct, po, po.status === 'paid' || po.status === 'in_transit');
+    lines += r.lines;
+    if (po.status === 'paid' && !r.reconciled) mismatches++;
+  }
+  await stripeStateWrite(orgId, { lastSyncAt: Date.now(), lastSyncSummary: JSON.stringify({ payouts, lines, giftsAdded, mismatches }) });
+  return { payouts, lines, giftsAdded, mismatches };
+}
+
 const TIER_STORAGE: Record<string, number> = { '1': 50, '2': 75, '3': 100 };
 const TIER_POINTS: Record<string, number> = { '1': 100, '2': 300, '3': 1000 };
 
@@ -1458,11 +1934,11 @@ async function startServer() {
   // private-library / locker / intimate tracks are NEVER exposed (legal).
   const ALEXA_SKILL_ID = process.env.ALEXA_SKILL_ID || '';
 
-  let _choraIndex: { tracks: any[]; ts: number } | null = null;
-  const getChoraTrackIndex = async (): Promise<any[]> => {
+  let _choraIndex: { tracks: ChoraVoiceTrack[]; ts: number } | null = null;
+  const getChoraTrackIndex = async (): Promise<ChoraVoiceTrack[]> => {
     if (_choraIndex && Date.now() - _choraIndex.ts < 60_000) return _choraIndex.tracks;
     const albums = await queryFirebase('albums', [{ field: 'type', value: 'MUSIC' }], 500);
-    const out: any[] = [];
+    const out: ChoraVoiceTrack[] = [];
     for (const al of albums) {
       if (al.isIntimateOnly || al.isPublic === false) continue; // never expose intimate/unpublished
       const tracks = Array.isArray(al.tracks) ? al.tracks : [];
@@ -1472,67 +1948,50 @@ async function startServer() {
         const url = String(t.url);
         if (!/^https:\/\//i.test(url)) return; // Alexa AudioPlayer requires HTTPS streams
         out.push({
+          id: t.id || `${al.id}_${idx}`,
           title: t.title || 'Untitled',
           artist: t.artist || al.artist || 'Unknown Artist',
+          albumId: al.id || '',
+          albumTitle: al.title || '',
+          index: idx,
           url,
-          albumId: al.id || '', index: idx,
           cover: (t.albumCover || al.coverImage || '').startsWith('https') ? (t.albumCover || al.coverImage) : '',
+          subType: al.subType || t.subType,
+          genre: al.genre || t.genre,
         });
       });
     }
     _choraIndex = { tracks: out, ts: Date.now() };
     return out;
   };
-  const scoreChoraMatch = (track: any, songQ: string, artistQ: string): number => {
-    const t = (track.title || '').toLowerCase(), a = (track.artist || '').toLowerCase();
-    const q = (songQ || '').toLowerCase().trim();
-    if (!q) return 0;
-    let score = 0;
-    if (t === q) score += 100;
-    else if (t.includes(q) || q.includes(t)) score += 60;
-    else { const words = q.split(/\s+/).filter(w => w.length > 2); score += words.filter(w => t.includes(w)).length * 15; }
-    if (artistQ) { const aq = artistQ.toLowerCase().trim(); if (aq && (a.includes(aq) || aq.includes(a))) score += 40; }
-    return score;
-  };
-  const choraTrackByToken = async (token: string, delta = 0): Promise<any | null> => {
-    const [albumId, idxStr] = String(token || '').split('::');
-    const idx = parseInt(idxStr, 10);
-    if (!albumId || !isFinite(idx)) return null;
-    const tracks = await getChoraTrackIndex();
-    return tracks.find(t => t.albumId === albumId && t.index === idx + delta) || null;
-  };
 
-  const alexaSpeak = (text: string, endSession = true) => ({ version: '1.0', response: { outputSpeech: { type: 'PlainText', text }, shouldEndSession: endSession } });
-  const alexaAudioItem = (track: any, offset = 0, prevToken?: string) => ({
-    stream: { token: `${track.albumId}::${track.index}`, url: track.url, offsetInMilliseconds: offset, ...(prevToken ? { expectedPreviousToken: prevToken } : {}) },
-    metadata: { title: track.title, subtitle: track.artist, ...(track.cover ? { art: { sources: [{ url: track.cover }] } } : {}) },
-  });
-  const alexaPlay = (track: any, offset = 0) => ({ version: '1.0', response: { outputSpeech: { type: 'PlainText', text: `Playing ${track.title} by ${track.artist} on Chora.` }, directives: [{ type: 'AudioPlayer.Play', playBehavior: 'REPLACE_ALL', audioItem: alexaAudioItem(track, offset) }], shouldEndSession: true } });
-  const alexaEnqueue = (track: any, prevToken: string) => ({ version: '1.0', response: { directives: [{ type: 'AudioPlayer.Play', playBehavior: 'ENQUEUE', audioItem: alexaAudioItem(track, 0, prevToken) }] } });
-  const alexaStop = () => ({ version: '1.0', response: { directives: [{ type: 'AudioPlayer.Stop' }] } });
-
-  // SHA1-RSA signature verification against Amazon's cert chain (skill certification).
-  const _alexaCerts = new Map<string, string>();
-  const verifyAlexaSignature = async (certUrl: string, signature: string, body: Buffer): Promise<boolean> => {
+  // Public voice-search endpoint for Alexa-hosted Skill & Google Actions
+  app.get('/api/chora/voice-search', async (req: any, res: any) => {
     try {
-      const u = new URL(certUrl);
-      if (u.protocol !== 'https:' || u.hostname.toLowerCase() !== 's3.amazonaws.com' || (u.port && u.port !== '443') || !u.pathname.replace(/\/+/g, '/').startsWith('/echo.api/')) return false;
-      let pem = _alexaCerts.get(certUrl);
-      if (!pem) {
-        const r = await safeOutboundFetch(certUrl);
-        if (!r.ok) return false;
-        pem = await r.text();
-        const x509 = new nodeCrypto.X509Certificate(pem);
-        const now = new Date();
-        if (new Date(x509.validFrom) > now || new Date(x509.validTo) < now) return false;
-        if (!/echo-api\.amazon\.com/.test(`${x509.subjectAltName || ''}`)) return false;
-        _alexaCerts.set(certUrl, pem);
+      const { song, artist, album, genre, type, token, delta } = req.query;
+      const tracks = await getChoraTrackIndex();
+
+      if (token) {
+        const d = parseInt(String(delta || '0'), 10) || 0;
+        const track = getChoraTrackByToken(tracks, String(token), d);
+        return res.json({ track: track || null });
       }
-      const verifier = nodeCrypto.createVerify('RSA-SHA1');
-      verifier.update(body);
-      return verifier.verify(pem, Buffer.from(signature, 'base64'));
-    } catch { return false; }
-  };
+
+      const isMix = String(type || '').toLowerCase() === 'mix';
+      const match = searchChora(tracks, {
+        song: song ? String(song) : undefined,
+        artist: artist ? String(artist) : undefined,
+        album: album ? String(album) : undefined,
+        genre: genre ? String(genre) : undefined,
+        isMix,
+      }) || (isMix ? tracks[0] : null);
+
+      res.json({ track: match || null });
+    } catch (e: any) {
+      console.error('[chora/voice-search] error:', e?.message);
+      res.status(500).json({ error: 'Failed to query voice search' });
+    }
+  });
 
   app.post('/api/alexa', express.raw({ type: () => true, limit: '1mb' }), async (req: any, res: any) => {
     const body: Buffer = Buffer.isBuffer(req.body) ? req.body : Buffer.from(JSON.stringify(req.body || {}));
@@ -1541,7 +2000,9 @@ async function startServer() {
       if (process.env.ALEXA_SKIP_SIGNATURE !== 'true') {
         const certUrl = String(req.headers['signaturecertchainurl'] || '');
         const signature = String(req.headers['signature'] || '');
-        if (!certUrl || !signature || !(await verifyAlexaSignature(certUrl, signature, body))) return res.status(400).json({ error: 'invalid signature' });
+        if (!certUrl || !signature || !(await verifyAlexaSignature(certUrl, signature, body))) {
+          return res.status(400).json({ error: 'invalid signature' });
+        }
       }
       const env = JSON.parse(body.toString('utf8'));
       // 2. Application id + timestamp freshness (replay protection)
@@ -1550,47 +2011,17 @@ async function startServer() {
       const ts = new Date(env?.request?.timestamp || 0).getTime();
       if (!ts || Math.abs(Date.now() - ts) > 150_000) return res.status(400).json({ error: 'stale request' });
 
-      const type = env?.request?.type;
-      if (type === 'LaunchRequest') return res.json(alexaSpeak('Welcome to Chora. What would you like to hear?', false));
-
-      if (type === 'IntentRequest') {
-        const intent = env.request.intent || {};
-        const name = intent.name;
-        if (name === 'PlaySongIntent') {
-          const song = intent.slots?.song?.value || '';
-          const artist = intent.slots?.artist?.value || '';
-          if (!song) return res.json(alexaSpeak('What song would you like me to play?', false));
-          const tracks = await getChoraTrackIndex();
-          const best = tracks.map(t => ({ t, s: scoreChoraMatch(t, song, artist) })).filter(x => x.s > 0).sort((a, b) => b.s - a.s)[0];
-          if (!best) return res.json(alexaSpeak(`Sorry, I couldn't find ${song} on Chora.`));
-          return res.json(alexaPlay(best.t));
-        }
-        if (name === 'AMAZON.PauseIntent' || name === 'AMAZON.StopIntent' || name === 'AMAZON.CancelIntent') return res.json(alexaStop());
-        if (name === 'AMAZON.ResumeIntent') {
-          const ap = env.context?.AudioPlayer;
-          const t = ap?.token ? await choraTrackByToken(ap.token) : null;
-          return res.json(t ? alexaPlay(t, ap.offsetInMilliseconds || 0) : alexaSpeak('There is nothing to resume.'));
-        }
-        if (name === 'AMAZON.NextIntent') { const t = await choraTrackByToken(env.context?.AudioPlayer?.token, 1); return res.json(t ? alexaPlay(t) : alexaSpeak('That was the last track.')); }
-        if (name === 'AMAZON.PreviousIntent') { const t = await choraTrackByToken(env.context?.AudioPlayer?.token, -1); return res.json(t ? alexaPlay(t) : alexaSpeak('This is the first track.')); }
-        if (name === 'AMAZON.HelpIntent') return res.json(alexaSpeak('Ask me to play a song. For example, say: play Sunflowers.', false));
-        return res.json(alexaSpeak("Sorry, I didn't catch that. Ask me to play a song."));
-      }
-
-      if (typeof type === 'string' && type.startsWith('AudioPlayer.')) {
-        // Gapless album auto-advance: enqueue the next track as the current one nears the end.
-        if (type === 'AudioPlayer.PlaybackNearlyFinished') {
-          const t = await choraTrackByToken(env.request?.token, 1);
-          if (t) return res.json(alexaEnqueue(t, env.request.token));
-        }
-        return res.json({ version: '1.0', response: {} });
-      }
-
-      if (type === 'SessionEndedRequest') return res.json({ version: '1.0', response: {} });
-      return res.json(alexaSpeak('Sorry, something went wrong.'));
+      const response = await handleAlexaRequest(env, getChoraTrackIndex);
+      return res.json(response);
     } catch (e: any) {
       console.error('[alexa] error:', e?.message);
-      return res.json(alexaSpeak('Sorry, Chora ran into a problem.'));
+      return res.json({
+        version: '1.0',
+        response: {
+          outputSpeech: { type: 'PlainText', text: 'Sorry, Chora ran into a problem.' },
+          shouldEndSession: true,
+        },
+      });
     }
   });
 
@@ -1810,6 +2241,8 @@ async function startServer() {
               stripeSubscriptionId: session.subscription || '',
               timestamp: now,
             });
+            // Elevate: also land it in the ChMS ledger + books (one-time here; monthly via invoice.paid).
+            await handleChurchSessionPaid(session).catch((e: any) => console.error('[Elevate] gift ledger write failed:', e?.message));
           }
 
           // ── Event ticket fulfillment ──────────────────────────────────────────
@@ -1834,6 +2267,7 @@ async function startServer() {
               customPackagingRequested: meta.customPackagingRequested === 'true',
               shippingAddress: meta.shippingAddress || '',
               stripePaymentIntentId: session.payment_intent || '',
+              packages: meta.packages || '[]',
               createdAt: now,
             });
             // Increment tier sold count in event
@@ -2024,11 +2458,95 @@ async function startServer() {
           console.warn('Payment failed for subscription:', invoice.subscription);
           break;
         }
+
+        // ── Elevate: church giving → ledger/books (all idempotent; never throw the webhook) ──
+        case 'invoice.paid': {
+          await handleChurchInvoicePaid(event.data.object).catch((e: any) => console.error('[Elevate] invoice.paid failed:', e?.message));
+          break;
+        }
+        case 'charge.refunded': {
+          await applyChargeRefund(event.data.object, false).catch((e: any) => console.error('[Elevate] charge.refunded failed:', e?.message));
+          break;
+        }
+        case 'charge.dispute.created':
+        case 'charge.dispute.closed': {
+          await applyDispute(event.data.object, event.type.endsWith('created') ? 'created' : 'closed').catch((e: any) => console.error('[Elevate] dispute failed:', e?.message));
+          break;
+        }
       }
     } catch (err: any) {
       console.error('Webhook handler error:', err.message);
     }
 
+    res.json({ received: true });
+  });
+
+  // ── Plajah Billing (invoices/estimates/payment links/balance on each entity's OWN Stripe account) ──
+  // Implementation: routes/billing.ts. Routes are registered further down (billing.register(app)); the
+  // Connect webhook below mirrors invoice.* events through billing.handleConnectEvent (dormant until the secret exists).
+  const billing = createBilling({
+    getStripe: () => getStripe(),
+    authMiddleware, requireRegisteredUser,
+    trustedRequestOrigin: (req: any) => trustedRequestOrigin(req),
+    firestoreAuthHeaders: () => firestoreAuthHeaders(),
+    read: (c, id) => firestoreGetDeep(c, id),
+    patch: (c, id, f) => firestorePatchDeep(c, id, f),
+    create: (c, d) => firestoreCreate(c, d),
+    query: (c, f, n) => fsQueryDocs(c, f, n),
+    isPlatformAdmin: async (uid: string) => !!(await fetchFirebaseDoc('admins', uid)),
+    autoPost: (orgId, make) => autoPost(orgId, make),
+    postJournal: (orgId, d) => postJournal(orgId, d),
+  });
+  billingInvoiceLookup = (pi: string) => billing.invoiceByPaymentIntent(pi);
+
+  // ── Stripe CONNECT webhook — events from connected (church) accounts. Separate endpoint +
+  // secret (STRIPE_CONNECT_WEBHOOK_SECRET) because Stripe signs "Connected accounts" endpoints
+  // independently. Raw body, registered before express.json(), skipped by the rate limiter.
+  app.post('/api/stripe/connect-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    const secret = process.env.STRIPE_CONNECT_WEBHOOK_SECRET;
+    if (!secret || secret.startsWith('whsec_YOUR')) return res.status(500).json({ error: 'Connect webhook secret not configured' });
+    let event: any;
+    try {
+      event = getStripe().webhooks.constructEvent(req.body, req.headers['stripe-signature'] as string, secret);
+    } catch (err: any) {
+      console.error('Stripe connect webhook error:', err.message);
+      return res.status(400).send(`Webhook Error: ${err.message}`);
+    }
+    const acct: string | undefined = event.account;
+    try {
+      // Plajah Billing mirror (invoice.*, payment-link checkouts, account.updated for billing entities). Additive:
+      // org-specific handling (payouts, refunds, disputes, gifts) below still runs for org accounts.
+      if (acct && (await billing.handleConnectEvent(event, acct))) return res.json({ received: true, billing: true });
+      const orgId = acct ? await orgForStripeAccount(acct) : null;
+      if (!acct || !orgId) { console.warn('[Connect webhook] no org for account', acct, event.type); return res.json({ received: true, ignored: true }); }
+      const obj = event.data.object;
+      switch (event.type) {
+        case 'payout.created': case 'payout.updated': case 'payout.paid': case 'payout.failed': case 'payout.canceled':
+          // Lines are only final once the payout is paid (or in transit); earlier states just upsert the header.
+          await processPayout(orgId, acct, obj, obj.status === 'paid' || obj.status === 'in_transit');
+          await stripeStateWrite(orgId, { lastPayoutEventAt: Date.now() });
+          break;
+        case 'balance.available':
+          await stripeStateWrite(orgId, { balanceEventAt: Date.now() });
+          break;
+        case 'account.updated':
+          await stripeStateWrite(orgId, {
+            payoutsEnabled: !!obj.payouts_enabled, chargesEnabled: !!obj.charges_enabled,
+            requirementsDue: [...(obj.requirements?.currently_due || []), ...(obj.requirements?.past_due || [])], accountUpdatedAt: Date.now(),
+          });
+          break;
+        case 'charge.refunded': {
+          const r = await resolveCharge(obj.id, acct);
+          if (r) await applyChargeRefund(r.charge, r.direct);
+          break;
+        }
+        case 'charge.dispute.created': case 'charge.dispute.closed':
+          await applyDispute(obj, event.type.endsWith('created') ? 'created' : 'closed', acct);
+          break;
+      }
+    } catch (err: any) {
+      console.error('Connect webhook handler error:', err.message);
+    }
     res.json({ received: true });
   });
 
@@ -2075,7 +2593,7 @@ async function startServer() {
     max: 300,
     standardHeaders: true,
     legacyHeaders: false,
-    skip: req => req.path === '/api/stripe/webhook' || req.path === '/api/mux/webhook' || req.path === '/api/merch/stripe-webhook',
+    skip: req => req.path === '/api/stripe/webhook' || req.path === '/api/stripe/connect-webhook' || req.path === '/api/mux/webhook' || req.path === '/api/merch/stripe-webhook',
     message: { error: 'Request rate limit exceeded' },
   });
   app.use('/api', globalApiLimiter);
@@ -2094,10 +2612,13 @@ async function startServer() {
   app.use(cookieParser());
 
   // Per-category rate limiters
-  const authLimiter  = rateLimit({ windowMs: 15 * 60 * 1000, max: 10,  standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
-  const apiLimiter   = rateLimit({ windowMs:      60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
-  const proxyLimiter = rateLimit({ windowMs:      60 * 1000, max: 60,  standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
-  const pokeeLimiter = rateLimit({ windowMs: 5 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Pokee reasoning limit reached. Try again in a few minutes.' } });
+  const authLimiter       = rateLimit({ windowMs: 15 * 60 * 1000, max: 10,  standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
+  const apiLimiter        = rateLimit({ windowMs:      60 * 1000, max: 100, standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
+  const proxyLimiter      = rateLimit({ windowMs:      60 * 1000, max: 60,  standardHeaders: true, legacyHeaders: false, message: { error: 'Too many requests, try again later' } });
+  const pokeeLimiter      = rateLimit({ windowMs: 5 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Pokee reasoning limit reached. Try again in a few minutes.' } });
+  const aiLimiter         = rateLimit({ windowMs: 5 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'AI request limit reached. Please wait a few minutes.' } });
+  const netdiagLimiter    = rateLimit({ windowMs: 5 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false, message: { error: 'Diagnostic probe rate limit exceeded.' } });
+  const coraDetectLimiter = rateLimit({ windowMs:      60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Beat detection rate limit reached.' } });
 
   app.use('/api/stripe/create-checkout-session', authLimiter);
   app.use('/api/stripe/create-portal-session',   authLimiter);
@@ -2106,6 +2627,7 @@ async function startServer() {
   app.use('/api/proxy',        proxyLimiter);
   app.use('/api/lights/proxy', proxyLimiter);
   app.use('/api/social',       apiLimiter);
+  app.use('/api/cora/detect-beats', coraDetectLimiter);
 
   // Liveness probe for uptime monitors / load balancers
   app.get('/healthz', (_req, res) => res.json({ ok: true, ts: Date.now() }));
@@ -2113,14 +2635,14 @@ async function startServer() {
   // ── Network diagnostics probes (same-origin, privacy-preserving) ──────────
   // Used by the client NetworkMonitor to measure the *user's own* latency and
   // throughput. No data is stored or logged; the upload body is discarded.
-  const NETDIAG_MAX_BYTES = 8 * 1024 * 1024; // 8 MB ceiling to prevent abuse
+  const NETDIAG_MAX_BYTES = 2 * 1024 * 1024; // 2 MB ceiling to prevent egress drain
   // Tiny latency ping — no body, never cached.
   app.get('/api/netdiag/ping', (_req, res) => {
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.status(204).end();
   });
-  // Download probe — streams N throwaway random bytes (?bytes=…, clamped).
-  app.get('/api/netdiag/download', (req, res) => {
+  // Download probe — streams N throwaway bytes (?bytes=…, clamped).
+  app.get('/api/netdiag/download', netdiagLimiter, (req, res) => {
     const requested = Number.parseInt(String(req.query.bytes ?? ''), 10);
     const bytes = Math.max(1024, Math.min(Number.isFinite(requested) ? requested : 512 * 1024, NETDIAG_MAX_BYTES));
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
@@ -2128,6 +2650,7 @@ async function startServer() {
     res.set('Content-Length', String(bytes));
     // Emit in chunks so we don't allocate the whole payload at once.
     const CHUNK = 64 * 1024;
+    const STATIC_CHUNK = Buffer.alloc(CHUNK, 0x5a); // pre-allocated to save server CPU
     let sent = 0;
     let aborted = false;
     res.on('close', () => { aborted = true; }); // client hung up (e.g. probe timeout)
@@ -2136,7 +2659,7 @@ async function startServer() {
       while (sent < bytes) {
         if (aborted) return;
         const size = Math.min(CHUNK, bytes - sent);
-        const chunk = nodeCrypto.randomBytes(size);
+        const chunk = size === CHUNK ? STATIC_CHUNK : STATIC_CHUNK.subarray(0, size);
         sent += size;
         if (!res.write(chunk)) { res.once('drain', pump); return; }
       }
@@ -2145,7 +2668,7 @@ async function startServer() {
     pump();
   });
   // Upload probe — accepts and immediately discards an octet-stream body.
-  app.post('/api/netdiag/upload', express.raw({ type: 'application/octet-stream', limit: NETDIAG_MAX_BYTES }), (req, res) => {
+  app.post('/api/netdiag/upload', netdiagLimiter, express.raw({ type: 'application/octet-stream', limit: NETDIAG_MAX_BYTES }), (req, res) => {
     const received = Buffer.isBuffer(req.body) ? req.body.length : 0;
     res.set('Cache-Control', 'no-store, no-cache, must-revalidate');
     res.json({ ok: true, received });
@@ -2234,24 +2757,36 @@ async function startServer() {
       const stripe = getStripe();
       if (!stripe) return res.status(503).json({ error: 'Stripe not configured' });
 
-      // Check if creator already has an account
-      const userDoc = await fetchFirebaseDoc('users', uid);
-      let accountId: string | undefined = userDoc?.fields?.stripeConnectAccountId?.stringValue;
-
-      if (!accountId) {
-        const account = await (stripe as any).accounts.create({
-          type: 'express',
-          metadata: { uid },
-          capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
-        });
-        accountId = account.id;
-        await firestoreWrite('users', uid, { stripeConnectAccountId: accountId, updatedAt: Date.now() });
-      }
-
-      // Onboarding for an organization (e.g. a church) — attach the account so its
-      // giving routes there (destination charges read organizations/{id}.stripeAccountId).
+      let accountId: string | undefined;
       if (orgId) {
-        await firestoreWrite('organizations', orgId, { stripeAccountId: accountId, updatedAt: Date.now() });
+        // Onboarding for an organization (e.g. a church): the ORG gets its OWN Express account
+        // (never the signed-in user's personal one — a church and its owner's personal income must not
+        // share a Stripe account). Already-linked orgs keep whatever account they have. Finance-staff only.
+        const gate = await assertOrgFinanceAccess(uid, String(orgId));
+        if ('error' in gate) return res.status(gate.status).json({ error: gate.error });
+        accountId = gate.org.stripeAccountId || undefined;
+        if (!accountId) {
+          const account = await (stripe as any).accounts.create({
+            type: 'express',
+            metadata: { uid, ownerUid: uid, entityKey: `ORG:${orgId}`, plajah: 'org' },
+            capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
+          });
+          accountId = account.id as string;
+          await firestoreWrite('organizations', String(orgId), { stripeAccountId: accountId, updatedAt: Date.now() });
+        }
+      } else {
+        // Check if creator already has an account
+        const userDoc = await fetchFirebaseDoc('users', uid);
+        accountId = userDoc?.fields?.stripeConnectAccountId?.stringValue;
+        if (!accountId) {
+          const account = await (stripe as any).accounts.create({
+            type: 'express',
+            metadata: { uid, entityKey: `USER:${uid}` },
+            capabilities: { card_payments: { requested: true }, transfers: { requested: true } },
+          });
+          accountId = account.id as string;
+          await firestoreWrite('users', uid, { stripeConnectAccountId: accountId, updatedAt: Date.now() });
+        }
       }
 
       const origin = trustedRequestOrigin(req);
@@ -3211,7 +3746,7 @@ async function startServer() {
       const doc = await fetchFirebaseDoc('plajahEvents', req.params.eventId);
       if (!doc?.fields) return res.status(404).json({ error: 'Event not found' });
       const f = doc.fields;
-      const event = { id: req.params.eventId, creatorUid: f.creatorUid?.stringValue, creatorName: f.creatorName?.stringValue, creatorPhotoURL: f.creatorPhotoURL?.stringValue, title: f.title?.stringValue, subtitle: f.subtitle?.stringValue, description: f.description?.stringValue, coverImage: f.coverImage?.stringValue, heroVideoUrl: f.heroVideoUrl?.stringValue, type: f.type?.stringValue, status: f.status?.stringValue, venueName: f.venueName?.stringValue, venueAddress: f.venueAddress?.stringValue, city: f.city?.stringValue, state: f.state?.stringValue, country: f.country?.stringValue, streamUrl: f.streamUrl?.stringValue, startDate: parseInt(f.startDate?.integerValue ?? '0'), endDate: parseInt(f.endDate?.integerValue ?? '0'), doorsOpenDate: f.doorsOpenDate?.integerValue ? parseInt(f.doorsOpenDate.integerValue) : undefined, timezone: f.timezone?.stringValue ?? 'America/New_York', totalCapacity: parseInt(f.totalCapacity?.integerValue ?? '0'), totalSold: parseInt(f.totalSold?.integerValue ?? '0'), kioskEnabled: f.kioskEnabled?.booleanValue ?? false, printingEnabled: f.printingEnabled?.booleanValue ?? false, sanctuaryMembersOnly: f.sanctuaryMembersOnly?.booleanValue ?? false, refundPolicy: f.refundPolicy?.stringValue ?? 'NO_REFUND', ageRestriction: f.ageRestriction?.stringValue, dresscode: f.dresscode?.stringValue, accessibilityInfo: f.accessibilityInfo?.stringValue, viewCount: parseInt(f.viewCount?.integerValue ?? '0'), shareCount: parseInt(f.shareCount?.integerValue ?? '0'), tiers: JSON.parse(f.tiers?.stringValue ?? '[]'), itinerary: JSON.parse(f.itinerary?.stringValue ?? '[]'), faqItems: JSON.parse(f.faqItems?.stringValue ?? '[]'), promoCodes: JSON.parse(f.promoCodes?.stringValue ?? '[]'), galleryImages: JSON.parse(f.galleryImages?.stringValue ?? '[]'), tags: JSON.parse(f.tags?.stringValue ?? '[]'), createdAt: parseInt(f.createdAt?.integerValue ?? '0'), updatedAt: parseInt(f.updatedAt?.integerValue ?? '0') };
+      const event = { id: req.params.eventId, creatorUid: f.creatorUid?.stringValue, creatorName: f.creatorName?.stringValue, creatorPhotoURL: f.creatorPhotoURL?.stringValue, title: f.title?.stringValue, subtitle: f.subtitle?.stringValue, description: f.description?.stringValue, coverImage: f.coverImage?.stringValue, heroVideoUrl: f.heroVideoUrl?.stringValue, type: f.type?.stringValue, status: f.status?.stringValue, venueName: f.venueName?.stringValue, venueAddress: f.venueAddress?.stringValue, city: f.city?.stringValue, state: f.state?.stringValue, country: f.country?.stringValue, streamUrl: f.streamUrl?.stringValue, startDate: parseInt(f.startDate?.integerValue ?? '0'), endDate: parseInt(f.endDate?.integerValue ?? '0'), doorsOpenDate: f.doorsOpenDate?.integerValue ? parseInt(f.doorsOpenDate.integerValue) : undefined, timezone: f.timezone?.stringValue ?? 'America/New_York', totalCapacity: parseInt(f.totalCapacity?.integerValue ?? '0'), totalSold: parseInt(f.totalSold?.integerValue ?? '0'), kioskEnabled: f.kioskEnabled?.booleanValue ?? false, printingEnabled: f.printingEnabled?.booleanValue ?? false, sanctuaryMembersOnly: f.sanctuaryMembersOnly?.booleanValue ?? false, refundPolicy: f.refundPolicy?.stringValue ?? 'NO_REFUND', ageRestriction: f.ageRestriction?.stringValue, dresscode: f.dresscode?.stringValue, accessibilityInfo: f.accessibilityInfo?.stringValue, viewCount: parseInt(f.viewCount?.integerValue ?? '0'), shareCount: parseInt(f.shareCount?.integerValue ?? '0'), tiers: JSON.parse(f.tiers?.stringValue ?? '[]'), itinerary: JSON.parse(f.itinerary?.stringValue ?? '[]'), faqItems: JSON.parse(f.faqItems?.stringValue ?? '[]'), promoCodes: JSON.parse(f.promoCodes?.stringValue ?? '[]'), galleryImages: JSON.parse(f.galleryImages?.stringValue ?? '[]'), tags: JSON.parse(f.tags?.stringValue ?? '[]'), packages: JSON.parse(f.packages?.stringValue ?? '[]'), createdAt: parseInt(f.createdAt?.integerValue ?? '0'), updatedAt: parseInt(f.updatedAt?.integerValue ?? '0') };
       firestoreWrite('plajahEvents', req.params.eventId, { viewCount: event.viewCount + 1, updatedAt: Date.now() }).catch(() => {});
       res.json(event);
     } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -3220,7 +3755,7 @@ async function startServer() {
   // Purchase tickets — creates Stripe Checkout session
   app.post('/api/events/:eventId/tickets/purchase', authMiddleware, express.json(), async (req: any, res) => {
     const uid: string = req.uid;
-    const { tierId, quantity = 1, holderName, holderEmail, physicalRequested, customPackagingRequested, shippingAddress, promoCode } = req.body;
+    const { tierId, quantity = 1, holderName, holderEmail, physicalRequested, customPackagingRequested, shippingAddress, promoCode, selectedPackages = [] } = req.body;
     try {
       const stripe = getStripe();
       const eventDoc = await fetchFirebaseDoc('plajahEvents', req.params.eventId);
@@ -3236,15 +3771,69 @@ async function startServer() {
       const promo = promoCodes.find((p: any) => p.code?.toLowerCase() === promoCode?.toLowerCase() && p.usesLeft > 0);
       if (promo) unitPrice = Math.round(unitPrice * (1 - promo.discountPct / 100));
       const packagingFee = (physicalRequested && customPackagingRequested) ? (tier.customPackagingFeeCents ?? 0) : 0;
-      const subtotal = unitPrice * quantity + packagingFee;
+      
+      let packagesTotal = 0;
+      const initializedPackages = selectedPackages.map((pkg: any) => {
+        packagesTotal += (pkg.priceCents || 0);
+        return {
+          id: `tpkg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+          packageAddonId: pkg.id,
+          name: pkg.name,
+          category: pkg.category,
+          type: pkg.type,
+          totalUnits: pkg.totalUnits,
+          remainingUnits: pkg.totalUnits,
+          unitName: pkg.unitName,
+          eligibleItems: pkg.eligibleItems || [],
+          eligibleItemsDescription: pkg.eligibleItemsDescription || '',
+          stations: pkg.stations || [],
+          cooldownMinutes: pkg.cooldownMinutes,
+          souvenirCupIncluded: pkg.souvenirCupIncluded,
+          badgeColor: pkg.badgeColor,
+          redemptions: [],
+        };
+      });
+
+      const subtotal = unitPrice * quantity + packagingFee + packagesTotal;
 
       const origin = trustedRequestOrigin(req);
       const lineItems: any[] = [{ price_data: { currency: 'usd', product_data: { name: `${f.title?.stringValue} — ${tier.name}`, description: tier.description, ...(f.coverImage?.stringValue ? { images: [f.coverImage.stringValue] } : {}) }, unit_amount: unitPrice }, quantity }];
       if (packagingFee > 0) lineItems.push({ price_data: { currency: 'usd', product_data: { name: 'Custom Ticket Packaging' }, unit_amount: packagingFee }, quantity: 1 });
 
+      for (const p of selectedPackages) {
+        if (p.priceCents > 0) {
+          lineItems.push({
+            price_data: {
+              currency: 'usd',
+              product_data: {
+                name: `Package Add-On: ${p.name}`,
+                description: p.description || p.eligibleItemsDescription || 'Venue Package',
+              },
+              unit_amount: p.priceCents,
+            },
+            quantity: 1,
+          });
+        }
+      }
+
       const session = await stripe.checkout.sessions.create({
         mode: 'payment', payment_method_types: ['card'], line_items: lineItems,
-        metadata: { type: 'event_ticket', eventId: req.params.eventId, tierId, tierName: tier.name, tierColor: tier.color || '#a78bfa', quantity: String(quantity), uid, holderName: holderName || '', holderEmail: holderEmail || '', physicalRequested: String(!!physicalRequested), customPackagingRequested: String(!!customPackagingRequested), shippingAddress: shippingAddress ? JSON.stringify(shippingAddress) : '', subtotal: String(subtotal) },
+        metadata: {
+          type: 'event_ticket',
+          eventId: req.params.eventId,
+          tierId,
+          tierName: tier.name,
+          tierColor: tier.color || '#a78bfa',
+          quantity: String(quantity),
+          uid,
+          holderName: holderName || '',
+          holderEmail: holderEmail || '',
+          physicalRequested: String(!!physicalRequested),
+          customPackagingRequested: String(!!customPackagingRequested),
+          shippingAddress: shippingAddress ? JSON.stringify(shippingAddress) : '',
+          packages: JSON.stringify(initializedPackages),
+          subtotal: String(subtotal)
+        },
         success_url: `${origin}?event_success=${req.params.eventId}`,
         cancel_url: `${origin}/event/${req.params.eventId}`,
         customer_email: holderEmail,
@@ -3253,17 +3842,115 @@ async function startServer() {
     } catch (err: any) { res.status(500).json({ error: err.message }); }
   });
 
-  // Validate / check-in a ticket
+  // Validate / check-in a ticket (returns full package & pass data)
   app.post('/api/tickets/:ticketId/validate', authMiddleware, express.json(), async (req: any, res) => {
     try {
       const doc = await fetchFirebaseDoc('eventTickets', req.params.ticketId);
       if (!doc?.fields) return res.json({ valid: false, reason: 'Ticket not found' });
       const f = doc.fields;
-      if (f.status?.stringValue === 'USED') return res.json({ valid: false, reason: 'Already checked in', checkedInAt: parseInt(f.checkedInAt?.integerValue ?? '0'), holderName: f.holderName?.stringValue });
+      if (f.status?.stringValue === 'USED') return res.json({ valid: false, reason: 'Already checked in', checkedInAt: parseInt(f.checkedInAt?.integerValue ?? '0'), holderName: f.holderName?.stringValue, packages: JSON.parse(f.packages?.stringValue ?? '[]') });
       if (f.status?.stringValue !== 'VALID') return res.json({ valid: false, reason: `Ticket is ${f.status?.stringValue}` });
       await firestoreWrite('eventTickets', req.params.ticketId, { status: 'USED', checkedInAt: Date.now(), checkedInBy: req.uid });
-      res.json({ valid: true, holderName: f.holderName?.stringValue, tierName: f.tierName?.stringValue, eventTitle: f.eventTitle?.stringValue, quantity: parseInt(f.quantity?.integerValue ?? '1') });
+      res.json({ valid: true, holderName: f.holderName?.stringValue, tierName: f.tierName?.stringValue, eventTitle: f.eventTitle?.stringValue, quantity: parseInt(f.quantity?.integerValue ?? '1'), packages: JSON.parse(f.packages?.stringValue ?? '[]') });
     } catch (err: any) { res.status(500).json({ error: err.message, valid: false }); }
+  });
+
+  // Redeem a package perk (With live cooldown & balance decrement)
+  app.post('/api/tickets/:ticketId/redeem-package', authMiddleware, express.json(), async (req: any, res) => {
+    const { packageId, units = 1, itemName, stationName, notes, overrideCooldown = false } = req.body;
+    try {
+      const doc = await fetchFirebaseDoc('eventTickets', req.params.ticketId);
+      if (!doc?.fields) return res.status(404).json({ success: false, reason: 'Ticket not found' });
+      const f = doc.fields;
+      const packages: any[] = JSON.parse(f.packages?.stringValue ?? '[]');
+      const pkgIndex = packages.findIndex((p: any) => p.id === packageId || p.packageAddonId === packageId);
+      if (pkgIndex === -1) return res.status(400).json({ success: false, reason: 'Package not attached to this ticket' });
+
+      const pkg = packages[pkgIndex];
+      const now = Date.now();
+
+      // Check anti-abuse cooldown (anti-stacking pacing rule)
+      if (pkg.cooldownMinutes && pkg.lastRedeemedAt && !overrideCooldown) {
+        const elapsedMs = now - pkg.lastRedeemedAt;
+        const cooldownMs = pkg.cooldownMinutes * 60 * 1000;
+        if (elapsedMs < cooldownMs) {
+          const remainingSeconds = Math.ceil((cooldownMs - elapsedMs) / 1000);
+          return res.json({
+            success: false,
+            cooldownActive: true,
+            remainingSeconds,
+            reason: `Anti-abuse pacing active. Next eligible drink/item in ${Math.ceil(remainingSeconds / 60)} minute(s).`,
+            package: pkg,
+          });
+        }
+      }
+
+      // Check balance if not unlimited
+      if (pkg.type !== 'UNLIMITED') {
+        if (pkg.remainingUnits < units) {
+          return res.json({
+            success: false,
+            reason: `Package allowance exhausted. 0 ${pkg.unitName} remaining.`,
+            package: pkg,
+          });
+        }
+        pkg.remainingUnits = Math.max(0, pkg.remainingUnits - units);
+      }
+
+      pkg.lastRedeemedAt = now;
+      const redemptionRecord = {
+        id: `red_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+        timestamp: now,
+        unitsRedeemed: units,
+        itemName: itemName || (pkg.category === 'ALCOHOL' ? 'Craft Beverage' : 'Menu Item'),
+        stationName: stationName || 'Main Bar',
+        staffUid: req.uid,
+        notes: notes || '',
+      };
+      if (!pkg.redemptions) pkg.redemptions = [];
+      pkg.redemptions.unshift(redemptionRecord);
+
+      packages[pkgIndex] = pkg;
+      await firestoreWrite('eventTickets', req.params.ticketId, {
+        packages: JSON.stringify(packages),
+      });
+
+      res.json({ success: true, package: pkg, redemption: redemptionRecord });
+    } catch (err: any) { res.status(500).json({ success: false, reason: err.message }); }
+  });
+
+  // Attach a package to a ticket directly (box office upgrade / onsite add-on)
+  app.post('/api/tickets/:ticketId/add-package', authMiddleware, express.json(), async (req: any, res) => {
+    const { packageAddon } = req.body;
+    if (!packageAddon) return res.status(400).json({ error: 'packageAddon is required' });
+    try {
+      const doc = await fetchFirebaseDoc('eventTickets', req.params.ticketId);
+      if (!doc?.fields) return res.status(404).json({ error: 'Ticket not found' });
+      const f = doc.fields;
+      const packages: any[] = JSON.parse(f.packages?.stringValue ?? '[]');
+      const newPkg = {
+        id: `tpkg_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        packageAddonId: packageAddon.id,
+        name: packageAddon.name,
+        category: packageAddon.category,
+        type: packageAddon.type,
+        totalUnits: packageAddon.totalUnits,
+        remainingUnits: packageAddon.totalUnits,
+        unitName: packageAddon.unitName,
+        eligibleItems: packageAddon.eligibleItems || [],
+        eligibleItemsDescription: packageAddon.eligibleItemsDescription || '',
+        stations: packageAddon.stations || [],
+        cooldownMinutes: packageAddon.cooldownMinutes,
+        souvenirCupIncluded: packageAddon.souvenirCupIncluded,
+        badgeColor: packageAddon.badgeColor,
+        redemptions: [],
+      };
+      packages.push(newPkg);
+      await firestoreWrite('eventTickets', req.params.ticketId, {
+        packages: JSON.stringify(packages),
+      });
+      res.json({ success: true, package: newPkg });
+    } catch (err: any) { res.status(500).json({ error: err.message }); }
   });
 
   // Get user's tickets
@@ -3278,7 +3965,7 @@ async function startServer() {
       const docs: any[] = await qRes.json();
       const tickets = docs.filter((d: any) => d.document).map((d: any) => {
         const f = d.document.fields;
-        return { id: d.document.name.split('/').pop(), eventId: f.eventId?.stringValue, eventTitle: f.eventTitle?.stringValue, eventStartDate: parseInt(f.eventStartDate?.integerValue ?? '0'), eventVenue: f.eventVenue?.stringValue, eventCoverImage: f.eventCoverImage?.stringValue, tierName: f.tierName?.stringValue, tierColor: f.tierColor?.stringValue, status: f.status?.stringValue, quantity: parseInt(f.quantity?.integerValue ?? '1'), createdAt: parseInt(f.createdAt?.integerValue ?? '0') };
+        return { id: d.document.name.split('/').pop(), eventId: f.eventId?.stringValue, eventTitle: f.eventTitle?.stringValue, eventStartDate: parseInt(f.eventStartDate?.integerValue ?? '0'), eventVenue: f.eventVenue?.stringValue, eventCoverImage: f.eventCoverImage?.stringValue, tierName: f.tierName?.stringValue, tierColor: f.tierColor?.stringValue, status: f.status?.stringValue, quantity: parseInt(f.quantity?.integerValue ?? '1'), packages: JSON.parse(f.packages?.stringValue ?? '[]'), createdAt: parseInt(f.createdAt?.integerValue ?? '0') };
       });
       res.json({ tickets });
     } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -3291,7 +3978,7 @@ async function startServer() {
       if (!doc?.fields) return res.status(404).json({ error: 'Ticket not found' });
       const f = doc.fields;
       if (f.holderUid?.stringValue !== req.uid) return res.status(403).json({ error: 'Forbidden' });
-      res.json({ id: req.params.ticketId, eventId: f.eventId?.stringValue, eventTitle: f.eventTitle?.stringValue, eventStartDate: parseInt(f.eventStartDate?.integerValue ?? '0'), eventVenue: f.eventVenue?.stringValue, eventCoverImage: f.eventCoverImage?.stringValue, tierId: f.tierId?.stringValue, tierName: f.tierName?.stringValue, tierColor: f.tierColor?.stringValue, holderName: f.holderName?.stringValue, holderEmail: f.holderEmail?.stringValue, orderNumber: f.orderNumber?.stringValue, quantity: parseInt(f.quantity?.integerValue ?? '1'), totalPriceCents: parseInt(f.totalPriceCents?.integerValue ?? '0'), status: f.status?.stringValue, checkedInAt: f.checkedInAt?.integerValue ? parseInt(f.checkedInAt.integerValue) : undefined, physicalRequested: f.physicalRequested?.booleanValue ?? false, createdAt: parseInt(f.createdAt?.integerValue ?? '0') });
+      res.json({ id: req.params.ticketId, eventId: f.eventId?.stringValue, eventTitle: f.eventTitle?.stringValue, eventStartDate: parseInt(f.eventStartDate?.integerValue ?? '0'), eventVenue: f.eventVenue?.stringValue, eventCoverImage: f.eventCoverImage?.stringValue, tierId: f.tierId?.stringValue, tierName: f.tierName?.stringValue, tierColor: f.tierColor?.stringValue, holderName: f.holderName?.stringValue, holderEmail: f.holderEmail?.stringValue, orderNumber: f.orderNumber?.stringValue, quantity: parseInt(f.quantity?.integerValue ?? '1'), totalPriceCents: parseInt(f.totalPriceCents?.integerValue ?? '0'), status: f.status?.stringValue, checkedInAt: f.checkedInAt?.integerValue ? parseInt(f.checkedInAt.integerValue) : undefined, physicalRequested: f.physicalRequested?.booleanValue ?? false, packages: JSON.parse(f.packages?.stringValue ?? '[]'), createdAt: parseInt(f.createdAt?.integerValue ?? '0') });
     } catch (err: any) { res.status(500).json({ error: err.message }); }
   });
 
@@ -3308,7 +3995,7 @@ async function startServer() {
       const docs: any[] = await qRes.json();
       const attendees = docs.filter((d: any) => d.document).map((d: any) => {
         const f = d.document.fields;
-        return { id: d.document.name.split('/').pop(), holderName: f.holderName?.stringValue, holderEmail: f.holderEmail?.stringValue, tierName: f.tierName?.stringValue, tierColor: f.tierColor?.stringValue, status: f.status?.stringValue, checkedInAt: f.checkedInAt?.integerValue ? parseInt(f.checkedInAt.integerValue) : undefined, quantity: parseInt(f.quantity?.integerValue ?? '1'), physicalRequested: f.physicalRequested?.booleanValue, createdAt: parseInt(f.createdAt?.integerValue ?? '0') };
+        return { id: d.document.name.split('/').pop(), holderName: f.holderName?.stringValue, holderEmail: f.holderEmail?.stringValue, tierName: f.tierName?.stringValue, tierColor: f.tierColor?.stringValue, status: f.status?.stringValue, checkedInAt: f.checkedInAt?.integerValue ? parseInt(f.checkedInAt.integerValue) : undefined, quantity: parseInt(f.quantity?.integerValue ?? '1'), physicalRequested: f.physicalRequested?.booleanValue, packages: JSON.parse(f.packages?.stringValue ?? '[]'), createdAt: parseInt(f.createdAt?.integerValue ?? '0') };
       });
       res.json({ attendees });
     } catch (err: any) { res.status(500).json({ error: err.message }); }
@@ -3676,11 +4363,32 @@ async function startServer() {
       // when it has one — so money lands in the church's account, not the platform's.
       const church = await firestoreRead('organizations', churchId);
       const destAcct: string | undefined = church?.stripeAccountId || undefined;
-      const routing = destAcct
-        ? (isSub
-            ? { subscription_data: { transfer_data: { destination: destAcct } } }
-            : { payment_intent_data: { transfer_data: { destination: destAcct } } })
-        : {};
+      // DONOR COVERS THE FEE: charge gift + fee so the church receives exactly the gift. Only meaningful on a
+      // destination charge (the platform keeps the fee as application_fee, which pays Stripe's cost). Default ON;
+      // the donor may untick (coverFees:false) and the org may disable the offer (financeSettings.donorCoversFees=false).
+      const orgOffersFeeCover = (church?.financeSettings?.donorCoversFees) !== false;
+      const wantsFeeCover = !!destAcct && orgOffersFeeCover && req.body?.coverFees !== false;
+      const feeMath = grossUpCents(Math.round(amount * 100), {
+        rate: process.env.STRIPE_FEE_RATE ? Number(process.env.STRIPE_FEE_RATE) : undefined,
+        fixedCents: process.env.STRIPE_FEE_FIXED_CENTS ? Number(process.env.STRIPE_FEE_FIXED_CENTS) : undefined,
+      });
+      const feeCoveredCents = wantsFeeCover ? feeMath.feeCents : 0;
+      const chargeCents = wantsFeeCover ? feeMath.grossCents : feeMath.giftCents;
+      // Gift metadata is also stamped on the PaymentIntent / Subscription so charge.refunded,
+      // invoice.paid (monthly renewals) and the Elevate sync can attribute them to the church.
+      const giftMeta = {
+        type: 'church_donation', uid, churchId,
+        churchName: churchName ?? '',
+        fund: fund ?? 'General',
+        amount: String(amount),                       // the GIFT (what the church receives), in dollars
+        giftCents: String(feeMath.giftCents),
+        feeCoveredCents: String(feeCoveredCents),     // extra the donor paid to cover processing; 0 if none
+        recurring: String(!!recurring),
+        message: message ?? '',
+      };
+      const routing = isSub
+        ? { subscription_data: { metadata: giftMeta, ...(destAcct ? { transfer_data: { destination: destAcct, ...(feeCoveredCents ? {} : {}) }, ...(feeCoveredCents ? { application_fee_percent: applicationFeePercent(feeCoveredCents, chargeCents) } : {}) } : {}) } }
+        : { payment_intent_data: { metadata: giftMeta, ...(destAcct ? { transfer_data: { destination: destAcct }, ...(feeCoveredCents ? { application_fee_amount: feeCoveredCents } : {}) } : {}) } };
 
       const session = await stripe.checkout.sessions.create({
         mode: isSub ? 'subscription' : 'payment',
@@ -3689,7 +4397,7 @@ async function startServer() {
           price_data: {
             currency: 'usd',
             product_data: { name: `${churchName || 'Church'} — ${fund || 'General'} Giving${isSub ? ' (monthly)' : ''}` },
-            unit_amount: Math.round(amount * 100),
+            unit_amount: chargeCents,
             ...(isSub ? { recurring: { interval: 'month' as const } } : {}),
           },
           quantity: 1,
@@ -3703,15 +4411,196 @@ async function startServer() {
           fund: fund ?? 'General',
           amount: String(amount),
           recurring: String(!!recurring),
+          giftCents: String(feeMath.giftCents),
+          feeCoveredCents: String(feeCoveredCents),
           message: message ?? '',
         },
       });
 
-      res.json({ url: session.url });
+      res.json({ url: session.url, feeCoveredCents, chargeCents });
     } catch (err: any) {
       res.status(500).json({ error: err.message });
     }
   });
+
+  // ── Elevate: Stripe ↔ Finance Hub (Connect-aware, server-verified access) ─────
+  // POST /api/elevate/stripe/sync  {orgId, sinceDays?}  → pull payouts+lines, backfill missed gifts, post journals.
+  app.post('/api/elevate/stripe/sync', authMiddleware, async (req: any, res) => {
+    const orgId = String(req.body?.orgId || '');
+    if (!orgId) return res.status(400).json({ error: 'orgId required' });
+    try {
+      const gate = await assertOrgFinanceAccess(req.uid, orgId);
+      if ('error' in gate) return res.status(gate.status).json({ error: gate.error });
+      const acct: string | undefined = gate.org.stripeAccountId;
+      if (!acct) return res.status(400).json({ error: 'This organization has no connected Stripe account yet.', code: 'NOT_CONNECTED' });
+      if (_syncing.has(orgId)) return res.status(409).json({ error: 'A sync is already running', code: 'BUSY' });
+      _syncing.add(orgId);
+      try { res.json(await syncOrgStripe(orgId, acct, Number(req.body?.sinceDays) || 90)); }
+      finally { _syncing.delete(orgId); }
+    } catch (err: any) {
+      console.error('[Elevate] sync error:', err?.message);
+      if (!res.headersSent) res.status(500).json({ error: err?.message || 'Sync failed' });
+    }
+  });
+
+  // ── Elevate Budget Pulse: proactive, deduped budget/cash/goal alerts ─────────────────────────
+  // Runs the SAME pure math as the Finance Hub (services/acctPulse.ts) with no user present.
+  //   POST /api/elevate/budget-alerts/run {orgId}   Firebase token + server-verified finance access → one org
+  //   POST /api/elevate/budget-alerts/run           header x-elevate-cron-key: $ELEVATE_CRON_KEY (Cloud Scheduler) → every org with a budget
+  //   ELEVATE_ALERTS_SWEEP=1 enables an in-process interval sweep (every ELEVATE_ALERTS_SWEEP_MIN minutes, default 180);
+  //   Cloud Run scales to zero, so for production prefer Cloud Scheduler + ELEVATE_CRON_KEY.
+  // Alert docs are acctAlerts/{orgId_scope_scopeId_kind_period}: each escalation level fires ONCE per period.
+  const _pulseRunning = new Set<string>();
+  async function runBudgetAlertsForOrg(orgId: string, pre?: Record<string, any> | null): Promise<{ evaluated: number; created: number; notified: number; skipped?: string }> {
+    const out: { evaluated: number; created: number; notified: number; skipped?: string } = { evaluated: 0, created: 0, notified: 0 };
+    if (_pulseRunning.has(orgId)) { out.skipped = 'busy'; return out; }
+    _pulseRunning.add(orgId);
+    try {
+      const org = pre || await firestoreGetDeep('organizations', orgId);
+      if (!org) { out.skipped = 'not-found'; return out; }
+      if (org.financeSettings?.pulseAlertsOff) { out.skipped = 'disabled'; return out; }
+      const eq = [{ field: 'orgId', op: 'EQUAL', value: orgId }];
+      const rows = async (col: string, n: number) => (await fsQueryDocs(col, eq, n)).map(d => ({ ...d.data, id: d.id }));
+      const [accounts, budgets, journals, expenses, projects] = await Promise.all([
+        rows('acctAccounts', 2000), rows('acctBudgets', 100), rows('acctJournals', 20000), rows('acctExpenses', 20000), rows('acctProjects', 500),
+      ]);
+      if (!accounts.length) { out.skipped = 'no-books'; return out; }
+      const today = new Date().toLocaleDateString('en-CA', { timeZone: ELEVATE_TZ });
+      const alerts = pulseDeriveAlerts({
+        orgId, today, accounts: accounts as any, journals: journals as any, expenses: expenses as any, budgets: budgets as any, projects: projects as any,
+        ministries: org.ministries || [], funds: org.givingFunds || [], recurring: org.financeSettings?.recurringBills, settings: org.financeSettings || null, mode: 'FULL',
+      });
+      out.evaluated = alerts.length;
+      const fresh: { a: (typeof alerts)[number]; audience: string[] }[] = [];
+      for (const a of alerts) {
+        if (await firestoreRead('acctAlerts', a.id)) continue;                 // already fired at this level for this period
+        const audience = pulseAudience(a, org as any);
+        const ok = await firestorePatchDeep('acctAlerts', a.id, deepClean({ ...a, audienceUids: audience, createdAt: Date.now(), source: 'server' }));
+        if (ok) fresh.push({ a, audience });
+      }
+      out.created = fresh.length;
+      // Notify: dept head for their dept; finance/bookkeeper/treasurer for all; pastors only for org-level. Honour each user's mute level.
+      const byUser = new Map<string, typeof fresh>();
+      fresh.forEach(f => f.audience.forEach(u => byUser.set(u, [...(byUser.get(u) || []), f])));
+      for (const [uid, items] of byUser) {
+        try {
+          const u = await firestoreGetDeep('users', uid);
+          const pref = u?.elevateAlertPrefs?.[orgId];
+          const allowed = items.filter(i => pulsePrefAllows(pref, i.a.severity));
+          if (!allowed.length) continue;
+          // Never noisy: more than 3 new alerts collapse into a single digest.
+          const msgs = allowed.length > 3
+            ? [{ title: `${allowed.length} budget alerts need a look`, message: allowed.slice(0, 3).map(i => i.a.title).join(' · ') + ' …', id: allowed[0].a.id }]
+            : allowed.map(i => ({ title: i.a.title, message: `${i.a.message} ${i.a.nextStep}`.trim(), id: i.a.id }));
+          for (const m of msgs) {
+            await firestoreCreate('notifications', { userId: uid, senderId: 'plajah-finance', senderName: org.name || 'Budget Pulse', senderPhoto: org.logoUrl || '', type: 'SYSTEM', title: m.title, message: m.message, targetId: orgId, isRead: false, timestamp: Date.now() });
+            out.notified++;
+            const tokens: string[] = [...(Array.isArray(u?.fcmTokens) ? u!.fcmTokens : []), ...(u?.fcmToken ? [u.fcmToken] : [])].filter(Boolean);
+            if (tokens.length) sendFcmMulticast([...new Set(tokens)], { title: m.title, body: m.message.slice(0, 180), channelId: 'system', data: { type: 'SYSTEM', targetId: orgId, senderName: org.name || 'Budget Pulse' } }).catch(() => {});
+          }
+        } catch (e: any) { console.error('[Elevate] pulse notify failed:', e?.message); }
+      }
+      return out;
+    } catch (e: any) {
+      console.error('[Elevate] budget alerts failed for', orgId, e?.message);
+      out.skipped = 'error'; return out;
+    } finally { _pulseRunning.delete(orgId); }
+  }
+  async function sweepBudgetAlerts(): Promise<{ orgs: number; created: number; notified: number }> {
+    const year = Number(new Date().toLocaleDateString('en-CA', { timeZone: ELEVATE_TZ }).slice(0, 4));
+    const b = await fsQueryDocs('acctBudgets', [{ field: 'fiscalYear', op: 'GREATER_THAN_OR_EQUAL', value: year - 1 }], 1000);
+    const orgIds = [...new Set(b.map(d => String(d.data.orgId || '')).filter(Boolean))].slice(0, Number(process.env.ELEVATE_ALERTS_MAX_ORGS) || 200);
+    let created = 0, notified = 0;
+    for (const id of orgIds) { const r = await runBudgetAlertsForOrg(id); created += r.created; notified += r.notified; }
+    return { orgs: orgIds.length, created, notified };
+  }
+  app.post('/api/elevate/budget-alerts/run', (req: any, res: any, next: any) => {
+    const provided = String(req.get('x-elevate-cron-key') || '');
+    if (!provided) return authMiddleware(req, res, next);
+    const expected = process.env.ELEVATE_CRON_KEY || '';
+    const a = Buffer.from(provided), b = Buffer.from(expected);
+    if (!expected || a.length !== b.length || !nodeCrypto.timingSafeEqual(a, b)) return res.status(401).json({ error: 'invalid or missing cron key' });
+    req.pulseCron = true; next();
+  }, async (req: any, res: any) => {
+    try {
+      const orgId = String(req.body?.orgId || '');
+      if (req.pulseCron) return res.json(orgId ? await runBudgetAlertsForOrg(orgId) : await sweepBudgetAlerts());
+      if (!orgId) return res.status(400).json({ error: 'orgId required' });
+      const gate = await assertOrgFinanceAccess(req.uid, orgId);
+      if ('error' in gate) return res.status(gate.status).json({ error: gate.error });
+      res.json(await runBudgetAlertsForOrg(orgId, gate.org));
+    } catch (err: any) {
+      console.error('[Elevate] budget-alerts error:', err?.message);
+      if (!res.headersSent) res.status(500).json({ error: err?.message || 'Alert run failed' });
+    }
+  });
+  if (process.env.ELEVATE_ALERTS_SWEEP === '1') {
+    const every = Math.max(15, Number(process.env.ELEVATE_ALERTS_SWEEP_MIN) || 180) * 60_000;
+    setTimeout(() => sweepBudgetAlerts().catch(() => {}), 90_000).unref?.();
+    setInterval(() => sweepBudgetAlerts().catch(() => {}), every).unref?.();
+    console.log(`[Elevate] budget-alert sweep enabled (every ${every / 60000} min)`);
+  }
+
+  // GET /api/elevate/stripe/status?orgId=
+  app.get('/api/elevate/stripe/status', authMiddleware, async (req: any, res) => {
+    const orgId = String(req.query.orgId || '');
+    if (!orgId) return res.status(400).json({ error: 'orgId required' });
+    try {
+      const gate = await assertOrgFinanceAccess(req.uid, orgId);
+      if ('error' in gate) return res.status(gate.status).json({ error: gate.error });
+      const acct: string | undefined = gate.org.stripeAccountId;
+      const state = await firestoreRead('chmsFinanceMeta', `stripe_${orgId}`);
+      const lastSyncAt: number | null = state?.lastSyncAt || null;
+      if (!acct) return res.json({ connected: false, payoutsEnabled: false, lastSyncAt, missingRequirements: [] });
+      const stripe = getStripe();
+      const [account, balance, upcoming] = await Promise.all([
+        stripe.accounts.retrieve(acct),
+        stripe.balance.retrieve({}, { stripeAccount: acct }).catch(() => null),
+        stripe.payouts.list({ limit: 5 }, { stripeAccount: acct }).catch(() => ({ data: [] })),
+      ]);
+      const sumUsd = (xs: any[] | undefined) => usd((xs || []).filter(b => b.currency === 'usd').reduce((s, b) => s + b.amount, 0));
+      const next = (upcoming.data || []).filter((p: any) => p.status === 'pending' || p.status === 'in_transit').sort((a: any, b: any) => a.arrival_date - b.arrival_date)[0];
+      const sched = account.settings?.payouts?.schedule;
+      const missing: string[] = [...new Set<string>([...(account.requirements?.past_due || []), ...(account.requirements?.currently_due || [])])];
+      if (state?.payoutsEnabled !== account.payouts_enabled) stripeStateWrite(orgId, { payoutsEnabled: !!account.payouts_enabled, chargesEnabled: !!account.charges_enabled }).catch(() => {});
+      res.json({
+        connected: true, accountId: acct, chargesEnabled: !!account.charges_enabled, payoutsEnabled: !!account.payouts_enabled,
+        detailsSubmitted: !!account.details_submitted, disabledReason: account.requirements?.disabled_reason || null,
+        lastSyncAt, availableBalance: balance ? sumUsd(balance.available) : null, pendingBalance: balance ? sumUsd(balance.pending) : null,
+        nextPayoutEstimate: next ? { date: utcDate(next.arrival_date), amount: usd(next.amount), status: next.status }
+          : sched ? { schedule: sched.interval === 'daily' ? `Daily (${sched.delay_days ?? 2}-day delay)` : `${sched.interval}${sched.weekly_anchor ? ' on ' + sched.weekly_anchor : ''}${sched.monthly_anchor ? ' on day ' + sched.monthly_anchor : ''}` } : null,
+        missingRequirements: missing,
+      });
+    } catch (err: any) {
+      console.error('[Elevate] status error:', err?.message);
+      res.status(500).json({ error: err?.message || 'Status failed' });
+    }
+  });
+
+  // POST /api/elevate/stripe/link {orgId, kind:'fix'|'dashboard'} → org-aware Stripe link for ANY finance user
+  // (the legacy /connect/dashboard-link only works for whoever originally onboarded the account).
+  app.post('/api/elevate/stripe/link', authMiddleware, async (req: any, res) => {
+    const orgId = String(req.body?.orgId || '');
+    if (!orgId) return res.status(400).json({ error: 'orgId required' });
+    try {
+      const gate = await assertOrgFinanceAccess(req.uid, orgId);
+      if ('error' in gate) return res.status(gate.status).json({ error: gate.error });
+      const acct: string | undefined = gate.org.stripeAccountId;
+      if (!acct) return res.status(400).json({ error: 'No connected Stripe account', code: 'NOT_CONNECTED' });
+      const stripe = getStripe();
+      const origin = trustedRequestOrigin(req);
+      if (req.body?.kind === 'dashboard') return res.json({ url: (await stripe.accounts.createLoginLink(acct)).url });
+      const link = await stripe.accountLinks.create({
+        account: acct, type: 'account_onboarding',
+        refresh_url: `${origin}?org=${orgId}&connect=refresh`, return_url: `${origin}?org=${orgId}&connect=success`,
+      });
+      res.json({ url: link.url });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'Could not create Stripe link' });
+    }
+  });
+
+  billing.register(app);
 
   // ── Email: broadcast to a list (Resend HTTP API) ──────────────────────────
   // Sends when RESEND_API_KEY is configured; otherwise reports configured:false
@@ -4318,7 +5207,7 @@ async function startServer() {
   // ── Anthropic (Claude) proxy for FABULA ─────────────────────────────────────
   // FABULA is Claude-powered; this keeps the API key server-side. Accepts the
   // standard Messages-API body and forwards it. Logged-in + rate-limited.
-  app.post('/api/ai/anthropic', apiLimiter, authMiddleware, express.json({ limit: '4mb' }), async (req: any, res) => {
+  app.post('/api/ai/anthropic', aiLimiter, authMiddleware, requireRegisteredUser, express.json({ limit: '4mb' }), async (req: any, res) => {
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) return res.status(503).json({ error: 'ANTHROPIC_API_KEY not configured' });
     const { model, max_tokens, system, messages } = req.body as {
@@ -4356,25 +5245,16 @@ async function startServer() {
   //
   // Deliberately narrow, because a URL-taking fetcher on a server is an SSRF primitive: http(s)
   // only, no private/loopback hosts, no redirects followed off-protocol, a size cap, and the
-  // response is returned as text for the client to parse. It cannot reach anything internal and
-  // it cannot be used to fetch media.
+  // response is returned as text for the client to parse. Uses safeOutboundFetch to prevent SSRF
+  // and loopback/metadata redirects.
   app.get('/api/import/feed', apiLimiter, authMiddleware, async (req: any, res) => {
     const raw = String(req.query.url || '');
     let target: URL;
     try { target = new URL(raw); } catch { return res.status(400).json({ error: 'Not a valid URL.' }); }
     if (!/^https?:$/.test(target.protocol)) return res.status(400).json({ error: 'Only http and https are supported.' });
 
-    const host = target.hostname.toLowerCase();
-    const isPrivate =
-      host === 'localhost' || host.endsWith('.localhost') || host === '0.0.0.0' ||
-      /^127\./.test(host) || /^10\./.test(host) || /^192\.168\./.test(host) ||
-      /^172\.(1[6-9]|2\d|3[01])\./.test(host) || /^169\.254\./.test(host) ||
-      host.endsWith('.internal') || host.endsWith('.local') || !host.includes('.');
-    if (isPrivate) return res.status(400).json({ error: 'That host is not reachable from here.' });
-
     try {
-      const upstream = await fetch(target.toString(), {
-        redirect: 'follow',
+      const upstream = await safeOutboundFetch(target.toString(), {
         headers: { Accept: 'application/rss+xml, application/xml, text/xml, */*', 'User-Agent': 'Plajah-CareerImport/1.0' },
         signal: AbortSignal.timeout(15000),
       });
@@ -4404,7 +5284,7 @@ async function startServer() {
   // OpenAI-compatible, so the body is a standard chat-completions payload and the
   // response is passed through untouched — any OpenAI client can point at this.
   // Logged-in + rate-limited, key stays server-side.
-  app.post('/api/ai/pokee', pokeeLimiter, authMiddleware, express.json({ limit: '25mb' }), async (req: any, res) => {
+  app.post('/api/ai/pokee', pokeeLimiter, authMiddleware, requireRegisteredUser, express.json({ limit: '25mb' }), async (req: any, res) => {
     const key = process.env.POKEE_API_KEY;
     if (!key) return res.status(503).json({ error: 'POKEE_API_KEY not configured' });
     const { model, max_tokens, messages, temperature, tools, tool_choice, response_format } = req.body as {
@@ -4467,7 +5347,7 @@ async function startServer() {
   // Phase 1 of the character-avatars system. Fetches the character, verifies its creator turned the
   // chatbot ON, builds a GUARDRAILED persona system prompt SERVER-SIDE (so the safety rules can't be
   // stripped by the client), and answers via Claude. See docs/PLAJAH_CHARACTER_AVATARS_BLUEPRINT.md.
-  app.post('/api/character/chat', apiLimiter, authMiddleware, express.json({ limit: '256kb' }), async (req: any, res) => {
+  app.post('/api/character/chat', aiLimiter, authMiddleware, requireRegisteredUser, express.json({ limit: '256kb' }), async (req: any, res) => {
     const key = process.env.ANTHROPIC_API_KEY;
     if (!key) return res.status(503).json({ error: 'AI not configured' });
     const { worldId, characterId, messages } = req.body || {};
@@ -4527,7 +5407,7 @@ async function startServer() {
   // bundle (the old client-side path silently no-op'd in prod because the key
   // wasn't baked in). The client sends the track's audio URL; we fetch it and
   // transcribe with timestamps. Logged-in + rate-limited.
-  app.post('/api/ai/captions', apiLimiter, authMiddleware, async (req: any, res) => {
+  app.post('/api/ai/captions', aiLimiter, authMiddleware, requireRegisteredUser, async (req: any, res) => {
     const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
     if (!geminiKey) return res.status(503).json({ error: 'Gemini not configured' });
     const { audioUrl, title, artist, kind } = (req.body || {}) as { audioUrl?: string; title?: string; artist?: string; kind?: string };
@@ -4721,7 +5601,7 @@ Rules:
   // album metadata/liner notes, lyric gen, sermon transcription, module insights,
   // content-safety, etc. work in production. Body is the SDK's generateContent
   // params ({ model, contents, config }); returns { text }. Logged-in + limited.
-  app.post('/api/ai/gemini', apiLimiter, authMiddleware, express.json({ limit: '25mb' }), async (req: any, res) => {
+  app.post('/api/ai/gemini', aiLimiter, authMiddleware, requireRegisteredUser, express.json({ limit: '25mb' }), async (req: any, res) => {
     const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
     if (!geminiKey) return res.status(503).json({ error: 'Gemini not configured' });
     const { model, contents, config } = (req.body || {}) as { model?: string; contents?: any; config?: any };
@@ -4777,6 +5657,32 @@ Rules:
     for (const k of Object.keys(fields)) out[k] = fsVal(fields[k]);
     return out;
   };
+
+  // Living knowledge: watch PubMed / CourtListener / official feeds for the anchors in the Law and Medicine
+  // courses and record impacts for lessons whose facts may have changed. A scheduler (Cloud Scheduler) hits:
+  //   POST /api/cron/living-knowledge?budget=60      header  x-cron-key: <ADMIN_SEED_KEY|CRON_SECRET>
+  // Each target keeps its own cursor, so a short run just resumes where it stopped. See docs/ACADEMIA_LAW_MEDICINE_BLUEPRINT.md.
+  app.post('/api/cron/living-knowledge', express.json(), async (req: any, res: any) => {
+    const key = req.headers['x-cron-key'];
+    if (!secretsEqual(key, process.env.ADMIN_SEED_KEY) && !secretsEqual(key, process.env.CRON_SECRET)) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+    if (!(await getGoogleAccessToken())) return res.status(500).json({ error: 'GOOGLE_SERVICE_ACCOUNT_JSON not configured' });
+    try {
+      const { COURSES, loadCurriculum } = await import('./services/courseCatalog');
+      const { buildWatchlist } = await import('./services/livingKnowledge/watchlist');
+      const { runIngest } = await import('./services/livingKnowledge/ingest');
+      const { firestoreRestSink } = await import('./services/livingKnowledge/firestoreRestSink');
+      const curricula = (await Promise.all(COURSES.filter(c => c.curriculumId && /^(law|med)-/.test(c.curriculumId)).map(c => loadCurriculum(c.curriculumId!)))).filter(Boolean) as any[];
+      const targets = buildWatchlist(curricula);
+      const budget = Math.min(Math.max(Number(req.query.budget) || 60, 1), 400);
+      const summary = await runIngest({ targets, sink: firestoreRestSink('gen-lang-client-0665118474', 'plajah-prod', getGoogleAccessToken), budget, deadline: Date.now() + 240_000 });
+      res.json({ courses: curricula.length, anchors: targets.length, ...summary });
+    } catch (err: any) {
+      console.error('[living-knowledge]', err?.message || err);
+      res.status(500).json({ error: String(err?.message || err).slice(0, 300) });
+    }
+  });
 
   app.post('/api/cron/publish-due-posts', express.json(), async (req: any, res: any) => {
     const key = req.headers['x-cron-key'];
@@ -5080,31 +5986,27 @@ Rules:
     res.json({ followed: uids.length });
   });
 
-  // ── Alexa Skill Fulfillment ───────────────────────────────────────────────────
-  // Alexa POSTs signed requests here — no Firebase auth (Alexa doesn't know
-  // about Firebase), but the Alexa app ID should be verified in production.
-  app.post('/api/alexa', express.json(), async (req, res) => {
+  // ── Google Actions Fulfillment ────────────────────────────────────────────────
+  // Google Assistant POSTs here for conversational actions ("Talk to Chora").
+  app.post('/api/google-action', express.json(), async (req, res) => {
     try {
-      const { handleAlexaRequest } = await import('./services/alexaService.js');
-      const response = await handleAlexaRequest(req.body);
+      const response = await handleGoogleActionRequest(req.body, getChoraTrackIndex);
       res.json(response);
     } catch (err: any) {
-      console.error('[Alexa] handler error:', err.message);
-      res.status(500).json({ version: '1.0', response: { outputSpeech: { type: 'PlainText', text: 'An error occurred.' }, shouldEndSession: true } });
+      console.error('[GoogleAction] handler error:', err?.message);
+      res.status(500).json({ prompt: { override: true, firstSimple: { speech: 'An error occurred.', text: 'Error.' } } });
     }
   });
 
-  // ── Google Actions Fulfillment ────────────────────────────────────────────────
-  // Google Assistant POSTs here for conversational actions.
-  // Verify with Google Actions SDK JWT in production.
-  app.post('/api/google-action', express.json(), async (req, res) => {
+  // ── Samsung Bixby Fulfillment ────────────────────────────────────────────────
+  // Samsung Bixby capsules POST here for Galaxy devices, Smart TVs, and Watches.
+  app.post('/api/bixby', express.json(), async (req, res) => {
     try {
-      const { handleGoogleActionRequest } = await import('./services/googleHomeService.js');
-      const response = handleGoogleActionRequest(req.body);
+      const response = await handleBixbyRequest(req.body, getChoraTrackIndex);
       res.json(response);
     } catch (err: any) {
-      console.error('[GoogleAction] handler error:', err.message);
-      res.status(500).json({ prompt: { override: true, firstSimple: { speech: 'An error occurred.', text: 'Error.' } } });
+      console.error('[Bixby] handler error:', err?.message);
+      res.status(500).json({ status: 'ERROR', dialog: { speech: 'Sorry, Bixby ran into a problem.' } });
     }
   });
 
@@ -5160,7 +6062,7 @@ Rules:
     });
 
     app.get('/api/genagent/health', (_req, res) => {
-      res.json({ ok: true, connected: ['magnific'], encryptionConfigured: (process.env.ENCRYPTION_KEY ?? '').length >= 16 });
+      res.json({ ok: true, connected: ['magnific', 'runway'], encryptionConfigured: (process.env.ENCRYPTION_KEY ?? '').length >= 16 });
     });
 
     app.post('/api/genagent/connectors', apiLimiter, express.json({ limit: '8kb' }), async (req: any, res) => {
@@ -5168,13 +6070,13 @@ Rules:
       let linked: { provider: string; hint: string; linkedAt: number }[] = [];
       const auth = req.headers.authorization;
       if (auth?.startsWith('Bearer ')) {
-        const uid = await verifyFirebaseToken(auth.slice(7));
-        if (uid) { try { linked = await genVaultListLinked(genVaultStore, uid); } catch { /* unconfigured vault → nothing linked */ } }
+        const verified = await verifyFirebaseToken(auth.slice(7));
+        if (verified?.uid) { try { linked = await genVaultListLinked(genVaultStore, verified.uid); } catch { /* unconfigured vault → nothing linked */ } }
       }
       const byId = new Map(linked.map((l) => [l.provider, l]));
       // The client MERGES this onto its own static registry, so only link state is sent.
       res.json({
-        connectors: [...byId.keys()].concat(['magnific'].filter((id) => !byId.has(id))).map((id) => ({
+        connectors: [...byId.keys()].concat(['magnific', 'runway'].filter((id) => !byId.has(id))).map((id) => ({
           id, connected: byId.has(id), hint: byId.get(id)?.hint,
         })),
       });
@@ -5182,8 +6084,16 @@ Rules:
 
     app.post('/api/genagent/connect', apiLimiter, authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
       const provider = String(req.body?.provider || '');
+      if (provider === 'runway') {
+        return res.json({
+          needsKey: true,
+          keyUrl: 'https://app.runwayml.com/settings/api-keys',
+          keyLabel: 'Runway API secret key',
+          keyHelp: 'Create an API secret key in your Runway developer settings, then paste it here. It is encrypted on our server and never sent back to the browser.',
+        });
+      }
       if (provider !== 'magnific') {
-        return res.status(400).json({ error: 'Only Magnific supports connected mode right now — use Hand off for the others.' });
+        return res.status(400).json({ error: 'Only Magnific and Runway support connected mode right now — use Hand off for the others.' });
       }
       // Magnific authenticates with an API key, not OAuth, so there is no authUrl to open. The client
       // shows a paste form and posts to /connect/key. The key is never sent back afterwards.
@@ -5198,15 +6108,19 @@ Rules:
     app.post('/api/genagent/connect/key', apiLimiter, authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
       const provider = String(req.body?.provider || '');
       const key = String(req.body?.key || '').trim();
-      if (provider !== 'magnific') return res.status(400).json({ error: 'Unknown provider.' });
+      if (provider !== 'magnific' && provider !== 'runway') return res.status(400).json({ error: 'Unknown provider.' });
       if (!key) return res.status(400).json({ error: 'Paste your API key first.' });
       try {
         // Verify before storing, so a typo is caught here rather than on the first generate.
-        await verifyMagnificKey(key);
+        if (provider === 'runway') {
+          await verifyRunwayKey(key);
+        } else {
+          await verifyMagnificKey(key);
+        }
         const rec = await genVaultSaveKey(genVaultStore, req.uid, provider, key);
         res.json({ connected: true, hint: rec.hint });
       } catch (e: any) {
-        res.status(400).json({ error: e?.message || 'That key was rejected by Magnific.' });
+        res.status(400).json({ error: e?.message || `That key was rejected by ${provider}.` });
       }
     });
 
@@ -5218,22 +6132,52 @@ Rules:
 
     app.post('/api/genagent/jobs', apiLimiter, authMiddleware, express.json({ limit: '256kb' }), async (req: any, res) => {
       const { provider, kind, prompt, spec, projectId, bin } = req.body || {};
-      if (provider !== 'magnific') {
+      if (provider !== 'magnific' && provider !== 'runway') {
         return res.status(501).json({ error: `${provider} has no connected adapter yet — use Hand off.` });
       }
       let apiKey: string | null = null;
       try { apiKey = await genVaultReadKey(genVaultStore, req.uid, provider); }
       catch (e: any) { return res.status(500).json({ error: e?.message || 'Credential vault unavailable.' }); }
-      if (!apiKey) return res.status(400).json({ error: 'Link your Magnific account first.' });
+      if (!apiKey) return res.status(400).json({ error: `Link your ${provider === 'runway' ? 'Runway' : 'Magnific'} account first.` });
 
       const job: any = {
         id: `gj_${Date.now().toString(36)}_${nodeCrypto.randomBytes(3).toString('hex')}`,
-        provider, kind: kind || 'image', prompt: String(prompt || ''), spec: spec || null,
+        provider, kind: kind || (provider === 'runway' ? 'video' : 'image'), prompt: String(prompt || ''), spec: spec || null,
         projectId: String(projectId || 'local'), bin: String(bin || 'Generated'),
         status: 'queued', results: [], createdAt: Date.now(),
       };
 
       try {
+        if (provider === 'runway') {
+          const refs: { first_frame?: string; last_frame?: string; source?: string; style?: string } = {};
+          for (const r of (spec?.refs || [])) {
+            const url = r?.url;
+            if (!url) continue;
+            if (!refs.first_frame && (r.role === 'first_frame' || r.role === 'source')) refs.first_frame = url;
+            else if (!refs.last_frame && r.role === 'last_frame') refs.last_frame = url;
+            else if (!refs.style && r.role === 'style') refs.style = url;
+          }
+          const input = {
+            prompt: job.prompt,
+            aspect: spec?.aspect,
+            duration: spec?.duration,
+            seed: spec?.seed,
+            refs,
+            videoUrl: spec?.videoUrl || (spec?.refs || []).find((r: any) => r?.role === 'source' && (r?.url?.endsWith('.mp4') || r?.mime?.startsWith('video/')))?.url,
+          };
+          const op = runwayOpFor(input);
+          const asp = runwayAspect(spec?.aspect);
+          if (!asp.exact) job.note = asp.note;
+
+          const task = await runwaySubmit(apiKey, op, input);
+          job.op = op;
+          job.taskId = task.taskId;
+          job.status = task.status === 'error' ? 'error' : (task.status || 'queued');
+          if (task.error) job.error = task.error;
+          await upsertJob(req.uid, job);
+          return res.json({ jobId: job.id, status: job.status, note: job.note });
+        }
+
         // Magnific takes image bytes, not URLs — fetch each reference and base64 it. Only the roles
         // Mystic actually has slots for are sent; the rest were already folded into the prompt client-side.
         const refs: { source?: string; style?: string } = {};
@@ -5257,7 +6201,7 @@ Rules:
         res.json({ jobId: job.id, status: job.status, note: job.note });
       } catch (e: any) {
         job.status = 'error';
-        job.error = e?.message || 'Magnific rejected the job.';
+        job.error = e?.message || `${provider === 'runway' ? 'Runway' : 'Magnific'} rejected the job.`;
         await upsertJob(req.uid, job).catch(() => { /* reporting the error matters more than storing it */ });
         res.status(502).json({ error: job.error });
       }
@@ -5278,9 +6222,14 @@ Rules:
 
       try {
         const apiKey = await genVaultReadKey(genVaultStore, req.uid, job.provider);
-        if (!apiKey) return res.json(publicJob({ ...job, status: 'error', error: 'Magnific account is no longer linked.' }));
-        const task = await magnificPoll(apiKey, job.op || 'generate', job.taskId);
-        const updated: any = { ...job, status: task.status, results: task.results, error: task.error || job.error };
+        if (!apiKey) return res.json(publicJob({ ...job, status: 'error', error: `${job.provider} account is no longer linked.` }));
+        let task: any;
+        if (job.provider === 'runway') {
+          task = await runwayPoll(apiKey, job.taskId);
+        } else {
+          task = await magnificPoll(apiKey, job.op || 'generate', job.taskId);
+        }
+        const updated: any = { ...job, status: task.status, results: task.results, progress: task.progress ?? job.progress, error: task.error || job.error };
 
         // A finished job's results live on the provider's host and won't stay there. Copy them into
         // Plajah Storage now, while we still have them, and hand the client OUR urls — otherwise the
@@ -6412,64 +7361,6 @@ Rules:
     } catch (e: any) {
       res.status(500).json({ error: 'Proxy request failed' });
     }
-  });
-
-  // ── Alexa Skill Webhook ────────────────────────────────────────────────────
-  // Point your Alexa custom skill endpoint at /api/alexa (HTTPS required).
-  // Skill intents: PlayArtistIntent (slot: artist), PlayAlbumIntent (slot: album),
-  // plus built-in AMAZON.PauseIntent / AMAZON.ResumeIntent / AMAZON.StopIntent.
-  app.post('/api/alexa', express.json(), async (req: any, res: any) => {
-    const { request, context } = req.body || {};
-    if (!request) return res.status(400).json({ error: 'Invalid Alexa request' });
-
-    const reply = (text: string, end = false, directive?: object) => {
-      const r: any = { version: '1.0', response: { outputSpeech: { type: 'PlainText', text }, shouldEndSession: end } };
-      if (directive) r.response.directives = [directive];
-      res.json(r);
-    };
-    const audioPlay = (url: string, token: string, offset = 0) => ({
-      type: 'AudioPlayer.Play', playBehavior: 'REPLACE_ALL',
-      audioItem: { stream: { url, token, offsetInMilliseconds: offset } },
-    });
-
-    try {
-      if (request.type === 'LaunchRequest') {
-        return reply("Welcome to Plajah. Ask me to play an artist, album, or radio station.");
-      }
-      if (request.type === 'SessionEndedRequest') return res.json({ version: '1.0', response: {} });
-
-      if (request.type === 'IntentRequest') {
-        const { name, slots = {} } = request.intent;
-        switch (name) {
-          case 'PlayArtistIntent': {
-            const artist = slots.artist?.value || '';
-            if (!artist) return reply("Which artist would you like to hear?");
-            return reply(`Playing ${artist} on Plajah.`, true,
-              audioPlay(`https://plajah.com/api/alexa/stream?artist=${encodeURIComponent(artist)}`, `artist:${artist}`));
-          }
-          case 'PlayAlbumIntent': {
-            const album = slots.album?.value || '';
-            if (!album) return reply("Which album would you like?");
-            return reply(`Playing ${album} on Plajah.`, true,
-              audioPlay(`https://plajah.com/api/alexa/stream?album=${encodeURIComponent(album)}`, `album:${album}`));
-          }
-          case 'PlayRadioIntent': {
-            const station = slots.station?.value || 'top tracks';
-            return reply(`Playing ${station} radio on Plajah.`, true,
-              audioPlay(`https://plajah.com/api/alexa/stream?radio=${encodeURIComponent(station)}`, `radio:${station}`));
-          }
-          case 'AMAZON.PauseIntent':  return reply('', true, { type: 'AudioPlayer.Stop' });
-          case 'AMAZON.StopIntent':   return reply('Goodbye from Plajah.', true, { type: 'AudioPlayer.Stop' });
-          case 'AMAZON.ResumeIntent': {
-            const token = context?.AudioPlayer?.token || '';
-            const offset = context?.AudioPlayer?.offsetInMilliseconds || 0;
-            return reply('', false, audioPlay(`https://plajah.com/api/alexa/stream?token=${encodeURIComponent(token)}`, token, offset));
-          }
-          default: return reply("I didn't catch that. Try asking Plajah to play an artist or album.");
-        }
-      }
-      res.json({ version: '1.0', response: { outputSpeech: { type: 'PlainText', text: 'Something went wrong.' }, shouldEndSession: true } });
-    } catch (e: any) { res.status(500).json({ error: e.message }); }
   });
 
   // Alexa stream resolver — looks up Firestore to find a track URL by artist/album
@@ -7866,7 +8757,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     // ?probe=meta — dump the resolved share fields (artist/owner) as JSON for debugging.
     if (req.query.probe === 'meta' && req.query.type && req.query.id) {
       try {
-        const coll: Record<string, string> = { album: 'albums', track: 'albums', book: 'albums', movie: 'albums', video: 'videos', article: 'articles', game: 'games' };
+        const coll: Record<string, string> = { mix: 'albums', album: 'albums', track: 'albums', book: 'albums', movie: 'albums', video: 'videos', article: 'articles', game: 'games' };
         const doc = await fetchFirebaseDoc(coll[String(req.query.type)] || 'albums', String(req.query.id));
         const f: any = doc?.fields || {};
         const ownerId = f.ownerId?.stringValue || f.ownerUid?.stringValue || f.uid?.stringValue || f.creatorUid?.stringValue || f.artistId?.stringValue || null;
@@ -9768,6 +10659,16 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // "Invalid email or password." authLimiter because it takes an unauthenticated email.
   app.use('/api/auth-methods', authLimiter);
   app.use('/api/auth-methods', express.json({ limit: '2kb' }), authMethodsRouter);
+
+  // ── Plajah FSE (10-Foot Console local game detection and native launch) ──────
+  app.use('/api/fse', express.json({ limit: '64kb' }), fseGamesRouter);
+
+  // ── Advance Threat Protection & Chief Security Officer (CSO) ────────────────
+  app.use('/api/security/threat-protection', express.json({ limit: '1mb' }), threatProtectionRouter);
+
+  // ── Plajah Home (Real Matter & LAN Device Discovery) ────────────────────────
+  app.use(homeDiscoveryRouter);
+  app.use(matterRouter);
 
   if (process.env.SPORTS_INGESTION_WORKER === 'true' || (process.env.NODE_ENV === 'production' && process.env.SPORTS_INGESTION_WORKER !== 'false')) {
     const intervalMs = Number(process.env.SPORTS_INGESTION_INTERVAL_MS) || undefined;

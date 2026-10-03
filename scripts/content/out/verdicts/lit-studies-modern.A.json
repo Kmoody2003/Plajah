@@ -1,0 +1,1438 @@
+{
+ "courseId": "lit-studies-modern",
+ "verifier": "A",
+ "note": "WebSearch/WebFetch were not used; all answers and claim verdicts come from background knowledge, so sources are empty.",
+ "fetched": 0,
+ "questions": [
+  {
+   "id": "lit-studies-modern.l01.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l01.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l01.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l01.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l01.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l02.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l02.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l02.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l02.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l02.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l03.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l03.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l03.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l03.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l03.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l04.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l04.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l04.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l04.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l04.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l05.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l05.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l05.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l05.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l05.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l06.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l06.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l06.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l06.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l06.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l07.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l07.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l07.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l07.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l07.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l08.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l08.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l08.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l08.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l08.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l09.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l09.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l09.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l09.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l09.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l10.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l10.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l10.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l10.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l10.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l11.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l11.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l11.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l11.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l11.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l12.q1",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l12.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l12.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l12.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l12.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l13.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l13.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l13.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l13.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l13.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l14.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l14.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l14.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l14.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l14.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l15.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l15.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l15.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l15.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l15.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l16.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l16.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l16.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l16.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l16.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l17.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l17.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l17.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l17.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l17.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l18.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l18.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l18.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l18.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l18.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l19.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l19.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l19.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l19.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l19.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l20.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l20.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l20.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l20.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l20.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l21.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l21.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l21.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l21.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l21.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l22.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l22.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l22.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l22.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l22.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l23.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l23.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l23.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l23.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l23.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l24.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l24.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l24.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l24.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l24.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l25.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l25.q2",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l25.q3",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l25.q4",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l25.q5",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l26.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l26.q2",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l26.q3",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l26.q4",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l26.q5",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l27.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l27.q2",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l27.q3",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l27.q4",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l27.q5",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l28.q1",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l28.q2",
+   "answer": 3,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l28.q3",
+   "answer": 0,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l28.q4",
+   "answer": 1,
+   "confidence": "high",
+   "sources": []
+  },
+  {
+   "id": "lit-studies-modern.l28.q5",
+   "answer": 2,
+   "confidence": "high",
+   "sources": []
+  }
+ ],
+ "claims": [
+  {
+   "lessonId": "lit-studies-modern.l01",
+   "claim": "Lyrical Ballads first published 1798; Wordsworth's preface added to 1800 edition",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l01",
+   "claim": "Daffodils poem published 1807",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l01",
+   "claim": "French Revolution began 1789",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l02",
+   "claim": "Keats died of tuberculosis in Rome aged 25; Shelley drowned off Italy aged 29",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l02",
+   "claim": "Keats's negative capability described in a letter of 1817",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l02",
+   "claim": "Ozymandias published 1818",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l03",
+   "claim": "Frankenstein begun summer 1816 near Lake Geneva, published anonymously 1818, revised 1831",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l03",
+   "claim": "Mary Shelley's parents were Wollstonecraft and Godwin",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l03",
+   "claim": "Subtitle is The Modern Prometheus",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l04",
+   "claim": "Sense and Sensibility 1811, P&P 1813, Mansfield Park 1814, Emma 1815; Northanger Abbey and Persuasion posthumous (Dec 1817)",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l04",
+   "claim": "Austen lived 1775-1817",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l04",
+   "claim": "Free indirect discourse in Emma",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l05",
+   "claim": "1846 poems under Currer, Ellis and Acton Bell",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l05",
+   "claim": "1847 Jane Eyre, Wuthering Heights, Agnes Grey; Tenant of Wildfell Hall 1848; deaths 1848/1849/1855",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l05",
+   "claim": "Wide Sargasso Sea 1966",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l06",
+   "claim": "Great Expectations weekly instalments 1860-61",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l06",
+   "claim": "Oliver Twist 1837-39, Bleak House 1852-53, Hard Times 1854",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l06",
+   "claim": "Dickens worked in a blacking factory while his father was in debtors' prison",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l07",
+   "claim": "George Eliot = Mary Ann Evans, 1819-1880",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l07",
+   "claim": "Middlemarch published in eight parts 1871-72, subtitle A Study of Provincial Life",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l07",
+   "claim": "Middlemarch set before the First Reform Act of 1832; Adam Bede 1859, Mill on the Floss 1860, Silas Marner 1861",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l08",
+   "claim": "Serfdom abolished in Russia 1861",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l08",
+   "claim": "Dead Souls 1842; Fathers and Sons 1862; Crime and Punishment 1866; Karamazov 1879-80",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l08",
+   "claim": "War and Peace 1865-69; Anna Karenina 1875-77; Bakhtin called Dostoevsky polyphonic",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l09",
+   "claim": "Madame Bovary serialised 1856-57; Flaubert tried and acquitted in 1857",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Book edition 1857; serialised in Revue de Paris 1856."
+  },
+  {
+   "lessonId": "lit-studies-modern.l09",
+   "claim": "Les Fleurs du mal 1857: author and publisher fined, six poems suppressed",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l09",
+   "claim": "Rimbaud (1854-1891) wrote his best-known poetry as a teenager and stopped in his early twenties",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l10",
+   "claim": "Tell-Tale Heart 1843, Usher 1839, Raven 1845, Rue Morgue 1841",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l10",
+   "claim": "Poe's single-effect theory in a review of Hawthorne's tales",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l10",
+   "claim": "Hawthorne added a w to Hathorne; ancestor judge at Salem 1692; Scarlet Letter 1850",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l11",
+   "claim": "Melville sailed on the whaler Acushnet from 1841; Typee 1846, Omoo 1847",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l11",
+   "claim": "Moby-Dick 1851 sold poorly, revival in 1920s; dedicated to Hawthorne",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l11",
+   "claim": "Bartleby 1853; Billy Budd unfinished at death 1891, published 1924",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l12",
+   "claim": "Leaves of Grass first edition 1855",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l12",
+   "claim": "Dickinson wrote nearly 1,800 poems; first edition 1890 after sister found manuscripts",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l12",
+   "claim": "Whitman worked in Civil War army hospitals; wrote O Captain! My Captain! on Lincoln",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l13",
+   "claim": "Wheatley's poems 1773; Equiano's Narrative 1789",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l13",
+   "claim": "Douglass Narrative 1845; escaped 1838; born Maryland c.1818, died 1895",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Birth year is approximate (c.1818)."
+  },
+  {
+   "lessonId": "lit-studies-modern.l13",
+   "claim": "Jacobs's Incidents 1861 under pseudonym Linda Brent",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l14",
+   "claim": "Souls of Black Folk 1903; color line; double consciousness",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l14",
+   "claim": "Locke's The New Negro 1925; Cane 1923; Weary Blues 1926; Negro Speaks of Rivers 1921",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l14",
+   "claim": "Their Eyes Were Watching God 1937; Native Son 1940",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l15",
+   "claim": "Modernism roughly 1900s-1940s; WWI from 1914",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l15",
+   "claim": "Pound's slogan make it new",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l15",
+   "claim": "Woolf's 1924 remark about December 1910",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l16",
+   "claim": "Hogarth Press founded 1917; Mrs Dalloway 1925, To the Lighthouse 1927, Orlando 1928",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l16",
+   "claim": "Mrs Dalloway set in one day in June 1923; Septimus Smith shell shock; Big Ben",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l16",
+   "claim": "A Room of One's Own 1929; Shakespeare's imagined sister",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l17",
+   "claim": "Ulysses published Paris 1922 by Sylvia Beach's Shakespeare and Company; set 16 June 1904",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l17",
+   "claim": "US federal court ruled Ulysses not obscene in 1933",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l17",
+   "claim": "Prufrock 1915; The Waste Land 1922 opens April is the cruellest month; Pound edited draft; Eliot born St. Louis",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l18",
+   "claim": "Kafka 1883-1924; Trial published 1925, Castle 1926; Max Brod did not burn papers",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l18",
+   "claim": "Metamorphosis 1915; German word suggests unclean vermin",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l18",
+   "claim": "Kafka asked that the cover not depict the creature",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l19",
+   "claim": "Lost Generation phrase attributed to Stein; epigraph of The Sun Also Rises 1926",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l19",
+   "claim": "Gatsby 1925, Sound and Fury 1929, As I Lay Dying 1930; Yoknapatawpha",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l19",
+   "claim": "Flannery O'Connor 1925-1964; A Good Man Is Hard to Find",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l20",
+   "claim": "One Hundred Years of Solitude 1967; Garcia Marquez 1927-2014; Nobel 1982",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l20",
+   "claim": "Ficciones 1944; Borges 1899-1986",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l20",
+   "claim": "Beloved 1987; Carpentier's marvellous real in the 1940s",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l21",
+   "claim": "Things Fall Apart 1958; Achebe 1930-2013; title from Yeats",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l21",
+   "claim": "Achebe's 1975 lecture criticising Heart of Darkness (1899)",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l21",
+   "claim": "Orientalism 1978; Midnight's Children 1981; Decolonising the Mind 1986",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l22",
+   "claim": "Apess's A Son of the Forest 1829",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l22",
+   "claim": "House Made of Dawn Pulitzer for fiction 1969; Ceremony 1977; Love Medicine 1984",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l22",
+   "claim": "Joy Harjo U.S. Poet Laureate 2019-2022; There There 2018",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l23",
+   "claim": "A Doll's House 1879; Ghosts 1881; Hedda Gabler 1890",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l23",
+   "claim": "Cherry Orchard 1904; Three Sisters 1901",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l23",
+   "claim": "Glass Menagerie 1944; Streetcar 1947; A Raisin in the Sun 1959 first Broadway play by a Black woman",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l24",
+   "claim": "Imagism c.1912-14; In a Station of the Metro 1913",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l24",
+   "claim": "Owen killed Nov 1918 one week before Armistice",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l24",
+   "claim": "Howl 1956 City Lights; Life Studies 1959; Brooks Pulitzer 1950 first African American",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l25",
+   "claim": "Frankenstein 1818; Verne 20,000 Leagues 1870; Time Machine 1895; War of the Worlds 1898",
+   "verdict": "supported",
+   "sources": [],
+   "note": "20,000 Leagues serialised 1869-70, book 1870."
+  },
+  {
+   "lessonId": "lit-studies-modern.l25",
+   "claim": "R.U.R. 1920 introduced robot; Brave New World 1932; Nineteen Eighty-Four 1949",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l25",
+   "claim": "Hobbit 1937; LotR 1954-55; Left Hand of Darkness 1969; Kindred 1979",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l26",
+   "claim": "Topffer's picture-stories 1830s",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l26",
+   "claim": "Eisner A Contract with God 1978; McCloud Understanding Comics 1993",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l26",
+   "claim": "Maus 1986 and 1991, special Pulitzer 1992; Fun Home 2006; American Born Chinese 2006",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l27",
+   "claim": "Nobel first awarded 1901; Morrison 1993, Ishiguro 2017, Gurnah 2021, Ernaux 2022, Han Kang 2024",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l27",
+   "claim": "Remains of the Day 1989; Half of a Yellow Sun 2006; Ferrante Neapolitan novels 2011-2014; Bolano died 2003",
+   "verdict": "supported",
+   "sources": [],
+   "note": "Bolano died 2003; 2666 appeared 2004. Lesson wording is acceptable."
+  },
+  {
+   "lessonId": "lit-studies-modern.l27",
+   "claim": "The Vegetarian Korean 2007, English 2015 (Deborah Smith), 2016 International Booker",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l28",
+   "claim": "Wimsatt and Beardsley 1946; Barthes 1967",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l28",
+   "claim": "Madwoman in the Attic 1979 (Gilbert and Gubar)",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  },
+  {
+   "lessonId": "lit-studies-modern.l28",
+   "claim": "Rosenblatt and Iser associated with reader-response; New Criticism 1930s-50s",
+   "verdict": "supported",
+   "sources": [],
+   "note": ""
+  }
+ ]
+}
