@@ -26,6 +26,7 @@ import { pathDataFromNodes } from '../../services/telaImageTrace';
 import { layoutTextLines } from '../../services/tela/telaText';
 import { InkLayer, type NoteTool } from '../ink';
 import { strokeInBox, pathData, type InkStyle } from '../../services/inkMath';
+import { TelaLottieCanvas, TelaLottieInspector } from './TelaLottie';
 
 export type VectorTool = 'select' | 'direct' | 'marquee' | 'rect' | 'ellipse' | 'line' | 'pen' | 'text' | 'ink';
 
@@ -75,12 +76,14 @@ const ObjectEl: React.FC<{
   o: TelaVectorObject;
   writerTexts?: Record<string, string>;
   interactive: boolean;
+  /** Thumbnails/galleries: LOTTIE shows its poster frame instead of a live player. */
+  staticRender?: boolean;
   onPointerDown?: (e: React.PointerEvent) => void;
   onPointerMove?: (e: React.PointerEvent) => void;
   onPointerUp?: (e: React.PointerEvent) => void;
   onPointerCancel?: (e: React.PointerEvent) => void;
   onContextMenu?: (e: React.MouseEvent) => void;
-}> = ({ o, writerTexts, interactive, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onContextMenu }) => {
+}> = ({ o, writerTexts, interactive, staticRender, onPointerDown, onPointerMove, onPointerUp, onPointerCancel, onContextMenu }) => {
   const b = objBounds(o);
   const cx = b.x + b.w / 2, cy = b.y + b.h / 2;
   const gradientId = `tela_gradient_${o.id.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
@@ -113,6 +116,22 @@ const ObjectEl: React.FC<{
   if (o.kind === 'IMAGE' && o.sourceImageSrc && o.sourceCrop) {
     const c = o.sourceCrop;
     return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', ...blendStyle }} opacity={o.opacity} {...finish}><svg x={o.x} y={o.y} width={o.w} height={o.h} viewBox={`${c.x} ${c.y} ${c.width} ${c.height}`} preserveAspectRatio="none" style={{ overflow: 'hidden' }}><image href={o.sourceImageSrc} x={0} y={0} width={c.sourceWidth} height={c.sourceHeight} preserveAspectRatio="none" /></svg></g>);
+  }
+  if (o.kind === 'LOTTIE') {
+    // Live player in a foreignObject; static renders (thumbnails) use the cached poster
+    // frame, or a labelled placeholder — never a broken image.
+    const L = o.lottie;
+    const w = Math.max(1, o.w), h = Math.max(1, o.h);
+    const par = !L || L.fit === 'contain' ? 'xMidYMid meet' : L.fit === 'cover' ? 'xMidYMid slice' : 'none';
+    const body = L && !staticRender
+      ? <foreignObject x={o.x} y={o.y} width={w} height={h} style={{ overflow: 'hidden', pointerEvents: 'none' }}><TelaLottieCanvas spec={L} objectId={o.id} label={o.objectLabel} /></foreignObject>
+      : L?.posterSrc
+        ? <svg x={o.x} y={o.y} width={w} height={h} style={{ overflow: 'hidden' }}><image href={L.posterSrc} x={0} y={0} width={w} height={h} preserveAspectRatio={par} /></svg>
+        : <g><rect x={o.x} y={o.y} width={w} height={h} rx={6} fill="rgba(0,218,243,.08)" stroke="rgba(0,163,184,.6)" strokeWidth={1.5} strokeDasharray="6 4" /><text x={o.x + w / 2} y={o.y + h / 2} textAnchor="middle" dominantBaseline="middle" fontSize={Math.max(10, Math.min(28, Math.min(w, h) / 6))} fontWeight={800} fontFamily="system-ui, sans-serif" fill="rgba(0,120,140,.85)">Lottie{o.objectLabel ? ` · ${o.objectLabel}` : ''}</text></g>;
+    return decorate(<g transform={o.rotation ? `rotate(${o.rotation} ${cx} ${cy})` : undefined} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerCancel} onContextMenu={onContextMenu} style={{ cursor: interactive ? 'move' : 'default', ...blendStyle }} opacity={o.opacity} {...finish} data-tela-kind="LOTTIE">
+      {body}
+      <rect x={o.x} y={o.y} width={w} height={h} fill="transparent" />
+    </g>);
   }
   if (o.kind === 'PATH' && o.svgPathData) {
     const ox = o.pathOriginX ?? o.x, oy = o.pathOriginY ?? o.y;
@@ -168,7 +187,7 @@ export const TelaVectorObjectProps: React.FC<{
   compact?: boolean;
 }> = ({ object: o, writers, onUpdate, onDelete, onForward, onBack, compact }) => {
   const isText = o.kind === 'TEXT';
-  const isImage = o.kind === 'IMAGE';
+  const isImage = o.kind === 'IMAGE' || o.kind === 'LOTTIE';
   const isLine = o.kind === 'LINE' || o.kind === 'PATH';
   const lbl: React.CSSProperties = { fontSize: 10, fontWeight: 700, letterSpacing: '.05em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.4)', marginBottom: 3 };
   const rowCls = 'flex items-center gap-2 mb-2';
@@ -176,6 +195,7 @@ export const TelaVectorObjectProps: React.FC<{
   const swatch: React.CSSProperties = { width: 30, height: 28, padding: 0, border: '1px solid rgba(255,255,255,0.18)', borderRadius: 7, background: 'transparent', cursor: 'pointer' };
   return (
     <div style={{ color: '#fff' }}>
+      {o.kind === 'LOTTIE' && <TelaLottieInspector object={o} onUpdate={onUpdate} />}
       {isText && (
         <div style={{ marginBottom: 10 }}>
           <div style={lbl}>Text</div>
@@ -332,7 +352,7 @@ export const TelaVectorObjectProps: React.FC<{
 // never a CSS approximation of it.
 export const TelaStaticSvg: React.FC<{ objects: TelaVectorObject[]; width: number; height: number; className?: string; style?: React.CSSProperties; writerTexts?: Record<string, string> }> = ({ objects, width, height, className, style, writerTexts }) => (
   <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="100%" preserveAspectRatio="xMidYMid meet" className={className} style={{ display: 'block', ...style }} aria-hidden>
-    {objects.map(o => <ObjectEl key={o.id} o={o} writerTexts={writerTexts} interactive={false} />)}
+    {objects.map(o => <ObjectEl key={o.id} o={o} writerTexts={writerTexts} interactive={false} staticRender />)}
   </svg>
 );
 

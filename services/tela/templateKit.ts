@@ -4,7 +4,7 @@
 // laid-out lines so designers can stack blocks with `below()` instead of
 // guessing. Fonts are referenced by FontKey (see telaFonts) so the gallery can
 // load exactly what a design needs.
-import type { TelaGradientPaint, TelaShadow, TelaVectorObject, TelaBlendMode } from '../../types';
+import type { TelaGradientPaint, TelaShadow, TelaVectorObject, TelaBlendMode, TelaLottieSource, TelaLottieSpec } from '../../types';
 import { fontCss, type FontKey } from './telaFonts';
 import { textBlockHeight } from './telaText';
 import { oid } from './ornaments';
@@ -65,6 +65,13 @@ export const right = (o: TelaVectorObject, gap = 0) => o.x + o.w + gap;
 
 export function image(x: number, y: number, w: number, h: number, src: string, sourceW: number, sourceH: number, o: { label?: string; opacity?: number; rotation?: number; role?: Role; blend?: TelaBlendMode; shadow?: TelaShadow } = {}): TelaVectorObject {
   return { id: oid('image'), kind: 'IMAGE', x, y, w, h, fill: 'none', stroke: 'none', strokeWidth: 0, rotation: o.rotation || 0, opacity: o.opacity ?? 1, sourceImageSrc: src, sourceCrop: { x: 0, y: 0, width: sourceW, height: sourceH, sourceWidth: sourceW, sourceHeight: sourceH }, semanticRole: 'ARTWORK', blendMode: o.blend, shadow: o.shadow, objectLabel: o.label || 'Image', templateRole: o.role || 'IMAGE_SLOT' };
+}
+
+/** Native Lottie animation box. `source` is a URL string or a full TelaLottieSource; playback defaults: autoplay + loop. */
+export function lottie(x: number, y: number, w: number, h: number, source: string | TelaLottieSource, intrinsicW: number, intrinsicH: number, o: { label?: string; opacity?: number; rotation?: number; role?: Role; blend?: TelaBlendMode; loop?: boolean; autoplay?: boolean; speed?: number; fit?: TelaLottieSpec['fit']; posterFrame?: number; posterSrc?: string; startOffset?: number; slots?: Record<string, unknown> } = {}): TelaVectorObject {
+  const src: TelaLottieSource = typeof source === 'string' ? { format: /\.lottie(\?|#|$)/i.test(source) ? 'dotlottie' : 'json', url: source } : source;
+  return { id: oid('lottie'), kind: 'LOTTIE', x, y, w, h, fill: 'none', stroke: 'none', strokeWidth: 0, rotation: o.rotation || 0, opacity: o.opacity ?? 1, semanticRole: 'ARTWORK', blendMode: o.blend, objectLabel: o.label || 'Animation', templateRole: o.role || 'ORNAMENT',
+    lottie: { source: src, intrinsicWidth: intrinsicW, intrinsicHeight: intrinsicH, autoplay: o.autoplay ?? true, loop: o.loop ?? true, speed: o.speed ?? 1, direction: 'forward', fit: o.fit || 'contain', posterFrame: o.posterFrame ?? 0, posterSrc: o.posterSrc, startOffset: o.startOffset, slots: o.slots } };
 }
 
 /**

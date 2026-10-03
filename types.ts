@@ -7035,7 +7035,66 @@ export interface TelaFormDevice {
 // Slug analytic-curve text engine (spec §04) is a LATER dedicated push; SVG text
 // delivers sharp-at-zoom today.
 
-export type TelaVectorObjectKind = 'RECT' | 'ELLIPSE' | 'LINE' | 'PATH' | 'TEXT' | 'IMAGE';
+export type TelaVectorObjectKind = 'RECT' | 'ELLIPSE' | 'LINE' | 'PATH' | 'TEXT' | 'IMAGE' | 'LOTTIE';
+
+// ── Lottie — native animation objects (kind 'LOTTIE') ────────────────────────
+// A Lottie (.json) or dotLottie (.lottie) animation placed on a vector artboard
+// like any other box object (x/y/w/h, rotation, opacity, blend, shadow). The
+// runtime + deterministic seek live in services/tela/telaLottie.ts so Fabula,
+// presentations, Ambo and the broadcast titler can composite the same motion.
+
+/** Where the animation bytes live. Resolution order: inlineJson → assetId → url. */
+export interface TelaLottieSource {
+  format: 'json' | 'dotlottie';
+  /** Small Lottie JSON embedded in the doc (≤ ~200 KB) — travels with every copy. */
+  inlineJson?: string;
+  /** Local Tela asset store id (OPFS → localStorage), see services/tela/telaAssetStore. */
+  assetId?: string;
+  /** Durable URL (Storage download URL / remote URL). */
+  url?: string;
+  /** Present when uploaded to Storage (users/{uid}/tela/…). */
+  storagePath?: string;
+  /** Guest object: URL with no local/durable copy — gone on reload. */
+  sessionOnly?: boolean;
+  name?: string;
+  bytes?: number;
+}
+
+export type TelaLottieDirection = 'forward' | 'reverse' | 'bounce' | 'reverse-bounce';
+
+export interface TelaLottieSpec {
+  source: TelaLottieSource;
+  /** Composition size from the file (w/h) — the aspect the fit is computed against. */
+  intrinsicWidth: number;
+  intrinsicHeight: number;
+  /** Cached metadata (filled on import; refreshed when the player loads). */
+  frameRate?: number;
+  totalFrames?: number;
+  markers?: string[];
+  themes?: string[];
+  /** Slot ids found in the animation, with their kind (for editable titles/colours). */
+  slotInfo?: Array<{ id: string; kind: 'color' | 'text' | 'scalar' | 'vector' | 'image' | 'unknown'; default?: unknown }>;
+  autoplay: boolean;
+  loop: boolean;
+  /** Playback rate multiplier (1 = authored speed). */
+  speed: number;
+  direction: TelaLottieDirection;
+  /** Play only part of the animation. `unit` decides how start/end are read. */
+  segment?: { start: number; end: number; unit: 'frame' | 'second' };
+  /** Named marker to play instead of a segment (dotLottie / Lottie markers). */
+  marker?: string;
+  /** Seconds on the frame/document timeline before playback starts (frame holds at segment start). */
+  startOffset?: number;
+  /** Frame shown for thumbnails, print, reduced motion and before playback. */
+  posterFrame?: number;
+  /** Cached poster raster (data URL, ≤ 360px long side) for static renders. */
+  posterSrc?: string;
+  fit: 'contain' | 'cover' | 'fill';
+  /** dotLottie theme id (manifest.themes). */
+  themeId?: string;
+  /** Lottie slot overrides keyed by slot id — the raw `{ p: { a, k } }` slot payloads. */
+  slots?: Record<string, unknown>;
+}
 
 export interface TelaVectorNode {
   id: string;
@@ -7134,6 +7193,8 @@ export interface TelaVectorObject {
   detectedLabel?: string;
   detectionConfidence?: number;
   parentRegionId?: string;
+  /** LOTTIE-only: the animation source + playback/timing settings. */
+  lottie?: TelaLottieSpec;
 }
 
 /** Vector design surface — an artboard of SVG objects (z-order = array order). */

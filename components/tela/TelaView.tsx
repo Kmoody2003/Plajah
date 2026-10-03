@@ -46,6 +46,9 @@ import TelaGrid, { cellKey, type TelaBaseLite, type TelaFormulaContext } from '.
 import TelaBase from './TelaBase';
 import TelaForm from './TelaForm';
 import TelaVector, { TelaVectorObjectProps, objBounds, type VectorTool } from './TelaVector';
+import { TelaLottieImportRow } from './TelaLottie';
+import { importLottieFile } from '../../services/tela/telaLottieImport';
+import { isLottieFileName } from '../../services/tela/telaLottie';
 import TelaImage, { TelaImageLayerControls, ImageLayerRow, makeImageLayer } from './TelaImage';
 import { PRESETS, applyTelaOp, type TelaOp } from './telaOps';
 import { renderDevice as renderTelaDevice, type RenderDeviceCtx } from './renderDevice';
@@ -1116,6 +1119,15 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
     } catch (error) { console.error('[Tela Studio] vector asset import failed', error); }
     finally { setStudioImgBusy(false); }
   };
+  // Lottie (.lottie / Lottie .json) → a native LOTTIE object on the artboard.
+  const studioAddLottieFile = async (device: TelaVectorDevice, file: File, at?: { x: number; y: number }) => {
+    setStudioImgBusy(true); setImportError(null);
+    try {
+      const object = await importLottieFile(file, { artboard: { width: device.width, height: device.height }, at });
+      dispatchOp({ type: 'ADD_VECTOR_OBJECT', deviceId: device.id, object }); setStudioSel(object.id);
+    } catch (error) { setImportError(error instanceof Error ? error.message : 'Lottie import failed.'); }
+    finally { setStudioImgBusy(false); }
+  };
   const saveStudioPaint = async (device: TelaImageDevice, blob: Blob) => {
     const file = new File([blob], `Tela paint ${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.png`, { type: 'image/png' });
     await studioAddImageFile(device.id, file); setStudioPaintOpen(false);
@@ -1532,12 +1544,28 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
     try {
       for (let index = 0; index < files.length; index++) {
         const file = files[index];
+        const pos = dropPos ? { x: dropPos.x + index * 44, y: dropPos.y + index * 44 } : undefined;
+        if (isLottieFileName(file.name)) {
+          // A Lottie lands as a vector artboard holding one native LOTTIE object (editable in Studio).
+          try {
+            const probe = await importLottieFile(file, { artboard: { width: 1e6, height: 1e6 } });
+            const L = probe.lottie!;
+            const k = Math.min(1, 1080 / Math.max(L.intrinsicWidth, L.intrinsicHeight));
+            const w = Math.max(64, Math.round(L.intrinsicWidth * k)), h = Math.max(64, Math.round(L.intrinsicHeight * k));
+            const object: TelaVectorObject = { ...probe, x: 0, y: 0, w, h };
+            const dev: TelaVectorDevice = { id: uid('dev'), type: 'VECTOR', name: object.objectLabel || 'Animation', width: w, height: h, objects: [object] };
+            addFrame('BOARD', 'FREE', dev, dev.name!, { size: { w, h }, pos });
+            continue;
+          } catch (error) {
+            // A .json that isn't Lottie is still a valid generic asset; a broken .lottie is an error.
+            if (/\.lottie$/i.test(file.name)) throw error;
+          }
+        }
         const kind = mediaKindFor(file);
         const uploaded = await uploadTelaAsset(file);
         const wide = kind === 'VIDEO' || kind === 'AUDIO' || kind === 'MODEL_3D';
         const size = kind === 'PDF' ? { w: 816, h: 1056 } : wide ? { w: 720, h: 405 } : { w: 560, h: 420 };
         const device: TelaMediaDevice = { id: uid('dev'), type: 'MEDIA', kind, name: file.name, src: uploaded.src, mimeType: file.type || 'application/octet-stream', size: file.size, width: size.w, height: size.h, storagePath: uploaded.storagePath, sessionOnly: uploaded.sessionOnly };
-        const pos = dropPos ? { x: dropPos.x + index * 44, y: dropPos.y + index * 44 } : undefined;
         addFrame(kind === 'PDF' ? 'PAPER' : 'BOARD', 'FREE', device, file.name, { size, pos });
       }
       setShowHome(false);
@@ -2050,7 +2078,7 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
             </div>
 
             {/* Center stage — rulers + artboard */}
-            <div className="flex-1 relative overflow-auto" style={{ background: '#141318' }} onDragOver={event => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } }} onDrop={event => { const files = [...event.dataTransfer.files]; if (!files.length) return; event.preventDefault(); const visual = files.filter(file => file.type.startsWith('image/') || isVectorFile(file)); const other = files.filter(file => !visual.includes(file)); visual.forEach(file => { if (isVec) void studioAddVectorFile(vec!, file); else void studioAddImageFile(img!.id, file); }); if (other.length) void insertAssetFiles(other); }} onWheel={event => { if (!event.ctrlKey && !event.metaKey) return; event.preventDefault(); setStudioZoom(value => Math.max(.1, Math.min(4, value * (event.deltaY > 0 ? .9 : 1.1)))); }}>
+            <div className="flex-1 relative overflow-auto" style={{ background: '#141318' }} onDragOver={event => { if (event.dataTransfer.types.includes('Files')) { event.preventDefault(); event.dataTransfer.dropEffect = 'copy'; } }} onDrop={event => { const files = [...event.dataTransfer.files]; if (!files.length) return; event.preventDefault(); const lotties = isVec ? files.filter(file => isLottieFileName(file.name)) : []; if (lotties.length) { const box = event.currentTarget.querySelector('.tela-vector > svg') as SVGSVGElement | null; const ctm = box?.getScreenCTM(); const at = box && ctm ? (() => { const pt = box.createSVGPoint(); pt.x = event.clientX; pt.y = event.clientY; const q = pt.matrixTransform(ctm.inverse()); return { x: q.x, y: q.y }; })() : undefined; lotties.forEach((file, index) => void studioAddLottieFile(vec!, file, at ? { x: at.x + index * 24, y: at.y + index * 24 } : undefined)); } const visual = files.filter(file => !lotties.includes(file) && (file.type.startsWith('image/') || isVectorFile(file))); const other = files.filter(file => !lotties.includes(file) && !visual.includes(file)); visual.forEach(file => { if (isVec) void studioAddVectorFile(vec!, file); else void studioAddImageFile(img!.id, file); }); if (other.length) void insertAssetFiles(other); }} onWheel={event => { if (!event.ctrlKey && !event.metaKey) return; event.preventDefault(); setStudioZoom(value => Math.max(.1, Math.min(4, value * (event.deltaY > 0 ? .9 : 1.1)))); }}>
               {/* Studio top-strip */}
               <div className="sticky top-0 z-20 flex items-center gap-2 px-3 h-9 overflow-x-auto custom-scrollbar" style={{ background: 'rgba(11,10,16,0.96)', borderBottom: '1px solid rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)' }}>
                 <span className="text-[.72rem] font-bold text-white/80">{focus.name || (isVec ? 'Artboard' : 'Image')}</span>
@@ -2138,6 +2166,13 @@ const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
                       {studioTraceBusy ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />} Trace
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* Vector: native Lottie animations (file, drag-drop onto the artboard, or URL) */}
+              {vec && (
+                <div className="px-3 py-2.5 shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                  <TelaLottieImportRow artboard={{ width: vec.width, height: vec.height }} onAdd={object => { dispatchOp({ type: 'ADD_VECTOR_OBJECT', deviceId: vec.id, object }); setStudioSel(object.id); }} />
                 </div>
               )}
 
