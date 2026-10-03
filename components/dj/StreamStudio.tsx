@@ -46,6 +46,7 @@ const GEN_MODES: [string, string][] = [
   ['LUMINANCE', 'Luminance'], ['RETROGRID', 'Retro Grid'], ['SPECTRUM', 'Spectrum'], ['WAVEFORM', 'Waveform'],
   ['STAGE', 'Stage'], ['STUDIO_AURORA', 'Aurora'], ['STUDIO_CHROME', 'Chrome'], ['STUDIO_BAUHAUS', 'Bauhaus'],
   ['STUDIO_NEBULA', 'Studio Nebula'], ['STUDIO_GRAVITY', 'Gravity'], ['STUDIO_KINETIC', 'Kinetic'], ['STUDIO_RIPPLE', 'Ripple'],
+  ['STUDIO_PLASMA', 'Plasma Fluid'], ['STUDIO_RAYMARCH', 'Raymarch Field'],
 ];
 const VISUALS: Visual[] = [
   { id: 'orbs', name: 'Aurora Orbs', cat: 'Plajah', kind: 'orbs' },

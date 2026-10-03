@@ -56,21 +56,19 @@ export async function loadSignatureShaders(): Promise<FxShader[]> {
   _shadersPromise = (async () => {
     let built: FxShader[] = [];
     try {
-      const mod: any = await import('./plajahPixels/engine/presets/signatureShaders');
-      const works: any[] = mod.SIGNATURE_WORKS || [];
-      // The WHOLE library is offered on every surface, television included. Series V (kit3d) are
-      // SDF raymarchers at 72–104 steps per pixel and genuinely heavy, but hiding a third of the
-      // collection from the biggest screen in the house is the wrong trade — a TV is where these
-      // are most worth looking at. They are paid for with frame rate instead (see fxFrameCap),
-      // which costs smoothness on the heaviest works rather than removing them.
-      built = works
-        .map(w => ({
-          name: w.name,
-          source: mod.signatureSource(w),
-          // Each work ships its own tuned defaults; without them the whole set renders at
-          // a flat 0.5 and reads nothing like the intended look.
-          params: [0, 1, 2, 3].map(i => w.params?.[i]?.def ?? 0.5),
-        }));
+      // ONE library: the same SHADER_LIBRARY the Pixels studio, Library rail, DJ and Ambo pickers read
+      // (Signature I-VIII incl. Council Masterworks, Living Volumes / Glass Harmonics material works,
+      // raw GLSL, procedural and ISF). It used to read SIGNATURE_WORKS alone, so every material,
+      // procedural and ISF shader added later never reached Chora / TV / Mixes. Signature entries
+      // stay first so saved preset indices do not move.
+      const mod: any = await import('./plajahPixels/components/ShaderPanel');
+      const works: any[] = mod.SHADER_LIBRARY || [];
+      built = works.map(w => ({
+        name: w.name,
+        source: w.src,
+        // Each work ships its own tuned defaults; without them the whole set renders at a flat 0.5.
+        params: [0, 1, 2, 3].map(i => w.params?.[i]?.def ?? 0.5),
+      }));
     } catch (e) {
       console.warn('[Plajah Pixels] Signature shader library failed to load:', e);
     }
