@@ -102,7 +102,8 @@ export function rgba(hex: string, a: number): string {
 export function decoAlpha(s: ScriptureState): number {
   if (s.decoP !== undefined) return s.decoP;
   const inA = s.transition === 'crossfade' ? easeOut(s.enterP) : easeOut(s.enterP * 2.2);
-  const outA = 1 - easeInOut(s.exitP * (s.transition === 'crossfade' ? 1 : 1.3));
+  // Exit over the full span so plates never leave before the words they sit under.
+  const outA = 1 - easeInOut(s.exitP);
   return clamp01(inA) * clamp01(outA);
 }
 

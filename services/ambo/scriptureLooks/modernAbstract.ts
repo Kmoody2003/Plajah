@@ -408,7 +408,7 @@ export const MODERN_ABSTRACT_LAYOUTS: ScriptureLayout[] = [
       ctx.fillStyle = '#141414'; ctx.fillRect(L.x, L.y, L.w, L.h);
       ctx.restore();
       ctx.save(); ctx.translate(0, dy);
-      drawReferenceLead(ctx, s, '#141414');
+      drawReferenceLead(ctx, s, '#FFFFFF');
       setVerse(ctx, s, L, { font, color: '#FFFFFF', ref: '#FFD23F', refFont: z => `700 ${z}px ${GROTESK}`, refTrack: 0.14 });
       ctx.restore();
       drawCopyright(ctx, s, s.w / 2, s.h - safe(s) * 0.4, 'center', 'rgba(20,20,20,0.55)');
@@ -451,7 +451,17 @@ export const MODERN_ABSTRACT_LAYOUTS: ScriptureLayout[] = [
         ctx.fillStyle = PINK; ctx.fillRect(s.w * 0.9 - rx + drift(5), s.h * 0.12, s.h * 0.36, s.h * 0.5);
       }
       // halftone wash in blue, falling away from a corner
-      halftone(ctx, s, 'rgba(0,120,191,0.42)', u * 0.03, 0.3, (fx, fy) => (1 - Math.hypot(fx - 0.15, fy - 0.85) * 1.8) * 0.9);
+      // (local, region-bounded: one path, one fill)
+      {
+        const hx = T ? s.w * 0.2 : Math.min(L.x, s.w * 0.2), hy = T ? s.h * 0.82 : s.h * 0.8, HR = u * 0.62, cell = u * 0.03;
+        ctx.save(); ctx.translate(hx, hy); ctx.rotate(0.3 + Math.sin(mt * 0.05) * 0.03);
+        ctx.beginPath();
+        for (let yy = -HR; yy <= HR; yy += cell) for (let xx = -HR; xx <= HR; xx += cell) {
+          const k = (1 - Math.hypot(xx, yy) / HR) * e.v; if (k < 0.05) continue;
+          ctx.moveTo(xx + cell * 0.5 * k, yy); ctx.arc(xx, yy, cell * 0.5 * k, 0, TAU);
+        }
+        ctx.fillStyle = 'rgba(0,120,191,0.45)'; ctx.fill(); ctx.restore();
+      }
       ctx.globalCompositeOperation = 'source-over';
       grain(ctx, s, 0.07, 0);
       // paper card with off-register pink keyline
@@ -520,7 +530,7 @@ export const MODERN_ABSTRACT_LAYOUTS: ScriptureLayout[] = [
       ctx.fillStyle = '#F4F1EA'; ctx.fillRect(L.x + sep * 0.5, L.y - sep * 0.5, L.w, L.h);
       ctx.restore();
       ctx.save(); ctx.translate(sep * 0.5, -sep * 0.5);
-      drawReferenceLead(ctx, s, '#F4F1EA');
+      drawReferenceLead(ctx, s, '#111111');
       setVerse(ctx, s, L, { font, color: '#111111', ref: '#E3301A', refFont: z => `800 ${z}px ${GROTESK}`, refTrack: 0.1 });
       ctx.restore();
       drawCopyright(ctx, s, s.w / 2, s.h - safe(s) * 0.4, 'center');
@@ -538,23 +548,27 @@ export const MODERN_ABSTRACT_LAYOUTS: ScriptureLayout[] = [
       // giant outline numeral behind, cropped
       const num = numOf(s) || '§';
       const ns = T ? s.w * 0.32 : s.h * 0.34;
-      const e0 = life(s, 0, 3);
+      const e0 = life(s, 2, 3);
       ctx.font = `800 ${ns}px ${GROTESK}`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
       ctx.strokeStyle = rgba(ACID, 0.9 * e0.v); ctx.lineWidth = Math.max(2, ns * 0.012);
       ctx.strokeText(num, L.x - (1 - e0.i) * ns * 0.5, L.y + ns * 0.3);
       // acid block, wiping from the left
       const e1 = life(s, 1, 3);
       const off = L.size * 0.5;
+      // (clipped out of the slab, so it never glows through it while the slab fades)
+      const dyS = (1 - life(s, 0, 3).i) * -s.h * 0.06 + life(s, 0, 3).o * s.h * 0.08;
+      ctx.save(); ctx.beginPath(); ctx.rect(0, 0, s.w, s.h); ctx.rect(L.x, L.y + dyS, L.w, L.h); ctx.clip('evenodd');
       ctx.fillStyle = ACID; ctx.fillRect(L.x + off + L.w * e1.o, L.y + off, L.w * (e1.i - e1.o), L.h);
-      // slab drops in
-      const e2 = life(s, 2, 3);
+      ctx.restore();
+      // slab drops in first and stays solid (the block only ever shows as its shadow)
+      const e2 = life(s, 0, 3);
       const dy = (1 - e2.i) * -s.h * 0.06 + e2.o * s.h * 0.08;
       ctx.translate(0, dy);
-      ctx.fillStyle = `rgba(10,10,10,${0.92 * e2.v})`; ctx.fillRect(L.x, L.y, L.w, L.h);
+      ctx.fillStyle = 'rgba(10,10,10,0.94)'; ctx.fillRect(L.x, L.y, L.w, L.h);
       // hazard band along the top edge
       const bh = L.size * 0.32;
       ctx.save(); ctx.beginPath(); ctx.rect(L.x, L.y - bh, L.w, bh); ctx.clip();
-      ctx.globalAlpha = a * e2.v;
+      ctx.globalAlpha = a * life(s, 1, 3).v;
       ctx.fillStyle = '#0A0A0A'; ctx.fillRect(L.x, L.y - bh, L.w, bh);
       ctx.fillStyle = ACID;
       const st = bh * 1.4, so = (mt * u * 0.03) % (st * 2);
@@ -962,7 +976,7 @@ export const MODERN_ABSTRACT_LAYOUTS: ScriptureLayout[] = [
       const e = life(s);
       ctx.save(); ctx.globalAlpha = a;
       // paint the fields at low resolution and scale up: soft painterly edges for free
-      const sw = 160, sh = Math.max(24, Math.round(160 * s.h / s.w));
+      const sw = 120, sh = Math.max(24, Math.round(120 * s.h / s.w));
       const off = scratch(sw, sh); const o = off.getContext('2d')!;
       const kx = sw / s.w, ky = sh / s.h;
       o.globalCompositeOperation = 'source-over'; o.globalAlpha = 1;
@@ -976,11 +990,25 @@ export const MODERN_ABSTRACT_LAYOUTS: ScriptureLayout[] = [
         o.fillRect((mx + wob(k)) * kx, (cy - hh / 2 + wob(k + 1)) * ky, (s.w - mx * 2) * kx, hh * ky);
       };
       const gap = u * 0.03;
-      const top0 = m * 0.8, bot1 = s.h - m * 0.8;
-      const breathe = 0.86 + 0.14 * Math.sin(mt * 0.3);
-      field(top0, L.y - gap, '#C23B22', 0, breathe);
-      field(L.y + L.h + gap, bot1, '#7A1A24', 2, 0.9 + 0.1 * Math.sin(mt * 0.23 + 1));
-      field(L.y, L.y + L.h, '#1E0709', 4, 1);
+      const breathe = 0.86 + 0.14 * Math.sin(mt * 0.3), breathe2 = 0.9 + 0.1 * Math.sin(mt * 0.23 + 1);
+      if (wideCls(s)) {
+        // wide walls: the fields stand side by side, the dark one in the middle
+        const vfield = (x0: number, x1: number, col: string, k: number, al: number) => {
+          const cx = (x0 + x1) / 2, ww = (x1 - x0) * open, my = m * 0.8;
+          o.globalAlpha = al; o.fillStyle = col;
+          o.fillRect((cx - ww / 2 + wob(k)) * kx, (my + wob(k + 1)) * ky, ww * kx, (s.h - my * 2) * ky);
+        };
+        vfield(m * 0.8, L.x - gap, '#C23B22', 0, breathe);
+        vfield(L.x + L.w + gap, s.w - m * 0.8, '#7A1A24', 2, breathe2);
+        vfield(L.x, L.x + L.w, '#1E0709', 4, 1);
+      } else {
+        field(m * 0.8, L.y - gap, '#C23B22', 0, breathe);
+        field(L.y + L.h + gap, s.h - m * 0.8, '#7A1A24', 2, breathe2);
+        field(L.y, L.y + L.h, '#1E0709', 4, 1);
+      }
+      // a luminous core inside the top field (paint glowing through)
+      if (!wideCls(s)) { o.globalAlpha = 0.25 * open * breathe; o.fillStyle = '#FF7A3D';
+      o.fillRect(s.w * 0.2 * kx, m * 1.2 * ky, s.w * 0.6 * kx, Math.max(0, L.y - gap - m * 1.6) * ky); }
       void mid;
       ctx.imageSmoothingEnabled = true; (ctx as any).imageSmoothingQuality = 'high';
       ctx.drawImage(off, 0, 0, sw, sh, 0, 0, s.w, s.h);
@@ -988,7 +1016,7 @@ export const MODERN_ABSTRACT_LAYOUTS: ScriptureLayout[] = [
       ctx.restore();
       grain(ctx, s, 0.05);
       drawReferenceLead(ctx, s, '#F7E6D0');
-      setVerse(ctx, s, L, { font, color: '#F8EAD6', ref: '#F08A5D', refFont: z => `${z * 1.05}px ${SERIF}`, refTrack: 0.24 });
+      setVerse(ctx, s, L, { font, color: '#F8EAD6', ref: '#F7A27A', refFont: z => `${z * 1.05}px ${SERIF}`, refTrack: 0.24 });
       drawCopyright(ctx, s, s.w / 2, s.h - m * 0.3, 'center', 'rgba(248,234,214,0.45)');
     },
   },
@@ -1032,8 +1060,8 @@ export const MODERN_ABSTRACT_LAYOUTS: ScriptureLayout[] = [
       ctx.restore();
       grain(ctx, s, 0.05, 0);
       const g = life(s).v;
-      plate(ctx, L.x, L.y, L.w * (0.25 + 0.75 * g), L.h, { tint: '#141414', blur: 0, r: 0, alpha: a });
-      drawReferenceLead(ctx, s, '#141414');
+      plate(ctx, L.x + L.w * (1 - (0.25 + 0.75 * g)) / 2, L.y, L.w * (0.25 + 0.75 * g), L.h, { tint: '#141414', blur: 0, r: 0, alpha: a });
+      drawReferenceLead(ctx, s, '#F4EFE4');
       setVerse(ctx, s, L, { font, color: '#F4EFE4', ref: '#FF4A3A', refFont: z => `800 ${z}px ${GROTESK}`, refTrack: 0.14 });
       drawCopyright(ctx, s, s.w / 2, s.h - safe(s) * 0.4, 'center', 'rgba(20,20,20,0.55)');
     },
@@ -1042,13 +1070,13 @@ export const MODERN_ABSTRACT_LAYOUTS: ScriptureLayout[] = [
     id: 'ma-prism', name: 'Prism', family: FAM, background: 'opaque', director: BD, animated: true,
     blurb: 'A single beam strikes a glass prism and throws a slow-swaying spectrum across the dark, behind a smoked reading plate.',
     draw(ctx, s) {
-      const a = decoAlpha(s), mt = motionT(s), u = U(s), T = tall(s);
+      const a = decoAlpha(s), mt = motionT(s), u = U(s), T = tall(s) || aspectClass(s.w, s.h) === 'classic';
       const font = (z: number) => `${z}px ${SERIF}`;
       const L = readBlock(ctx, s, { font, lh: 1.32, pad: 1.1, cy: s.h * (T ? 0.58 : 0.5) });
       ctx.save(); ctx.globalAlpha = a;
       ctx.fillStyle = '#050508'; ctx.fillRect(0, 0, s.w, s.h);
       const px = T ? s.w * 0.5 : Math.min(Math.max(L.x * 0.5, u * 0.22), s.w * 0.22), py = T ? Math.max(u * 0.22, L.y * 0.45) : s.h * 0.5;
-      const side = u * (T ? 0.2 : 0.17);
+      const side = u * (tall(s) ? 0.2 : T ? 0.14 : 0.17);
       const e1 = life(s, 0, 2), e2 = life(s, 1, 2);
       ctx.translate(px, py); ctx.rotate(T ? Math.PI / 2 : 0);
       const v0 = [0, -side * 0.577], v1 = [-side / 2, side * 0.289], v2 = [side / 2, side * 0.289];
