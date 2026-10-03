@@ -1183,7 +1183,7 @@ public sealed partial class MainWindow : Window
                     }
 
                     // 2. Enumerate NDI Streams (Native SDK + LAN Discovery)
-                    var ndiStreams = await _studioBridge.DiscoverNdiSourcesAsync();
+                    var ndiStreams = await _studioBridge.DiscoverNdiSourcesAsync(quick: true);
                     foreach (var s in ndiStreams)
                     {
                         sourceList.Add(new
@@ -1203,7 +1203,7 @@ public sealed partial class MainWindow : Window
                     }
 
                     // 3. Enumerate OMT Streams (Open Media Transport LAN)
-                    var omtStreams = await _studioBridge.DiscoverOmtSourcesAsync();
+                    var omtStreams = await _studioBridge.DiscoverOmtSourcesAsync(quick: true);
                     foreach (var o in omtStreams)
                     {
                         sourceList.Add(new

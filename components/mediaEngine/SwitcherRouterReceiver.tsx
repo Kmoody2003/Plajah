@@ -22,6 +22,8 @@ export interface SwitcherRouterReceiverProps {
   previewDestId: string;
   onScanNdi: () => Promise<void>;
   isScanningNdi: boolean;
+  /** Why the last scan found no NDI senders — shown instead of a silent empty list. */
+  networkDiagnosis?: string | null;
   initialTargetDestId?: string;
 }
 
@@ -50,6 +52,7 @@ export const SwitcherRouterReceiver: React.FC<SwitcherRouterReceiverProps> = ({
   previewDestId,
   onScanNdi,
   isScanningNdi,
+  networkDiagnosis,
   initialTargetDestId,
 }) => {
   const [filter, setFilter] = useState<'all' | 'ndi' | 'hardware' | 'cameras' | 'remote'>('all');
@@ -64,7 +67,7 @@ export const SwitcherRouterReceiver: React.FC<SwitcherRouterReceiverProps> = ({
 
   // Filter sources
   const filteredSources = sources.filter(s => {
-    if (filter === 'ndi') return s.kind === 'ndi';
+    if (filter === 'ndi') return s.kind === 'ndi' || s.kind === 'omt';
     if (filter === 'hardware') return s.kind === 'decklink' || s.kind === 'braw';
     if (filter === 'cameras') return s.kind === 'uvc';
     if (filter === 'remote') return s.kind === 'webrtc' || s.kind === 'srt' || s.kind === 'rtmp';
@@ -128,7 +131,7 @@ export const SwitcherRouterReceiver: React.FC<SwitcherRouterReceiverProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#7c9ce8]/15 border border-[#7c9ce8]/35 text-[#7c9ce8] hover:bg-[#7c9ce8]/25 text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-50"
             >
               <RefreshCw size={12} className={isScanningNdi ? "animate-spin" : ""} />
-              <span>{isScanningNdi ? "Scanning LAN..." : "Scan NDI Streams"}</span>
+              <span>{isScanningNdi ? "Scanning LAN..." : "Scan NDI + OMT"}</span>
             </button>
             <button
               onClick={onClose}
@@ -145,7 +148,7 @@ export const SwitcherRouterReceiver: React.FC<SwitcherRouterReceiverProps> = ({
           <div className="flex items-center gap-1.5">
             {[
               { id: 'all', label: 'All Sources' },
-              { id: 'ndi', label: 'NDI Network' },
+              { id: 'ndi', label: 'NDI / OMT' },
               { id: 'hardware', label: 'DeckLink SDI' },
               { id: 'cameras', label: 'Webcams' },
               { id: 'remote', label: 'WHEP / Cloud' },
@@ -196,15 +199,18 @@ export const SwitcherRouterReceiver: React.FC<SwitcherRouterReceiverProps> = ({
               <Radio size={36} className="text-white/20 mx-auto" />
               <div className="text-sm font-bold text-white/70">No {filter !== 'all' ? filter.toUpperCase() : ''} video feeds currently detected</div>
               <p className="text-xs text-white/40 max-w-md mx-auto">
-                Connect NDI cameras or OBS NDI on this network, plug in a DeckLink capture card, or add a WHEP guest stream.
+                Connect NDI or OMT sources on this network, plug in a DeckLink capture card, or add a WHEP guest stream.
               </p>
+              {networkDiagnosis && !isScanningNdi && (
+                <p className="text-[11px] max-w-md mx-auto leading-relaxed rounded-lg px-3 py-2" style={{ color: '#ffd166', background: 'rgba(255,184,0,0.08)', border: '1px solid rgba(255,184,0,0.35)' }}>{networkDiagnosis}</p>
+              )}
               <div className="flex items-center justify-center gap-3 pt-2">
                 <button
                   onClick={onScanNdi}
                   disabled={isScanningNdi}
                   className="px-4 py-2 rounded-xl bg-[#7c9ce8]/20 border border-[#7c9ce8]/40 text-[#7c9ce8] hover:bg-[#7c9ce8]/30 text-xs font-bold transition-all"
                 >
-                  {isScanningNdi ? 'Scanning...' : 'Scan LAN for NDI Senders'}
+                  {isScanningNdi ? 'Scanning...' : 'Scan LAN for NDI + OMT'}
                 </button>
                 <button
                   onClick={() => setShowAddCustom(true)}
@@ -243,7 +249,7 @@ export const SwitcherRouterReceiver: React.FC<SwitcherRouterReceiverProps> = ({
                         color: KIND_COLOR[s.kind] || '#888',
                       }}
                     >
-                      {s.kind === 'ndi' ? (
+                      {s.kind === 'ndi' || s.kind === 'omt' ? (
                         <Radio size={18} />
                       ) : s.kind === 'decklink' ? (
                         <Layers size={18} />

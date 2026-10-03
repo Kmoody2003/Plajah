@@ -12,7 +12,7 @@ import {
 import { detectCapabilities } from './capabilities';
 import { WebcamSource, WhepSource } from './browserSources';
 import {
-  hasNativeEngine, listNativeSources, scanNdiStreams, connectNativeSource, disconnectNativeSource,
+  hasNativeEngine, listNativeSources, scanNdiStreams, scanNetworkFeeds, connectNativeSource, disconnectNativeSource,
   nativeRoute, nativeProgram, nativeSync, NativeSourceInfo,
 } from './bridge';
 import { VideoSource as IVideoSource, FrameRef } from './types';
@@ -140,7 +140,16 @@ export class MediaEngine {
   /** Actively probe the network and NDI runtime for NDI streams and register them into the router/switcher. */
   async scanNdi(): Promise<NativeSourceInfo[]> {
     if (!hasNativeEngine()) return [];
-    const infos = await scanNdiStreams();
+    return this.registerFound(await scanNdiStreams());
+  }
+
+  /** NDI senders and OMT senders in one scan — everything announcing itself on the network. */
+  async scanNetworkFeeds(): Promise<NativeSourceInfo[]> {
+    if (!hasNativeEngine()) return [];
+    return this.registerFound(await scanNetworkFeeds());
+  }
+
+  private registerFound(infos: NativeSourceInfo[]): NativeSourceInfo[] {
     const existing = new Set(this.state.router.sources.map(s => s.id));
     const fresh = infos.filter(i => !existing.has(i.id)).map(i => new NativeSource(i));
     if (fresh.length) {

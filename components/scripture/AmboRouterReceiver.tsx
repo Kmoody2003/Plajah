@@ -20,6 +20,8 @@ export interface AmboRouterReceiverProps {
   nativeSources: NativeSourceInfo[];
   onScanNdi: () => Promise<void>;
   isScanningNdi: boolean;
+  /** Why the last scan found no NDI senders (firewall, network, runtime) — shown instead of a silent empty list. */
+  networkDiagnosis?: string | null;
   selectedSlide: Slide | null;
   slides: Slide[];
   onRouteToSlide: (slideId: string, inputId: string, label: string) => void;
@@ -42,6 +44,7 @@ export const AmboRouterReceiver: React.FC<AmboRouterReceiverProps> = ({
   nativeSources,
   onScanNdi,
   isScanningNdi,
+  networkDiagnosis,
   selectedSlide,
   slides,
   onRouteToSlide,
@@ -107,7 +110,7 @@ export const AmboRouterReceiver: React.FC<AmboRouterReceiverProps> = ({
   ];
 
   const filteredSources = allSources.filter(s => {
-    if (filter === 'ndi') return s.kind === 'ndi';
+    if (filter === 'ndi') return s.kind === 'ndi' || s.kind === 'omt';
     if (filter === 'switcher') return s.kind === 'switcher';
     if (filter === 'hardware') return s.kind === 'decklink' || s.kind === 'uvc';
     return true;
@@ -145,7 +148,7 @@ export const AmboRouterReceiver: React.FC<AmboRouterReceiverProps> = ({
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#7c9ce8]/15 border border-[#7c9ce8]/35 text-[#7c9ce8] hover:bg-[#7c9ce8]/25 text-[10px] font-black uppercase tracking-wider transition-all disabled:opacity-50"
             >
               <RefreshCw size={12} className={isScanningNdi ? 'animate-spin' : ''} />
-              <span>{isScanningNdi ? 'Probing LAN...' : 'Scan NDI Streams'}</span>
+              <span>{isScanningNdi ? 'Probing LAN...' : 'Scan NDI + OMT'}</span>
             </button>
             <button onClick={onClose} className="w-8 h-8 rounded-full bg-white/[0.06] flex items-center justify-center text-white/40 hover:text-white transition-colors">
               <X size={16} />
@@ -159,7 +162,7 @@ export const AmboRouterReceiver: React.FC<AmboRouterReceiverProps> = ({
           <div className="flex items-center gap-1.5">
             {[
               { id: 'all', label: 'All Sources' },
-              { id: 'ndi', label: 'NDI Streams' },
+              { id: 'ndi', label: 'NDI / OMT Streams' },
               { id: 'switcher', label: 'Switcher Busses' },
               { id: 'hardware', label: 'Hardware SDI' },
             ].map(f => (
@@ -197,15 +200,21 @@ export const AmboRouterReceiver: React.FC<AmboRouterReceiverProps> = ({
 
         {/* Main Sources Table / Matrix */}
         <div className="flex-1 overflow-y-auto p-6 space-y-3 custom-scrollbar">
+          {networkDiagnosis && !isScanningNdi && !nativeSources.some(s => s.kind === 'ndi') && (
+            <div className="rounded-xl border px-4 py-3 text-[11px] leading-relaxed" style={{ borderColor: 'rgba(255,184,0,0.4)', background: 'rgba(255,184,0,0.08)', color: '#ffd166' }}>
+              <div className="font-bold mb-0.5">No NDI senders found</div>
+              {networkDiagnosis}
+            </div>
+          )}
           {filteredSources.length === 0 ? (
             <div className="py-16 text-center text-white/40 space-y-2">
               <Radio size={32} className="mx-auto text-white/20" />
               <p className="text-sm font-semibold">No video streams match filter</p>
-              <p className="text-xs text-white/30">Click &ldquo;Scan NDI Streams&rdquo; to probe your local subnet for NDI senders.</p>
+              <p className="text-xs text-white/30">Click &ldquo;Scan NDI + OMT&rdquo; to look for NDI and OMT senders on this network.</p>
             </div>
           ) : (
             filteredSources.map(src => {
-              const isNdi = src.kind === 'ndi';
+              const isNdi = src.kind === 'ndi' || src.kind === 'omt';
               const isLiveActive = currentLiveInputId === src.id;
               const isPreviewActive = currentPreviewInputId === src.id;
               const isTargetSlideBound = slides.find(s => s.id === targetSlideId)?.layers.some(
@@ -321,7 +330,7 @@ export const AmboRouterReceiver: React.FC<AmboRouterReceiverProps> = ({
         <div className="px-6 py-3 border-t flex items-center justify-between text-[10px] text-white/40 flex-none bg-black/40" style={{ borderColor: line }}>
           <div className="flex items-center gap-2">
             <Cpu size={12} className="text-white/30" />
-            <span>LAN NDI streams are discovered via native WinUI SDK delegates &amp; mDNS fallback on port 5353.</span>
+            <span>NDI senders come from the NDI runtime, OMT senders from network announcements (_omt._tcp). SRT feeds aren&rsquo;t announced on a network — they&rsquo;re added by address.</span>
           </div>
           <button onClick={onClose} className="font-bold text-white/70 hover:text-white transition-colors">
             Done

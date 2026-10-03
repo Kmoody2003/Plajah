@@ -681,44 +681,15 @@ public sealed class PlajahStudioBridgeService
         string Version,
         string DllPath,
         List<string> Senders,
-        List<NdiSourceStream> Streams);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct NDIlib_source_t
-    {
-        public IntPtr p_ndi_name;
-        public IntPtr p_url_address;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct NDIlib_find_create_t
-    {
-        [MarshalAs(UnmanagedType.I1)]
-        public bool show_local_sources;
-        public IntPtr p_groups;
-        public IntPtr p_extra_ips;
-    }
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate bool NDIlib_initialize_fn();
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate void NDIlib_destroy_fn();
+        List<NdiSourceStream> Streams,
+        bool FinderRunning = false,
+        string? Diagnosis = null,
+        string? LastError = null,
+        string? FirewallProfile = null);
 
     [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
     private delegate IntPtr NDIlib_version_fn();
 
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate IntPtr NDIlib_find_create_v2_fn(ref NDIlib_find_create_t p_create_settings);
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate void NDIlib_find_destroy_fn(IntPtr p_instance);
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate bool NDIlib_find_wait_for_sources_fn(IntPtr p_instance, uint timeout_in_ms);
-
-    [UnmanagedFunctionPointer(CallingConvention.Cdecl)]
-    private delegate IntPtr NDIlib_find_get_current_sources_fn(IntPtr p_instance, out uint p_no_sources);
 
     private List<NdiSourceStream> _cachedNdiStreams = new();
 
@@ -865,151 +836,95 @@ public sealed class PlajahStudioBridgeService
         return (installed, version, dllPath);
     }
 
-    public NdiDiscoveryInfo DiscoverNdi()
+    // ── NDI discovery: ONE persistent finder (see NdiFinderService) ──────────
+    private NdiFinderService? _ndiFinder;
+    private readonly object _ndiFinderGate = new();
+    private (bool installed, string version, string dllPath)? _ndiProbe;
+
+    private (bool installed, string version, string dllPath) NdiProbe()
     {
-        var (installed, version, dllPath) = ProbeNdiDll();
-        var senders = new List<string>();
-        foreach (var s in _cachedNdiStreams)
-        {
-            if (!senders.Contains(s.Name)) senders.Add(s.Name);
-        }
-        return new NdiDiscoveryInfo(installed, version, dllPath, senders, new List<NdiSourceStream>(_cachedNdiStreams));
+        // Cache a positive probe; keep re-probing while the runtime is missing (it may be installed later).
+        if (_ndiProbe is { installed: true } cached) return cached;
+        var p = ProbeNdiDll();
+        _ndiProbe = p;
+        return p;
     }
 
-    public async Task<List<NdiSourceStream>> DiscoverNdiSourcesAsync(int timeoutMs = 1200)
+    private NdiFinderService? EnsureNdiFinder()
+    {
+        lock (_ndiFinderGate)
+        {
+            var (installed, _, dllPath) = NdiProbe();
+            if (!installed || string.IsNullOrEmpty(dllPath)) return null;
+            _ndiFinder ??= new NdiFinderService();
+            if (!_ndiFinder.Running) _ndiFinder.Start(dllPath);
+            return _ndiFinder.Running ? _ndiFinder : null;
+        }
+    }
+
+    /// <summary>Why discovery found nothing (or is limited) — shown by the router screens instead of an empty list.</summary>
+    public NdiDiscoveryInfo DiscoverNdi()
+    {
+        var (installed, version, dllPath) = NdiProbe();
+        var senders = _cachedNdiStreams.Select(s => s.Name).Distinct().ToList();
+        var finder = _ndiFinder;
+        bool running = finder?.Running == true;
+        string? diagnosis = null, profile = null;
+        if (!installed)
+            diagnosis = "The NDI runtime isn't installed on this PC, so Plajah can only see NDI senders that announce themselves on the network. Install NDI Tools or the NDI Runtime for full discovery.";
+        else if (!running)
+            diagnosis = $"The NDI finder isn't running ({finder?.LastError ?? "it hasn't started yet"}).";
+        else if (_cachedNdiStreams.Count == 0)
+        {
+            var fw = FirewallProbe.CheckInbound();
+            profile = fw.Profile;
+            diagnosis = fw.InboundAllowed == false
+                ? $"No NDI senders found, and Windows Firewall isn't allowing Plajah on this {fw.Profile} network. Allow Plajah in Windows Defender Firewall (Allow an app), or set this network to Private, then scan again."
+                : "No NDI senders answered. Make sure the senders are on the same network as this PC (Wi-Fi \"client isolation\" and separate VLANs block discovery), or add them in NDI Access Manager (Extra IPs or a Discovery Server).";
+        }
+        return new NdiDiscoveryInfo(installed, version, dllPath, senders, new List<NdiSourceStream>(_cachedNdiStreams), running, diagnosis, finder?.LastError, profile);
+    }
+
+    /// <param name="quick">Return what the running finder already knows (used for the auto-refresh on screen open).</param>
+    public async Task<List<NdiSourceStream>> DiscoverNdiSourcesAsync(int timeoutMs = 1200, bool quick = false)
     {
         var streams = new List<NdiSourceStream>();
-        var seenNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-        var (installed, version, dllPath) = ProbeNdiDll();
-
-        // 1. Try Native NDI SDK dynamic invocation if DLL is installed
-        if (installed && !string.IsNullOrEmpty(dllPath))
+        var finder = await Task.Run(EnsureNdiFinder);   // loads the runtime off the UI thread
+        if (finder != null)
         {
+            // A finder that just started is still hearing senders announce themselves; one that has run a while is complete.
+            bool cold = finder.AgeMs < 6000;
+            int settle = cold ? 900 : 400;
+            int max = quick ? (cold ? 2500 : 600) : Math.Max(timeoutMs, cold ? 3500 : 1500);
+            var snap = await finder.ScanAsync(settle, max);
+            foreach (var src in snap.Sources)
+            {
+                var (mach, strm) = ParseNdiName(src.Name);
+                streams.Add(new NdiSourceStream(
+                    Id: "ndi:" + src.Name.Replace(" ", "_").Replace("(", "").Replace(")", ""),
+                    Name: src.Name, Url: src.Url, MachineName: mach, StreamName: strm,
+                    Width: 1920, Height: 1080, Fps: 59.94,
+                    Status: "Online (NDI SDK)", DiscoveryMethod: "NDI 6 Runtime SDK"));
+            }
+        }
+        else
+        {
+            // No NDI runtime on this PC: browse the network's DNS-SD announcements directly.
             try
             {
-                if (NativeLibrary.TryLoad(dllPath, out var handle))
+                foreach (var i in await MdnsServiceBrowser.BrowseAsync("_ndi._tcp.local", Math.Max(timeoutMs, 1500)))
                 {
-                    try
-                    {
-                        if (NativeLibrary.TryGetExport(handle, "NDIlib_initialize", out var pInit) &&
-                            NativeLibrary.TryGetExport(handle, "NDIlib_destroy", out var pDestroyLib) &&
-                            NativeLibrary.TryGetExport(handle, "NDIlib_find_create_v2", out var pCreate) &&
-                            NativeLibrary.TryGetExport(handle, "NDIlib_find_wait_for_sources", out var pWait) &&
-                            NativeLibrary.TryGetExport(handle, "NDIlib_find_get_current_sources", out var pGet) &&
-                            NativeLibrary.TryGetExport(handle, "NDIlib_find_destroy", out var pDestroy))
-                        {
-                            var initFn = Marshal.GetDelegateForFunctionPointer<NDIlib_initialize_fn>(pInit);
-                            var destroyLibFn = Marshal.GetDelegateForFunctionPointer<NDIlib_destroy_fn>(pDestroyLib);
-                            var createFn = Marshal.GetDelegateForFunctionPointer<NDIlib_find_create_v2_fn>(pCreate);
-                            var waitFn = Marshal.GetDelegateForFunctionPointer<NDIlib_find_wait_for_sources_fn>(pWait);
-                            var getFn = Marshal.GetDelegateForFunctionPointer<NDIlib_find_get_current_sources_fn>(pGet);
-                            var destroyFn = Marshal.GetDelegateForFunctionPointer<NDIlib_find_destroy_fn>(pDestroy);
-
-                            if (initFn())
-                            {
-                                try
-                                {
-                                    var findSettings = new NDIlib_find_create_t
-                                    {
-                                        show_local_sources = true,
-                                        p_groups = IntPtr.Zero,
-                                        p_extra_ips = IntPtr.Zero
-                                    };
-
-                                    var finder = createFn(ref findSettings);
-                                    if (finder != IntPtr.Zero)
-                                    {
-                                        try
-                                        {
-                                            waitFn(finder, (uint)Math.Clamp(timeoutMs, 500, 2000));
-                                            var pSources = getFn(finder, out var count);
-
-                                            if (pSources != IntPtr.Zero && count > 0)
-                                            {
-                                                int structSize = Marshal.SizeOf<NDIlib_source_t>();
-                                                for (uint i = 0; i < count; i++)
-                                                {
-                                                    var ptr = IntPtr.Add(pSources, (int)(i * structSize));
-                                                    var src = Marshal.PtrToStructure<NDIlib_source_t>(ptr);
-                                                    string ndiName = Marshal.PtrToStringUTF8(src.p_ndi_name) ?? "";
-                                                    string urlAddr = Marshal.PtrToStringUTF8(src.p_url_address) ?? "";
-
-                                                    if (!string.IsNullOrEmpty(ndiName) && seenNames.Add(ndiName))
-                                                    {
-                                                        var (mach, strm) = ParseNdiName(ndiName);
-                                                        streams.Add(new NdiSourceStream(
-                                                            Id: "ndi:" + ndiName.Replace(" ", "_").Replace("(", "").Replace(")", ""),
-                                                            Name: ndiName,
-                                                            Url: urlAddr,
-                                                            MachineName: mach,
-                                                            StreamName: strm,
-                                                            Width: 1920,
-                                                            Height: 1080,
-                                                            Fps: 59.94,
-                                                            Status: "Online (NDI SDK)",
-                                                            DiscoveryMethod: "NDI 6 Runtime SDK"
-                                                        ));
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        finally
-                                        {
-                                            destroyFn(finder);
-                                        }
-                                    }
-                                }
-                                finally
-                                {
-                                    destroyLibFn();
-                                }
-                            }
-                        }
-                    }
-                    finally
-                    {
-                        NativeLibrary.Free(handle);
-                    }
+                    var addr = i.Addresses.FirstOrDefault()?.ToString() ?? i.Host;
+                    var (mach, strm) = ParseNdiName(i.Name);
+                    streams.Add(new NdiSourceStream(
+                        Id: "ndi:" + i.Name.Replace(" ", "_").Replace("(", "").Replace(")", ""),
+                        Name: i.Name, Url: i.Port > 0 ? $"{addr}:{i.Port}" : addr, MachineName: mach, StreamName: strm,
+                        Width: 1920, Height: 1080, Fps: 59.94,
+                        Status: "Online (network announce)", DiscoveryMethod: "mDNS (_ndi._tcp)"));
                 }
             }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[PlajahStudio] NDI SDK discovery error: {ex.Message}");
-            }
+            catch { }
         }
-
-        // 2. LAN mDNS Discovery fallback (searches for _ndi._tcp.local on 224.0.0.251:5353)
-        try
-        {
-            var mdnsStreams = await DiscoverMdnsNdiAsync(800);
-            foreach (var s in mdnsStreams)
-            {
-                if (seenNames.Add(s.Name))
-                {
-                    streams.Add(s);
-                }
-            }
-        }
-        catch { }
-
-        // 3. Fallback: Always provide network NDI discovery listener channel
-        if (streams.Count == 0)
-        {
-            streams.Add(new NdiSourceStream(
-                Id: "ndi_lan_discovery",
-                Name: $"NDI Network Discovery ({version})",
-                Url: "224.0.0.251:5353",
-                MachineName: Environment.MachineName,
-                StreamName: "LAN Discovery Bus",
-                Width: 1920,
-                Height: 1080,
-                Fps: 59.94,
-                Status: installed ? "Online (NDI Runtime Active)" : "Monitoring Network (mDNS 5353)",
-                DiscoveryMethod: installed ? "NDI SDK Ready" : "LAN mDNS Listener"
-            ));
-        }
-
         _cachedNdiStreams = streams;
         return streams;
     }
@@ -1017,7 +932,7 @@ public sealed class PlajahStudioBridgeService
     private static (string machine, string stream) ParseNdiName(string full)
     {
         int p1 = full.IndexOf('(');
-        int p2 = full.IndexOf(')');
+        int p2 = full.LastIndexOf(')');
         if (p1 > 0 && p2 > p1)
         {
             string m = full.Substring(0, p1).Trim();
@@ -1025,98 +940,6 @@ public sealed class PlajahStudioBridgeService
             return (m, s);
         }
         return (full, "Stream 1");
-    }
-
-    private static async Task<List<NdiSourceStream>> DiscoverMdnsNdiAsync(int timeoutMs = 1800)
-    {
-        var found = new List<NdiSourceStream>();
-        using var cts = new CancellationTokenSource(timeoutMs);
-
-        try
-        {
-            using var udp = new UdpClient();
-            udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            udp.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
-
-            var multicastEp = new IPEndPoint(IPAddress.Parse("224.0.0.251"), 5353);
-
-            // Send queries for standard NDI, NDI Video, and legacy NewTek NDI protocols
-            var serviceQueries = new[]
-            {
-                BuildMdnsPtrQuery("_ndi._tcp.local"),
-                BuildMdnsPtrQuery("_ndi-video._tcp.local"),
-                BuildMdnsPtrQuery("_newtek-ndi._tcp.local"),
-            };
-
-            foreach (var q in serviceQueries)
-            {
-                await udp.SendAsync(q, q.Length, multicastEp);
-            }
-
-            var receiveTask = Task.Run(async () =>
-            {
-                while (!cts.IsCancellationRequested)
-                {
-                    try
-                    {
-                        var res = await udp.ReceiveAsync(cts.Token);
-                        string raw = Encoding.ASCII.GetString(res.Buffer);
-                        if (raw.Contains("_ndi") || raw.Contains("NDI") || raw.Contains("NewTek"))
-                        {
-                            string remoteIp = res.RemoteEndPoint.Address.ToString();
-                            string senderName = $"{remoteIp} (NDI Network Stream)";
-                            if (!found.Exists(f => f.Url.StartsWith(remoteIp)))
-                            {
-                                found.Add(new NdiSourceStream(
-                                    Id: $"ndi_{remoteIp.Replace('.', '_')}",
-                                    Name: senderName,
-                                    Url: $"{remoteIp}:5961",
-                                    MachineName: remoteIp,
-                                    StreamName: "NDI Stream",
-                                    Width: 1920,
-                                    Height: 1080,
-                                    Fps: 60.0,
-                                    Status: "Discovered via LAN mDNS",
-                                    DiscoveryMethod: "mDNS Discovery (NDI 4/5/6)"
-                                ));
-                            }
-                        }
-                    }
-                    catch (OperationCanceledException) { break; }
-                    catch { break; }
-                }
-            }, cts.Token);
-
-            await Task.WhenAny(receiveTask, Task.Delay(timeoutMs, cts.Token));
-        }
-        catch { }
-
-        return found;
-    }
-
-    private static byte[] BuildMdnsPtrQuery(string serviceName)
-    {
-        var ms = new MemoryStream();
-        using var bw = new BinaryWriter(ms);
-        bw.Write((ushort)0); // Transaction ID
-        bw.Write((ushort)0); // Flags: standard query
-        bw.Write((ushort)IPAddress.HostToNetworkOrder((short)1)); // QDCOUNT: 1 question
-        bw.Write((ushort)0); // ANCOUNT
-        bw.Write((ushort)0); // NSCOUNT
-        bw.Write((ushort)0); // ARCOUNT
-
-        // QNAME
-        foreach (var label in serviceName.Split('.'))
-        {
-            var bytes = Encoding.ASCII.GetBytes(label);
-            bw.Write((byte)bytes.Length);
-            bw.Write(bytes);
-        }
-        bw.Write((byte)0); // root null
-
-        bw.Write((ushort)IPAddress.HostToNetworkOrder((short)12)); // QTYPE: PTR
-        bw.Write((ushort)IPAddress.HostToNetworkOrder((short)1));  // QCLASS: IN
-        return ms.ToArray();
     }
 
     // ── Pro Camera SDK Control Hub (Canon CCAPI, ARRI CAP, Blackmagic, Sony) ──
@@ -1339,60 +1162,36 @@ public sealed class PlajahStudioBridgeService
     private readonly Dictionary<string, OmtBroadcastSession> _activeOmtBroadcasts = new();
     private List<OmtSourceStream> _cachedOmtStreams = new();
 
-    public async Task<List<OmtSourceStream>> DiscoverOmtSourcesAsync(int timeoutMs = 1200)
+    private long _omtScanTick;
+
+    /// <summary>
+    /// Real OMT senders: whatever is advertising _omt._tcp on the network, at the host and port it
+    /// advertises (OMT's default is 6400). Nothing is invented — an empty network gives an empty list.
+    /// </summary>
+    /// <param name="quick">Reuse the last result if it is under 15 s old (used by the auto-refresh on screen open).</param>
+    public async Task<List<OmtSourceStream>> DiscoverOmtSourcesAsync(int timeoutMs = 1200, bool quick = false)
     {
+        if (quick && _omtScanTick != 0 && Environment.TickCount64 - _omtScanTick < 15000)
+            return new List<OmtSourceStream>(_cachedOmtStreams);
+
         var streams = new List<OmtSourceStream>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         try
         {
-            // 1. Probe local network via mDNS for _omt._tcp.local
-            using var cts = new CancellationTokenSource(timeoutMs);
-            using var udp = new UdpClient();
-            udp.Client.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.ReuseAddress, true);
-            udp.Client.Bind(new IPEndPoint(IPAddress.Any, 0));
-
-            var multicastEp = new IPEndPoint(IPAddress.Parse("224.0.0.251"), 5353);
-            var query = BuildMdnsPtrQuery("_omt._tcp.local");
-            await udp.SendAsync(query, query.Length, multicastEp);
-
-            var receiveTask = Task.Run(async () =>
+            foreach (var i in await MdnsServiceBrowser.BrowseAsync("_omt._tcp.local", Math.Max(timeoutMs, 1500)))
             {
-                while (!cts.IsCancellationRequested)
-                {
-                    try
-                    {
-                        var res = await udp.ReceiveAsync(cts.Token);
-                        string raw = Encoding.ASCII.GetString(res.Buffer);
-                        if (raw.Contains("_omt") || raw.Contains("OMT"))
-                        {
-                            string remoteIp = res.RemoteEndPoint.Address.ToString();
-                            string id = $"omt_{remoteIp.Replace('.', '_')}_9998";
-                            if (seen.Add(id))
-                            {
-                                streams.Add(new OmtSourceStream(
-                                    Id: id,
-                                    Name: $"{remoteIp} (OMT LAN Production Feed)",
-                                    Url: $"{remoteIp}:9998",
-                                    MachineName: remoteIp,
-                                    StreamName: "OMT Studio Program",
-                                    Width: 1920,
-                                    Height: 1080,
-                                    Fps: 60.0,
-                                    AudioChannels: 8,
-                                    HasAlpha: true,
-                                    Status: "Online (OMT LAN Protocol)",
-                                    DiscoveryMethod: "mDNS Discovery (_omt._tcp.local)"
-                                ));
-                            }
-                        }
-                    }
-                    catch (OperationCanceledException) { break; }
-                    catch { break; }
-                }
-            }, cts.Token);
-
-            await Task.WhenAny(receiveTask, Task.Delay(timeoutMs, cts.Token));
+                var addr = i.Addresses.FirstOrDefault()?.ToString() ?? i.Host;
+                int port = i.Port > 0 ? i.Port : 6400;
+                var (mach, strm) = ParseNdiName(i.Name);
+                var id = "omt:" + i.Name.Replace(" ", "_").Replace("(", "").Replace(")", "");
+                if (!seen.Add(id)) continue;
+                streams.Add(new OmtSourceStream(
+                    Id: id, Name: i.Name, Url: $"omt://{addr}:{port}", MachineName: mach, StreamName: strm,
+                    Width: 0, Height: 0, Fps: 0, AudioChannels: 0, HasAlpha: false,      // not part of the announcement
+                    Status: "Online", DiscoveryMethod: "mDNS (_omt._tcp)"));
+            }
+            _omtScanTick = Environment.TickCount64;
         }
         catch { }
 
@@ -1418,25 +1217,6 @@ public sealed class PlajahStudioBridgeService
                     DiscoveryMethod: "Native OMT Output Bus"
                 ));
             }
-        }
-
-        // Fallback default OMT LAN Studio node if none discovered
-        if (streams.Count == 0)
-        {
-            streams.Add(new OmtSourceStream(
-                Id: "omt_lan_bus",
-                Name: $"OMT Studio Bus ({Environment.MachineName})",
-                Url: "239.255.0.1:9998",
-                MachineName: Environment.MachineName,
-                StreamName: "OMT Zero-Latency Bus",
-                Width: 1920,
-                Height: 1080,
-                Fps: 60.0,
-                AudioChannels: 8,
-                HasAlpha: true,
-                Status: "Active (OMT LAN Ready)",
-                DiscoveryMethod: "LAN Multicast (239.255.0.1:9998)"
-            ));
         }
 
         _cachedOmtStreams = streams;

@@ -283,12 +283,12 @@ export const AmboInspector: React.FC<AmboInspectorProps> = ({
                       <option value="switcher:aux1">Switcher AUX 1 (Camera Aux)</option>
                       <option value="switcher:aux2">Switcher AUX 2 (Confidence)</option>
                     </optgroup>
-                    <optgroup label="Discovered NDI Streams">
-                      {nativeSources.filter(s => s.kind === 'ndi').map(s => (
-                        <option key={s.id} value={s.id}>NDI: {s.streamName || s.label} ({s.machineName || 'LAN'})</option>
+                    <optgroup label="Discovered NDI / OMT Streams">
+                      {nativeSources.filter(s => s.kind === 'ndi' || s.kind === 'omt').map(s => (
+                        <option key={s.id} value={s.id}>{s.kind.toUpperCase()}: {s.streamName || s.label} ({s.machineName || 'LAN'})</option>
                       ))}
-                      {nativeSources.filter(s => s.kind === 'ndi').length === 0 && (
-                        <option value="ndi_lan_discovery" disabled>No active NDI feeds detected</option>
+                      {nativeSources.filter(s => s.kind === 'ndi' || s.kind === 'omt').length === 0 && (
+                        <option value="ndi_lan_discovery" disabled>No NDI or OMT feeds found — scan from the Router Receiver</option>
                       )}
                     </optgroup>
                     <optgroup label="Hardware Capture / SDI">

@@ -7,7 +7,7 @@ import { MediaEngine, EngineState } from '../../services/mediaEngine/engine';
 import { WebcamSource } from '../../services/mediaEngine/browserSources';
 import { unavailableReason } from '../../services/mediaEngine/capabilities';
 import { SourceKind, KIND_LABEL, NATIVE_ONLY, TransitionType, MasterClock } from '../../services/mediaEngine/types';
-import { NativeSourceInfo } from '../../services/mediaEngine/bridge';
+import { NativeSourceInfo, getNdiStatus } from '../../services/mediaEngine/bridge';
 import { SwitcherRouterReceiver } from './SwitcherRouterReceiver';
 
 interface Props { onBack: () => void }
@@ -44,6 +44,7 @@ const VideoRouterConsole: React.FC<Props> = ({ onBack }) => {
   const [err, setErr] = useState('');
   const [isScanningNdi, setIsScanningNdi] = useState(false);
   const [discoveredNdi, setDiscoveredNdi] = useState<NativeSourceInfo[]>([]);
+  const [networkDiagnosis, setNetworkDiagnosis] = useState<string | null>(null);
 
   useEffect(() => engine.subscribe(setState), [engine]);
   useEffect(() => { engine.refreshNativeSources(); }, [engine]); // native capture/NDI when in the desktop app
@@ -53,8 +54,9 @@ const VideoRouterConsole: React.FC<Props> = ({ onBack }) => {
     setIsScanningNdi(true);
     setErr('');
     try {
-      const list = await engine.scanNdi();
-      setDiscoveredNdi(list.filter(s => s.kind === 'ndi'));
+      const list = await engine.scanNetworkFeeds();            // NDI + OMT
+      setDiscoveredNdi(list.filter(s => s.kind === 'ndi' || s.kind === 'omt'));
+      setNetworkDiagnosis(list.some(s => s.kind === 'ndi') ? null : ((await getNdiStatus())?.diagnosis ?? null));
     } catch (e: any) {
       setErr(e?.message || 'NDI discovery scan encountered an issue.');
     } finally {
@@ -371,7 +373,7 @@ const VideoRouterConsole: React.FC<Props> = ({ onBack }) => {
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-1.5">
                     <Radio size={13} className="text-[#7c9ce8]" />
-                    <span className="text-[9px] font-black uppercase tracking-widest text-[#7c9ce8]">NDI Streams (LAN Discovery)</span>
+                    <span className="text-[9px] font-black uppercase tracking-widest text-[#7c9ce8]">NDI + OMT Streams (LAN Discovery)</span>
                   </div>
                   <button
                     onClick={handleScanNdi}
@@ -395,7 +397,7 @@ const VideoRouterConsole: React.FC<Props> = ({ onBack }) => {
                           <button
                             onClick={async () => {
                               if (!alreadyIn) {
-                                await engine.scanNdi();
+                                await engine.scanNetworkFeeds();
                               }
                               setAddOpen(false);
                             }}
@@ -415,10 +417,13 @@ const VideoRouterConsole: React.FC<Props> = ({ onBack }) => {
                 ) : (
                   <div className="p-3 rounded-xl bg-white/[0.02] border border-white/8 text-center space-y-1">
                     <p className="text-[10px] text-white/40">
-                      {isScanningNdi ? "Searching LAN for NDI senders via SDK & mDNS..." : "No active NDI streams detected on this subnet."}
+                      {isScanningNdi ? "Searching the network for NDI and OMT senders..." : "No NDI or OMT senders found on this network."}
                     </p>
+                    {!isScanningNdi && networkDiagnosis && (
+                      <p className="text-[9.5px] leading-relaxed" style={{ color: '#ffd166' }}>{networkDiagnosis}</p>
+                    )}
                     <p className="text-[8.5px] text-white/30 font-mono">
-                      NDI cameras, OBS NDI, and TriCaster feeds appear automatically when online.
+                      NDI and OMT senders appear when they are online. SRT feeds aren't announced — add them by address.
                     </p>
                   </div>
                 )}
@@ -455,6 +460,7 @@ const VideoRouterConsole: React.FC<Props> = ({ onBack }) => {
         previewDestId={switcher.preview}
         onScanNdi={handleScanNdi}
         isScanningNdi={isScanningNdi}
+        networkDiagnosis={networkDiagnosis}
         initialTargetDestId={routerReceiverTarget}
       />
     </div>

@@ -83,6 +83,39 @@ export async function scanNdiStreams(): Promise<NativeSourceInfo[]> {
   }
 }
 
+/** Field that may arrive camelCase or PascalCase depending on how the host serialised it. */
+const pick = (o: any, ...keys: string[]) => { for (const k of keys) if (o?.[k] !== undefined && o[k] !== null) return o[k]; return undefined; };
+
+/** Everything discoverable on the network in one scan: NDI senders and OMT senders. */
+export async function scanNetworkFeeds(): Promise<NativeSourceInfo[]> {
+  const [ndi, omt] = await Promise.all([scanNdiStreams(), scanOmtStreams()]);
+  // scanNdiStreams falls back to the full source list when the host doesn't answer; keep only network feeds from it.
+  return [...ndi.filter(s => s.kind === 'ndi'), ...omt];
+}
+
+export interface NdiStatus {
+  installed: boolean; version?: string; finderRunning: boolean;
+  /** Plain-language reason discovery found nothing (firewall, network, missing runtime…), when there is one. */
+  diagnosis?: string; firewallProfile?: string; lastError?: string;
+}
+/** Why NDI discovery is (or isn't) finding senders. Null in the browser. */
+export async function getNdiStatus(): Promise<NdiStatus | null> {
+  const invoke = resolveInvoke();
+  if (!invoke) return null;
+  try {
+    const r = await invoke('ndi_info');
+    if (!r) return null;
+    return {
+      installed: !!pick(r, 'isInstalled', 'IsInstalled'),
+      version: pick(r, 'version', 'Version'),
+      finderRunning: !!pick(r, 'finderRunning', 'FinderRunning'),
+      diagnosis: pick(r, 'diagnosis', 'Diagnosis') || undefined,
+      firewallProfile: pick(r, 'firewallProfile', 'FirewallProfile') || undefined,
+      lastError: pick(r, 'lastError', 'LastError') || undefined,
+    };
+  } catch { return null; }
+}
+
 /** Ask the engine to connect a native source; returns a frame handle the compositor renders. */
 export async function connectNativeSource(id: string): Promise<{ textureId?: string } | null> {
   const invoke = resolveInvoke();
@@ -196,30 +229,32 @@ export async function getNativeCodecCapabilities(): Promise<any[]> {
 
 // ── Open Media Transport (OMT) Native Protocol Bridge ───────────────────────
 
+/**
+ * Real OMT senders on the network (DNS-SD `_omt._tcp`). An empty network gives an empty list —
+ * nothing is invented. Resolution and frame rate are not part of the announcement, so none is claimed.
+ */
 export async function scanOmtStreams(): Promise<NativeSourceInfo[]> {
   const invoke = resolveInvoke();
   if (!invoke) return [];
   try {
     const res = await invoke('omt_scan');
-    if (res?.streams && Array.isArray(res.streams)) {
-      return res.streams.map((s: any) => ({
-        id: s.id || s.Id,
-        label: s.name || s.Name,
+    const arr = pick(res, 'streams', 'Streams');
+    if (!Array.isArray(arr)) return [];
+    return arr.map((s: any): NativeSourceInfo => {
+      const w = pick(s, 'width', 'Width') || 0, h = pick(s, 'height', 'Height') || 0, fps = pick(s, 'fps', 'Fps') || 0;
+      return {
+        id: pick(s, 'id', 'Id'),
+        label: pick(s, 'name', 'Name'),
         kind: 'omt' as SourceKind,
-        url: s.url || s.Url,
-        machineName: s.machineName || s.MachineName,
-        streamName: s.streamName || s.StreamName,
-        formats: [{ width: s.width || s.Width || 1920, height: s.height || s.Height || 1080, fps: s.fps || s.Fps || 60, interlaced: false }],
-        latencyMs: 2,
-        clockDomain: 'ptp',
-        status: s.status || s.Status,
-        discoveryMethod: s.discoveryMethod || s.DiscoveryMethod,
-      }));
-    }
-    return [];
-  } catch {
-    return [];
-  }
+        url: pick(s, 'url', 'Url'),
+        machineName: pick(s, 'machineName', 'MachineName'),
+        streamName: pick(s, 'streamName', 'StreamName'),
+        formats: w && h ? [{ width: w, height: h, fps, interlaced: false }] : [],
+        status: pick(s, 'status', 'Status'),
+        discoveryMethod: pick(s, 'discoveryMethod', 'DiscoveryMethod'),
+      };
+    });
+  } catch { return []; }
 }
 
 export async function startOmtBroadcast(args?: {

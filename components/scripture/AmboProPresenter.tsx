@@ -42,7 +42,7 @@ import {
   generatePairingInfo, getActivePairing, flashAllDisplayIdentifiers
 } from '../../services/ambo/outputRouter';
 import {
-  listNativeSources, scanNdiStreams, type NativeSourceInfo,
+  listNativeSources, scanNetworkFeeds, getNdiStatus, type NativeSourceInfo,
 } from '../../services/mediaEngine/bridge';
 import { isWindowsApp, openStudioCleanFeed, closeStudioCleanFeed } from '../../services/windowsBridgeService';
 import {
@@ -625,6 +625,8 @@ useEffect(() => {
   // Live Native Feeds & NDI Discovery
   const [nativeSources, setNativeSources] = useState<NativeSourceInfo[]>([]);
   const [isScanningNdi, setIsScanningNdi] = useState(false);
+  /** Plain-language reason the last scan found no NDI senders (firewall, network, runtime), if any. */
+  const [networkDiagnosis, setNetworkDiagnosis] = useState<string | null>(null);
 
   // Inspector & Router Receiver UI States
   const [inspectorOpen, setInspectorOpen] = useState(false);
@@ -725,8 +727,11 @@ useEffect(() => {
   const handleScanNdi = async () => {
     setIsScanningNdi(true);
     try {
-      const list = await scanNdiStreams();
-      setNativeSources(list);
+      // NDI + OMT senders. Merge into the list — capture cards and other kinds must stay.
+      const found = await scanNetworkFeeds();
+      setNativeSources(prev => [...prev.filter(s => s.kind !== 'ndi' && s.kind !== 'omt'), ...found]);
+      if (found.some(s => s.kind === 'ndi')) setNetworkDiagnosis(null);
+      else setNetworkDiagnosis((await getNdiStatus())?.diagnosis ?? null);
     } catch {
       await loadSources();
     } finally {
@@ -3761,6 +3766,7 @@ useEffect(() => {
         nativeSources={nativeSources}
         onScanNdi={handleScanNdi}
         isScanningNdi={isScanningNdi}
+        networkDiagnosis={networkDiagnosis}
         selectedSlide={slides[selected] ?? null}
         slides={slides}
         onRouteToSlide={handleRouteToSlide}
