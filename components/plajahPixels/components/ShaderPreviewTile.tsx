@@ -31,7 +31,7 @@ export const ShaderPreviewTile: React.FC<{ id: string; src: string; params?: num
 /** A generator tile — renders live when the mode has a GLSL implementation,
  *  otherwise a hue swatch (the classic Canvas2D-only modes). */
 export const GeneratorPreviewTile: React.FC<{ mode: string; hue?: number; colors?: number[][]; className?: string; style?: React.CSSProperties }> = ({ mode, hue = 270, colors, className, style }) => {
-  const live = hasGenerator(mode);
+  const live = hasGenerator(mode)||mode.startsWith('FLUX_');
   const ref = usePreviewTile(() => ({ kind: 'gen', mode, colors }), [mode]);
   if (!live) return <div className={className} style={{ ...fill, background: `radial-gradient(90% 80% at 40% 40%, hsl(${hue} 70% 45% / 0.7), transparent 62%), #100c18`, ...style }} aria-label={`${mode} preview`} />;
   return <canvas ref={ref} className={className} style={{ ...fill, ...style }} aria-label={`${mode} preview`} />;

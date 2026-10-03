@@ -18,10 +18,16 @@ export interface FluxAudio {
   /** Harmonic/formant-based vocal estimate, not a separated vocal stem. */
   voice?: number;
   intensity?: number;
+  /** Sixteen logarithmic frequency regions, 30 Hz–16 kHz, when FFT data is available. */
+  spectrum?: readonly number[];
+  /** Spectral harmonic concentration and circular pitch-class color; estimates, not stems. */
+  harmony?: number;
+  harmonicHue?: number;
 }
 export const SILENT_AUDIO: FluxAudio = { bass: 0, mid: 0, treble: 0, level: 0, beat: 0 };
 
-export type FluxSceneId = 'field' | 'tapestry' | 'tapestry-ii' | 'lattice' | 'tunnel' | 'aurora' | 'sanctum' | 'porcelain-tide' | 'velvet-bloom' | 'prism-archive' | 'deco-morph' | 'egypt-temple' | 'venetian-maiolica' | 'hellenic-marble' | 'japanese-ink' | 'african-bogolan';
+import { FLUX_MATH_SCENES, type FluxMathSceneId } from './fluxMathCatalog';
+export type FluxSceneId = FluxMathSceneId | 'math-morph' | 'field' | 'tapestry' | 'tapestry-ii' | 'lattice' | 'tunnel' | 'aurora' | 'sanctum' | 'porcelain-tide' | 'velvet-bloom' | 'prism-archive' | 'deco-morph' | 'egypt-temple' | 'venetian-maiolica' | 'hellenic-marble' | 'japanese-ink' | 'african-bogolan';
 
 export interface FluxSceneInfo {
   id: FluxSceneId;
@@ -34,6 +40,9 @@ export interface FluxSceneInfo {
 
 /** The Flux scene catalog. UIs enumerate this; only `built` scenes render. */
 export const FLUX_SCENES: FluxSceneInfo[] = [
+  ...FLUX_MATH_SCENES.map(s => ({ ...s, cat: 'Mathematics', built: true })),
+  { id: 'math-morph', name: 'Mathematical Odyssey', cat: 'Mathematics', built: true,
+    line: 'A continuous journey through twelve mathematical worlds. Mids conduct the morphs; bass and voices reshape the geometry.' },
   { id: 'field', name: 'Flux Field', cat: 'Form', built: true,
     line: 'A structured dot-grid terrain that flows as one fractal surface — swells with the bass, erupts on the build, ripples on every kick.' },
   { id: 'tapestry', name: 'Deco Tapestry', cat: 'Deco', built: true,
@@ -165,8 +174,8 @@ export function fluxBandsFromFreq(freq: Uint8Array | null | undefined, sampleRat
   return { bass, mid, treble, level: bass * .5 + mid * .35 + treble * .15, beat: 0 };
 }
 
-export interface FluxDriven { bass: number; mid: number; tre: number; kick: number; snare: number; energy: number; beat: number; bpm:number; tempoConfidence:number; beatPosition?:number; voice:number; intensity:number }
-export interface FluxAudioState { lastT: number; energy: number; kick: number; snare: number; prevTre: number; bass: number; mid: number; tre: number; voice:number; intensity:number }
+export interface FluxDriven { bass: number; mid: number; tre: number; kick: number; kickOnset?: number; snare: number; energy: number; beat: number; bpm:number; tempoConfidence:number; beatPosition?:number; voice:number; intensity:number; harmony?:number; harmonicHue?:number; spectrum?: readonly number[]; spectralImpulse?: readonly number[] }
+export interface FluxAudioState { lastT: number; energy: number; kick: number; kickOnset?: number; prevKickBass?: number; snare: number; prevTre: number; bass: number; mid: number; tre: number; voice:number; intensity:number; spectrum?: number[]; spectralImpulse?: number[]; prevSpectrum?: number[] }
 export function newFluxAudioState(): FluxAudioState {
   return { lastT: -1, energy: 0, kick: 0, snare: 0, prevTre: 0, bass: 0, mid: 0, tre: 0, voice:0, intensity:0 };
 }
@@ -188,13 +197,27 @@ export function driveFluxAudio(st: FluxAudioState, a: FluxAudio, t: number, sens
   st.energy = snap ? eT : (eT > st.energy ? st.energy + (eT - st.energy) * Math.min(1, 0.4 * dtN)
                                           : st.energy + (eT - st.energy) * Math.min(1, 0.09 * dtN));
   const kf = Math.max(a.beat, Math.max(0, bass - 0.55) * 1.6);
+  // A transient impulse separate from the legacy sustained-bass kick envelope.
+  const kickAttack=Math.max(clamp(a.beat,0,1),Math.max(0,bass-(st.prevKickBass??bass)-.045)*5);
+  st.kickOnset=snap?clamp(a.beat,0,1):Math.max((st.kickOnset??0)*Math.exp(-dt/.14),Math.min(1,kickAttack));
+  st.prevKickBass=bass;
   st.kick = snap ? kf : Math.max(st.kick * Math.pow(0.80, dtN), Math.min(1, kf));
   const sf = Math.max(0, tre - st.prevTre * 1.25); st.prevTre = st.prevTre * 0.9 + tre * 0.1;
   st.snare = snap ? 0 : Math.max(st.snare * Math.pow(0.78, dtN), Math.min(1, sf * 6.0));
   const voice=clamp(Number.isFinite(a.voice)?a.voice!:0,0,1);
   const intensity=clamp((Number.isFinite(a.intensity)?a.intensity!:a.level)*sens,0,1);
   st.voice=snap?voice:L(st.voice,voice,.075);st.intensity=snap?intensity:L(st.intensity,intensity,.06);
-  return { bass: st.bass, mid: st.mid, tre: st.tre, kick: st.kick, snare: st.snare, energy: st.energy, beat: st.kick,
+  st.spectrum ??= Array(16).fill(0); st.spectralImpulse ??= Array(16).fill(0); st.prevSpectrum ??= Array(16).fill(0);
+  for(let i=0;i<16;i++){
+    const raw=a.spectrum?.[i] ?? (i<5?a.bass:i<11?a.mid:a.treble);
+    const value=clamp(Number.isFinite(raw)?raw*sens:0,0,1.4);
+    const onset=Math.max(0,value-st.prevSpectrum[i]);
+    st.spectrum[i]=snap?value:L(st.spectrum[i],value,value>st.spectrum[i]?.48:.14);
+    st.spectralImpulse[i]=snap?0:Math.max(st.spectralImpulse[i]*Math.exp(-dt/.18),Math.min(1.4,onset*3));
+    st.prevSpectrum[i]=value;
+  }
+  return { bass: st.bass, mid: st.mid, tre: st.tre, kick: st.kick, kickOnset:st.kickOnset, snare: st.snare, energy: st.energy, beat: st.kick,
     voice:st.voice,intensity:st.intensity,bpm:clamp(a.bpm||120,40,240),tempoConfidence:clamp(a.tempoConfidence||0,0,1),
-    beatPosition:Number.isFinite(a.beatPosition)?a.beatPosition:undefined };
+    beatPosition:Number.isFinite(a.beatPosition)?a.beatPosition:undefined, spectrum:st.spectrum, spectralImpulse:st.spectralImpulse,
+    harmony:clamp(Number.isFinite(a.harmony)?a.harmony!:0,0,1),harmonicHue:clamp(Number.isFinite(a.harmonicHue)?a.harmonicHue!:0,0,1) };
 }

@@ -10,6 +10,8 @@
 // that introduced it — see layerRenderer's reconcile().
 
 import { otherAudioFactor, subscribeAudioPriority } from './audioPriority';
+import { FluxMusicSampler } from '../fabula/fluxMusic';
+import { SILENT_AUDIO } from '../fabula/fluxNode';
 import { amboAudio } from './amboAudioEngine';
 import type { LayerContent } from './showModel';
 import { lyricClockPos } from './showModel';
@@ -614,6 +616,7 @@ export class GeneratorSource implements LayerSource {
   private path: GenPath = 'pending';
   private mode: string;
   private fluxScene = '';
+  private fluxMusic = new FluxMusicSampler();
   private glKey = '';
   private flux: { render: (spec: any, w: number, h: number, t: number, a?: any) => HTMLCanvasElement | null; status: () => string } | null = null;
   private milk: any = null;
@@ -784,7 +787,8 @@ export class GeneratorSource implements LayerSource {
 
       if (this.path === 'flux' && this.flux && this.ctx2d) {
         const t = fluxClock();
-        const src = this.flux.render({ scene: this.fluxScene }, this.w, this.h, t, bandsFrom(this.analyserNode, t));
+        const fluxAudio=this.analyserNode?this.fluxMusic.sample(readLive(this.analyserNode,t).freq,t,this.analyserNode.context.sampleRate):SILENT_AUDIO;
+        const src = this.flux.render({ scene: this.fluxScene }, this.w, this.h, t, fluxAudio);
         if (src) {
           this.ctx2d.drawImage(src, 0, 0, this.w, this.h);
           this.fluxDrawn = true;

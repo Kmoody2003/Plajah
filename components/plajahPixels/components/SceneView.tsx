@@ -18,6 +18,10 @@ import { AudioTexture } from '../engine/core/audioTexture';
 import { getTextCanvas } from '../engine/core/textLayer';
 import { getTitleCanvas } from '../engine/core/titleLayer';
 import type { SceneSnapshot } from '../engine/timeline/sceneTimeline';
+import { MODE_TO_FLUX_SCENE } from '../types';
+import { renderFluxLatest } from '../engine/core/flux';
+import { FluxMusicSampler } from '../../../services/fabula/fluxMusic';
+import { SILENT_AUDIO } from '../../../services/fabula/fluxNode';
 
 interface Props {
   snapshot: SceneSnapshot;
@@ -52,6 +56,8 @@ const SceneView: React.FC<Props> = ({ snapshot, analyser, audioFrame, palette, p
   const milkLoading = useRef<Set<string>>(new Set());
   const milkPreset = useRef<Map<string, string | number>>(new Map());
   const bcCtx = useRef<AudioContext | null>(null);
+  const fluxMusic=useRef(new Map<string,FluxMusicSampler>());
+  const fluxFreq=useRef(new Uint8Array(0));
 
   const snapRef = useRef(snapshot);   snapRef.current = snapshot;
   const analyserRef = useRef(analyser); analyserRef.current = analyser ?? null;
@@ -104,6 +110,19 @@ const SceneView: React.FC<Props> = ({ snapshot, analyser, audioFrame, palette, p
           if (clip.type === 'generator' && clip.sceneMode && hasGenerator(clip.sceneMode)) {
             const tex = gen.render(layer.id, clip.sceneMode, w, h, { time: t, audio: audioTex, colors, params: clip.params || [] });
             inputs.push({ texture: tex, opacity, blendMode: layer.blendMode });
+          } else if ((clip.type==='generator'&&MODE_TO_FLUX_SCENE[clip.sceneMode||''])||(clip.type==='flux'&&(clip.flux?.scene||clip.fluxScene))) {
+            const scene=clip.type==='generator'?MODE_TO_FLUX_SCENE[clip.sceneMode!]:clip.flux?.scene||clip.fluxScene;
+            let music=fluxMusic.current.get(layer.id);if(!music){music=new FluxMusicSampler();fluxMusic.current.set(layer.id,music);}
+            const analyser=analyserRef.current;
+            let bands=SILENT_AUDIO;
+            if(af)bands=music.sample(af.freq,t,analyser?.context.sampleRate||48000);
+            else if(analyser){
+              if(fluxFreq.current.length!==analyser.frequencyBinCount)fluxFreq.current=new Uint8Array(analyser.frequencyBinCount);
+              analyser.getByteFrequencyData(fluxFreq.current as Uint8Array<ArrayBuffer>);
+              bands=music.sample(fluxFreq.current,t,analyser.context.sampleRate);
+            }
+            const canvas=renderFluxLatest({...clip.flux,scene:scene as any},w,h,t,bands);
+            if(canvas)inputs.push({element:canvas,opacity,blendMode:layer.blendMode});
           } else if (clip.type === 'media' && clip.mediaUrl) {
             active.add(clip.mediaUrl);
             const el = warm(clip.mediaUrl, clip.mediaType);

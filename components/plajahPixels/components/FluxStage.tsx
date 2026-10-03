@@ -82,7 +82,7 @@ const FluxStage: React.FC<Props> = ({ analyser, config, isPlaying, id }) => {
 
         // Detect if audio buffer is completely silent/flat
         let hasEnergy = false;
-        for (let i = 0; i < Math.min(d.length, 64); i++) {
+        for (let i = 0; i < d.length; i++) {
           if (d[i] > 2) { hasEnergy = true; break; }
         }
 

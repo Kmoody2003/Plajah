@@ -8,6 +8,7 @@
 
 import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { VisualizerMode, type VisualizationConfig, isStudioMode } from './plajahPixels/types';
+import { FLUX_PLATFORM_MODES } from './plajahPixels/engine/fluxPlatformCatalog';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
 
@@ -86,24 +87,9 @@ export async function loadShaderNames(): Promise<string[]> {
 }
 
 // ── Flux 3D Real-Time Scenes (Trapcode Form / Mir lineage) ──
-export const FLUX_MODES: { name: string; mode: VisualizerMode }[] = [
-  { name: 'Flux Field', mode: VisualizerMode.FluxField },
-  { name: 'Deco Tapestry', mode: VisualizerMode.FluxTapestry },
-  { name: 'Deco Tapestry II', mode: VisualizerMode.FluxTapestryII },
-  { name: 'Flux Lattice', mode: VisualizerMode.FluxLattice },
-  { name: 'Flux Tunnel', mode: VisualizerMode.FluxTunnel },
-  { name: 'Flux Aurora', mode: VisualizerMode.FluxAurora },
-  { name: 'The Sanctum', mode: VisualizerMode.FluxSanctum },
-  { name: 'Porcelain Tide', mode: VisualizerMode.PorcelainTide },
-  { name: 'Velvet Bloom', mode: VisualizerMode.VelvetBloom },
-  { name: 'Prism Archive', mode: VisualizerMode.PrismArchive },
-  { name: 'Deco Geometry Morph', mode: VisualizerMode.DecoMorph },
-  { name: 'Egyptian Temple', mode: VisualizerMode.EgyptTemple },
-  { name: 'Venetian Maiolica', mode: VisualizerMode.VenetianMaiolica },
-  { name: 'Hellenic Marble', mode: VisualizerMode.HellenicMarble },
-  { name: 'Japanese Ink', mode: VisualizerMode.JapaneseInk },
-  { name: 'African Bogolan', mode: VisualizerMode.AfricanBogolan },
-];
+// Preserve existing preset indices while sourcing every Flux entry from its catalog.
+export const FLUX_MODES: { name: string; mode: VisualizerMode }[] =
+  FLUX_PLATFORM_MODES.map(s=>({name:s.name,mode:s.mode}));
 
 // ── Generator presets — every Plajah Pixels scene, chrome stripped ──
 const GEN_MODES: { name: string; mode: VisualizerMode }[] = [

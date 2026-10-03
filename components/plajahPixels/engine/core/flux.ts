@@ -16,6 +16,8 @@ import {
 } from '../../../../services/fabula/fluxNode';
 import { buildTapestryII, buildLattice, buildTunnel, buildAurora, buildSanctum } from './fluxCouncilScenes';
 import { buildPorcelainTide, buildVelvetBloom, buildPrismArchive } from './fluxAtelierScenes';
+import { buildMathScene } from './fluxMathScenes';
+import { FLUX_MATH_SCENES, type FluxMathSceneId } from '../../../../services/fabula/fluxMathCatalog';
 import { buildDecoMorph } from './decoMorphScene';
 import { buildEgypt } from './culture/egyptScene';
 import { buildVenetian } from './culture/venetianScene';
@@ -24,6 +26,7 @@ import { buildJapaneseInk } from './culture/japaneseInkScene';
 import { buildBogolan } from './culture/bogolanScene';
 import { PLAJAH_BRAND_GLSL } from './fluxBrand';
 import { FluxDirector } from './fluxDirector';
+import { FLUX_LEAK_GLSL } from './fluxLightLeaks';
 
 // One camera director per scene instance (Deco Morph runs its own).
 const directors = new WeakMap<object, FluxDirector>();
@@ -67,6 +70,9 @@ export interface SceneInst {
   brightThreshold?: number;
   /** Linear-light grain amount; dark material studies need less than luminous fields. */
   grain?: number;
+  /** Optional depth focus and slow background optics for the mathematical volumes. */
+  setFocus?(distance:number,strength:number):void;
+  optics?():{energy:number;x:number;y:number;phase:number};
   dispose(): void;
 }
 
@@ -109,11 +115,46 @@ async function ensureEnv(): Promise<Env | null> {
         fragmentShader: 'uniform sampler2D tDiffuse;uniform float uThresh;varying vec2 vUv;void main(){vec3 c=texture2D(tDiffuse,vUv).rgb;float l=dot(c,vec3(.2126,.7152,.0722));gl_FragColor=vec4(c*smoothstep(uThresh,uThresh+0.5,l),1.);}' });
       const blurMat = new THREE.ShaderMaterial({ uniforms: { tDiffuse: { value: null }, uDir: { value: new THREE.Vector2() } }, vertexShader: VQ,
         fragmentShader: 'uniform sampler2D tDiffuse;uniform vec2 uDir;varying vec2 vUv;void main(){vec4 s=texture2D(tDiffuse,vUv)*0.227027;s+=texture2D(tDiffuse,vUv+uDir*1.3846)*0.316216;s+=texture2D(tDiffuse,vUv-uDir*1.3846)*0.316216;s+=texture2D(tDiffuse,vUv+uDir*3.2307)*0.070270;s+=texture2D(tDiffuse,vUv-uDir*3.2307)*0.070270;gl_FragColor=s;}' });
-      const compMat = new THREE.ShaderMaterial({ uniforms: { tScene: { value: null }, tBloom: { value: null }, uRes: { value: new THREE.Vector2() }, uTime: { value: 0 }, uBloom: { value: 0.7 }, uExposure: { value: 1.05 }, uGrain: { value: 0.022 } }, vertexShader: VQ,
-        fragmentShader: `precision highp float;uniform sampler2D tScene,tBloom;uniform vec2 uRes;uniform float uTime,uBloom,uExposure,uGrain;varying vec2 vUv;
+      const compMat = new THREE.ShaderMaterial({ uniforms: { tScene: { value: null }, tBloom: { value: null }, uRes: { value: new THREE.Vector2() }, uTime: { value: 0 }, uBloom: { value: 0.7 }, uExposure: { value: 1.05 }, uGrain: { value: 0.022 }, uAtmosphere:{value:0},uLeakPhase:{value:0},uLightEnergy:{value:0},uLightAnchor:{value:new THREE.Vector2(.8,.7)} }, vertexShader: VQ,
+        fragmentShader: `precision highp float;uniform sampler2D tScene,tBloom;uniform vec2 uRes,uLightAnchor;uniform float uTime,uBloom,uExposure,uGrain,uAtmosphere,uLightEnergy,uLeakPhase;varying vec2 vUv;
+          ${FLUX_LEAK_GLSL}
           vec3 aces(vec3 x){return clamp((x*(2.51*x+0.03))/(x*(2.43*x+0.59)+0.14),0.,1.);}
           void main(){vec2 uv=vUv;vec2 dir=uv-0.5;
             vec3 col=texture2D(tScene,uv).rgb+texture2D(tBloom,uv).rgb*uBloom;
+            if(uAtmosphere>.5){
+              vec2 aspect=vec2(uRes.x/max(1.0,uRes.y),1.0);
+              vec2 light=(uv-uLightAnchor)*aspect;
+              float flare=exp(-dot(light,light)*85.0);
+              float streak=exp(-abs(light.y)*180.0)*exp(-abs(light.x)*2.8);
+              float leak=exp(-uv.x*15.0)*exp(-pow((uv.y-.65)*1.8,2.0));
+              float cool=exp(-(1.0-uv.x)*18.0)*exp(-pow((uv.y-.3)*2.0,2.0));
+              float ghosts=0.0;
+              for(int j=1;j<=3;j++){
+                float f=float(j);vec2 c=mix(uLightAnchor,vec2(.5),.55+f*.3);
+                float r=length((uv-c)*aspect);
+                ghosts+=exp(-abs(r-(.028+.022*f))*110.0)*(.045/f);
+              }
+              // Background light follows a world-space anchor and slow music
+              // energy; bright geometry suppresses it to protect the formula.
+              float protect=1.0-smoothstep(.06,.55,max(col.r,max(col.g,col.b)));
+              vec3 optics=vec3(1.0,.38,.18)*leak*.075+vec3(.2,.4,1.0)*cool*.065;
+              optics+=vec3(.55,.72,1.0)*(flare*.14+streak*.065+ghosts);
+              col+=optics*(.75+.55*uLightEnergy)*protect;
+              vec3 tint;float style;
+              float field=leakField(uv,aspect,uLightAnchor,uLeakPhase,tint,style);
+              float strength=field*(.13+.21*uLightEnergy);
+              vec3 lightColor=tint*strength;
+              vec3 screen=col+lightColor*(1.0-clamp(col,0.0,1.0));
+              vec3 additive=col+lightColor*(.55+.45*protect);
+              // Soft-light style tinting keeps highlights and the dense form intact.
+              vec3 soft=col+(2.0*tint-1.0)*col*(1.0-clamp(col,0.0,1.0))*strength;
+              float mode=mod(style,3.0);
+              vec3 currentBlend=mode<.5?screen:mode<1.5?additive:mix(screen,soft,.5);
+              float nextMode=mod(mode+1.0,3.0);
+              vec3 nextBlend=nextMode<.5?screen:nextMode<1.5?additive:mix(screen,soft,.5);
+              float blendPhase=smoothstep(.45,1.0,fract(mod(uLeakPhase/6.28318530718,1.0)*6.0));
+              col=mix(currentBlend,nextBlend,blendPhase);
+            }
             col=aces(col*uExposure);
             float vig=smoothstep(1.25,0.3,length(dir));col*=mix(0.5,1.0,vig);
             float gr=fract(sin(dot(uv*uRes+uTime,vec2(12.9898,78.233)))*43758.5453);col+=(gr-0.5)*uGrain;
@@ -133,6 +174,8 @@ async function ensureEnv(): Promise<Env | null> {
 
 // ── scene builders ───────────────────────────────────────────────────────────────────────────────
 const SCENE_BUILDERS: Record<FluxSceneId, ((THREE: any, renderer: any) => SceneInst) | undefined> = {
+  ...Object.fromEntries(FLUX_MATH_SCENES.map(s => [s.id, (T: any) => buildMathScene(T, s.id)])) as Record<FluxMathSceneId, (T: any) => SceneInst>,
+  'math-morph': (T: any) => buildMathScene(T, 'math-morph'),
   field: buildField,
   tapestry: buildTapestry,
   'tapestry-ii': buildTapestryII,
@@ -457,7 +500,7 @@ function renderFrame(e: Env, inst: SceneInst, spec: FluxSpec, w: number, h: numb
   let dir = null as ReturnType<FluxDirector['update']> | null;
   if (spec.scene !== 'deco-morph' && (spec as any).director !== false) {
     let d = directors.get(inst); if (!d) { d = new FluxDirector(); directors.set(inst, d); }
-    dir = d.update(a, localT, locked);
+    dir = d.update(a, localT, locked, spec.scene.startsWith('math-'));
   }
   const yawDeg = inst.cam.yaw + spec.yaw + orbit + (dir ? dir.yaw : 0);
   const pitchDeg = inst.cam.pitch + (locked ? 0 : spec.pitch) + (dir ? dir.pitch : 0);
@@ -470,6 +513,8 @@ function renderFrame(e: Env, inst: SceneInst, spec: FluxSpec, w: number, h: numb
   inst.camera.lookAt(tgtX, tgtY, tgtZ);
   if (dir && dir.roll) inst.camera.rotateZ(dir.roll);
   inst.camera.updateProjectionMatrix();
+  inst.camera.updateMatrixWorld(true);
+  inst.setFocus?.(radius*(dir?.focusMul??1),dir?.focusStrength??0);
 
   inst.update(localT, a, spec);
 
@@ -485,6 +530,11 @@ function renderFrame(e: Env, inst: SceneInst, spec: FluxSpec, w: number, h: numb
     e.blurMat.uniforms.tDiffuse.value = e.rtB.texture; e.blurMat.uniforms.uDir.value.set(0, ty * r * 1.8); pass(e, e.blurMat, e.rtA);
   }
   e.compMat.uniforms.uTime.value = localT;
+  const optics=inst.optics?.();
+  e.compMat.uniforms.uAtmosphere.value=optics?1:0;
+  e.compMat.uniforms.uLightEnergy.value=optics?.energy??0;
+  e.compMat.uniforms.uLeakPhase.value=optics?.phase??0;
+  e.compMat.uniforms.uLightAnchor.value.set(optics?.x??.8,optics?.y??.7);
   e.compMat.uniforms.uGrain.value = inst.grain ?? 0.022;
   e.compMat.uniforms.uBloom.value = inst.bloom(a) * spec.bloom;
   e.compMat.uniforms.uExposure.value = (inst.exposure ?? 1.05) * spec.exposure;

@@ -5,8 +5,8 @@
 import { VisualizerMode } from '../types';
 import { CANVAS_PRESETS } from './presets/canvasPresets';
 import { GL_PRESETS } from './webgl/glRenderer';
-import { STUDIO_SCENE_TO_MODE, FLUX_SCENE_TO_MODE } from '../types';
-import { FLUX_SCENES } from '../../../services/fabula/fluxNode';
+import { STUDIO_SCENE_TO_MODE } from '../types';
+import { FLUX_PLATFORM_MODES } from './fluxPlatformCatalog';
 
 export interface SceneEntry {
   mode: VisualizerMode;
@@ -37,8 +37,7 @@ const STUDIO: SceneEntry[] = [
 ];
 
 // Flux 3D scenes (three.js, Trapcode Form / Mir) — hosted by FluxStage, only the built ones.
-const FLUX: SceneEntry[] = FLUX_SCENES
-  .filter(s => s.built && FLUX_SCENE_TO_MODE[s.id])
-  .map(s => ({ mode: FLUX_SCENE_TO_MODE[s.id], name: s.name, cat: 'Flux · 3D ' + s.cat, kind: 'three' as const }));
+const FLUX: SceneEntry[] = FLUX_PLATFORM_MODES
+  .map(s => ({ mode: s.mode, name: s.name, cat: 'Flux · 3D ' + s.cat, kind: 'three' as const }));
 
 export const SCENE_CATALOG: SceneEntry[] = [...FLUX, ...STUDIO, ...CLASSIC];

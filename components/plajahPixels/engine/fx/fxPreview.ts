@@ -15,6 +15,10 @@ import { ShaderRenderer } from '../core/shaderRenderer';
 import { ForgeTransitionRenderer } from './transitionRenderer';
 import { createGL, createProgram, createFullscreenQuad, makeSourceTexture, uploadElement, type GL } from '../core/glUtil';
 import { previewSource } from './previewScene';
+import { MODE_TO_FLUX_SCENE } from '../../types';
+import { SILENT_AUDIO } from '../../../../services/fabula/fluxNode';
+let fluxPreview:typeof import('../core/flux')|undefined;
+let fluxPreviewLoading=false;
 
 const PW = 320, PH = 180; // internal render size; tiles downscale from this
 const MAX_PER_FRAME = 10; // cap GPU work per frame; extra visible tiles render round-robin
@@ -122,6 +126,16 @@ class FxPreviewEngine {
         if (tile.kind === 'gen' && tile.mode && hasGenerator(tile.mode)) {
           if (!this.gen) this.gen = new GeneratorRenderer(gl);
           out = this.gen.render('fxprev:' + tile.mode, tile.mode, PW, PH, { time, audio: this.audio, colors: tile.colors || [], params: tile.params || [] });
+        } else if(tile.kind==='gen'&&tile.mode&&MODE_TO_FLUX_SCENE[tile.mode]){
+          if(!fluxPreview){
+            if(!fluxPreviewLoading){fluxPreviewLoading=true;void import('../core/flux').then(m=>{fluxPreview=m;}).catch(()=>{fluxPreviewLoading=false;});}
+            continue;
+          }
+          const canvas=fluxPreview.renderFluxLatest({scene:MODE_TO_FLUX_SCENE[tile.mode] as any},PW,PH,time,SILENT_AUDIO);
+          if(!canvas)continue;
+          const ctx=tile.canvas.getContext('2d');
+          if(ctx){if(tile.canvas.width!==PW||tile.canvas.height!==PH){tile.canvas.width=PW;tile.canvas.height=PH;}ctx.drawImage(canvas,0,0,PW,PH);}
+          continue;
         } else if (tile.kind === 'shader' && tile.shaderSrc) {
           if (!this.shader) this.shader = new ShaderRenderer(gl);
           out = this.shader.render('fxprev:shader:' + (tile.effectId || ''), tile.shaderSrc, PW, PH, { time, audio: this.audio, params: tile.params || [] });

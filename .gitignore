@@ -115,3 +115,5 @@ _apply_kc.cjs
 _dump_kc.cjs
 scratch_*.cjs
 patch_chora*.js
+.flux-math-preview/
+flux-math-preview.png
