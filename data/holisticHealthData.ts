@@ -23,6 +23,22 @@ export type TraditionLineage =
   | 'Daoist Internal Arts'
   | 'Yogic Sciences';
 
+// Point/breath illustrations are drawn here (no stock photo can show a specific acupressure point).
+// A stylised body-zone figure with a glowing marker and the point code — always matches the entry.
+export function zoneArt(zone: string, code: string, label: string): string {
+  const glyph: Record<string, string> = {
+    'Head & Neck': '<circle cx="200" cy="120" r="62" fill="#e9c9a8"/><rect x="178" y="170" width="44" height="52" rx="14" fill="#dcb88f"/><path d="M110 260 Q200 215 290 260 L300 330 L100 330Z" fill="#c9a37a"/>',
+    'Wrists & Hands': '<path d="M150 300 L150 190 Q150 170 168 170 L168 120 Q168 104 184 104 Q198 104 198 120 L198 150 L204 100 Q206 86 220 88 Q232 90 230 104 L226 150 L240 112 Q246 100 258 104 Q268 110 262 124 L246 170 Q290 190 270 250 L250 300Z" fill="#e9c9a8"/><rect x="146" y="296" width="110" height="40" rx="8" fill="#dcb88f"/>',
+    'Torso & Core': '<path d="M130 90 Q200 60 270 90 L286 200 Q290 300 262 340 L138 340 Q110 300 114 200Z" fill="#e9c9a8"/><circle cx="200" cy="205" r="5" fill="#b9915f"/>',
+    'Legs & Feet': '<path d="M150 70 L250 70 L258 210 Q262 270 236 300 Q262 306 280 322 Q286 336 270 342 L150 342 Q130 338 138 318 Q160 304 164 288 Q150 230 150 70Z" fill="#e9c9a8"/>',
+    'Breath': '<circle cx="200" cy="130" r="48" fill="#e9c9a8"/><path d="M110 330 Q120 210 200 190 Q280 210 290 330Z" fill="#c9a37a"/><path d="M276 120 q22 8 0 22 M290 108 q34 20 0 46" stroke="#9fd8c4" stroke-width="6" fill="none" stroke-linecap="round"/>',
+  };
+  const mark: Record<string, [number, number]> = { 'Head & Neck': [200, 62], 'Wrists & Hands': [214, 214], 'Torso & Core': [200, 250], 'Legs & Feet': [200, 250], Breath: [200, 160] };
+  const [mx, my] = mark[zone] || [200, 200];
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400"><defs><radialGradient id="g" cx="50%" cy="40%" r="75%"><stop offset="0" stop-color="#1f3a4a"/><stop offset="1" stop-color="#0b1620"/></radialGradient><radialGradient id="m"><stop offset="0" stop-color="#ffd166"/><stop offset="1" stop-color="#ffd166" stop-opacity="0"/></radialGradient></defs><rect width="400" height="400" fill="url(#g)"/>${glyph[zone] || ''}${code && zone !== 'Breath' ? `<circle cx="${mx}" cy="${my}" r="26" fill="url(#m)"/><circle cx="${mx}" cy="${my}" r="8" fill="#ff7b3a" stroke="#fff" stroke-width="3"/>` : ''}<text x="200" y="378" text-anchor="middle" font-family="sans-serif" font-size="22" font-weight="700" fill="#e8f1f5">${(code || label).replace(/&/g, '&amp;')}</text></svg>`;
+  return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+}
+
 export interface BotanicalHerb {
   id: string;
   name: string;
@@ -180,7 +196,7 @@ export const BOTANICAL_HERBS: BotanicalHerb[] = [
     plantOrigin: 'Arid regions of India, the Middle East, and North Africa',
     partsUsed: ['Root (predominantly)', 'Leaves (topical/extracts)'],
     plantDescription: 'A stout, evergreen shrub reaching 35–75 cm in height with velvety, tomentose branches. Features small, bell-shaped greenish-yellow flowers that mature into vivid red berries encased in a papery calyx. The fleshy roots possess a characteristic earthy, horse-like scent ("ashwa" meaning horse in Sanskrit, signifying the strength and vitality of a stallion).',
-    imageUrl: 'https://images.unsplash.com/photo-1615485290382-441e4d049cb5?w=800&q=80',
+    imageUrl: '/holistic/ashwagandha.jpg',
     traditions: ['Ayurveda'],
     primaryActions: ['Adaptogen', 'Nervine Relaxant', 'Immunomodulator', 'Thyroid Modulator', 'Anti-inflammatory'],
     bodyBenefits: [
@@ -246,7 +262,7 @@ export const BOTANICAL_HERBS: BotanicalHerb[] = [
     plantOrigin: 'Indian subcontinent and across Southeast Asia',
     partsUsed: ['Leaves', 'Flowering aerial tops', 'Seeds'],
     plantDescription: 'An aromatic, erect perennial subshrub growing up to 60–100 cm with softly pubescent stems and serrated, ovate purplish-green leaves rich in essential oil glands. Produces slender racemes of small purplish to pale-pink flowers. Emits an intoxicating, spicy clove-and-lemon fragrance that is instantly recognizable.',
-    imageUrl: 'https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=800&q=80',
+    imageUrl: '/holistic/holy-basil.jpg',
     traditions: ['Ayurveda', 'Indigenous & Folk Herbalism'],
     primaryActions: ['Adaptogen', 'Antioxidant', 'Antimicrobial', 'Bronchodilator', 'Radioprotective', 'Cardioprotective'],
     bodyBenefits: [
@@ -312,7 +328,7 @@ export const BOTANICAL_HERBS: BotanicalHerb[] = [
     plantOrigin: 'South Asia, cultivated extensively across tropical India',
     partsUsed: ['Rhizome (underground root stems)'],
     plantDescription: 'A perennial herbaceous plant reaching up to 1 meter in height, with large, oblong deep-green lanceolate leaves arising from a dense, tuberous underground rhizome system. The rhizomes possess rough brownish skin and an incandescent, vibrant golden-orange interior with an intensely warm, peppery, aromatic taste.',
-    imageUrl: 'https://images.unsplash.com/photo-1615485500704-8e990f9900f7?w=800&q=80',
+    imageUrl: '/holistic/turmeric.jpg',
     traditions: ['Ayurveda', 'Traditional Chinese Medicine', 'Indigenous & Folk Herbalism'],
     primaryActions: ['Master Anti-inflammatory', 'Antioxidant', 'Hepatoprotective', 'Neuroprotective', 'Digestive Bitter', 'Cardioprotective'],
     bodyBenefits: [
@@ -379,7 +395,7 @@ export const BOTANICAL_HERBS: BotanicalHerb[] = [
     plantOrigin: 'High-altitude subarctic alpine zones of Siberia, Scandinavia, and Iceland',
     partsUsed: ['Rhizome and Root'],
     plantDescription: 'A hardy, succulent alpine perennial thriving at altitudes up to 3,000 meters in rocky glacial soil. Reaches 10–35 cm in height with thick, fleshy gray-green leaves and dense clusters of yellow-green flowers. Its root emits a delicate, fresh rose fragrance when sliced, possessing a bitter, astringent taste with a vibrant golden interior.',
-    imageUrl: 'https://images.unsplash.com/photo-1509316975850-ff9c5deb0cd9?w=800&q=80',
+    imageUrl: '/holistic/rhodiola.jpg',
     traditions: ['Indigenous & Folk Herbalism', 'Traditional Chinese Medicine', 'Integrative Modern Science'],
     primaryActions: ['Primary Adaptogen', 'Nootropic Ergogenic', 'Mitochondrial Energizer', 'Dopaminergic Tonic', 'Anti-fatigue'],
     bodyBenefits: [
@@ -445,7 +461,7 @@ export const BOTANICAL_HERBS: BotanicalHerb[] = [
     plantOrigin: 'Mountainous forests of Northeast China, Korea, and Eastern Siberia',
     partsUsed: ['Cultivated mature root (aged 4–6 years)'],
     plantDescription: 'A slow-growing perennial herb reaching 30–60 cm with palmately compound leaves radiating from a single central stem. Produces small greenish flowers followed by clusters of bright crimson drupes. Its celebrated tuberous root often bifurcates to resemble the human body ("Ren Shen" meaning "man-root"). Red ginseng is created by traditional steaming and drying of unpeeled 6-year-old roots.',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: '/holistic/ginseng.jpg',
     traditions: ['Traditional Chinese Medicine', 'Integrative Modern Science'],
     primaryActions: ['Superior Tonifying Adaptogen', 'Endocrine Revitalizer', 'Immune Catalyst', 'Vasodilator (Nitric Oxide)', 'Cognitive Stimulant'],
     bodyBenefits: [
@@ -511,7 +527,7 @@ export const BOTANICAL_HERBS: BotanicalHerb[] = [
     plantOrigin: 'Temperate deciduous forests of North America, Europe, and East Asia',
     partsUsed: ['Fruiting Body', 'Mycelium biomass'],
     plantDescription: 'A striking, cascading fungal specimen forming creamy-white icicle-like spines or spines resembling a lion\'s mane, hanging downwards from hardwood trees (especially oak, beech, and walnut). It has no stem, growing up to 40 cm across. In culinary settings, it has a tender, delicate texture reminiscent of lobster or crab.',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: '/holistic/lions-mane.jpg',
     traditions: ['Traditional Chinese Medicine', 'Indigenous & Folk Herbalism', 'Integrative Modern Science'],
     primaryActions: ['Nootropic Neuroregenerator', 'NGF/BDNF Stimulator', 'Gut-Brain Axis Protector', 'Immunomodulator'],
     bodyBenefits: [
@@ -577,7 +593,7 @@ export const BOTANICAL_HERBS: BotanicalHerb[] = [
     plantOrigin: 'Hardwood forests of East Asia, particularly decaying plum and oak logs',
     partsUsed: ['Fruiting Body', 'Cracked Spores'],
     plantDescription: 'A magnificent, lacquered polypore shelf mushroom characterized by a glossy, kidney-shaped cap displaying concentric amber, burgundy, and mahogany rings with a white or yellow outer margin. It feels rigid and woody, producing millions of microscopic brown spores from under-cap pores. It does not possess gills.',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: '/holistic/reishi.png',
     traditions: ['Traditional Chinese Medicine', 'Daoist Internal Arts'],
     primaryActions: ['Supreme Calming Adaptogen', 'Shen Tonic (Spirit Pacifier)', 'Immunomodulator', 'Hepato-Renal Shield', 'Cardiovascular Tonic'],
     bodyBenefits: [
@@ -643,7 +659,7 @@ export const BOTANICAL_HERBS: BotanicalHerb[] = [
     plantOrigin: 'Southern and Eastern Europe, Western Asia, naturalized globally',
     partsUsed: ['Flowering heads (harvested at full bloom)'],
     plantDescription: 'A dainty, branched annual herb reaching 20–60 cm in height with feathery, finely divided pinnate leaves and solitary daisy-like flower heads. The flower features a hollow, conical golden receptacle surrounded by white ray florets that reflex downward as the flower matures. Rubbing the flowers emits a sweet, soothing apple-like scent.',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: '/holistic/chamomile.jpg',
     traditions: ['Mediterranean & Greco-Arab', 'Indigenous & Folk Herbalism'],
     primaryActions: ['Carminative', 'Mild Nervine Sedative', 'Spasmolytic', 'Vulnerary (Wound Healing)', 'Anti-inflammatory'],
     bodyBenefits: [
@@ -709,7 +725,7 @@ export const BOTANICAL_HERBS: BotanicalHerb[] = [
     plantOrigin: 'Mediterranean basin, now naturalized across temperate zones',
     partsUsed: ['Ripe seeds (achenes)'],
     plantDescription: 'A striking, stately biennial thistle reaching 1 to 2 meters in height. Features grand, glossy, spiny leaves splashed with vivid milky-white marbling along the veins (legendarily attributed to drops of the Virgin Mary\'s milk). Crowning the thorny stalks are solitary, brilliant magenta-purple flower heads surrounded by sharp involucral spines.',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: '/holistic/milk-thistle.jpg',
     traditions: ['Mediterranean & Greco-Arab', 'Integrative Modern Science'],
     primaryActions: ['Master Hepatoprotective', 'Hepatic Cell Regenerator', 'Antioxidant', 'Phase I/II Detox Modulator'],
     bodyBenefits: [
@@ -775,7 +791,7 @@ export const BOTANICAL_HERBS: BotanicalHerb[] = [
     plantOrigin: 'Wetlands and marshy shores of India, Nepal, Sri Lanka, and Southeast Asia',
     partsUsed: ['Whole creeping succulent herb'],
     plantDescription: 'A small, creeping succulent perennial herb forming lush aquatic mats in wetlands. Features small, fleshy, oblanceolate opposite leaves and solitary, dainty four- to five-petaled white or pale violet flowers. It thrives in brackish conditions and possesses a distinctly bitter, cooling taste.',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: '/holistic/bacopa.jpg',
     traditions: ['Ayurveda'],
     primaryActions: ['Supreme Medhya Rasayana (Brain Tonic)', 'Nootropic', 'Synaptic Facilitator', 'Neuroprotective', 'Anxiolytic'],
     bodyBenefits: [
@@ -844,7 +860,7 @@ export const ESSENTIAL_MINERALS: MineralNutrient[] = [
     name: 'Magnesium',
     elementSymbol: 'Mg',
     category: 'Macromineral',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: '/holistic/magnesium.jpg',
     biologicalRole: 'Required cofactor in over 600 enzymatic reactions in the human body. Essential for cellular ATP synthesis, DNA/RNA replication, neuromuscular transmission, and cardiac rhythm stability.',
     bodyBenefits: [
       'Facilitates active transport of calcium and potassium across cellular membranes for muscle contraction and relaxation.',
@@ -883,7 +899,7 @@ export const ESSENTIAL_MINERALS: MineralNutrient[] = [
     name: 'Zinc',
     elementSymbol: 'Zn',
     category: 'Essential Trace Mineral',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: '/holistic/zinc.jpg',
     biologicalRole: 'Structural component of over 3,000 zinc-finger transcription proteins regulating gene expression. Critical for DNA polymerase activity, cellular replication, wound re-epithelialization, and gustatory taste perception.',
     bodyBenefits: [
       'Catalyzes development and activation of T-lymphocytes (T-cells) and natural killer (NK) cells.',
@@ -921,7 +937,7 @@ export const ESSENTIAL_MINERALS: MineralNutrient[] = [
     name: 'Selenium',
     elementSymbol: 'Se',
     category: 'Essential Trace Mineral',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: '/holistic/selenium.jpg',
     biologicalRole: 'Directly incorporated into 25 selenoproteins, most notably glutathione peroxidase (GPx), the body\'s master intracellular antioxidant enzyme system, and iodothyronine deiodinases that convert thyroid hormones.',
     bodyBenefits: [
       'Protects cellular membranes from reactive oxygen species and lipid hydroperoxides.',
@@ -958,7 +974,7 @@ export const ESSENTIAL_MINERALS: MineralNutrient[] = [
     name: 'Potassium',
     elementSymbol: 'K',
     category: 'Electrolyte',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: '/holistic/potassium.jpg',
     biologicalRole: 'The major intracellular cation in human cells. Powers the cellular sodium-potassium pump (Na+/K+-ATPase), generating the resting membrane potential that allows nerve firing, heart muscle contraction, and fluid volume homeostasis.',
     bodyBenefits: [
       'Directly antagonizes sodium retention, promoting vasodilation and significantly lowering systolic blood pressure.',
@@ -1001,7 +1017,7 @@ export const VITAL_ENZYMES: BioEnzyme[] = [
     name: 'Bromelain',
     type: 'Proteolytic / Systemic',
     naturalSource: 'Stems and juice of fresh Pineapple (Ananas comosus)',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: '/holistic/bromelain.jpg',
     mechanismOfAction: 'A complex mixture of sulfhydryl-containing proteolytic enzymes that hydrolyze peptide bonds. When taken between meals, it is absorbed intact across the intestinal mucosa into the bloodstream, where it selectively degrades circulating immune complexes, inhibits inflammatory thromboxane, and down-regulates PGE2.',
     bodyBenefits: [
       'Accelerates healing and resolution of hematomas, swelling, and surgical trauma (frequently used post-cosmetic surgery).',
@@ -1034,7 +1050,7 @@ export const VITAL_ENZYMES: BioEnzyme[] = [
     name: 'Serrapeptase (Serratiopeptidase)',
     type: 'Proteolytic / Systemic',
     naturalSource: 'Originally isolated from the non-pathogenic enterobacterium Serratia E-15 inhabiting the silkworm gut',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: '/holistic/serrapeptase.jpg',
     mechanismOfAction: 'A potent extracellular endopeptidase that binds to alpha-2-macroglobulin in blood, selectively cleaving dead, non-living necrotic tissue, dead arterial plaque, fibrotic scar tissue, and excess fibrin without harming living arterial walls or healthy connective tissue.',
     bodyBenefits: [
       'Dissolves dead fibrotic scar tissue and micro-thrombi, supporting healthy arterial lumen flow.',
@@ -1067,7 +1083,7 @@ export const VITAL_ENZYMES: BioEnzyme[] = [
     name: 'Nattokinase',
     type: 'Proteolytic / Systemic',
     naturalSource: 'Traditional Japanese fermented soybean dish Natto, produced by Bacillus subtilis var. natto',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: '/holistic/nattokinase.jpg',
     mechanismOfAction: 'A serine protease of the subtilisin family that directly cleaves cross-linked fibrin meshes in blood clots, while simultaneously stimulating the release of tissue plasminogen activator (t-PA) and inactivating plasminogen activator inhibitor 1 (PAI-1).',
     bodyBenefits: [
       'Directly dissolves intravascular fibrin clots and reduces whole blood viscosity.',
@@ -1100,7 +1116,7 @@ export const VITAL_ENZYMES: BioEnzyme[] = [
     name: 'Coenzyme Q10 (Ubiquinol)',
     type: 'Metabolic / Mitochondrial',
     naturalSource: 'Organ meats (heart, liver), wild sardines, grass-fed beef, synthesized endogenously in liver',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: '/holistic/coq10.jpg',
     mechanismOfAction: 'An essential lipid-soluble electron transporter in the mitochondrial electron transport chain (Complex I and II to Complex III), driving oxidative phosphorylation to generate over 95% of human cellular ATP energy. In its reduced form (Ubiquinol), it is the primary lipophilic antioxidant in cell membranes.',
     bodyBenefits: [
       'Powers the ceaseless pumping action of myocardial cardiac muscle cells, improving ejection fraction in heart failure.',
@@ -1142,7 +1158,7 @@ export const FUNCTIONAL_FOODS: FunctionalFoodDrink[] = [
     name: 'Adaptogenic Golden Milk',
     subtitle: 'Sacred Haldi Doodh Ayurvedic Rejuvenator',
     category: 'Adaptogenic Elixir',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: '/holistic/golden-milk.jpg',
     originTradition: 'Classical Ayurvedic Tradition (India)',
     bodyBenefits: [
       'Potent full-spectrum joint lubrication and cartilage inflammation relief.',
@@ -1181,7 +1197,7 @@ export const FUNCTIONAL_FOODS: FunctionalFoodDrink[] = [
     name: 'Ceremonial Japanese Matcha',
     subtitle: 'Shaded Tencha Green Tea of Zen Monks',
     category: 'Botanical Infusion',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: '/holistic/matcha.jpg',
     originTradition: 'Chan / Zen Buddhist Monastic Tradition (Uji & Kyoto, Japan)',
     bodyBenefits: [
       'Highest known concentration of Epigallocatechin gallate (EGCG), a master longevity polyphenol.',
@@ -1216,7 +1232,7 @@ export const FUNCTIONAL_FOODS: FunctionalFoodDrink[] = [
     name: 'Wild Cordyceps Vitality Elixir',
     subtitle: 'Himalayan High-Altitude Bio-Energetic Tonic',
     category: 'Medicinal Mushroom',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: '/holistic/cordyceps.jpg',
     originTradition: 'Tibetan & Traditional Chinese Mountain Medicine',
     bodyBenefits: [
       'Increases cellular ATP production by up to 28% and enhances cellular oxygen utilization efficiency.',
@@ -1250,7 +1266,7 @@ export const FUNCTIONAL_FOODS: FunctionalFoodDrink[] = [
     name: 'Ruby Hibiscus & Rosehip Nectar',
     subtitle: 'Cardio-Endothelial Anthocyanin Infusion',
     category: 'Botanical Infusion',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: '/holistic/hibiscus.jpg',
     originTradition: 'Ancient Egyptian (Karkadeh) & Caribbean Sorrel Traditions',
     bodyBenefits: [
       'Inhibits angiotensin-converting enzyme (ACE) naturally, significantly reducing high blood pressure.',
@@ -1293,7 +1309,7 @@ export const MIND_BODY_PRACTICES: MindBodyPractice[] = [
     name: 'Tai Chi (Taijiquan)',
     system: 'Tai Chi (Taijiquan)',
     lineage: 'Chen & Yang Style Internal Martial Traditions (Wudang / Chenjiagou, China)',
-    imageUrl: 'https://images.unsplash.com/photo-1518611012118-696072aa579a?w=800&q=80',
+    imageUrl: '/holistic/tai-chi.jpg',
     summary: 'A sublime internal martial art and moving meditation characterized by slow, continuous, circular movements coordinated with deep diaphragmatic respiration. Emphasizes postural verticality, dantian centering, weight transfer, and whole-body fascia spiraling ("Chan Si Jin" / silk-reeling).',
     physicalImpact: [
       'Trains continuous eccentric and isometric muscle control in lower extremities, reducing fall risk by up to 50% in clinical trials.',
@@ -1336,7 +1352,7 @@ export const MIND_BODY_PRACTICES: MindBodyPractice[] = [
     name: 'Qigong (Eight Pieces of Brocade / Ba Duan Jin)',
     system: 'Qigong (Internal Energy)',
     lineage: 'Song Dynasty Shaolin & Daoist Health Tradition (Marshal Yue Fei, 12th Century)',
-    imageUrl: 'https://images.unsplash.com/photo-1506126613408-eca07ce68773?w=800&q=80',
+    imageUrl: '/holistic/qigong.jpg',
     summary: 'A 1,000-year-old classical sequence of eight gentle physical movements designed to stretch and stimulate the 12 primary acupuncture meridians, massage the internal Zang-Fu organs, and harmonize internal energy (Qi) flow.',
     physicalImpact: [
       'Gently mobilizes the thoracic spine, costal joints, and cervical vertebrae, relieving upper body postural stagnation.',
@@ -1379,7 +1395,7 @@ export const MIND_BODY_PRACTICES: MindBodyPractice[] = [
     name: 'Nadi Shodhana (Alternate Nostril Breath)',
     system: 'Pranayama (Breath Science)',
     lineage: 'Classical Hatha Yoga Tradition (Hatha Yoga Pradipika, 15th Century)',
-    imageUrl: 'https://images.unsplash.com/photo-1545205597-3d9d02c29597?w=800&q=80',
+    imageUrl: '/holistic/nadi-shodhana.jpg',
     summary: 'The master balancing breath of classical yogic physiology. Alternating airflow through individual nostrils systematically balances autonomic nervous system tone, regulates hemispheric brain activity, and purifies subtle energetic channels (Nadis).',
     physicalImpact: [
       'Normalizes respiratory cadence to an optimal 4–6 breaths per minute, maximizing gas exchange efficiency.',
@@ -1416,7 +1432,7 @@ export const MIND_BODY_PRACTICES: MindBodyPractice[] = [
     name: 'Bhramari (Humming Bee Breath)',
     system: 'Pranayama (Breath Science)',
     lineage: 'Classical Yogic Science (Gheranda Samhita)',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: zoneArt('Breath','','Breath'),
     summary: 'A therapeutic breath practice where the practitioner produces a steady, low-frequency buzzing hum on a long exhalation, accompanied by closing the external senses (Shanmukhi Mudra). The internal acoustic vibration creates a massive surge in endogenous nasal nitric oxide.',
     physicalImpact: [
       'Generates a 15-fold increase in nasal airway Nitric Oxide (NO) production, a potent antiviral and vasodilator.',
@@ -1464,7 +1480,7 @@ export const ACUPRESSURE_POINTS: AcupressurePoint[] = [
     elementAssociation: 'Metal',
     anatomicalLocation: 'On the dorsum of the hand, between the 1st and 2nd metacarpal bones, in the middle of the 2nd metacarpal bone on the radial side. At the highest point of the muscle mound when the thumb and index finger are brought together.',
     bodyZone: 'Wrists & Hands',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: zoneArt('Wrists & Hands','LI4','Union Valley'),
     traditionalIndication: 'The supreme Yuan-Source point of the Large Intestine meridian and the commanding point for all disorders of the head, face, eyes, nose, mouth, and teeth. Clears exterior wind-heat, relieves acute and chronic pain, unblocks stagnation in the entire meridian, and induces labor.',
     scientificMechanism: {
       neurovascularPathway: 'Stimulates the first dorsal interosseous muscle, innervated by the deep branch of the ulnar nerve and sensory branches of the radial nerve. Impulses travel up the spinal cord to the periaqueductal gray (PAG) matter in the midbrain, triggering descending pain-inhibitory cascades.',
@@ -1493,7 +1509,7 @@ export const ACUPRESSURE_POINTS: AcupressurePoint[] = [
     elementAssociation: 'Fire',
     anatomicalLocation: 'On the palmar aspect of the forearm, 2 cun (approximately 3 finger-breadths) above the transverse crease of the wrist, located precisely between the tendons of the palmaris longus and flexor carpi radialis muscles.',
     bodyZone: 'Wrists & Hands',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: zoneArt('Wrists & Hands','PC6','Inner Pass'),
     traditionalIndication: 'Luo-Connecting point of the Pericardium and confluent point of the Yin Linking (Yin Wei) vessel. Calms the Shen (heart-spirit), unbinds the chest, regulates Heart Qi, soothes nausea, hiccups, and stomach pain, and treats insomnia.',
     scientificMechanism: {
       neurovascularPathway: 'Directly overlies the median nerve. Stimulation sends afferent impulses via the median nerve to the nucleus tractus solitarius (NTS) in the brainstem, which regulates the vomiting center, vagal cardiac reflexes, and gastric motility.',
@@ -1522,7 +1538,7 @@ export const ACUPRESSURE_POINTS: AcupressurePoint[] = [
     elementAssociation: 'Earth',
     anatomicalLocation: 'On the anterior-lateral aspect of the lower leg, 3 cun (four finger-breadths) inferior to the lateral hollow of the patella ("eye of the knee"), and one finger-breadth lateral to the anterior crest of the tibia.',
     bodyZone: 'Legs & Feet',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: zoneArt('Legs & Feet','ST36','Leg Three Miles'),
     traditionalIndication: 'He-Sea and Earth point of the Stomach meridian. Considered the single most important longevity, vitality, and digestive point in Chinese medicine. "If an old person massages Zusanli daily, they can walk another three miles." Harmonizes stomach, tonifies Qi and Blood, strengthens immune defense.',
     scientificMechanism: {
       neurovascularPathway: 'Overlies the deep peroneal nerve, anterior tibial artery, and tibialis anterior muscle. Research by Harvard neuroscientist Dr. Qiufu Ma discovered that ST36 electro-acupuncture specifically drives the sciatic-vagal-adrenal anti-inflammatory neuro-axis, suppressing lethal cytokine storms.',
@@ -1551,7 +1567,7 @@ export const ACUPRESSURE_POINTS: AcupressurePoint[] = [
     elementAssociation: 'Wood',
     anatomicalLocation: 'On the dorsum of the foot, in the hollow distal to the junction of the 1st and 2nd metatarsal bones, approximately 1.5 to 2 cun proximal to the web between the great toe and second toe.',
     bodyZone: 'Legs & Feet',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: zoneArt('Legs & Feet','LV3','Great Surge'),
     traditionalIndication: 'Yuan-Source and Shu-Stream point of the Liver meridian. The master point to soothe Liver Qi stagnation, extinguish Liver fire, subdue Liver Yang rising, and regulate menstruation. Essential for emotional frustration, irritability, PMS, headaches, eye strain, and high blood pressure.',
     scientificMechanism: {
       neurovascularPathway: 'Branches of the deep peroneal nerve and dorsal venous arch of foot. Stimulation decreases sympathetic vascular tone, dilates peripheral arterioles, and down-regulates stress-induced hypothalamic activation.',
@@ -1580,7 +1596,7 @@ export const ACUPRESSURE_POINTS: AcupressurePoint[] = [
     elementAssociation: 'Earth',
     anatomicalLocation: 'On the medial side of the lower leg, 3 cun (four finger-breadths) superior to the prominence of the medial malleolus (inner ankle bone), immediately posterior to the medial border of the tibia.',
     bodyZone: 'Legs & Feet',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: zoneArt('Legs & Feet','SP6','Three Yin Intersection'),
     traditionalIndication: 'The monumental crossing point where all three Yin meridians of the leg (Spleen, Liver, and Kidney) intersect. Tonifies Spleen and Kidney, harmonizes the Liver, resolves dampness, regulates urination and menstruation, treats insomnia, and nourishes Yin.',
     scientificMechanism: {
       neurovascularPathway: 'Overlies the tibial nerve and posterior tibial artery. Sends neural afferents through sacral and lumbar plexuses (L4–S2) governing the pelvic autonomic nervous system and reproductive organs.',
@@ -1609,7 +1625,7 @@ export const ACUPRESSURE_POINTS: AcupressurePoint[] = [
     elementAssociation: 'Wood',
     anatomicalLocation: 'At the posterior base of the skull, in the prominent hollow between the origins of the sternocleidomastoid (SCM) and trapezius muscles, level with the earlobes.',
     bodyZone: 'Head & Neck',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: zoneArt('Head & Neck','GB20','Wind Pool'),
     traditionalIndication: 'Crucial meeting point of the Gallbladder, San Jiao, Yang Motility, and Yang Linking vessels. Dispels exterior and interior wind, clears the head and eyes, alleviates neck rigidity, treats occipital headaches, dizziness, and mental fatigue.',
     scientificMechanism: {
       neurovascularPathway: 'Overlies the greater occipital nerve and occipital artery. Pressure releases chronic contracture in suboccipital triangle muscles (rectus capitis and obliquus capitis), improving vertebral arterial hemodynamics to the visual cortex and brainstem.',
@@ -1638,7 +1654,7 @@ export const ACUPRESSURE_POINTS: AcupressurePoint[] = [
     elementAssociation: 'Yang Master Conductor',
     anatomicalLocation: 'At the vertex of the head, on the midline, directly in line with the apex of the ears. Fold the ears forward to find the highest point on the crown.',
     bodyZone: 'Head & Neck',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: zoneArt('Head & Neck','GV20','Hundred Meetings'),
     traditionalIndication: 'The crown meeting place of all Yang meridians of the body. Raises fallen Yang Qi, pacifies internal wind, stabilizes the spirit, clears the sensory orifices, and treats mental exhaustion, prolapse, dizziness, and chronic sadness.',
     scientificMechanism: {
       neurovascularPathway: 'Galea aponeurotica and branches of the supraorbital and supratrochlear nerves. Modulates central autonomic tone and induces synchronous alpha and theta brainwave rhythms.',
@@ -1667,7 +1683,7 @@ export const ACUPRESSURE_POINTS: AcupressurePoint[] = [
     elementAssociation: 'Fire',
     anatomicalLocation: 'On the wrist crease, in the depression on the radial side of the flexor carpi ulnaris tendon, just proximal to the pisiform bone (outer edge of the inner wrist crease, pinky side).',
     bodyZone: 'Wrists & Hands',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: zoneArt('Wrists & Hands','HT7','Spirit Gate'),
     traditionalIndication: 'Yuan-Source and Shu-Stream point of the Heart meridian. The primary point to nourish Heart Blood, calm the Shen (mind-spirit), soothe emotional agitation, relieve cardiac palpitations, and resolve severe insomnia and restless dreams.',
     scientificMechanism: {
       neurovascularPathway: 'Adjacent to the ulnar nerve and ulnar artery. Afferent signals modulate cardiac autonomic plexuses and the dorsal vagal motor nucleus, restoring healthy heart rate variability (HRV).',
@@ -1696,7 +1712,7 @@ export const ACUPRESSURE_POINTS: AcupressurePoint[] = [
     elementAssociation: 'Water',
     anatomicalLocation: 'On the sole of the foot, in the depression formed when the foot is plantar flexed, approximately at the junction of the anterior third and posterior two-thirds of the sole, between the 2nd and 3rd metatarsal bones.',
     bodyZone: 'Legs & Feet',
-    imageUrl: 'https://images.unsplash.com/photo-1544367567-0f2fcb009e0b?w=800&q=80',
+    imageUrl: zoneArt('Legs & Feet','KD1','Gushing Spring'),
     traditionalIndication: 'Jing-Well and Wood point of the Kidney meridian; the lowest, most grounding acupoint on the human body. Descends excess Heat, fire, and Yang from the head; calms the spirit, revives consciousness, restores deep kidney root essence, and anchors floating anxiety.',
     scientificMechanism: {
       neurovascularPathway: 'Plantar aponeurosis and medial plantar nerve. High concentration of mechanoreceptors and sensory pacinian corpuscles trigger immediate spinal somatosensory grounding reflexes, down-regulating cerebral hyper-perfusion.',

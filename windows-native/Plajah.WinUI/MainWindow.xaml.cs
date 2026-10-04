@@ -93,10 +93,19 @@ public sealed partial class MainWindow : Window
         {
             _appWindow.Closing += (_, _) =>
             {
-                _studioBridge.ShutdownCompositor();
-                _studioBridge.CloseAllOutputWindows();
-                _studioBridge.CloseCleanFeed();
-                SaveWindowBounds();
+                // Each step is isolated: one failing must never keep the X button from closing the app.
+                try { _studioBridge.ShutdownCompositor(); } catch (Exception ex) { CrashLog.Write("Close.Compositor", ex); }
+                try { _studioBridge.CloseAllOutputWindows(); } catch (Exception ex) { CrashLog.Write("Close.Outputs", ex); }
+                try { _studioBridge.CloseCleanFeed(); } catch (Exception ex) { CrashLog.Write("Close.CleanFeed", ex); }
+                try { SaveWindowBounds(); } catch (Exception ex) { CrashLog.Write("Close.Bounds", ex); }
+                // Background work (NDI/OMT discovery, compositor child, WebView2) can keep the process alive
+                // after the window is gone, so the app looks like it ignored the X. End the process shortly after.
+                var killer = new System.Threading.Thread(() =>
+                {
+                    System.Threading.Thread.Sleep(1500);
+                    Environment.Exit(0);
+                }) { IsBackground = false, Name = "PlajahForceExit" };
+                killer.Start();
             };
         }
 
