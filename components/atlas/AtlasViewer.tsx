@@ -2,6 +2,7 @@
 // scenario playback with tier badges, healthy-vs-faulted, part info panel. 3D lives in AtlasScene (lazy).
 import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import ContentStatusBadge from '../ContentStatusBadge';
 import { ATLAS_SYSTEMS, loadSystem, OPEN_MACHINE_ATLAS, parseAtlasQuery, type LoadedSystem, type OpenAtlasDetail } from '../../services/machineAtlas/registry';
 import { runScenario, runKindOf, traceDuration, type RunResult } from '../../services/machineAtlas/sim/runner';
 import { PartPanel } from './PartPanel';
@@ -189,8 +190,9 @@ export default function AtlasViewer(props: AtlasViewerProps) {
         <div className="font-display text-xl font-black italic leading-none" style={{ fontFamily: 'Outfit, system-ui, sans-serif' }}>Machine <span style={{ background: 'var(--pj-grad-ember)', WebkitBackgroundClip: 'text', color: 'transparent' }}>Atlas</span></div>
         <label className="sr-only" htmlFor="atlas-system">System</label>
         <select id="atlas-system" value={systemId} onChange={e => { setSystemId(e.target.value); setSelectedId(null); }} className="h-9 rounded-full border border-white/15 bg-[#17122a] px-3 text-sm">
-          {ATLAS_SYSTEMS.map(s => <option key={s.id} value={s.id} disabled={!s.ready}>{s.label}{s.ready ? '' : ' (soon)'}</option>)}
+          {ATLAS_SYSTEMS.map(s => <option key={s.id} value={s.id} disabled={!s.ready}>{s.label}{s.status === 'UNDER_REVIEW' ? ' (under review)' : s.ready ? '' : ' (coming soon)'}</option>)}
         </select>
+        {ATLAS_SYSTEMS.find(s => s.id === systemId)?.status === 'UNDER_REVIEW' && <ContentStatusBadge status="UNDER_REVIEW" />}
         <nav className="flex gap-1 overflow-x-auto" aria-label="Views">
           {views.map(v => <button key={v.id} title={v.description} onClick={() => setViewId(v.id)} className="h-9 whitespace-nowrap rounded-full px-3 text-xs font-bold" style={chip(viewId === v.id)}>{v.label}</button>)}
         </nav>

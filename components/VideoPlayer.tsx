@@ -20,8 +20,10 @@ import {
   Heart, MessageCircle, Share2, X, ArrowLeft, Volume2, VolumeX,
   Play, Pause, Maximize2, Minimize2, Settings, Camera, Tag, Globe,
   Lock, Check, Upload, Eye, EyeOff, ChevronDown, ChevronUp,
-  UserPlus, MoreVertical, Bookmark, Flag, SkipForward,
+  UserPlus, MoreVertical, Bookmark, Flag, SkipForward, Sparkles,
 } from 'lucide-react';
+import { LensPicker, LensVideoOverlay } from './LensVideoOverlay';
+import type { LensId } from '../services/lenses/lensEngine';
 import { motion, AnimatePresence } from 'motion/react';
 import { useGlobalPlayerState, useGlobalPlayerProgress } from '../contexts/GlobalPlayerContext';
 import { AddToPlaylistModal } from './VideoPlaylistKit';
@@ -124,7 +126,9 @@ const MuxHlsVideo = React.memo(React.forwardRef<HTMLVideoElement, MuxHlsVideoPro
         muted={muted}
         poster={poster}
         playsInline
-        crossOrigin={hasSubtitles ? 'anonymous' : undefined}
+        // Mux serves CORS headers; anonymous lets the lens overlay read pixels. Skipped on TV
+        // (no lens UI there, and WebView CORS media quirks aren't worth the risk).
+        crossOrigin={hasSubtitles || !getPlatformInfo().isTV ? 'anonymous' : undefined}
         className={className}
         onPlay={onPlay}
         onPause={onPause}
@@ -463,6 +467,10 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
   const playerContainerRef = useRef<HTMLDivElement>(null);
   const videoWrapRef       = useRef<HTMLDivElement>(null);
   const localVideoRef      = useRef<HTMLVideoElement | null>(null);
+  // Live lenses (viewer-local). Only offered for Mux sources, which send CORS headers.
+  const [lensId, setLensId]         = useState<LensId>('none');
+  const [lensStatus, setLensStatus] = useState('');
+  const [lensOpen, setLensOpen]     = useState(false);
 
   // ── Watch party (synchronized viewing) ────────────────────────────────────
   // The host's play/pause/seek is broadcast as STATE; every follower's own local player follows it
@@ -971,6 +979,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
   }, []);
 
   const tvFullBleed = getPlatformInfo().isTV;
+  const canLens = !tvFullBleed && !!video.muxPlaybackId && !videoError;
 
   const handleSeek = (e: React.MouseEvent<HTMLDivElement>) => {
     if (party.isFollower) return;   // scrubbing is the host's job in a watch party
@@ -1227,6 +1236,15 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
           onClick={togglePlay}
         >
           <div className="absolute inset-0">{renderVideo()}</div>
+          {canLens && lensId !== 'none' && (
+            <LensVideoOverlay videoRef={localVideoRef} lens={lensId} fit="contain" onStatus={setLensStatus} />
+          )}
+          {canLens && lensOpen && (
+            <div className="absolute right-3 bottom-16 z-30 w-[min(92%,22rem)] max-h-[60%] overflow-auto rounded-2xl p-3 bg-black/85 backdrop-blur-md border border-white/10"
+              onClick={e => e.stopPropagation()}>
+              <LensPicker value={lensId} onChange={id => { setLensId(id); if (id === 'none') setLensStatus(''); }} status={lensStatus} />
+            </div>
+          )}
 
           {/* The page's own header sits behind the takeover now, so Back needs to exist here.
               Rides the same auto-hide timer as the rest of the controls. */}
@@ -1305,6 +1323,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({ video: initialVideo, onBack, 
 
                   {/* CC — self-hides when the video carries no subtitle tracks */}
                   <CaptionToggle video={video} videoElRef={localVideoRef} />
+
+                  {canLens && (
+                    <button onClick={() => setLensOpen(o => !o)} aria-label="Lenses" aria-pressed={lensOpen}
+                      title="Lenses"
+                      className={`p-2.5 transition-colors ${lensId !== 'none' ? 'text-[#FF8C00]' : 'text-white hover:text-white/80'}`}>
+                      <Sparkles size={18} />
+                    </button>
+                  )}
 
                   <button onClick={() => setIsMuted(m => !m)} className="p-2.5 text-white hover:text-white/80 transition-colors">
                     {isMuted ? <VolumeX size={18} /> : <Volume2 size={18} />}

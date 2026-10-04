@@ -10,6 +10,7 @@
  */
 import type { Curriculum } from './schoolChassis';
 import { ROSTER, LAW_ACCENT, INTL_ACCENT, MED_ACCENT, type LadderStage } from '../data/lawMedicineRoster';
+import type { ContentStatus } from './contentStatus';
 import { LAW_NOTICE, MEDICINE_NOTICE, MACHINES_NOTICE } from '../data/practice/courseKit';
 
 export type CourseKind = 'curriculum' | 'math' | 'context' | 'link';
@@ -31,6 +32,8 @@ export interface Course {
   group?: string;
   /** Shown above the lessons (educational-use notice). */
   notice?: string;
+  /** Content status; omitted = LIVE. See services/contentStatus.ts and docs/CONTENT_STATUS.md. */
+  status?: ContentStatus;
 }
 export interface Subject { id: string; title: string; blurb: string; emoji: string; accent: string }
 
@@ -66,6 +69,7 @@ const ROSTER_COURSES: Course[] = ROSTER.map((r): Course => ({
   accent: r.subject === 'medicine' ? MED_ACCENT : r.group?.startsWith('International') ? INTL_ACCENT : LAW_ACCENT,
   kind: 'curriculum', view: 'LEARN', curriculumId: r.id, stage: r.stage, group: r.group,
   notice: r.subject === 'law' ? LAW_NOTICE : MEDICINE_NOTICE,
+  status: 'UNDER_REVIEW',
 }));
 
 export const COURSES: Course[] = [
@@ -156,9 +160,13 @@ export const COURSES: Course[] = [
   // Law and Medicine ladders (data/lawMedicineRoster.ts)
   ...ROSTER_COURSES,
   // Machines & Trades (Machine Atlas): brakes pilot, three stages of one topic
-  { id: 'atlas-brakes-g68', subject: 'machines', title: 'How Brakes Work', blurb: 'Friction, pressure, the pedal-to-wheel path, disc and drum brakes, ABS, safe habits and warning signs.', emoji: '🛞', accent: '#FF8C00', kind: 'curriculum', view: 'MACHINE_ATLAS', curriculumId: 'atlas-brakes-g68', stage: 'g68', notice: MACHINES_NOTICE },
-  { id: 'atlas-brakes-hs', subject: 'machines', title: 'Auto Tech: Brakes', blurb: 'Hydraulics, boosters, calipers and drums, fluid, ABS basics, inspection, diagnosis, estimating and customer communication.', emoji: '🔧', accent: '#FF8C00', kind: 'curriculum', view: 'MACHINE_ATLAS', curriculumId: 'atlas-brakes-hs', stage: 'g912', notice: MACHINES_NOTICE },
-  { id: 'atlas-brakes-college', subject: 'machines', title: 'Brake Systems for Technicians', blurb: 'Force and heat calculations, ABS control theory, scan-tool diagnosis, bleeding methods, regenerative braking, documentation and liability.', emoji: '🛠️', accent: '#FF8C00', kind: 'curriculum', view: 'MACHINE_ATLAS', curriculumId: 'atlas-brakes-college', stage: 'college', notice: MACHINES_NOTICE },
+  { id: 'atlas-brakes-g68', subject: 'machines', title: 'How Brakes Work', blurb: 'Friction, pressure, the pedal-to-wheel path, disc and drum brakes, ABS, safe habits and warning signs.', emoji: '🛞', accent: '#FF8C00', kind: 'curriculum', view: 'MACHINE_ATLAS', curriculumId: 'atlas-brakes-g68', stage: 'g68', notice: MACHINES_NOTICE, status: 'UNDER_REVIEW' },
+  { id: 'atlas-brakes-hs', subject: 'machines', title: 'Auto Tech: Brakes', blurb: 'Hydraulics, boosters, calipers and drums, fluid, ABS basics, inspection, diagnosis, estimating and customer communication.', emoji: '🔧', accent: '#FF8C00', kind: 'curriculum', view: 'MACHINE_ATLAS', curriculumId: 'atlas-brakes-hs', stage: 'g912', notice: MACHINES_NOTICE, status: 'UNDER_REVIEW' },
+  { id: 'atlas-brakes-college', subject: 'machines', title: 'Brake Systems for Technicians', blurb: 'Force and heat calculations, ABS control theory, scan-tool diagnosis, bleeding methods, regenerative braking, documentation and liability.', emoji: '🛠️', accent: '#FF8C00', kind: 'curriculum', view: 'MACHINE_ATLAS', curriculumId: 'atlas-brakes-college', stage: 'college', notice: MACHINES_NOTICE, status: 'UNDER_REVIEW' },
+  // Planned Machine Atlas courses: no content yet (COMING_SOON, not navigable)
+  { id: 'atlas-engine', subject: 'machines', title: 'Engines', blurb: 'How engines make power, cool and lubricate themselves.', emoji: '⚙️', accent: '#FF8C00', kind: 'link', view: 'MACHINE_ATLAS', status: 'COMING_SOON' },
+  { id: 'atlas-drivetrain', subject: 'machines', title: 'Drivetrain and Chassis', blurb: 'Transmissions, axles, steering and suspension.', emoji: '🚙', accent: '#FF8C00', kind: 'link', view: 'MACHINE_ATLAS', status: 'COMING_SOON' },
+  { id: 'atlas-other-machines', subject: 'machines', title: 'Diesel, Motorcycles, Rail, Marine and Aviation', blurb: 'The same method applied to other machines.', emoji: '🚂', accent: '#FF8C00', kind: 'link', view: 'MACHINE_ATLAS', status: 'COMING_SOON' },
 ];
 
 export const coursesIn = (subjectId: string) => COURSES.filter(c => c.subject === subjectId);

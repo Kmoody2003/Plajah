@@ -1,4 +1,5 @@
 // Registry of Machine Atlas systems. Each system is loaded lazily (dynamic import) so unused systems cost nothing.
+import type { ContentStatus } from '../contentStatus';
 import type { AtlasDataset, SystemLayout, FaultDef, PartArchetype, Scenario, System } from './types';
 
 export interface LoadedSystem {
@@ -9,12 +10,12 @@ export interface LoadedSystem {
   s0: { parkingSteps: string[] };
 }
 
-export interface SystemEntry { id: string; classId: string; label: string; blurb: string; ready: boolean }
+export interface SystemEntry { id: string; classId: string; label: string; blurb: string; ready: boolean; status?: ContentStatus }
 
 export const ATLAS_SYSTEMS: SystemEntry[] = [
-  { id: 'brakes', classId: 'car', label: 'Brakes', blurb: 'Disc, drum, hydraulics, ABS. Pilot system: AI-draft content awaiting ASE master technician review.', ready: true },
-  { id: 'engine', classId: 'car', label: 'Engine', blurb: 'Planned (Phase 2).', ready: false },
-  { id: 'drivetrain', classId: 'car', label: 'Drivetrain and chassis', blurb: 'Planned (Phase 3).', ready: false },
+  { id: 'brakes', classId: 'car', label: 'Brakes', blurb: 'Disc, drum, hydraulics, ABS. Pilot system: AI-draft content awaiting ASE master technician review.', ready: true, status: 'UNDER_REVIEW' },
+  { id: 'engine', classId: 'car', label: 'Engine', blurb: 'Planned (Phase 2).', ready: false, status: 'COMING_SOON' },
+  { id: 'drivetrain', classId: 'car', label: 'Drivetrain and chassis', blurb: 'Planned (Phase 3).', ready: false, status: 'COMING_SOON' },
 ];
 
 const cache = new Map<string, Promise<LoadedSystem>>();

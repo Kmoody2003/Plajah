@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, Search, ChevronRight, X, Play, BookOpen } from 'lucide-react';
+import ContentStatusBadge from '../ContentStatusBadge';
+import { isComingSoon } from '../../services/contentStatus';
 import { SUBJECTS, COURSES, THREADS, coursesIn, loadCurriculum, contextCourseForGrade, type Course } from '../../services/courseCatalog';
 import { skillsForBand, contextItems } from '../../services/mathInContext';
 import { loadMastery, rollup, levelFor, levelMeta, lessonKey, mathKey, type SkillMap } from '../../services/mastery';
@@ -123,6 +125,7 @@ const LearnMapView: React.FC<Props> = ({ user, profile, onNavigate, onBack }) =>
   const matches = (c: Course) => !q.trim() || `${c.title} ${c.blurb}`.toLowerCase().includes(q.trim().toLowerCase());
 
   const openCourse = (c: Course) => {
+    if (isComingSoon(c)) return;
     if (c.kind === 'link') {
       if (c.labsDiscipline) { try { window.dispatchEvent(new CustomEvent('OPEN_LABS_DISCIPLINE', { detail: { disciplineId: c.labsDiscipline } })); } catch { /* */ } return; }
       onNavigate(c.view); return;
@@ -202,29 +205,51 @@ const LearnMapView: React.FC<Props> = ({ user, profile, onNavigate, onBack }) =>
           </section>
         )}
 
+        {!q && (
+          <section className="mb-9" aria-label="Interactive atlases">
+            <div className="mb-3"><h2 className="text-lg font-black">🔬 Interactive atlases</h2><p className="text-[12px] text-white/50">Take it apart, run it, see how it works.</p></div>
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              <button type="button" onClick={() => onNavigate('MACHINE_ATLAS')} className="text-left rounded-2xl border border-white/10 p-4 hover:-translate-y-0.5 hover:border-white/25 transition-all group" style={{ background: 'linear-gradient(155deg, rgba(255,140,0,0.22) 0%, rgba(255,255,255,0.025) 70%)' }}>
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl leading-none">⚙️</span>
+                  <div className="min-w-0 flex-1"><p className="font-black leading-tight">Machine Atlas</p><p className="text-[12px] text-white/55 leading-snug mt-0.5">Trades and machines in 3D: explode the parts, run fault scenarios.</p></div>
+                  <ChevronRight size={16} className="text-white/30 group-hover:text-white/70 mt-1" />
+                </div>
+              </button>
+              <div aria-disabled="true" className="rounded-2xl border border-white/10 p-4 opacity-70" style={{ background: 'linear-gradient(155deg, rgba(212,0,85,0.2) 0%, rgba(255,255,255,0.025) 70%)' }}>
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl leading-none">🧬</span>
+                  <div className="min-w-0 flex-1"><p className="font-black leading-tight">Cell &amp; Brain Atlas</p><p className="text-[12px] text-white/55 leading-snug mt-0.5">Red blood cell to neuron, at three levels of depth.</p><span className="inline-block mt-2 text-[10px] font-black uppercase tracking-widest rounded-full border border-white/20 px-2 py-0.5 text-white/60">Coming soon</span></div>
+                </div>
+              </div>
+            </div>
+          </section>
+        )}
+
         {SUBJECTS.map(s => {
           const cs = coursesIn(s.id).filter(matches).filter(c => !unavailable.has(c.id));
           if (!cs.length) return null;
           const card = (c: Course) => {
             const ks = c.kind === 'link' ? [] : keysFor(c); const r = rollup(ks, map);
             return (
-              <button key={c.id} type="button" onClick={() => openCourse(c)}
-                className="text-left rounded-2xl border border-white/10 p-4 hover:-translate-y-0.5 hover:border-white/25 transition-all group"
+              <button key={c.id} type="button" onClick={() => openCourse(c)} disabled={isComingSoon(c)} aria-disabled={isComingSoon(c)}
+                className={`text-left rounded-2xl border border-white/10 p-4 transition-all group ${isComingSoon(c) ? 'opacity-60 cursor-default' : 'hover:-translate-y-0.5 hover:border-white/25'}`}
                 style={{ background: `linear-gradient(155deg, ${c.accent}26 0%, rgba(255,255,255,0.025) 70%)` }}>
                 <div className="flex items-start gap-3">
                   <span className="text-2xl leading-none">{c.emoji}</span>
                   <div className="min-w-0 flex-1">
                     <p className="font-black leading-tight">{c.title}</p>
                     <p className="text-[12px] text-white/55 leading-snug mt-0.5 line-clamp-2">{c.blurb}</p>
+                    {c.status && c.status !== 'LIVE' && <div className="mt-1.5"><ContentStatusBadge status={c.status} /></div>}
                   </div>
-                  <ChevronRight size={16} className="text-white/30 group-hover:text-white/70 mt-1" />
+                  {!isComingSoon(c) && <ChevronRight size={16} className="text-white/30 group-hover:text-white/70 mt-1" />}
                 </div>
                 {c.kind !== 'link' && ks.length > 0 ? (
                   <div className="mt-3">
                     <div className="h-1.5 rounded-full bg-white/10 overflow-hidden"><div className="h-full transition-all" style={{ width: `${r.pct}%`, background: c.accent }} /></div>
                     <p className="text-[11px] text-white/45 mt-1.5">{r.pct}% mastery · {ks.length} skills{r.byLevel.mastered + r.byLevel.proficient > 0 ? ` · ${r.byLevel.mastered + r.byLevel.proficient} proficient+` : ''}</p>
                   </div>
-                ) : <p className="text-[11px] mt-3 font-black uppercase tracking-widest" style={{ color: c.accent }}>{c.kind === 'link' ? 'Open →' : 'Loading…'}</p>}
+                ) : <p className="text-[11px] mt-3 font-black uppercase tracking-widest" style={{ color: isComingSoon(c) ? undefined : c.accent }}>{isComingSoon(c) ? 'Coming soon' : c.kind === 'link' ? 'Open →' : 'Loading…'}</p>}
               </button>
             );
           };
@@ -271,7 +296,7 @@ const CoursePanel: React.FC<{ course: Course; units: Unit[]; map: SkillMap; impa
     <div className="w-full max-w-lg h-full overflow-y-auto bg-[#0e0b16] border-l border-white/10 p-5 sm:p-6" onClick={e => e.stopPropagation()}>
       <div className="flex items-start gap-3 mb-4">
         <span className="text-3xl">{course.emoji}</span>
-        <div className="min-w-0 flex-1"><h2 className="text-xl font-black leading-tight">{course.title}</h2><p className="text-[12px] text-white/55 mb-2">{course.blurb}</p><AccuracyBadge courseId={course.kind === 'math' ? 'math-generated' : course.kind === 'context' ? 'context-math' : course.curriculumId || course.id} /></div>
+        <div className="min-w-0 flex-1"><h2 className="text-xl font-black leading-tight">{course.title}</h2><p className="text-[12px] text-white/55 mb-2">{course.blurb}</p>{course.status === 'UNDER_REVIEW' && <><ContentStatusBadge status={course.status} /><p className="text-[11px] text-white/55 mt-1 mb-2">Under review: this content is being checked for accuracy.</p></>}<AccuracyBadge courseId={course.kind === 'math' ? 'math-generated' : course.kind === 'context' ? 'context-math' : course.curriculumId || course.id} /></div>
         <button type="button" onClick={onClose} aria-label="Close" className="w-9 h-9 grid place-items-center rounded-full hover:bg-white/10 text-white/60"><X size={18} /></button>
       </div>
       {course.notice && <p className="mb-4 rounded-xl border border-white/10 bg-white/[0.04] px-3 py-2 text-[11px] leading-snug text-white/55">{course.notice}</p>}
