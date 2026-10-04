@@ -22,7 +22,7 @@ import { auth } from '../services/firebase';
 import { getVertical } from '../services/businessVerticals';
 import ListingsManager from './terra/ListingsManager';
 import BusinessCompliance from './terra/BusinessCompliance';
-import InventoryManager from './InventoryManager';
+import InventoryHub from './inventory/InventoryHub';
 import StoreKioskMode from './StoreKioskMode';
 import PosRegister from './PosRegister';
 import OffersManager from './OffersManager';
@@ -33,6 +33,7 @@ import BusinessOrdersPanel from './BusinessOrdersPanel';
 import ArtistPromoDirectory from './ArtistPromoDirectory';
 import StaffHRManager from './StaffHRManager';
 import AppointmentsManager from './clinic/AppointmentsManager';
+import { ClinicalCareGate, NoPhiNotice } from './clinic/ClinicalGuardrails';
 
 type BizTab = 'OVERVIEW' | 'APPOINTMENTS' | 'ORDERS' | 'INVENTORY' | 'TEAM' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'MARKETING' | 'SETTINGS' | 'LISTINGS' | 'COMPLIANCE' | 'BILLING';
 
@@ -368,6 +369,8 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
           <div className="min-w-0 space-y-6">
 
           {/* ── OVERVIEW ── */}
+          {activePage?.businessType === 'HEALTH' && ['ORDERS', 'INVENTORY', 'MESSAGING', 'CRM', 'SIGNAGE', 'MARKETING', 'LISTINGS'].includes(activeTab) && <NoPhiNotice />}
+
           {activeTab === 'BILLING' && activePage && (
             <BillingHubMount entity={{ kind: 'BUSINESS', id: activePage.id }} entityName={(activePage as any).name || (activePage as any).businessName || 'Your business'} canManage />
           )}
@@ -488,11 +491,21 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
 
           {/* ── APPOINTMENTS & CLINICAL WORKSPACE ── */}
           {activeTab === 'APPOINTMENTS' && activePage && (
-            <AppointmentsManager
-              businessId={activePage.id}
-              businessName={activePage.businessName}
-              isHealthOrDental={activePage.businessType === 'HEALTH'}
-            />
+            activePage.businessType === 'HEALTH' ? (
+              <ClinicalCareGate businessName={activePage.businessName} userId={(activePage as any).ownerId}>
+                <AppointmentsManager
+                  businessId={activePage.id}
+                  businessName={activePage.businessName}
+                  isHealthOrDental
+                />
+              </ClinicalCareGate>
+            ) : (
+              <AppointmentsManager
+                businessId={activePage.id}
+                businessName={activePage.businessName}
+                isHealthOrDental={false}
+              />
+            )
           )}
 
           {/* ── ORDERS ── */}
@@ -553,7 +566,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                   <ShoppingBag size={13} /> Launch in-store kiosk
                 </button>
               </div>
-              <InventoryManager sellerId={currentUser.uid} sellerName={activePage?.businessName || currentUser.displayName || 'My Store'} />
+              <InventoryHub sellerId={currentUser.uid} sellerName={activePage?.businessName || currentUser.displayName || 'My Store'} sellerType="ORG" sellerPhoto={activePage?.logoUrl || currentUser.photoURL || undefined} audience="business" />
               <OffersManager businessUid={currentUser.uid} />
             </div>
           )}

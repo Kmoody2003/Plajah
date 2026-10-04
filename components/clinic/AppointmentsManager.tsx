@@ -32,6 +32,7 @@ import PatientIntakeModal from './PatientIntakeModal';
 import DentalOdontogram from './DentalOdontogram';
 import SuperbillModal from './SuperbillModal';
 import CodingScrubberConsole from './CodingScrubberConsole';
+import { realLookingContact } from '../../services/clinic/phiGuard';
 
 interface AppointmentsManagerProps {
   businessId: string;
@@ -747,6 +748,11 @@ export const AppointmentsManager: React.FC<AppointmentsManagerProps> = ({
                   />
                 </div>
               </div>
+              {realLookingContact(newPatientEmail, newPatientPhone) && (
+                <div className="rounded-xl border border-amber-400/40 bg-amber-400/10 px-3 py-2 text-[11px] text-amber-100">
+                  {realLookingContact(newPatientEmail, newPatientPhone)} Only fictional patients belong in this demo.
+                </div>
+              )}
 
               {/* Date & Time Slot Picker */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
