@@ -19,6 +19,8 @@
 
 import type { VTuberHandle } from './vtuber/vtuberEngine';
 import type { AvatarDescriptor } from './vtuber/avatarFactory';
+import type { LensEngine, LensId } from './lenses/lensEngine';
+import type { Collect } from './lenses/auraOrbs';
 
 export type ComposerMode = 'front' | 'rear' | 'both' | 'screen-pip' | 'screen-mask' | 'vtuber';
 export type LookId = 'none' | 'warm' | 'tealorange' | 'moody' | 'vivid' | 'noir' | 'vintage'
@@ -188,6 +190,13 @@ export class LiveComposer {
   private vtuberStarting = false;
   private vtuberGeneration = 0;
 
+  // Snap-style lenses (googly eyes / cardboard / matrix). Lazy-loaded; applied to the composited
+  // frame before the grade, camera modes only (never screen share, never over a vtuber avatar).
+  private lensId: LensId = 'none';
+  private lensEngine: LensEngine | null = null;
+  private lensLoading: Promise<void> | null = null;
+  private orbListener: ((c: Collect) => void) | undefined;
+
   // Fun FX layer (emoji bursts + ambient effects), baked into the published output.
   private parts: FxParticle[] = [];
   private ambient: AmbientFx = 'none';
@@ -249,6 +258,7 @@ export class LiveComposer {
       grade: this.gl ? 'webgl' : this.filter2dOk ? '2d-filter' : 'none',
       look: this.getLook(), mode: this.mode, night: this.night, green: this.greenScreen,
       size: `${this.canvas.width}x${this.canvas.height}`,
+      lens: this.lensId === 'none' ? 'off' : `${this.lensId}${this.lensEngine?.getStatus() ? ` (${this.lensEngine.getStatus()})` : ''}`,
       vtuber: this.vtuber ? `live-${this.vtuberStyle}` : this.hasAvatar() ? 'ready' : 'off',
       track: this.vtuber?.getStatus?.() ?? '',
     };
@@ -259,6 +269,36 @@ export class LiveComposer {
   }
 
   setLook(look: LookId) { this.look = look; this.useLut = false; }
+
+  getLens(): LensId { return this.lensId; }
+  /** Status of the active lens ('' when fine) — surfaced so a failing lens is visible, not silent. */
+  getLensStatus(): string { return this.lensEngine?.getStatus() ?? ''; }
+  /** Switch the live lens. Instant for the viewer: the published canvas just draws differently. */
+  async setLens(id: LensId): Promise<void> {
+    this.lensId = id;
+    if (id === 'none') { this.lensEngine?.setLens('none'); return; }
+    if (!this.lensEngine) {
+      // three.js-free but still sizeable (MediaPipe glue + shaders) — only pay for it on first use.
+      this.lensLoading ??= import('./lenses/lensEngine').then(m => { this.lensEngine = new m.LensEngine(); this.lensEngine.setOrbListener(this.orbListener); });
+      await this.lensLoading;
+    }
+    if (this.lensId === id) this.lensEngine!.setLens(id);   // a newer pick may have superseded this one
+  }
+  /** Aura mode: a tap on the published frame (normalized 0..1) — the host's own or a viewer's. True = collected an orb. */
+  tapLens(nx: number, ny: number, who: string): boolean { return this.lensEngine?.tap(nx, ny, who) ?? false; }
+  getAuraInfo() { return this.lensEngine?.getAuraInfo() ?? null; }
+  setOrbListener(cb: ((c: Collect) => void) | undefined) { this.orbListener = cb; this.lensEngine?.setOrbListener(cb); }
+  /** The camera element the current mode's frame was drawn from (null for screen/vtuber modes). */
+  private lensSource(): HTMLVideoElement | null {
+    if (this.mode === 'front') return this.frontEl;
+    if (this.mode === 'rear' || this.mode === 'both') return this.rearEl;
+    return null;
+  }
+  private applyLens() {
+    if (this.lensId === 'none' || !this.lensEngine) return;
+    const src = this.lensSource();
+    if (src) this.lensEngine.apply(this.wctx, this.work, src, performance.now(), 'cover');
+  }
   clearLut() { this.useLut = false; }
 
   /** Night mode: real low-light help in the browser. Three layers stacked —
@@ -516,7 +556,7 @@ export class LiveComposer {
     const c = this.wctx, W = this.work.width, H = this.work.height;
     // Night: skip the clear and blend the new frame over the previous one (exponential
     // moving average) — temporal noise reduction, the core of every native night mode.
-    if (this.night) c.globalAlpha = 0.62;
+    if (this.night && this.lensId === 'none') c.globalAlpha = 0.62;
     else { c.fillStyle = '#000'; c.fillRect(0, 0, W, H); }
     if (this.mode === 'front') coverDraw(c, this.frontEl, 0, 0, W, H);
     else if (this.mode === 'rear') coverDraw(c, this.rearEl, 0, 0, W, H);
@@ -692,13 +732,14 @@ export class LiveComposer {
     try {
       const dt = Math.min(0.05, this.lastFxT ? (t - this.lastFxT) / 1000 : 0.016);
       this.lastFxT = t;
-      this.draw(); this.present(); this.stepFx(dt);
+      this.draw(); this.applyLens(); this.present(); this.stepFx(dt);
     } catch { /* keep alive */ }
   };
 
   dispose() {
     if (this.raf) cancelAnimationFrame(this.raf); this.raf = 0;
     this.releaseVtuber();
+    this.lensEngine?.dispose(); this.lensEngine = null; this.lensId = 'none';
     this.releaseFront(); this.releaseRear(); this.releaseScreen();
     this.out?.getTracks().forEach(t => t.stop()); this.out = null;
     try { this.seg?.close?.(); } catch { /* */ }

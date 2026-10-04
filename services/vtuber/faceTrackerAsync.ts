@@ -18,7 +18,7 @@ export class AsyncFaceTracker {
   private latest: FaceFrame | null = null;
   private fresh = false;
 
-  async init(): Promise<boolean> {
+  async init(opts: { numFaces?: number; blendshapes?: boolean } = {}): Promise<boolean> {
     if (this.ready) return true;
     if (typeof Worker === 'undefined' || typeof createImageBitmap !== 'function') return false;
     try {
@@ -41,6 +41,7 @@ export class AsyncFaceTracker {
               blendshapes: m.frame.blendshapes,
               matrix: m.frame.matrix ? new Float32Array(m.frame.matrix) : null,
               bbox: m.frame.bbox,
+              faces: m.frame.faces ?? [],
             };
             this.fresh = true;
           } else {
@@ -52,7 +53,7 @@ export class AsyncFaceTracker {
         }
       };
       this.w!.onerror = () => { clearTimeout(timer); resolve(false); };
-      this.w!.postMessage({ type: 'init' });
+      this.w!.postMessage({ type: 'init', numFaces: opts.numFaces ?? 1, blendshapes: opts.blendshapes !== false });
     });
 
     this.ready = ok;
@@ -84,6 +85,13 @@ export class AsyncFaceTracker {
     if (!this.fresh) return null;
     this.fresh = false;
     return this.latest;
+  }
+
+  /** Like take(), but distinguishes "nothing new yet" from "new result: no face in frame". */
+  poll(): { fresh: boolean; frame: FaceFrame | null } {
+    if (!this.fresh) return { fresh: false, frame: null };
+    this.fresh = false;
+    return { fresh: true, frame: this.latest };
   }
 
   dispose(): void {
