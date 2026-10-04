@@ -94,7 +94,7 @@ const OrgStoreSection: React.FC<Props> = ({ org, mode, onVisitUser, onOrgChange 
         )}
       </div>
       {isStoreOwner ? (
-        <StoreProductManager ownerId={ownerUid} sellerName={org.name} settings={settings} onSettingsUpdate={setSettings} />
+        <StoreProductManager ownerId={ownerUid} sellerName={org.name} sellerType="ORG" settings={settings} onSettingsUpdate={setSettings} />
       ) : (
         <div className="p-5 rounded-2xl bg-white/[0.03] border border-white/10 text-xs text-white/50">
           This store belongs to the organization's {org.accountUid ? 'linked account' : 'owner account'}. Sign in as that account to add or edit products — you can still preview what visitors see below.

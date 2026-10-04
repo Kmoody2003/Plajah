@@ -6,6 +6,7 @@
 import { collection, doc, addDoc, updateDoc, getDocs } from 'firebase/firestore';
 import { db } from './backendService';
 import type { StaffMember, Shift, TimeOffRequest } from '../types';
+import { authedFetch, setStaffPin } from './registerService';
 
 const staffCol = (b: string) => collection(db, 'businesses', b, 'staff');
 const shiftCol = (b: string) => collection(db, 'businesses', b, 'shifts');
@@ -18,7 +19,8 @@ export async function fetchStaff(businessUid: string): Promise<StaffMember[]> {
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as StaffMember)).sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
   } catch { return []; }
 }
-export async function addStaff(businessUid: string, m: Omit<StaffMember, 'id' | 'businessUid' | 'createdAt'>): Promise<string> {
+/** Adds a roster member. PINs are NOT part of this write - call setStaffPin (server, hashed) afterwards. */
+export async function addStaff(businessUid: string, m: Omit<StaffMember, 'id' | 'businessUid' | 'createdAt' | 'hasPin'>): Promise<string> {
   const ref = await addDoc(staffCol(businessUid), { ...m, businessUid, createdAt: Date.now() });
   return ref.id;
 }
@@ -33,27 +35,13 @@ export async function fetchShifts(businessUid: string): Promise<Shift[]> {
     return snap.docs.map(d => ({ id: d.id, ...d.data() } as Shift)).sort((a, b) => b.clockIn - a.clockIn);
   } catch { return []; }
 }
-/** Clock a staff member IN by their register PIN. Returns the new shift id, or null if PIN unknown / already clocked in. */
-export async function clockInByPin(businessUid: string, pin: string): Promise<{ shiftId: string; staffName: string } | null> {
-  const staff = await fetchStaff(businessUid);
-  const m = staff.find(s => s.active && s.pin && s.pin === pin);
-  if (!m) return null;
-  const shifts = await fetchShifts(businessUid);
-  if (shifts.some(s => s.staffId === m.id && !s.clockOut)) return null; // already clocked in
-  const ref = await addDoc(shiftCol(businessUid), { businessUid, staffId: m.id, staffName: m.name, clockIn: Date.now() } satisfies Omit<Shift, 'id'>);
-  return { shiftId: ref.id, staffName: m.name };
+/** Clock IN by PIN. Verified SERVER-side against the salted hash (same lockout as the register); throws with the server message on a bad PIN / already clocked in. */
+export async function clockInByPin(businessUid: string, pin: string): Promise<{ shiftId: string; staffName: string }> {
+  return authedFetch('/api/register/clock', { businessUid, pin, direction: 'IN' });
 }
-/** Clock out a specific staff member's open shift (by PIN). Returns hours worked, or null. */
-export async function clockOutByPin(businessUid: string, pin: string): Promise<{ staffName: string; hours: number } | null> {
-  const staff = await fetchStaff(businessUid);
-  const m = staff.find(s => s.active && s.pin && s.pin === pin);
-  if (!m) return null;
-  const shifts = await fetchShifts(businessUid);
-  const open = shifts.find(s => s.staffId === m.id && !s.clockOut);
-  if (!open) return null;
-  const now = Date.now();
-  await updateDoc(doc(db, 'businesses', businessUid, 'shifts', open.id), { clockOut: now });
-  return { staffName: m.name, hours: (now - open.clockIn - (open.breakMinutes || 0) * 60000) / 3600000 };
+/** Clock OUT by PIN (server-verified). Returns hours worked. */
+export async function clockOutByPin(businessUid: string, pin: string): Promise<{ staffName: string; hours: number }> {
+  return authedFetch('/api/register/clock', { businessUid, pin, direction: 'OUT' });
 }
 
 // ── Payroll ──────────────────────────────────────────────────────────────────
@@ -105,14 +93,16 @@ export async function seedDemoTeam(businessUid: string): Promise<void> {
   const existing = await fetchStaff(businessUid);
   if (existing.length) return;
   const DAY = 86400000, now = Date.now();
-  const roster: Array<Omit<StaffMember, 'id' | 'businessUid' | 'createdAt'>> = [
-    { name: 'Maya Chen', role: 'MANAGER', payType: 'HOURLY', payRate: 24, pin: '1234', active: true },
-    { name: 'Diego Rivera', role: 'STAFF', payType: 'HOURLY', payRate: 18, pin: '2345', active: true },
-    { name: 'Aisha Bello', role: 'STAFF', payType: 'HOURLY', payRate: 19, pin: '3456', active: true },
-    { name: 'Sam Park', role: 'STAFF', payType: 'HOURLY', payRate: 17, pin: '4567', active: true },
+  const roster: Array<Omit<StaffMember, 'id' | 'businessUid' | 'createdAt' | 'hasPin'> & { demoPin: string }> = [
+    { name: 'Maya Chen', role: 'MANAGER', payType: 'HOURLY', payRate: 24, demoPin: '482915', active: true },
+    { name: 'Diego Rivera', role: 'STAFF', payType: 'HOURLY', payRate: 18, demoPin: '593026', active: true },
+    { name: 'Aisha Bello', role: 'STAFF', payType: 'HOURLY', payRate: 19, demoPin: '604137', active: true },
+    { name: 'Sam Park', role: 'STAFF', payType: 'HOURLY', payRate: 17, demoPin: '715248', active: true },
   ];
   for (const m of roster) {
-    const ref = await addDoc(staffCol(businessUid), { ...m, businessUid, createdAt: now });
+    const { demoPin, ...fields } = m;
+    const ref = await addDoc(staffCol(businessUid), { ...fields, businessUid, createdAt: now });
+    await setStaffPin(ref.id, demoPin).catch(() => {});   // server hashes it; never written to the staff doc
     // 3 completed ~7h shifts over the last week so payroll has data.
     for (let d = 1; d <= 3; d++) {
       const start = now - d * 2 * DAY + 9 * 3600000; // ~9am

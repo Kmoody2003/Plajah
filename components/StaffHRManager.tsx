@@ -5,6 +5,7 @@ import {
   fetchStaff, addStaff, updateStaff, fetchShifts, clockInByPin, clockOutByPin,
   computePayroll, payrollCsv, fetchTimeOff, respondTimeOff, seedDemoTeam, type PayrollRow,
 } from '../services/staffService';
+import { setStaffPin } from '../services/registerService';
 
 /**
  * Team / HR for a business — roster, register PIN time-clock, timesheets → payroll export, and PTO
@@ -43,20 +44,20 @@ const StaffHRManager: React.FC<{ businessUid: string; businessName: string }> = 
     if (!form.name.trim()) return;
     setBusy(true);
     try {
-      await addStaff(businessUid, { name: form.name.trim(), role: form.role, payType: form.payType, payRate: Number(form.payRate) || 0, pin: form.pin.trim() || undefined, active: true });
+      const newId = await addStaff(businessUid, { name: form.name.trim(), role: form.role, payType: form.payType, payRate: Number(form.payRate) || 0, active: true });
+      if (form.pin) { try { await setStaffPin(newId, form.pin); } catch (e: any) { setClockMsg(e?.message || 'Saved, but the PIN could not be set - set it again from the roster.'); } }
       setForm({ name: '', role: 'STAFF', payType: 'HOURLY', payRate: 0, pin: '' }); setAdding(false); await load();
     } catch { /* */ } finally { setBusy(false); }
   };
 
   const doClock = async (dir: 'IN' | 'OUT') => {
-    if (pin.length < 3 || busy) return;
+    if (pin.length < 4 || busy) return;
     setBusy(true); setClockMsg('');
     try {
       const r = dir === 'IN' ? await clockInByPin(businessUid, pin) : await clockOutByPin(businessUid, pin);
-      if (!r) setClockMsg(dir === 'IN' ? 'PIN not found or already clocked in.' : 'No open shift for that PIN.');
-      else setClockMsg(dir === 'IN' ? `${(r as any).staffName} clocked in ✓` : `${(r as any).staffName} clocked out · ${(r as any).hours.toFixed(2)}h`);
+      setClockMsg(dir === 'IN' ? `${(r as any).staffName} clocked in ✓` : `${(r as any).staffName} clocked out · ${(r as any).hours.toFixed(2)}h`);
       setPin(''); await load();
-    } catch { setClockMsg('Something went wrong.'); } finally { setBusy(false); }
+    } catch (e: any) { setClockMsg(e?.message || 'Something went wrong.'); setPin(''); } finally { setBusy(false); }
   };
 
   // Payroll: this pay period = last 14 days (demo default).
@@ -111,7 +112,7 @@ const StaffHRManager: React.FC<{ businessUid: string; businessName: string }> = 
                   {['HOURLY', 'SALARY'].map(r => <option key={r} value={r} className="bg-black">{r}</option>)}
                 </select>
                 <label className="text-[9px] font-black uppercase tracking-widest text-white/40">Rate ($/hr)<input type="number" value={form.payRate} onChange={e => setForm(f => ({ ...f, payRate: parseFloat(e.target.value) || 0 }))} className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm outline-none" /></label>
-                <label className="text-[9px] font-black uppercase tracking-widest text-white/40">Register PIN<input value={form.pin} onChange={e => setForm(f => ({ ...f, pin: e.target.value.replace(/\D/g, '').slice(0, 4) }))} placeholder="4-digit" className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm outline-none tracking-[0.4em]" /></label>
+                <label className="text-[9px] font-black uppercase tracking-widest text-white/40">Register PIN<input value={form.pin} onChange={e => setForm(f => ({ ...f, pin: e.target.value.replace(/\D/g, '').slice(0, 6) }))} placeholder="6-digit" className="w-full mt-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-sm outline-none tracking-[0.4em]" /></label>
               </div>
               <button onClick={saveStaff} disabled={busy || !form.name.trim()} className="w-full py-2.5 rounded-xl bg-small-orange text-black text-[10px] font-black uppercase tracking-widest disabled:opacity-50 flex items-center justify-center gap-2">{busy ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />} Add to roster</button>
             </div>
@@ -128,8 +129,9 @@ const StaffHRManager: React.FC<{ businessUid: string; businessName: string }> = 
               <div className="w-9 h-9 rounded-full flex items-center justify-center text-[11px] font-black shrink-0" style={{ background: GRAD }}>{m.name.split(' ').map(w => w[0]).slice(0, 2).join('')}</div>
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-black truncate">{m.name} {openShiftIds.has(m.id) && <span className="text-[8px] font-black uppercase tracking-widest text-green-400">· on the clock</span>}</p>
-                <p className="text-[10px] text-white/40">{m.role} · {m.payType === 'HOURLY' ? `${money(m.payRate || 0)}/hr` : 'Salary'}{m.pin ? ` · PIN ${m.pin}` : ''}</p>
+                <p className="text-[10px] text-white/40">{m.role} · {m.payType === 'HOURLY' ? `${money(m.payRate || 0)}/hr` : 'Salary'}{m.hasPin ? ' · PIN set' : ' · no PIN'}</p>
               </div>
+              <button onClick={async () => { const p = window.prompt(`New 6-digit register PIN for ${m.name}`) || ''; if (!p) return; try { await setStaffPin(m.id, p.trim()); await load(); } catch (e: any) { window.alert(e?.message || 'Could not set PIN'); } }} className="px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest bg-white/10 text-white/70">{m.hasPin ? 'Reset PIN' : 'Set PIN'}</button>
               <button onClick={async () => { await updateStaff(businessUid, m.id, { active: !m.active }); setStaff(s => s.map(x => x.id === m.id ? { ...x, active: !x.active } : x)); }} className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${m.active ? 'bg-green-500/20 text-green-300' : 'bg-white/10 text-white/40'}`}>{m.active ? 'Active' : 'Inactive'}</button>
             </div>
           ))}
@@ -137,7 +139,7 @@ const StaffHRManager: React.FC<{ businessUid: string; businessName: string }> = 
       ) : section === 'CLOCK' ? (
         <div className="max-w-xs mx-auto text-center space-y-4">
           <p className="text-[10px] font-black uppercase tracking-widest text-white/40">Enter your PIN to clock in / out</p>
-          <input value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))} placeholder="••••" inputMode="numeric" className="w-full text-center text-3xl font-black tracking-[0.5em] bg-white/5 border border-white/10 rounded-2xl py-4 outline-none" />
+          <input value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))} placeholder="••••••" inputMode="numeric" className="w-full text-center text-3xl font-black tracking-[0.5em] bg-white/5 border border-white/10 rounded-2xl py-4 outline-none" />
           <div className="flex gap-2">
             <button onClick={() => doClock('IN')} disabled={busy} className="flex-1 py-3 rounded-2xl text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50" style={{ background: GRAD }}><LogIn size={14} /> Clock in</button>
             <button onClick={() => doClock('OUT')} disabled={busy} className="flex-1 py-3 rounded-2xl bg-white/10 text-white text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"><LogOut size={14} /> Clock out</button>

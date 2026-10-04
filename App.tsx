@@ -62,6 +62,7 @@ const FeedView = retryLazy(() => import('./components/FeedView'));
 const LiveHubView = retryLazy(() => import('./components/LiveHubView'));
 const MobileLiveHub = retryLazy(() => import('./components/MobileLiveHub'));
 const MyOrdersView = retryLazy(() => import('./components/MyOrdersView'));
+const MyGarageView = retryLazy(() => import('./components/MyGarageView'));
 const CharacterProfileView = retryLazy(() => import('./components/CharacterProfileView'));
 const CharacterChat = retryLazy(() => import('./components/CharacterChat'));
 const UserProfileView = retryLazy(() => import('./components/UserProfileView'));
@@ -194,6 +195,8 @@ const GalleryView = retryLazy(() => import('./components/gallery/GalleryView'));
 const GalleryEditor = retryLazy(() => import('./components/gallery/GalleryEditor'));
 // Tela — the unified document canvas (P0: canvas + Writer + Grid devices)
 const TelaView = retryLazy(() => import('./components/tela/TelaView'));
+// Machine Atlas — generic 3D mechanical models + simulations (pilot: brakes)
+const MachineAtlasView = retryLazy(() => import('./components/atlas/MachineAtlasView'));
 const CreatorHub = retryLazy(() => import('./components/CreatorHub'));
 const DesktopLauncherOverlay = retryLazy(() => import('./components/DesktopLauncherOverlay'));
 // Tela reference-embed demo (P2b — live/follow-latest/pinned, lock→propagate)
@@ -670,6 +673,7 @@ const App: React.FC = () => {
     callinParam                   ? 'PODCAST_CALLIN'     :
     listenParam                   ? 'PODCAST_LISTEN'     :
     roomParam                     ? 'ROOM'               :
+    (new URLSearchParams(window.location.search).get('atlas') !== null || pitchParam === 'atlas' || pitchParam === 'machine-atlas') ? 'MACHINE_ATLAS' :
     pitchParam === 'pitch-music'  ? 'PITCH_MUSIC'        :
     pitchParam === 'pitch-film'   ? 'PITCH_FILM'         :
     pitchParam === 'pitch-writer' ? 'PITCH_WRITER'       :
@@ -696,7 +700,7 @@ const App: React.FC = () => {
   // NOT be bounced to LANDING — the deep-link handler owns the initial view.
   const hasDeepLink = (() => {
     const sp = new URLSearchParams(window.location.search);
-    if (['id', 'type', 'reello', 'video', 'v', 'org', 'elevate', 'debate', 'club', 'livestream', 'stream', 'room', 'callin', 'listen', 'invite', 'pitch', 'view', 'g'].some(k => sp.get(k))) return true;
+    if (['id', 'type', 'reello', 'video', 'v', 'org', 'elevate', 'debate', 'club', 'livestream', 'stream', 'room', 'callin', 'listen', 'invite', 'pitch', 'view', 'g', 'atlas'].some(k => sp.get(k))) return true;
     if (/^#g\//.test(window.location.hash)) return true;
     // /link (TV sign-in approval) must not bounce a signed-out visitor to LANDING — they may
     // need to sign in on the phone first and then approve, and losing the ?c= code mid-flow
@@ -1446,6 +1450,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [pifWins, setPifWins] = useState<PayItForwardWinner[]>([]);
   const [activeLiveFeed, setActiveLiveFeed] = useState<LiveFeed | null>(null);
   const [showMyOrders, setShowMyOrders] = useState(false);
+  const [showMyGarage, setShowMyGarage] = useState(false);
   const [characterProfile, setCharacterProfile] = useState<any | null>(null);
   const [characterChat, setCharacterChat] = useState<any | null>(null);
   const [isMobile, setIsMobile] = useState(() => {
@@ -1686,6 +1691,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     // Order tracking: open on demand, and auto-open after a store/kiosk checkout returns (?order=success).
     const handleOpenOrders = () => setShowMyOrders(true);
     window.addEventListener('OPEN_MY_ORDERS', handleOpenOrders);
+    const handleOpenGarage = () => setShowMyGarage(true);
+    window.addEventListener('OPEN_MY_GARAGE', handleOpenGarage);
     const handleOpenCharacter = (e: any) => { if (e.detail?.character) setCharacterProfile(e.detail.character); };
     window.addEventListener('OPEN_CHARACTER_PROFILE', handleOpenCharacter);
     const handleCharacterChat = (e: any) => { if (e.detail?.character) setCharacterChat(e.detail.character); };
@@ -1736,6 +1743,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('TELA');
     };
     window.addEventListener('OPEN_TELA_MEDIA', handleOpenTelaMedia);
+
+    const handleOpenMachineAtlas = () => { setView('MACHINE_ATLAS'); };
+    window.addEventListener('OPEN_MACHINE_ATLAS', handleOpenMachineAtlas);
 
     const handleOpenUniversalVideo = (e: any) => {
       if (e.detail) {
@@ -1964,6 +1974,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       window.removeEventListener('NAVIGATE', handleNavigate);
       window.removeEventListener('PLAY_LIVE_FEED', handlePlayLive);
       window.removeEventListener('OPEN_MY_ORDERS', handleOpenOrders);
+      window.removeEventListener('OPEN_MY_GARAGE', handleOpenGarage);
       window.removeEventListener('OPEN_CHARACTER_PROFILE', handleOpenCharacter);
       window.removeEventListener('OPEN_CHARACTER_CHAT', handleCharacterChat);
       window.removeEventListener('OPEN_STORE', handleOpenStore);
@@ -2370,6 +2381,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       setView('ACADEMIA_LANDING');
     } else if (target === 'ACADEMIA_COURSES') {
       setView('ACADEMIA_COURSES');
+    } else if (target === 'MACHINE_ATLAS') {
+      setView('MACHINE_ATLAS');
     } else if (target === 'SCHOOL_PACKAGE') {
       setView('SCHOOL_PACKAGE');
     } else if (target === 'PRAXIS') {
@@ -7025,6 +7038,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <TelaView initialDocId={telaRequestedDocId} onBack={() => goBack('CREATOR_HUB')} />
               </Suspense>
             )}
+            {view === 'MACHINE_ATLAS' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Opening Machine Atlas…</div>}>
+                <MachineAtlasView onBack={() => goBack('DASHBOARD')} />
+              </Suspense>
+            )}
             {view === 'TELA_EMBED_DEMO' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Opening embed demo…</div>}>
                 <TelaEmbedDemo onBack={() => setView('TELA')} />
@@ -7508,6 +7526,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       {/* Someone you follow is live → stackable pop-up pill with a Watch jump (below the notification). */}
       {user && !getPlatformInfo().isTV && (
         <LiveFollowPills uid={user.uid} isMobile={isMobile || theme === 'PHONE'} onWatch={(feed) => setActiveLiveFeed(feed as any)} />
+      )}
+
+      {/* My Garage (Vehicle Passport v1) — opened on demand (OPEN_MY_GARAGE) from the account menu. */}
+      {showMyGarage && user && (
+        <Suspense fallback={null}>
+          <div className="fixed inset-0 z-[1250] bg-[#0a0a0a] overflow-y-auto pt-6">
+            <MyGarageView onBack={() => setShowMyGarage(false)} />
+          </div>
+        </Suspense>
       )}
 
       {/* Customer order tracking — opened on demand (OPEN_MY_ORDERS) or auto after a checkout returns. */}

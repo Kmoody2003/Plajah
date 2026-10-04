@@ -24,7 +24,7 @@ export type VerticalId =
 export type VerticalTab =
   | 'OVERVIEW' | 'ORDERS' | 'INVENTORY' | 'TEAM' | 'MESSAGING' | 'CRM'
   | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'SETTINGS'
-  | 'LISTINGS' | 'COMPLIANCE' | 'APPOINTMENTS';
+  | 'LISTINGS' | 'COMPLIANCE' | 'APPOINTMENTS' | 'TICKETS';
 
 export interface VerticalDefinition {
   id: VerticalId;

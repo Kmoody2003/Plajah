@@ -1529,16 +1529,50 @@ service cloud.firestore {
     match /storeProducts/{productId} {
       allow read: if true;
       allow create: if isAuthenticated() && request.resource.data.sellerId == request.auth.uid;
+      // Stock and soldCount are written by the SELLER (dashboard) or the server order spine (admin
+      // credentials) — never by shoppers. (A previous rule let ANY signed-in user rewrite any product's
+      // stock.) Shoppers may only bump review aggregates.
       allow update: if isAdmin()
                     || (isAuthenticated() && resource.data.sellerId == request.auth.uid)
-                    || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['stock', 'soldCount', 'reviewCount', 'rating', 'updatedAt']));
+                    || (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reviewCount', 'rating', 'updatedAt']));
       allow delete: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin());
+
+      // Back-in-stock waitlist: a shopper adds/removes themselves; the seller reads it to notify.
+      match /waitlist/{shopperUid} {
+        allow create: if isAuthenticated() && request.auth.uid == shopperUid;
+        allow read, delete: if isAuthenticated() && (request.auth.uid == shopperUid
+                    || get(/databases/$(database)/documents/storeProducts/$(productId)).data.sellerId == request.auth.uid);
+        allow update: if false;
+      }
     }
 
+    // Stock ledger — every receive/sale/adjust/damage, so "where did my inventory go" has an answer.
+    // The seller reads + appends their own entries; the server writes sale entries; nobody edits history.
+    match /stockMoves/{moveId} {
+      allow read: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && request.resource.data.sellerId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // Orders are created ONLY by the server order spine (Stripe-paid / POS), which prices + stock-checks
+    // every line. The seller may advance status / add tracking; the buyer reads.
     match /storeOrders/{orderId} {
       allow read: if isAuthenticated() && (resource.data.buyerId == request.auth.uid || resource.data.sellerId == request.auth.uid || isAdmin());
-      allow create: if isAuthenticated() && request.resource.data.buyerId == request.auth.uid;
-      allow update: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin());
+      allow create: if false;
+      allow update: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin())
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt', 'trackingNumber', 'trackingCarrier', 'shippedAt', 'oversold', 'sellerNote']);
+    }
+
+    // POS refunds: written ONLY by the server (/api/store/pos-refund: validates qty/amount, restocks through the
+    // ledger, idempotent by id). The seller reads them for reports and the returns picker.
+    match /storeRefunds/{refundId} {
+      allow read: if isAuthenticated() && (resource.data.sellerId == request.auth.uid || isAdmin());
+      allow write: if false;
+    }
+
+    // Public receipt tokens (GET /r/:token is served by the server). Never client-readable: the token IS the secret.
+    match /posReceipts/{token} {
+      allow read, write: if false;
     }
 
     // Artist↔business cross-promo bookings: the business creates; both parties read; the creator
@@ -1572,9 +1606,26 @@ service cloud.firestore {
       }
       // Owner-managed: broadcast log + the Team/HR module.
       match /broadcasts/{id} { allow read, write: if isAuthenticated() && request.auth.uid == businessUid; }
-      match /staff/{id}      { allow read, write: if isAuthenticated() && request.auth.uid == businessUid; }
-      match /shifts/{id}     { allow read, write: if isAuthenticated() && request.auth.uid == businessUid; }
+      // Staff roster. PINs are NEVER client-readable/writable: the only PIN material is a salted hash in
+      // staffSecrets (below), written by the server. Writes that carry pin/pinHash/pinSalt are rejected.
+      match /staff/{id} {
+        allow read, delete: if isAuthenticated() && request.auth.uid == businessUid;
+        allow create, update: if isAuthenticated() && request.auth.uid == businessUid
+                              && !request.resource.data.keys().hasAny(['pin', 'pinHash', 'pinSalt']);
+      }
+      // Server-only: salted PIN hashes, open-shift markers, drawer pointer. No client access at all.
+      match /staffSecrets/{id} { allow read, write: if false; }
+      match /shiftOpen/{id}    { allow read, write: if false; }
+      match /drawerState/{id}  { allow read, write: if false; }
+      // Shifts are written by the server (PIN-verified clock in/out); the owner may read and correct them.
+      match /shifts/{id}     { allow read, write: if isAuthenticated() && request.auth.uid == businessUid; }   // owner may seed/correct; PIN clock events are server-written
       match /timeOff/{id}    { allow read, write: if isAuthenticated() && request.auth.uid == businessUid; }
+      // Cash drawer sessions + Z reports: server-written (staff sign in by PIN, not Firestore); the owner reads.
+      match /drawerSessions/{id} { allow read: if isAuthenticated() && request.auth.uid == businessUid; allow write: if false; }
+      // Stored value (gift cards / store credit / wallets): SERVER-WRITE-ONLY. Owner reads; a customer reads only their own
+      // customer-tied card (wallet / credit) and its ledger. The code-hash index (storedValueIndex) has NO client rule at all.
+      match /storedValue/{cardId} { allow read: if isAuthenticated() && (request.auth.uid == businessUid || resource.data.get('customerUid', '') == request.auth.uid); allow write: if false; }
+      match /storedValueLedger/{entryId} { allow read: if isAuthenticated() && (request.auth.uid == businessUid || resource.data.get('customerUid', '') == request.auth.uid); allow write: if false; }
       // Loyalty balances are written server-side (POS sale); the business and the customer can read.
       match /loyalty/{customerUid} { allow read: if isAuthenticated() && (request.auth.uid == businessUid || request.auth.uid == customerUid); }
       // In-store deals: the business writes, anyone may read (register + storefront evaluate them).
@@ -1587,6 +1638,38 @@ service cloud.firestore {
         allow write: if isAuthenticated() && (request.auth.uid == customerUid || request.auth.uid == businessUid);
       }
     }
+
+    // Service tickets (repair orders, wash-and-fold). SERVER-ONLY writes (Admin/REST via /api/tickets/*, CAS-guarded).
+    // The business owner may read their own tickets; staff (PIN sessions) read through the server. Customers never
+    // read this collection: they use the HMAC link page (/t/:token), which strips internal notes, costs and audit.
+    // Counters are server-only. There are no token docs: link tokens are HMACs, nothing is stored to leak.
+    match /tickets/{ticketId} {
+      allow read: if isAuthenticated() && resource.data.businessUid == request.auth.uid;
+      allow write: if false;
+    }
+    match /ticketCounters/{id} { allow read, write: if false; }
+
+    // Auto repair layer (services/autoServer.ts). Every write is SERVER-ONLY (Admin/REST, CAS-guarded).
+    // vehicles / inspections: the owning business may read its own; staff PIN sessions read through the server.
+    match /vehicles/{id} { allow read: if isAuthenticated() && resource.data.businessUid == request.auth.uid; allow write: if false; }
+    match /inspections/{id} { allow read: if isAuthenticated() && resource.data.businessUid == request.auth.uid; allow write: if false; }
+    // Vehicle Passport: the customer reads their OWN passports/entries (ownerUid); shops never read these directly -
+    // a shop sees other shops' entries only through the server with an owner-issued, 48h share token.
+    match /passports/{id} { allow read: if isAuthenticated() && resource.data.ownerUid == request.auth.uid; allow write: if false; }
+    match /passportEntries/{id} { allow read: if isAuthenticated() && resource.data.ownerUid == request.auth.uid; allow write: if false; }
+    // NHTSA caches + reminder de-dupe: server-only, nothing sensitive but no client business reading them.
+    match /vinCache/{id} { allow read, write: if false; }
+    match /recallCache/{id} { allow read, write: if false; }
+    match /serviceReminders/{id} { allow read, write: if false; }
+
+    // Laundromat layer (services/laundryServer.ts). SERVER-ONLY writes: money, accounts and invoices never come from clients.
+    // The owner may read their own settings / commercial accounts / invoices; staff read through the server.
+    match /laundrySettings/{businessUid} { allow read: if isAuthenticated() && request.auth.uid == businessUid; allow write: if false; }
+    match /laundryAccounts/{id} { allow read: if isAuthenticated() && resource.data.businessUid == request.auth.uid; allow write: if false; }
+    match /laundryInvoices/{id} { allow read: if isAuthenticated() && resource.data.businessUid == request.auth.uid; allow write: if false; }
+    match /laundryInvoiced/{id} { allow read, write: if false; }
+    match /laundryCounters/{id} { allow read, write: if false; }
+    match /laundryReminders/{id} { allow read, write: if false; }
 
     match /storeReviews/{reviewId} {
       allow read: if true;

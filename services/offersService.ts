@@ -10,17 +10,8 @@
 import { collection, doc, getDocs, setDoc, deleteDoc } from 'firebase/firestore';
 import { db, auth } from './backendService';
 
-export type OfferKind = 'PERCENT' | 'AMOUNT';
-
-export interface BusinessOffer {
-  id: string;
-  label: string;
-  kind: OfferKind;
-  value: number;                 // percent (PERCENT) or dollars (AMOUNT)
-  minSubtotalCents?: number;     // eligibility floor
-  membersOnly?: boolean;         // requires an attached loyalty customer
-  active: boolean;
-}
+import type { BusinessOffer } from './offersCore';
+export type { OfferKind, BusinessOffer } from './offersCore';
 
 export async function fetchOffers(businessUid: string): Promise<BusinessOffer[]> {
   try {
@@ -40,27 +31,7 @@ export async function deleteOffer(businessUid: string, id: string): Promise<void
   await deleteDoc(doc(db, 'businesses', businessUid, 'offers', id));
 }
 
-/** The discount an offer yields on a subtotal, or 0 if ineligible. */
-export function offerDiscountCents(o: BusinessOffer, subtotalCents: number, hasMember: boolean): number {
-  if (!o.active) return 0;
-  if (o.membersOnly && !hasMember) return 0;
-  if (o.minSubtotalCents && subtotalCents < o.minSubtotalCents) return 0;
-  if (subtotalCents <= 0) return 0;
-  const raw = o.kind === 'PERCENT'
-    ? Math.round(subtotalCents * (Math.max(0, Math.min(100, o.value)) / 100))
-    : Math.round(Math.max(0, o.value) * 100);
-  return Math.min(subtotalCents, raw);
-}
-
-/** Pick the single best eligible offer for a ticket (largest discount wins). */
-export function bestOffer(offers: BusinessOffer[], subtotalCents: number, hasMember: boolean): { offer: BusinessOffer; discountCents: number } | null {
-  let best: { offer: BusinessOffer; discountCents: number } | null = null;
-  for (const o of offers) {
-    const d = offerDiscountCents(o, subtotalCents, hasMember);
-    if (d > 0 && (!best || d > best.discountCents)) best = { offer: o, discountCents: d };
-  }
-  return best;
-}
+export { offerDiscountCents, bestOffer } from './offersCore';
 
 /** Seed a couple of demo deals so a demo business shows auto-apply at checkout. Idempotent-ish:
  *  only seeds when the business has no offers yet. */

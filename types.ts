@@ -3495,7 +3495,7 @@ export interface ParentalControls {
   updatedBy?: string;
 }
 
-export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'PRAXIS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS' | 'CREATOR_PAYMENTS' | 'ARTIST_MANAGER' | 'MELOS' | 'CAREER_IMPORT' | 'ARTIST_BOARDS' | 'EVENT_PRODUCTION_STUDIO' | 'TICKET_DESIGNER' | 'PLAJAH_PIXELS' | 'BIBLE' | 'AMBO' | 'AMBO_PRO' | 'FOLLOW_ALONG' | 'VESPERS' | 'SACRED_LIBRARY' | 'ATHLETE_SHOWCASE' | 'MATCH_FAN_ROOMS' | 'CLASS_POINTS' | 'ACADEMIA_TOUR' | 'ACADEMIA_HOME' | 'ACADEMIA_DIRECTORY' | 'LEARN' | 'HOMESCHOOL' | 'INQUIRY' | 'ACADEMIA_LANDING' | 'ACADEMIA_COURSES' | 'SCHOOL_PACKAGE' | 'LANGUAGE_QUEST' | 'EDU_SOCIAL' | 'KIDS_LIBRARY' | 'ROOM' | 'PODCAST_STUDIO' | 'LIVE_TRANSLATION' | 'PODCAST_CALLIN' | 'PODCAST_LISTEN' | 'ORG_HUB' | 'TELEPROMPTER' | 'SPATIAL_MIXER' | 'MELOS_BEATS' | 'MEDIA_CONVERTER' | 'COMIC_MUSEUM' | 'AUDIUS_ARTIST' | 'PLAJAH_ELEVATE' | 'PLATFORM_CHANGELOG' | 'MEDIA_ROUTER' | 'CROSSOVER' | 'SMART_DIRECTOR' | 'HISTORY_QUEST' | 'TV_SEARCH' | 'TERRA' | 'TERRA_MAP' | 'TERRA_PASSPORT' | 'TERRA_STUDIO' | 'TERRA_SCOUT' | 'TERRA_FILM' | 'TERRA_FEED' | 'TERRA_LISTINGS' | 'TELA' | 'TELA_EMBED_DEMO' | 'CREATOR_HUB'
+export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW' | 'SEARCH' | 'FEED' | 'USER_PROFILE' | 'LIVE_HUB' | 'RADIO' | 'LIVE_TV' | 'GAMES' | 'CHAT' | 'GAME_PLAYER' | 'CLASSROOMS' | 'CLASSROOM_DETAIL' | 'PPV_EVENTS' | 'VIDEOS' | 'BOOKS' | 'BOOK_READER' | 'MUSIC' | 'GLOBAL_PHOTOS' | 'ART_GALLERY' | 'EVENT_PHOTO_POOL' | 'ADMIN_DASHBOARD' | 'ARTICLES' | 'ARTICLE_EDITOR' | 'ARTICLE_VIEW' | 'BRAND_DASHBOARD' | 'VIDEO_MANAGER' | 'SANCTUARY' | 'SANCTUARY_HUB' | 'STORE' | 'STORE_HUB' | 'GARAGE_SALE' | 'BUSINESS_PUBLIC' | 'BRAND_PUBLIC' | 'ADMIN_AD_DASHBOARD' | 'PARTNER_DASHBOARD' | 'HELP_CENTER' | 'MOVIE_UX' | 'CLUBS' | 'CHARITY' | 'MOVIES_TV' | 'APPS' | 'APP_DETAIL' | 'APP_PLAYER' | 'POSTMAN' | 'WORLDS' | 'WORLD_MANAGER' | 'LIVETALK_GALLERY' | 'TEAM_DETAIL' | 'PLAYER_DETAIL' | 'PRIVATE_BOARDS' | 'AVATAR_STUDIO' | 'DISCUSSION' | 'DELETE_ACCOUNT' | 'BROWSER' | 'BUSINESS_DASHBOARD' | 'PLAJAH_BUSINESS' | 'PRAXIS' | 'AD_PACKAGES' | 'RELLO' | 'PLAJAH_SPORTS' | 'CREATOR_PAYMENTS' | 'ARTIST_MANAGER' | 'MELOS' | 'CAREER_IMPORT' | 'ARTIST_BOARDS' | 'EVENT_PRODUCTION_STUDIO' | 'TICKET_DESIGNER' | 'PLAJAH_PIXELS' | 'BIBLE' | 'AMBO' | 'AMBO_PRO' | 'FOLLOW_ALONG' | 'VESPERS' | 'SACRED_LIBRARY' | 'ATHLETE_SHOWCASE' | 'MATCH_FAN_ROOMS' | 'CLASS_POINTS' | 'ACADEMIA_TOUR' | 'ACADEMIA_HOME' | 'ACADEMIA_DIRECTORY' | 'LEARN' | 'HOMESCHOOL' | 'INQUIRY' | 'ACADEMIA_LANDING' | 'ACADEMIA_COURSES' | 'SCHOOL_PACKAGE' | 'LANGUAGE_QUEST' | 'EDU_SOCIAL' | 'KIDS_LIBRARY' | 'ROOM' | 'PODCAST_STUDIO' | 'LIVE_TRANSLATION' | 'PODCAST_CALLIN' | 'PODCAST_LISTEN' | 'ORG_HUB' | 'TELEPROMPTER' | 'SPATIAL_MIXER' | 'MELOS_BEATS' | 'MEDIA_CONVERTER' | 'COMIC_MUSEUM' | 'AUDIUS_ARTIST' | 'PLAJAH_ELEVATE' | 'PLATFORM_CHANGELOG' | 'MEDIA_ROUTER' | 'CROSSOVER' | 'SMART_DIRECTOR' | 'HISTORY_QUEST' | 'TV_SEARCH' | 'TERRA' | 'TERRA_MAP' | 'TERRA_PASSPORT' | 'TERRA_STUDIO' | 'TERRA_SCOUT' | 'TERRA_FILM' | 'TERRA_FEED' | 'TERRA_LISTINGS' | 'TELA' | 'TELA_EMBED_DEMO' | 'CREATOR_HUB' | 'MACHINE_ATLAS'
   | 'PLAJAH_FSE'
   | 'LIVE_FX_LAB'
   | 'DJ_CONSOLE'
@@ -5114,7 +5114,10 @@ export interface StaffMember {
   name: string;
   email?: string;
   role: 'OWNER' | 'MANAGER' | 'STAFF';
-  pin?: string;             // 4-digit register/clock-in PIN (stored hashed server-side later)
+  /** True once a PIN exists. The PIN itself is NEVER stored on this doc: the salted hash lives in businesses/{b}/staffSecrets/{id} (server-only). */
+  hasPin?: boolean;
+  /** Explicit register permission override (RING_SALES|REFUND|DISCOUNT_OVERRIDE|CLOSE_DRAWER|VIEW_REPORTS); else role default. */
+  registerPermissions?: string[];
   payType?: 'HOURLY' | 'SALARY';
   payRate?: number;         // $/hr for HOURLY (used for the payroll estimate)
   active: boolean;
@@ -5147,6 +5150,17 @@ export interface TimeOffRequest {
   status: 'PENDING' | 'APPROVED' | 'DENIED';
   createdAt: number;
   respondedAt?: number;
+}
+
+/** Register-floor settings, stored on `businesses/{ownerUid}.registerSettings` (JSON string; the server reads it). Owner-entered — no live tax tables. */
+export interface RegisterSettings {
+  tax?: { defaultRateBps: number; inclusive?: boolean; rates?: Record<string, number>; label?: string };
+  /** Refunds at/above this need a manager PIN (cents). Default 5000. */
+  refundApprovalCents?: number;
+  /** Manual/percent discounts above this % of the ticket need DISCOUNT_OVERRIDE or a manager PIN. Default 10. Auto offers are not gated. */
+  discountLimitPct?: number;
+  /** Tip buttons shown at tender, in percent (default 15/18/20). */
+  tipPresets?: number[];
 }
 
 export interface BusinessPage {
@@ -5203,6 +5217,15 @@ export interface BusinessPage {
   events?: BusinessEvent[];
   promoBanner?: string;
   isDemo?: boolean;
+  // ── Vertical pack (services/verticalPacks) — all optional, zero-migration ──
+  /** Finer business type: a vertical pack id (e.g. 'salon_barbershop'). businessType stays the coarse vertical. */
+  subtype?: string;
+  packId?: string;
+  packVersion?: number;
+  packVocabulary?: Record<string, string>;
+  packRoles?: { key: string; label: string; baseRole: string; description: string }[];
+  /** Go-live checklist steps the owner ticked by hand. */
+  packManualDone?: string[];
   createdAt: number;
   updatedAt: number;
 }
@@ -5614,6 +5637,7 @@ export interface StoreProductVariant {
   stock: number;
   priceModifier?: number; // + or - from base price
   imageUrl?: string;
+  barcode?: string;
 }
 
 export interface StoreProduct {
@@ -5630,6 +5654,23 @@ export interface StoreProduct {
   variants?: StoreProductVariant[];
   stock: number;            // total across all variants
   lowStockThreshold?: number; // inventory alert level; at/below this the item flags "low stock"
+  // ── Inventory (see services/inventoryCore.ts) ──
+  /** false = no countable stock (print-on-demand / digital / external): always sellable, no numbers shown. Default derives from isDigital + fulfillmentSource. */
+  trackInventory?: boolean;
+  /** Keep selling at 0 (made-to-order / pre-order). */
+  allowBackorder?: boolean;
+  /** LIVE per-variant on-hand, keyed by variant id — a map so the server can increment it atomically. Wins over variants[].stock. */
+  variantStock?: Record<string, number>;
+  costPrice?: number;         // what one unit costs you → margin + inventory value
+  sku?: string;
+  barcode?: string;
+  // ── Register floor (see services/taxCore.ts / ebtCore.ts) ──
+  /** Tax class → rate lookup in the business's RegisterSettings. 'STANDARD' | 'EXEMPT' | 'GROCERY_FOOD' | 'PREPARED_FOOD' | custom. Default STANDARD. */
+  taxClass?: string;
+  /** Eligible for SNAP/EBT (staple foods). Never taxed when paid with SNAP tender. */
+  snapEligible?: boolean;
+  /** Minimum buyer age (e.g. 18, 21). The register forces a "Verify ID" confirm before the sale. */
+  ageRestricted?: number;
   weight?: number;          // grams, for shipping calc
   isDigital: boolean;
   digitalFileUrl?: string;

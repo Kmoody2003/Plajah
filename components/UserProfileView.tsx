@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { gridSrc } from '../services/imageDerivatives';
 import { createPortal } from 'react-dom';
 import { 
@@ -101,6 +101,10 @@ import { Article, SystemSettingsConfig } from '../types';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import MerchStore from './MerchStore';
 import StoreView from './StoreView';
+import type { StoreProduct } from '../types';
+import { fetchProductsBySeller } from '../services/storeService';
+// The working shop (cart, server checkout, stock badges, waitlist) — loaded only when the Merch tab has products.
+const StorePageView = lazy(() => import('./StorePageView'));
 import DonationModal from './DonationModal';
 import MerchManager from './MerchManager';
 import PhotoGallery from './PhotoGallery';
@@ -263,6 +267,7 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
   const [profileUpcomingAlbums, setProfileUpcomingAlbums] = useState<Album[]>([]);
   const [friends, setFriends] = useState<UserProfile[]>([]);
   const [merch, setMerch] = useState<MerchItem[]>([]);
+  const [shopProducts, setShopProducts] = useState<StoreProduct[]>([]);   // canonical storeProducts (the working shop)
   const [userApps, setUserApps] = useState<WebApp[]>([]);
   const [worlds, setWorlds] = useState<IPWorld[]>([]); // Added
   const [themes, setThemes] = useState<ProfileThemePreset[]>([]); // Added
@@ -381,19 +386,30 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
       }
 
       // ── Phase 2: secondary data — loaded after the profile is already visible ──
-      const [f, fr, m, apps, upcoming] = await Promise.all([
+      const [f, fr, m, apps, upcoming, shop] = await Promise.all([
         fetchFollowedArtists(uid).catch(() => []),
         fetchFriends(uid).catch(() => []),
         fetchArtistMerch(uid).catch(() => []),
         fetchUserApps(uid).catch(() => []),
         fetchUpcomingAlbums().catch(() => []),
+        fetchProductsBySeller(uid).catch(() => [] as StoreProduct[]),
       ]);
 
       if (cancelled) return;
 
       setFollowedArtists(f as any);
       setFriends(fr as any);
-      setMerch(m as any);
+      const shopActive = (shop as StoreProduct[]).filter(p => p.isActive !== false);
+      setShopProducts(shopActive);
+      // Surfaces that still read the old MerchItem shape (artist header, latest releases) get the new shop's
+      // products too — a creator's new items must show up everywhere the old ones did. Upgraded legacy items
+      // are replaced by their shop version (never listed twice).
+      const upgraded = new Set(shopActive.map(p => p.legacyMerchId).filter(Boolean));
+      const shopAsMerch = shopActive.map(p => ({
+        id: p.id, title: p.title, description: p.description, imageUrl: p.images?.[0] || '', price: p.price, stock: p.stock,
+        category: p.category, ownerId: p.sellerId, artistId: p.sellerId, timestamp: p.createdAt, fromShop: true,
+      }));
+      setMerch([...(m as any[]).filter(x => !upgraded.has(x.id)), ...shopAsMerch] as any);
       setUserApps(apps as any);
       setProfileUpcomingAlbums(upcoming);
 
@@ -3417,20 +3433,39 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
               >
-                <StoreView 
-                  artistId={uid} 
-                  artistName={profile.displayName} 
-                  merch={merch} 
-                  albums={content}
-                  settings={profile.storeSettings}
-                  onSelectContent={(item) => {
-                    if ('type' in item && item.type === 'BOOK' && onSelectAlbum) {
-                      onSelectAlbum(item as Album);
-                    } else if (onSelectAlbum) {
-                      onSelectAlbum(item as Album);
-                    }
-                  }}
-                />
+                {(() => {
+                  const legacyMerch = merch.filter(m => !(m as any).fromShop);          // old-system items not yet upgraded
+                  const external = !!(profile.storeSettings?.useExternalStore && profile.storeSettings.externalStoreUrl);
+                  const shopOpen = profile.storeSettings?.isEnabled !== false && !external && shopProducts.length > 0;
+                  const sellsContent = content.some(c => (c as any).price > 0);
+                  // The legacy storefront still hosts content-for-sale + the external-store iframe + any un-upgraded merch.
+                  const showLegacy = !shopOpen || legacyMerch.length > 0 || sellsContent || external;
+                  return (
+                    <div className="space-y-12">
+                      {shopOpen && (
+                        <Suspense fallback={<div className="py-16 text-center text-white/30 text-xs font-black uppercase tracking-widest">Loading shop…</div>}>
+                          <StorePageView embedded sellerId={uid} />
+                        </Suspense>
+                      )}
+                      {showLegacy && (
+                        <StoreView
+                          artistId={uid}
+                          artistName={profile.displayName}
+                          merch={legacyMerch}
+                          albums={content}
+                          settings={profile.storeSettings}
+                          onSelectContent={(item) => {
+                            if ('type' in item && item.type === 'BOOK' && onSelectAlbum) {
+                              onSelectAlbum(item as Album);
+                            } else if (onSelectAlbum) {
+                              onSelectAlbum(item as Album);
+                            }
+                          }}
+                        />
+                      )}
+                    </div>
+                  );
+                })()}
               </motion.div>
             ) : activeTab === 'ARTIST_DETAIL' ? (
               <motion.div 

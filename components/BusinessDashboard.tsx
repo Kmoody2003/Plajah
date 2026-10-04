@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   Store, ShoppingBag, Radio, Monitor, Users, Plus, X, Check, Edit3,
   Trash2, ChevronRight, Clock, Package, Star, Zap, Globe, Leaf,
   Settings, ToggleLeft, ToggleRight, Search, Filter, Mail, Phone,
   BarChart3, Target, RefreshCw, Play, Pause, Image, MapPin, Building2, ShieldCheck, Megaphone,
-  Calendar, Stethoscope, Receipt
+  Calendar, Stethoscope, Receipt, ClipboardList
 } from 'lucide-react';
 import { BillingHubMount, BillingSummaryMount, SoonPill, useBillingNav } from './BillingMounts';
 import MarketingKit from './MarketingKit';
@@ -20,28 +20,33 @@ import {
 } from '../services/businessService';
 import { auth } from '../services/firebase';
 import { getVertical } from '../services/businessVerticals';
+import { tabsFor, vocabularyFor, packForPage } from '../services/verticalPacks';
+import PackOnboarding from './business/PackOnboarding';
 import ListingsManager from './terra/ListingsManager';
 import BusinessCompliance from './terra/BusinessCompliance';
 import InventoryHub from './inventory/InventoryHub';
 import StoreKioskMode from './StoreKioskMode';
 import PosRegister from './PosRegister';
 import OffersManager from './OffersManager';
+import RegisterBackOffice from './RegisterBackOffice';
 import NowPlayingPublisher from './NowPlayingPublisher';
 import DisplayModeLauncher from './DisplayModeLauncher';
 import BusinessBroadcastComposer from './BusinessBroadcastComposer';
 import BusinessOrdersPanel from './BusinessOrdersPanel';
+import { serverTicketApi } from '../services/ticketService';
+const TicketsBoard = lazy(() => import('./business/tickets/TicketsBoard'));
 import ArtistPromoDirectory from './ArtistPromoDirectory';
 import StaffHRManager from './StaffHRManager';
 import AppointmentsManager from './clinic/AppointmentsManager';
 import { ClinicalCareGate, NoPhiNotice } from './clinic/ClinicalGuardrails';
 
-type BizTab = 'OVERVIEW' | 'APPOINTMENTS' | 'ORDERS' | 'INVENTORY' | 'TEAM' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'MARKETING' | 'SETTINGS' | 'LISTINGS' | 'COMPLIANCE' | 'BILLING';
+type BizTab = 'OVERVIEW' | 'APPOINTMENTS' | 'ORDERS' | 'INVENTORY' | 'TEAM' | 'MESSAGING' | 'CRM' | 'SIGNAGE' | 'SEEDRAISER' | 'RADIO' | 'MARKETING' | 'SETTINGS' | 'LISTINGS' | 'COMPLIANCE' | 'BILLING' | 'TICKETS';
 
 // "Storefront Command" rail — the vertical-filtered tabs collapse into four
 // working groups so nothing wraps. Only ids that survive the vertical filter
 // (see `tabs` below) actually render, so a clinic has Appointments/Telehealth.
 const TAB_GROUPS: { label: string; ids: BizTab[] }[] = [
-  { label: 'Sell',   ids: ['OVERVIEW', 'APPOINTMENTS', 'ORDERS', 'INVENTORY', 'LISTINGS'] },
+  { label: 'Sell',   ids: ['OVERVIEW', 'TICKETS', 'APPOINTMENTS', 'ORDERS', 'INVENTORY', 'LISTINGS'] },
   { label: 'Engage', ids: ['CRM', 'MESSAGING', 'SIGNAGE', 'RADIO'] },
   { label: 'Grow',   ids: ['MARKETING', 'SEEDRAISER'] },
   { label: 'Manage', ids: ['BILLING', 'TEAM', 'COMPLIANCE', 'SETTINGS'] },
@@ -206,13 +211,17 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
     setEditingSlide(null);
   };
 
+  const cap = (w: string) => w.charAt(0).toUpperCase() + w.slice(1);
+  const ticketPackId = packForPage(activePage)?.ticket ? packForPage(activePage)!.id : '';
+  const ticketApi = useMemo(() => (ticketPackId ? serverTicketApi(currentUser.uid, ticketPackId) : null), [ticketPackId, currentUser.uid]);
   const ALL_TABS: { id: BizTab; label: string; icon: React.ComponentType<{ size?: number; className?: string }> }[] = [
     { id: 'OVERVIEW',     label: 'Overview',     icon: Store },
     { id: 'APPOINTMENTS', label: activePage?.businessType === 'HEALTH' ? 'Clinical Care' : 'Appointments', icon: activePage?.businessType === 'HEALTH' ? Stethoscope : Calendar },
+    { id: 'TICKETS',      label: packForPage(activePage)?.ticket ? cap(packForPage(activePage)!.ticket!.nounPlural) : 'Tickets', icon: ClipboardList },
     { id: 'LISTINGS',     label: 'Listings',     icon: Building2 },
     { id: 'COMPLIANCE',   label: 'Compliance',   icon: ShieldCheck },
-    { id: 'ORDERS',       label: 'Orders',       icon: ShoppingBag },
-    { id: 'INVENTORY',    label: 'Inventory',    icon: Package },
+    { id: 'ORDERS',       label: packForPage(activePage) ? cap(vocabularyFor(activePage).orderNounPlural) : 'Orders', icon: ShoppingBag },
+    { id: 'INVENTORY',    label: packForPage(activePage) ? vocabularyFor(activePage).catalogNoun : 'Inventory', icon: Package },
     { id: 'TEAM',         label: 'Team & HR',    icon: Users },
     { id: 'MESSAGING',    label: 'Messaging',    icon: Mail },
     { id: 'CRM',          label: 'CRM',          icon: Users },
@@ -228,7 +237,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
   const MARKETING_TAB = { id: 'MARKETING' as BizTab, label: 'Marketing', icon: Megaphone };
   const BILLING_TAB = { id: 'BILLING' as BizTab, label: 'Billing', icon: Receipt };
   const tabs = [
-    ...vertical.tabs
+    ...tabsFor(activePage)
       .map(id => ALL_TABS.find(t => t.id === (id as BizTab)))
       .filter((t): t is typeof ALL_TABS[number] => Boolean(t)),
     // Marketing is offered for every vertical (identity-scoped Organic ⇄ Paid),
@@ -377,6 +386,16 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
 
           {activeTab === 'OVERVIEW' && (
             <div className="space-y-6">
+              {activePage && (
+                <PackOnboarding
+                  page={activePage}
+                  orderCount={orders.length}
+                  contactCount={contacts.length}
+                  slideCount={slides.length}
+                  onPageChange={updated => { setActivePage(updated); setPages(prev => prev.map(x => x.id === updated.id ? updated : x)); }}
+                  onGoTab={t => setActiveTab(t as BizTab)}
+                />
+              )}
               {activePage && billingNav.state !== 'soon' && (
                 <BillingSummaryMount entity={{ kind: 'BUSINESS', id: activePage.id }} />
               )}
@@ -508,6 +527,13 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
             )
           )}
 
+          {/* ── TICKETS (generic ticket engine: repair orders, wash-and-fold tickets) ── */}
+          {activeTab === 'TICKETS' && packForPage(activePage)?.ticket && (
+            <Suspense fallback={<div className="text-white/40 text-sm py-8">Loading...</div>}>
+              <TicketsBoard api={ticketApi!} cfg={packForPage(activePage)!.ticket!} businessName={activePage?.businessName} />
+            </Suspense>
+          )}
+
           {/* ── ORDERS ── */}
           {activeTab === 'ORDERS' && (
             <div className="space-y-6">
@@ -567,6 +593,7 @@ const BusinessDashboard: React.FC<BusinessDashboardProps> = ({ currentUser, onNa
                 </button>
               </div>
               <InventoryHub sellerId={currentUser.uid} sellerName={activePage?.businessName || currentUser.displayName || 'My Store'} sellerType="ORG" sellerPhoto={activePage?.logoUrl || currentUser.photoURL || undefined} audience="business" />
+              <RegisterBackOffice businessUid={currentUser.uid} />
               <OffersManager businessUid={currentUser.uid} />
             </div>
           )}

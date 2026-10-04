@@ -23,10 +23,13 @@ export const deleteProduct = async (productId: string): Promise<void> => {
   await deleteDoc(doc(db, 'storeProducts', productId));
 };
 
+const newestFirst = (a: StoreProduct, b: StoreProduct) => (b.createdAt || 0) - (a.createdAt || 0);
+
+// Equality-only query + client sort: `where(sellerId) + orderBy(createdAt)` needs a composite index, and a
+// missing index makes the read fail silently (an empty inventory that looks like data loss).
 export const fetchProductsBySeller = async (sellerId: string): Promise<StoreProduct[]> => {
-  const q = query(collection(db, 'storeProducts'), where('sellerId', '==', sellerId), orderBy('createdAt', 'desc'));
-  const snap = await getDocs(q);
-  return snap.docs.map(d => ({ id: d.id, ...d.data() } as StoreProduct));
+  const snap = await getDocs(query(collection(db, 'storeProducts'), where('sellerId', '==', sellerId)));
+  return snap.docs.map(d => ({ id: d.id, ...d.data() } as StoreProduct)).sort(newestFirst);
 };
 
 export const fetchFeaturedProducts = async (limitCount = 20): Promise<StoreProduct[]> => {
@@ -71,11 +74,13 @@ export const listenToProducts = (
   callback: (products: StoreProduct[]) => void,
   sellerId?: string,
 ) => {
+  // A seller's own shop page shows only what they've published (hidden drafts must never reach shoppers).
   const q = sellerId
-    ? query(collection(db, 'storeProducts'), where('sellerId', '==', sellerId), orderBy('createdAt', 'desc'))
+    ? query(collection(db, 'storeProducts'), where('sellerId', '==', sellerId))
     : query(collection(db, 'storeProducts'), where('isActive', '==', true), orderBy('createdAt', 'desc'), limit(60));
   return onSnapshot(q, snap => {
-    callback(snap.docs.map(d => ({ id: d.id, ...d.data() } as StoreProduct)));
+    const all = snap.docs.map(d => ({ id: d.id, ...d.data() } as StoreProduct));
+    callback(sellerId ? all.filter(p => p.isActive !== false).sort(newestFirst) : all);
   });
 };
 
@@ -170,21 +175,10 @@ export const markReviewHelpful = async (reviewId: string): Promise<void> => {
 
 // ── ORDERS ────────────────────────────────────────────────────────────────────
 
-export const createOrder = async (order: Omit<StoreOrder, 'id' | 'createdAt' | 'updatedAt'>): Promise<string> => {
-  const ref = doc(collection(db, 'storeOrders'));
-  const now = Date.now();
-  await setDoc(ref, { ...order, id: ref.id, status: 'PENDING', createdAt: now, updatedAt: now });
-
-  // Decrement stock for each item
-  for (const item of order.items) {
-    await updateDoc(doc(db, 'storeProducts', item.productId), {
-      stock: increment(-item.quantity),
-      soldCount: increment(item.quantity),
-    });
-  }
-
-  return ref.id;
-};
+// NOTE: there is intentionally no client-side createOrder. Orders are created ONLY by the server order
+// spine (POST /api/store/create-order → Stripe → webhook, or /api/store/pos-sale), which prices and
+// stock-checks every line. The old client version wrote an unpaid PENDING order and decremented stock from
+// the browser — and the Firestore rules now reject both.
 
 export const fetchMyOrders = async (): Promise<StoreOrder[]> => {
   if (!auth.currentUser) return [];

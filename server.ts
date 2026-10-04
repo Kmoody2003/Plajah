@@ -18,6 +18,20 @@ import { readFileSync } from 'fs';
 import { lookup as dnsLookup } from 'node:dns/promises';
 import { buildProgramGuide, buildXmltv, buildMrss, nowAndNext, type EpgSlot, type EpgChannel, type MrssItem } from './services/fastChannelEpg';
 import { slotDurationSec } from './services/fastChannelTimeline';
+import { resolveLine as resolveInventoryLine, planDecrement as planDecrementInventory, variantStockSeed as variantStockSeedInventory, isTracked as isTrackedInventory, isSafeVariantId as isSafeVariantIdInventory } from './services/inventoryCore';
+import { computeTax, parseTaxSettings, normalizeTaxClass, type TaxSettings } from './services/taxCore';
+import { validateTenders, sanitizeTip, parseTenders, tenderLabel, isStoredValueTender, type Tender } from './services/tenderCore';
+import { refundNeedsManager, restockMoveId, REFUND_REASONS, commitRefund, planFromOrderDoc, refundLogOf, orderLinesFromDoc, clawbackPoints, applyClawback, type RefundMethod, type RefundReason } from './services/refundCore';
+import { casUpdate, type CasStore } from './services/casCore';
+import { applyOp, generateCode, formatCode, last4Of, normalizeCode, ledgerEntryId, cleanIdem, rateCheck, sanitizeIssueAmount, buildLiabilityReport, searchCards, giftCardEmailText, isExpired as svIsExpired, DEFAULT_LIMITS as SV_DEFAULT, type CardKind, type LedgerOp, type OpResult, type RateState, type StoredValueLimits } from './services/storedValueCore';
+import { bestOffer, type BusinessOffer } from './services/offersCore';
+import { buildZReport, sanitizeMovement, normalizeOrder as normalizeOrderZ, normalizeRefund as normalizeRefundZ, type DrawerMovement, type ZReport } from './services/drawerCore';
+import { registerPermissionsFor, isValidPin, isValidNewPin, composeDiscounts, DEFAULT_DISCOUNT_LIMIT_PCT, canApprove, recordAttempt, isLocked, type RegisterPermission, type AttemptState } from './services/registerAuthCore';
+import { hashPin, verifyPin, signSession, verifySession, SESSION_TTL_MS } from './services/registerAuthServer';
+import { registerTicketRoutes, ticketSaleHooks } from './services/ticketServer';
+import { registerLaundryRoutes, loadWalletPromo } from './services/laundryServer';
+import { computeTopUpBonus, bonusIdemKey } from './services/walletPromoCore';
+import { registerAutoRoutes } from './services/autoServer';
 import { buildLinearMediaPlaylist, currentProgrammeMasterUrl, buildM3uLineup, type M3uChannel } from './services/fastChannelHls';
 import nodeCrypto from 'node:crypto';
 import { spawn } from 'node:child_process';
@@ -1409,6 +1423,28 @@ async function firestorePatchDeep(collection: string, id: string, fieldsJs: Reco
   } catch { return false; }
 }
 
+/**
+ * Create a doc ONLY if it doesn't exist (Firestore returns 409 ALREADY_EXISTS for a POST with a taken
+ * documentId). Used as a claim/lock: whoever creates the doc owns the work, so concurrent retries of the
+ * same webhook can never both apply it.
+ */
+async function firestoreCreateOnce(collection: string, id: string, data: Record<string, any>): Promise<'created' | 'exists' | 'error'> {
+  const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${collection}?documentId=${encodeURIComponent(id)}`;
+  const fields: Record<string, any> = {};
+  for (const [k, v] of Object.entries(data)) if (v !== undefined) fields[k] = jsToFsValue(v);
+  try {
+    const res = await fetch(url, { method: 'POST', headers: await firestoreAuthHeaders(), body: JSON.stringify({ fields }) });
+    if (res.ok) return 'created';
+    if (res.status === 409) return 'exists';
+    console.error(`[Firestore] createOnce ${collection}/${id} failed: HTTP ${res.status}`);
+    return 'error';
+  } catch { return 'error'; }
+}
+async function firestoreDeleteDoc(collection: string, id: string): Promise<void> {
+  const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${collection}/${id}`;
+  try { await fetch(url, { method: 'DELETE', headers: await firestoreAuthHeaders() }); } catch { /* best-effort rollback */ }
+}
+
 // ════════════════════════════════════════════════════════════════════════════
 // Elevate: Stripe → ledger automation. Church money people never type a Stripe number:
 // gifts, renewals, refunds, disputes, payouts and the double-entry journals all flow from
@@ -2381,18 +2417,34 @@ async function startServer() {
           }
 
           // ── Store order paid → confirm it + decrement stock (idempotent + atomic) ──
+          // The stockMoves ledger doc id is deterministic per (order, line), so even if Stripe retries
+          // the webhook (or a crash lands between confirm and decrement) stock can never double-drop.
           if (mode === 'payment' && meta.type === 'store_order' && meta.orderId) {
             const order = await firestoreRead('storeOrders', meta.orderId);
-            if (order && order.status !== 'CONFIRMED') {   // webhooks can fire more than once — only act once
-              await firestoreWrite('storeOrders', meta.orderId, {
-                status: 'CONFIRMED', paidAt: now,
-                stripePaymentIntentId: (session.payment_intent as string) || '',
-              });
-              // Atomic stock decrement so concurrent orders can't oversell (v1: product-level scalar stock).
+            if (order) {
+              if (order.status !== 'CONFIRMED') {   // webhooks can fire more than once — only confirm once
+                const ship = (session as any).shipping_details || (session as any).collected_information?.shipping_details;
+                const addr = ship?.address;
+                await firestoreWrite('storeOrders', meta.orderId, {
+                  status: 'CONFIRMED', paidAt: now,
+                  stripePaymentIntentId: (session.payment_intent as string) || '',
+                  totalCents: Number(session.amount_total) || 0,
+                  ...(session.customer_details?.email ? { customerEmail: String(session.customer_details.email) } : {}),
+                  ...(addr ? {
+                    shipName: String(ship?.name || ''), shipLine1: String(addr.line1 || ''), shipLine2: String(addr.line2 || ''),
+                    shipCity: String(addr.city || ''), shipState: String(addr.state || ''), shipPostal: String(addr.postal_code || ''), shipCountry: String(addr.country || ''),
+                  } : {}),
+                });
+              }
+              if (order.giftCardsPending) { try { await issueOnlineGiftCards(String(meta.orderId), order); } catch (e: any) { console.error('[store] online gift cards failed', e?.message || e); } }
               try {
                 const lines = JSON.parse(order.items || '[]');
-                for (const li of lines) {
-                  if (li?.productId && li?.qty) await firestoreIncrement(`storeProducts/${li.productId}`, { stock: -Math.abs(Number(li.qty) || 0) });
+                const sid = String(order.businessUid || order.sellerId || meta.businessUid || '');
+                const oversold = await applyStockSale(lines, { orderId: meta.orderId, sellerId: sid, reason: 'SALE' });
+                if (oversold) {
+                  // Paid for stock that was gone (two buyers, last unit). Flag it loudly for the seller.
+                  await firestoreWrite('storeOrders', meta.orderId, { oversold: true });
+                  if (sid) await firestoreCreate('notifications', { userId: sid, senderId: 'plajah-store', senderName: 'Plajah Store', senderPhoto: '', type: 'SYSTEM', title: 'Oversold order needs attention', message: 'A customer paid for an item that had just run out. Restock it or refund the order.', link: 'BUSINESS_DASHBOARD', targetId: meta.orderId, isRead: false, timestamp: Date.now() }).catch(() => {});
                 }
               } catch { /* items unparseable — order stays confirmed, stock just not adjusted */ }
             }
@@ -8901,7 +8953,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     // Without this, those endpoints return the HTML shell (e.g. RSS news
     // parsed to 0 items → "No articles found").
     app.use((req, res, next) => {
-      if (req.path.startsWith('/api/')) return next();
+      if (req.path.startsWith('/api/') || req.path.startsWith('/t/')) return next();
       return (vite.middlewares as any)(req, res, next);
     });
   } else {
@@ -8922,7 +8974,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     app.get('*all', async (req, res, next) => {
       // API routes registered after this catch-all (/api/fetch-rss, /api/cora,
       // MUSE agent) must not be served the SPA shell — let them resolve.
-      if (req.path.startsWith('/api/')) return next();
+      if (req.path.startsWith('/api/') || req.path.startsWith('/t/')) return next();   // /t/* = public ticket page (ticketServer)
       try {
         let html = await fs.readFile(path.join(__dirname, 'dist', 'index.html'), 'utf-8');
         if (req.query.type) {
@@ -9223,13 +9275,115 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
     }
   });
 
+  // ── Store inventory spine — ONE stock-safe path for the online store, kiosk and POS ───────────────
+  // Rules live in services/inventoryCore.ts (pure + unit-tested). Every line is re-loaded from
+  // storeProducts (variants intact via the deep reader — firestoreRead flattens arrays of maps) and
+  // priced/stock-checked server-side; the client never sets a price or claims stock.
+  const loadStoreProduct = async (id: string): Promise<any | null> => {
+    const d = await firestoreGetDeep('storeProducts', id);
+    return d ? { ...d, id } : null;
+  };
+
+  /** Merge duplicate (product, variant) requests, then price + stock-check each. */
+  const priceStoreLines = async (
+    rawItems: any[], businessUid: string, opts: { allowInactive?: boolean; ignoreStock?: boolean } = {},
+  ): Promise<{ ok: true; lines: any[]; products: Map<string, any>; subtotalCents: number } | { ok: false; status: number; error: string; code?: string; available?: number }> => {
+    const want = new Map<string, { productId: string; variantId?: string; qty: number }>();
+    for (const it of rawItems.slice(0, 60)) {
+      const productId = String(it?.productId || ''), variantId = it?.variantId ? String(it.variantId) : undefined;
+      if (!productId) continue;
+      const key = `${productId}|${variantId || ''}`;
+      const cur = want.get(key);
+      const qty = Math.max(1, Math.floor(Number(it?.qty ?? it?.quantity) || 0));
+      if (cur) cur.qty += qty; else want.set(key, { productId, variantId, qty });
+    }
+    if (!want.size) return { ok: false, status: 400, error: 'No valid items.' };
+    const products = new Map<string, any>();
+    const lines: any[] = [];
+    let subtotalCents = 0;
+    for (const req of want.values()) {
+      if (!products.has(req.productId)) products.set(req.productId, await loadStoreProduct(req.productId));
+      const r = resolveInventoryLine(products.get(req.productId), req, { sellerId: businessUid, ...opts });
+      if (r.ok === false) return { ok: false, status: r.code === 'NOT_FOUND' || r.code === 'WRONG_SELLER' || r.code === 'BAD_PRICE' ? 400 : 409, error: r.error, code: r.code, available: r.available };
+      lines.push(r.line);
+      subtotalCents += r.line.unitAmount * r.line.qty;
+    }
+    return { ok: true, lines, products, subtotalCents };
+  };
+
+  /** Owner-entered register settings (tax etc.) live on businesses/{uid}.registerSettings (JSON string). */
+  const loadRegisterSettings = async (businessUid: string): Promise<{ tax: TaxSettings; refundApprovalCents: number; discountLimitPct: number; tipPresets: number[] }> => {
+    let raw: any = null;
+    try { const d = await firestoreRead('businesses', businessUid); raw = d?.registerSettings ? (typeof d.registerSettings === 'string' ? JSON.parse(d.registerSettings) : d.registerSettings) : null; } catch { /* default: no tax */ }
+    return { tax: parseTaxSettings(raw?.tax), refundApprovalCents: Number.isFinite(Number(raw?.refundApprovalCents)) ? Math.max(0, Math.round(Number(raw.refundApprovalCents))) : 5000, discountLimitPct: Number.isFinite(Number(raw?.discountLimitPct)) ? Math.max(0, Math.min(100, Number(raw.discountLimitPct))) : DEFAULT_DISCOUNT_LIMIT_PCT, tipPresets: Array.isArray(raw?.tipPresets) ? raw.tipPresets.map(Number).filter((n: number) => n > 0 && n <= 100).slice(0, 4) : [15, 18, 20] };
+  };
+  /** Tax inputs for priced lines: gross cents + the product's taxClass / snapEligible. */
+  const taxInputs = (lines: any[], products: Map<string, any>) => lines.map(l => {
+    const p = products.get(l.productId) || {};
+    return { grossCents: l.unitAmount * l.qty, taxClass: normalizeTaxClass(p.taxClass), snapEligible: !!p.snapEligible };
+  });
+
+  /**
+   * Apply a sale to stock: atomic decrement (total + per-variant), a ledger entry per line, and a
+   * heads-up to the seller when something runs low/out. IDEMPOTENT per (order, line) — the ledger doc
+   * id is deterministic, so a retried webhook can never double-decrement. Returns true if any line
+   * went below zero (oversold) so the caller can flag the order.
+   */
+  const applyStockSale = async (
+    lines: any[], ctx: { orderId: string; sellerId: string; reason: 'SALE' | 'POS_SALE'; by?: string },
+  ): Promise<boolean> => {
+    let oversold = false;
+    for (const li of lines) {
+      try {
+        const moveId = `${ctx.orderId}_${li.productId}_${li.variantId || 'base'}`.slice(0, 200);
+        const p = await loadStoreProduct(li.productId);
+        if (!p) continue;
+        const inc = planDecrementInventory(p, li.variantId || undefined, li.qty);
+        if (inc.stock === undefined) {                                       // untracked: just count the sale (once)
+          const claim = await firestoreCreateOnce('stockMoves', moveId, { sellerId: ctx.sellerId, productId: li.productId, productTitle: String(p.title || ''), delta: 0, before: 0, after: 0, reason: ctx.reason, orderId: ctx.orderId, at: Date.now(), untracked: true });
+          if (claim === 'created') await firestoreIncrement(`storeProducts/${li.productId}`, inc);
+          continue;
+        }
+        const seed = variantStockSeedInventory(p);                           // pre-variantStock products
+        if (seed) { await firestorePatchDeep('storeProducts', li.productId, { variantStock: seed }); p.variantStock = seed; }
+        const before = li.variantId && p.variants?.length
+          ? Number(p.variantStock?.[li.variantId] ?? (p.variants.find((v: any) => v.id === li.variantId)?.stock ?? 0))
+          : Number(p.stock ?? 0);
+        const after = before - li.qty;
+        // The ledger entry IS the lock: create-only, so a retried/concurrent webhook that loses the race
+        // skips this line instead of double-decrementing. If the decrement then fails we release the claim.
+        const claim = await firestoreCreateOnce('stockMoves', moveId, {
+          sellerId: ctx.sellerId, productId: li.productId, productTitle: String(p.title || ''),
+          ...(li.variantId ? { variantId: li.variantId, variantName: li.variantName || '' } : {}),
+          delta: -li.qty, before, after, reason: ctx.reason, orderId: ctx.orderId, ...(ctx.by ? { by: ctx.by } : {}), at: Date.now(),
+        });
+        if (claim !== 'created') continue;                                   // already applied (or ledger unavailable)
+        const ok = await firestoreIncrement(`storeProducts/${li.productId}`, inc);
+        if (!ok) { await firestoreDeleteDoc('stockMoves', moveId); continue; }
+        if (after < 0 && !p.allowBackorder) oversold = true;
+        // Seller alert only when this sale CROSSES a threshold (not on every sale below it).
+        const t = typeof p.lowStockThreshold === 'number' ? p.lowStockThreshold : 5;
+        const label = li.variantName ? `${p.title} (${li.variantName})` : p.title;
+        const crossed = after <= 0 && before > 0 ? 'out' : after <= t && before > t ? 'low' : null;
+        if (crossed && !p.allowBackorder) {
+          await firestoreCreate('notifications', {
+            userId: ctx.sellerId, senderId: 'plajah-store', senderName: 'Plajah Store', senderPhoto: '', type: 'SYSTEM',
+            title: crossed === 'out' ? `Sold out: ${label}` : `Running low: ${label}`,
+            message: crossed === 'out' ? `${label} just sold out. Restock to keep selling.` : `Only ${Math.max(0, after)} of ${label} left.`,
+            link: p.sellerType === 'ORG' ? 'BUSINESS_DASHBOARD' : 'DASHBOARD', targetId: li.productId, isRead: false, timestamp: Date.now(),
+          }).catch(() => {});
+        }
+      } catch (e: any) { console.error('[store] applyStockSale line failed', li?.productId, e?.message || e); }
+    }
+    return oversold;
+  };
+
   // ── Store order — the spine for in-store kiosk + POS + online store ───────────────
   // Stripe Connect DIRECT: funds settle straight to the BUSINESS's connected account; Plajah never
-  // holds them (optional application fee only). Every line is priced SERVER-SIDE from storeProducts
-  // (dollars → cents) — the client never sets prices. Writes a PENDING order; the webhook confirms it
-  // + decrements stock atomically. v1 uses the product's base price + scalar stock; per-variant
-  // pricing/stock is a follow-up. See docs — business-ops build sequence.
+  // holds them (optional application fee only). Lines are priced + stock-checked SERVER-SIDE (variants
+  // included); stock is decremented by the webhook once paid.
   const STORE_APP_FEE_BPS = 0; // Plajah's per-order platform fee in basis points (200 = 2%). 0 = none at launch.
+  const SHIP_FLAT_CENTS = 599, FREE_SHIP_OVER_CENTS = 5000;   // mirrors the storefront copy: "$5.99, free over $50"
   app.post('/api/store/create-order', authMiddleware, express.json(), async (req: any, res) => {
     try {
       const customerUid: string = req.uid;
@@ -9241,24 +9395,29 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       const org = await firestoreRead('organizations', businessUid);
       let acct: string | undefined = org?.stripeAccountId;
       if (!acct) { const u = await firestoreRead('users', businessUid); acct = u?.stripeConnectAccountId; }
-      if (!acct) return res.status(400).json({ error: 'This business has not connected Stripe payouts yet.' });
+      if (!acct) return res.status(400).json({ error: 'This shop has not connected Stripe payouts yet.' });
 
-      const lineItems: any[] = [];
-      const priced: any[] = [];
-      let subtotalCents = 0;
-      for (const it of items) {
-        const qty = Math.max(1, Math.min(99, Math.floor(Number(it?.qty) || 0)));
-        const p = await firestoreRead('storeProducts', String(it?.productId || ''));
-        if (!p) return res.status(400).json({ error: `Product not found: ${it?.productId}` });
-        if (p.isActive === false) return res.status(400).json({ error: `Product unavailable: ${p.title || it?.productId}` });
-        if (p.sellerId && p.sellerId !== businessUid) return res.status(400).json({ error: 'A product does not belong to this business.' });
-        const unit = Math.round(Number(p.price || 0) * 100); // storeProducts.price is in DOLLARS
-        if (!(unit > 0)) return res.status(400).json({ error: `Invalid price for ${p.title || it?.productId}` });
-        subtotalCents += unit * qty;
-        lineItems.push({ price_data: { currency: 'usd', product_data: { name: p.title || 'Item' }, unit_amount: unit }, quantity: qty });
-        priced.push({ productId: String(it.productId), title: p.title || 'Item', qty, unitAmount: unit, variantName: it?.variantName || null });
-      }
+      const priced = await priceStoreLines(items, businessUid);
+      if (priced.ok === false) return res.status(priced.status).json({ error: priced.error, code: priced.code, available: priced.available });
+      const { lines, products, subtotalCents } = priced;
+      const needsShipping = fulfillment === 'SHIP' && lines.some(l => !products.get(l.productId)?.isDigital);
+      const shippingCents = needsShipping ? (subtotalCents >= FREE_SHIP_OVER_CENTS ? 0 : SHIP_FLAT_CENTS) : 0;
 
+      // Sales tax (owner-entered rates, server-computed). Digital/untaxed classes follow product.taxClass; shipping is not taxed here.
+      const rsettings = await loadRegisterSettings(businessUid);
+      const taxedOnline = computeTax(taxInputs(lines, products), rsettings.tax);
+      const onlineTaxCents = rsettings.tax.inclusive ? 0 : taxedOnline.taxCents;   // inclusive prices already carry tax
+
+      const lineItems = lines.map(l => ({
+        price_data: {
+          currency: 'usd',
+          product_data: { name: l.variantName ? `${l.title} — ${l.variantName}` : l.title, ...(/^https:\/\//.test(l.image || '') && String(l.image).length < 2000 ? { images: [l.image] } : {}) },
+          unit_amount: l.unitAmount,
+        },
+        quantity: l.qty,
+      }));
+
+      if (onlineTaxCents > 0) lineItems.push({ price_data: { currency: 'usd', product_data: { name: 'Sales tax' }, unit_amount: onlineTaxCents }, quantity: 1 } as any);
       const orderId = `so_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
       const appFee = Math.round(subtotalCents * (STORE_APP_FEE_BPS / 10000));
       const origin = trustedRequestOrigin(req);
@@ -9266,6 +9425,11 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         mode: 'payment',
         payment_method_types: ['card'],
         line_items: lineItems,
+        expires_at: Math.floor(Date.now() / 1000) + 31 * 60,        // don't hold a cart for 24h
+        ...(needsShipping ? {
+          shipping_address_collection: { allowed_countries: ['US', 'CA', 'GB', 'AU', 'DE', 'FR', 'NL', 'IE', 'NZ', 'MX'] },
+          shipping_options: [{ shipping_rate_data: { type: 'fixed_amount', fixed_amount: { amount: shippingCents, currency: 'usd' }, display_name: shippingCents ? 'Standard shipping' : 'Free shipping' } }],
+        } : {}),
         payment_intent_data: {
           ...(appFee > 0 ? { application_fee_amount: appFee } : {}),
           transfer_data: { destination: acct },   // DIRECT to the business — Plajah never holds the funds
@@ -9281,8 +9445,9 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
         // read/update on buyerId==uid / sellerId==uid) permit the customer to read their orders and the
         // business to read + advance them.
         buyerId: customerUid, sellerId: businessUid,
-        items: JSON.stringify(priced), subtotalCents,
-        fulfillment: fulfillment === 'SHIP' ? 'SHIP' : 'PICKUP',
+        items: JSON.stringify(lines.map(l => ({ productId: l.productId, variantId: l.variantId || null, title: l.title, qty: l.qty, unitAmount: l.unitAmount, variantName: l.variantName || null, image: l.image || null }))),
+        subtotalCents, shippingCents, taxCents: taxedOnline.taxCents, taxInclusive: !!rsettings.tax.inclusive,
+        fulfillment: needsShipping ? 'SHIP' : 'PICKUP',
         note: String(note || '').slice(0, 500), customerName: String(customerName || '').slice(0, 120),
         status: 'PENDING_PAYMENT', createdAt: Date.now(), stripeSessionId: session.id,
       });
@@ -9294,71 +9459,893 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   });
 
   // ── POS sale — staff-facing register (cash tender). Business-authenticated (the owner runs the
-  // register). Prices server-side, records a CONFIRMED order, decrements stock, and awards loyalty
-  // points to a recognized Plajah customer. Card-present tender is a Stripe-Terminal fast-follow.
+  // register). Prices server-side, records a CONFIRMED order, decrements stock (never BLOCKS on a wrong
+  // count — the item is in the cashier's hand; it goes negative and is flagged for a recount), and
+  // awards loyalty points to a recognized Plajah customer. Card-present tender is a Stripe-Terminal fast-follow.
+  // ── Register actors: owner (own Plajah auth) OR a PIN-session staff member ──────────────────────
+  // List a doc's subcollection (service-account runQuery scoped to the parent doc).
+  const fsListSub = async (parentPath: string, collectionId: string, limitN = 200): Promise<Array<{ id: string; data: Record<string, any> }>> => {
+    const url = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents/${parentPath}:runQuery`;
+    try {
+      const r = await fetch(url, { method: 'POST', headers: { ...(await firestoreAuthHeaders()), 'Content-Type': 'application/json' }, body: JSON.stringify({ structuredQuery: { from: [{ collectionId }], limit: limitN } }) });
+      if (!r.ok) return [];
+      const data = await r.json();
+      return (Array.isArray(data) ? data : []).filter((x: any) => x.document).map((x: any) => ({ id: String(x.document.name).split('/').pop()!, data: decodeFirestoreFields(x.document.fields) }));
+    } catch { return []; }
+  };
+  /** A seller's POS orders / refunds (equality filter only = no composite index; time filtering is in memory). */
+  const sellerDocs = async (collectionId: string, businessUid: string, limitN = 3000) =>
+    (await fsQueryDocs(collectionId, [{ field: 'sellerId', op: 'EQUAL', value: businessUid }], limitN)).map(d => ({ ...d.data, id: d.id }));
+  // ── Optimistic concurrency over Firestore REST ───────────────────────────────────────────────────
+  // The existing REST helpers (PATCH with updateMask, commit/increment, createOnce) can do two things that
+  // are real, cross-instance-safe atomic primitives: (1) create-if-absent, and (2) a PATCH guarded by a
+  // precondition (`currentDocument.updateTime=<version I read>` or `currentDocument.exists=false`). Firestore
+  // rejects a guarded write whose doc changed since it was read (409/412 or 400 FAILED_PRECONDITION), so
+  // services/casCore.casUpdate does read -> decide -> guarded write -> retry. That gives refunds and drawer
+  // edits compare-and-swap semantics on a single document without REST beginTransaction/commit plumbing,
+  // and works on any number of Cloud Run instances (unlike the in-process mutex it replaces).
+  const FS_DOCS = 'https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents';
+  const restCas = (collectionPath: string): CasStore => ({
+    async get(id) {
+      const r = await fetch(`${FS_DOCS}/${collectionPath}/${encodeURIComponent(id)}`, { headers: await firestoreAuthHeaders() });
+      if (r.status === 404) return null;
+      if (!r.ok) throw new Error(`cas read ${collectionPath}/${id} failed: HTTP ${r.status}`);
+      const j = await r.json() as any;
+      return { data: decodeFirestoreFields(j.fields || {}), version: String(j.updateTime) };
+    },
+    async put(id, patch, expected) {
+      const keys = Object.keys(patch).filter(k => patch[k] !== undefined);
+      const mask = keys.map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
+      const pre = expected === null ? 'currentDocument.exists=false' : `currentDocument.updateTime=${encodeURIComponent(expected)}`;
+      const fields: Record<string, any> = {};
+      for (const k of keys) fields[k] = jsToFsValue(patch[k]);
+      try {
+        const r = await fetch(`${FS_DOCS}/${collectionPath}/${encodeURIComponent(id)}?${mask}&${pre}`, { method: 'PATCH', headers: await firestoreAuthHeaders(), body: JSON.stringify({ fields }) });
+        if (r.ok) return 'ok';
+        const body = await r.text().catch(() => '');
+        if (r.status === 409 || r.status === 412 || (r.status === 400 && /FAILED_PRECONDITION|ALREADY_EXISTS/.test(body))) return 'conflict';
+        console.error(`[cas] put ${collectionPath}/${id} HTTP ${r.status}`);
+        return 'error';
+      } catch { return 'error'; }
+    },
+  });
+  /** Delete specific fields from a doc (PATCH with a mask naming them and no value removes them). */
+  const firestoreDeleteFields = async (collectionPath: string, id: string, fieldNames: string[]): Promise<boolean> => {
+    const mask = fieldNames.map(k => `updateMask.fieldPaths=${encodeURIComponent(k)}`).join('&');
+    try { const r = await fetch(`${FS_DOCS}/${collectionPath}/${encodeURIComponent(id)}?${mask}`, { method: 'PATCH', headers: await firestoreAuthHeaders(), body: JSON.stringify({ fields: {} }) }); return r.ok; } catch { return false; }
+  };
+  const pinAttempts = new Map<string, AttemptState>();
+  const pinGuard = (key: string) => isLocked(pinAttempts.get(key), Date.now());
+  const pinNote = (key: string, ok: boolean) => pinAttempts.set(key, recordAttempt(pinAttempts.get(key), ok, Date.now()));
+  // PINs are salted scrypt hashes in businesses/{b}/staffSecrets/{staffId} (no client rule allows that path).
+  // The staff doc itself only carries `hasPin: true`. Plaintext PINs are never stored.
+  const pinSecrets = async (businessUid: string) => new Map((await fsListSub(`businesses/${businessUid}`, 'staffSecrets', 100)).map(d => [d.id, d.data as { pinHash?: string; pinSalt?: string }]));
+  /** Find the active staff member whose PIN matches. */
+  const matchStaffPin = async (businessUid: string, pin: string, onlyApprovers = false) => {
+    const [staff, secrets] = await Promise.all([fsListSub(`businesses/${businessUid}`, 'staff', 100), pinSecrets(businessUid)]);
+    for (const s of staff) {
+      const d = s.data;
+      if (d.active === false) continue;
+      const role = String(d.role || 'STAFF');
+      if (onlyApprovers && !canApprove(role, Array.isArray(d.registerPermissions) ? d.registerPermissions : null)) continue;
+      const sec = secrets.get(s.id);
+      if (!sec || !verifyPin(pin, sec)) continue;
+      return { id: s.id, name: String(d.name || 'Staff'), role, perms: Array.isArray(d.registerPermissions) ? d.registerPermissions as string[] : undefined };
+    }
+    return null;
+  };
+  type Actor = { ok: true; staffId: string; staffName: string; role: string; perms: Set<RegisterPermission> } | { ok: false; status: number; error: string; code?: string };
+  const resolveRegisterActor = async (req: any, businessUid: string, perm: RegisterPermission): Promise<Actor> => {
+    // A valid PIN session wins even on the owner's device, so a cashier signed in by PIN is attributed and restricted as themselves.
+    const sess = verifySession(String(req.headers?.['x-register-session'] || ''));
+    if (req.uid === businessUid && !(sess && sess.b === businessUid)) return { ok: true, staffId: businessUid, staffName: 'Owner', role: 'OWNER', perms: registerPermissionsFor('OWNER') };
+    if (!sess || sess.b !== businessUid) return { ok: false, status: 403, error: 'Enter your register PIN to continue.', code: 'PIN_REQUIRED' };
+    const perms = registerPermissionsFor(sess.role, sess.perms);
+    if (!perms.has(perm)) return { ok: false, status: 403, error: 'Your role cannot do that at the register.', code: 'FORBIDDEN' };
+    return { ok: true, staffId: sess.sid, staffName: sess.name, role: sess.role, perms };
+  };
+  /** Manager override for gated actions: a manager/owner PIN typed at the register. */
+  const managerApproval = async (businessUid: string, pin: any): Promise<{ id: string; name: string } | null> => {
+    if (!isValidPin(String(pin || ''))) return null;
+    const key = `mgr:${businessUid}`;
+    if (pinGuard(key)) return null;
+    const m = await matchStaffPin(businessUid, String(pin), true);
+    pinNote(key, !!m);
+    return m ? { id: m.id, name: m.name } : null;
+  };
+
+  // ── TICKET ENGINE (services/ticketServer.ts): /api/tickets/*, public /t/:token, and the pos-sale hooks ──
+  registerTicketRoutes({
+    app, express, rateLimit, authMiddleware,
+    resolveActor: resolveRegisterActor, managerApproval, restCas,
+    fsQueryDocs, firestoreRead, firestoreGetDeep, firestoreCreate, sendFcmMulticast,
+    loadRegisterSettings, applyStockSale,
+  } as any);
+  // ── LAUNDROMAT layer (services/laundryServer.ts): settings, commercial accounts, invoices, schedules, reminders ──
+  registerLaundryRoutes({
+    app, express, authMiddleware, resolveActor: resolveRegisterActor, restCas,
+    fsQueryDocs, firestoreRead, firestoreWrite, firestoreGetDeep, firestoreCreate, sendFcmMulticast, loadRegisterSettings,
+  } as any);
+  // AUTO REPAIR layer (services/autoServer.ts): vehicles, NHTSA decode/recalls, inspections, AI advisor draft, reminders, Vehicle Passport.
+  registerAutoRoutes({
+    app, express, rateLimit, authMiddleware,
+    resolveActor: resolveRegisterActor, managerApproval, restCas,
+    fsQueryDocs, firestoreRead, firestoreGetDeep, firestoreCreate, sendFcmMulticast,
+  } as any);
+
+  app.post('/api/register/pin-login', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const { businessUid, pin } = req.body || {};
+      if (!businessUid || !isValidPin(String(pin || ''))) return res.status(400).json({ error: 'Enter your PIN.' });
+      const key = `login:${businessUid}`;
+      if (pinGuard(key)) return res.status(429).json({ error: 'Too many wrong PINs. Try again in a few minutes.', code: 'LOCKED' });
+      const m = await matchStaffPin(String(businessUid), String(pin));
+      pinNote(key, !!m);
+      if (!m) return res.status(401).json({ error: 'That PIN was not recognised.' });
+      const exp = Date.now() + SESSION_TTL_MS;
+      const token = signSession({ b: String(businessUid), sid: m.id, name: m.name, role: m.role, perms: m.perms, exp });
+      res.json({ token, expiresAt: exp, staff: { id: m.id, name: m.name, role: m.role, permissions: [...registerPermissionsFor(m.role, m.perms)] } });
+    } catch (err: any) { console.error('/api/register/pin-login', err?.message || err); res.status(500).json({ error: 'Could not sign in.' }); }
+  });
+
+  // Owner sets a staff PIN: exactly 6 digits, stored ONLY as a salted scrypt hash in staffSecrets.
+  app.post('/api/register/set-pin', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const { staffId, pin } = req.body || {};
+      const businessUid: string = req.uid;
+      if (!staffId || !isValidNewPin(String(pin || ''))) return res.status(400).json({ error: 'PIN must be exactly 6 digits.' });
+      const [staff, secrets] = await Promise.all([fsListSub(`businesses/${businessUid}`, 'staff', 100), pinSecrets(businessUid)]);
+      if (!staff.some(s => s.id === staffId)) return res.status(404).json({ error: 'Staff member not found.' });
+      for (const [id, sec] of secrets) if (id !== staffId && verifyPin(String(pin), sec)) return res.status(409).json({ error: 'Another team member already uses that PIN.' });
+      const h = hashPin(String(pin));
+      await firestoreWrite(`businesses/${businessUid}/staffSecrets`, String(staffId), { pinHash: h.hash, pinSalt: h.salt, updatedAt: Date.now() }, true);
+      await firestoreWrite(`businesses/${businessUid}/staff`, String(staffId), { hasPin: true }, true);
+      res.json({ ok: true });
+    } catch (err: any) { console.error('/api/register/set-pin', err?.message || err); res.status(500).json({ error: 'Could not save PIN.' }); }
+  });
+
+  // Time clock by PIN, verified server-side against the hash with the SAME lockout as the register login.
+  app.post('/api/register/clock', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const { businessUid, pin, direction } = req.body || {};
+      if (!businessUid || !isValidPin(String(pin || '')) || !['IN', 'OUT'].includes(String(direction))) return res.status(400).json({ error: 'Enter your PIN.' });
+      const b = String(businessUid);
+      const actor = await resolveRegisterActor(req, b, 'RING_SALES');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      const key = `login:${b}`;
+      if (pinGuard(key)) return res.status(429).json({ error: 'Too many wrong PINs. Try again in a few minutes.', code: 'LOCKED' });
+      const m = await matchStaffPin(b, String(pin));
+      pinNote(key, !!m);
+      if (!m) return res.status(401).json({ error: 'PIN not recognised.' });
+      if (direction === 'IN') {
+        // create-once marker = atomic "already clocked in" guard (works across instances)
+        const mark = await firestoreCreateOnce(`businesses/${b}/shiftOpen`, m.id, { staffId: m.id, at: Date.now() });
+        if (mark === 'exists') return res.status(409).json({ error: `${m.name} is already clocked in.` });
+        if (mark === 'error') return res.status(503).json({ error: 'Could not clock in.' });
+        const shiftId = `sh_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const made = await firestoreCreateOnce(`businesses/${b}/shifts`, shiftId, { businessUid: b, staffId: m.id, staffName: m.name, clockIn: Date.now() });
+        if (made !== 'created') { await firestoreDeleteDoc(`businesses/${b}/shiftOpen`, m.id); return res.status(503).json({ error: 'Could not clock in.' }); }
+        return res.json({ shiftId, staffName: m.name });
+      }
+      const shifts = await fsListSub(`businesses/${b}`, 'shifts', 400);
+      const open = shifts.filter(s => s.data.staffId === m.id && !s.data.clockOut).sort((a, c) => c.data.clockIn - a.data.clockIn)[0];
+      if (!open) return res.status(409).json({ error: `${m.name} has no open shift.` });
+      const now = Date.now();
+      await firestoreWrite(`businesses/${b}/shifts`, open.id, { clockOut: now }, true);
+      await firestoreDeleteDoc(`businesses/${b}/shiftOpen`, m.id);
+      res.json({ staffName: m.name, hours: (now - Number(open.data.clockIn) - (Number(open.data.breakMinutes) || 0) * 60000) / 3600000 });
+    } catch (err: any) { console.error('/api/register/clock', err?.message || err); res.status(500).json({ error: 'Clock request failed.' }); }
+  });
+
   const LOYALTY_PTS_PER_DOLLAR = 1;
   app.post('/api/store/pos-sale', authMiddleware, express.json({ limit: '256kb' }), async (req: any, res) => {
+    let ticketPrep: any = null; let ticketOrderId = '';   // ticket payment (ticketServer hooks)
     try {
-      const staffUid: string = req.uid;
-      const { businessUid, items, tender, customerUid } = req.body || {};
-      const offerDiscountCents = Math.max(0, Math.floor(Number(req.body?.offerDiscountCents) || 0));
+      const { businessUid, tender, customerUid } = req.body || {};
+      const items: any[] = Array.isArray(req.body?.items) ? req.body.items : [];
+      const giftReqRaw: any[] = Array.isArray(req.body?.giftCards) ? req.body.giftCards : [];
       const redeemPointsReq = Math.max(0, Math.floor(Number(req.body?.redeemPoints) || 0));
-      if (!businessUid || !Array.isArray(items) || !items.length) return res.status(400).json({ error: 'businessUid and items required.' });
-      if (staffUid !== businessUid) return res.status(403).json({ error: 'Only the business owner can ring up sales (staff PIN auth is a follow-up).' });
+      const ticketId = req.body?.ticketId ? String(req.body.ticketId) : '';
+      if (!businessUid || (!items.length && !giftReqRaw.length && !ticketId)) return res.status(400).json({ error: 'businessUid and items required.' });
+      const actor = await resolveRegisterActor(req, businessUid, 'RING_SALES');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
       const hasCustomer = !!customerUid && customerUid !== 'walkin';
 
-      const priced: any[] = [];
-      let subtotalCents = 0;
-      for (const it of items) {
-        const qty = Math.max(1, Math.min(99, Math.floor(Number(it?.qty) || 0)));
-        const p = await firestoreRead('storeProducts', String(it?.productId || ''));
-        if (!p) return res.status(400).json({ error: `Product not found: ${it?.productId}` });
-        if (p.sellerId && p.sellerId !== businessUid) return res.status(400).json({ error: 'A product does not belong to this business.' });
-        const unit = Math.round(Number(p.price || 0) * 100);
-        subtotalCents += unit * qty;
-        priced.push({ productId: String(it.productId), title: p.title || 'Item', qty, unitAmount: unit });
+      const priced = items.length ? await priceStoreLines(items, businessUid, { allowInactive: true, ignoreStock: true }) : { ok: true as const, lines: [] as any[], products: new Map<string, any>(), subtotalCents: 0 };
+      if (priced.ok === false) return res.status(priced.status).json({ error: priced.error, code: priced.code });
+      let pricedAll: any = priced;
+      if (ticketId) {   // ticket lines are loaded + priced SERVER-side from the ticket (client never sends prices)
+        const tp = await ticketSaleHooks.prepare(String(businessUid), ticketId);
+        if (tp.ok === false) return res.status(tp.status).json({ error: tp.error, code: tp.code });
+        ticketPrep = tp.prep; pricedAll = ticketSaleHooks.merge(priced as any, ticketPrep);
       }
+      const { lines, products, subtotalCents } = pricedAll;
+      const settings = await loadRegisterSettings(businessUid);
 
-      // Offer discount is trusted from the (owner-operated) register but capped at subtotal.
-      const offerCents = Math.min(subtotalCents, offerDiscountCents);
-      // Loyalty redemption (1 pt = 1¢) — VALIDATED server-side against the real balance so points
-      // (a customer asset) can't be over-spent. Capped at the amount remaining after the offer.
+      // Age-restricted items: the cashier must have confirmed an ID check (recorded on the order).
+      const ageMin = lines.reduce((m: number, l: any) => Math.max(m, Math.floor(Number(products.get(l.productId)?.ageRestricted) || 0)), 0);
+      if (ageMin > 0 && req.body?.ageVerified !== true) return res.status(409).json({ error: `Verify ID - customer must be ${ageMin}+.`, code: 'AGE_VERIFY', ageMin });
+
+      // AUTO offer: re-evaluated here from the business's real offers - the client's number is never trusted,
+      // so it cannot be used to smuggle an ungated discount.
+      const offerDocs = await fsListSub(`businesses/${businessUid}`, 'offers', 50);
+      const offers: BusinessOffer[] = offerDocs.map(d => ({ ...(d.data as any), id: d.id }));
+      const offerCents = Math.min(subtotalCents, bestOffer(offers, subtotalCents, hasCustomer)?.discountCents || 0);
+      // Loyalty redemption (1 pt = 1c) - VALIDATED against the real balance.
       let balance = 0;
       if (hasCustomer) {
         const loyalty = await firestoreRead(`businesses/${businessUid}/loyalty`, String(customerUid));
         balance = Math.max(0, Number(loyalty?.points || 0));
       }
       const redeemCents = hasCustomer ? Math.min(redeemPointsReq, balance, Math.max(0, subtotalCents - offerCents)) : 0;
-      const totalCents = Math.max(0, subtotalCents - offerCents - redeemCents);
+      // MANUAL discount (cashier-entered % or $): beyond the owner's limit it needs DISCOUNT_OVERRIDE or a manager PIN.
+      const dc = composeDiscounts({ subtotalCents, offerCents, redeemCents, manual: req.body?.manualDiscount, limitPct: settings.discountLimitPct });
+      let discountApprovedBy = '';
+      if (dc.overLimit && !actor.perms.has('DISCOUNT_OVERRIDE')) {
+        const mgr = await managerApproval(String(businessUid), req.body?.managerPin);
+        if (!mgr) return res.status(403).json({ error: `Discounts over ${settings.discountLimitPct}% need a manager PIN.`, code: 'DISCOUNT_PIN', limitPct: settings.discountLimitPct });
+        discountApprovedBy = mgr.name;
+      }
+      const manualCents = dc.manualCents;
+      const discountTotal = dc.totalCents;
+
+      // TAX + SNAP, computed SERVER-side. Max SNAP = eligible subtotal after the basket discount; the
+      // requested SNAP tender decides how much of the eligible part is tax-free.
+      const tIn = taxInputs(lines, products);
+      const snapMaxCents = computeTax(tIn, settings.tax, { discountCents: discountTotal, snapCents: Number.MAX_SAFE_INTEGER }).snapCoveredCents;
+      const rawTenders: any[] = Array.isArray(req.body?.tenders) ? req.body.tenders : [];
+      const snapReq = rawTenders.filter(t => String(t?.type).toUpperCase() === 'EXTERNAL' && String(t?.kind).toUpperCase() === 'EBT_SNAP').reduce((n, t) => n + Math.max(0, Math.round(Number(t?.amountCents) || 0)), 0);
+      const taxed = computeTax(tIn, settings.tax, { discountCents: discountTotal, snapCents: snapReq });
+      const totalCents = taxed.totalCents;
+      const tipCents = sanitizeTip(req.body?.tipCents);
+      // Gift cards on the ticket: a LIABILITY line - not taxed, no stock, not SNAP-eligible, not revenue, no discounts.
+      const svCfg = await svSettings(String(businessUid));
+      const gp = svParseGiftLines(giftReqRaw, svCfg.limits);
+      if (gp.ok === false) return res.status(400).json({ error: gp.error, code: 'GIFT' });
+      const giftSoldCents = gp.gifts.reduce((n, g) => n + g.cents, 0);
+      const creditCents = ticketPrep ? ticketSaleHooks.credit(ticketPrep, totalCents) : 0;   // ticket deposits already collected
+      const dueCents = totalCents + tipCents + giftSoldCents - creditCents;
+
+      // Tenders: legacy single `tender` string = pay it all that way (cash unless CARD).
+      const tv: any = ticketPrep && dueCents === 0 ? { ok: true, tenders: [], cashCents: 0, snapCents: 0, changeCents: 0 } : validateTenders(rawTenders.length ? rawTenders : [{ type: tender === 'CARD' ? 'CARD' : 'CASH', amountCents: dueCents }], dueCents, { snapMaxCents, storedValueMaxCents: dueCents - giftSoldCents });
+      if (tv.ok === false) return res.status(400).json({ error: tv.error, code: 'TENDER', snapMaxCents, totalCents, dueCents });
+      if (creditCents > 0) tv.tenders.unshift({ type: 'EXTERNAL', kind: 'OTHER', amountCents: creditCents, reference: 'DEPOSIT' });
 
       const orderId = `pos_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      // Stored value FIRST (redeem via CAS, idempotency key tied to this sale), so a short/void card fails before anything else
+      // is written. Anything that fails later restores the redemptions and voids the just-issued cards.
+      const bId = String(businessUid);
+      const svDone: { cardId: string; key: string; cents: number }[] = [];
+      const svIssued: string[] = [];
+      const rollbackSv = async () => {
+        for (const d of svDone) await svApply(bId, d.cardId, { type: 'REFUND_RESTORE', idemKey: `rb_${d.key}`, amountCents: d.cents, ref: orderId, reason: 'sale rolled back' }, svCfg).catch(() => {});
+        for (const id of svIssued) await svApply(bId, id, { type: 'VOID', idemKey: `rbv_${id}`, reason: 'sale rolled back' }, svCfg).catch(() => {});
+      };
+      const tendersOut: any[] = [];
+      for (let i = 0; i < tv.tenders.length; i++) {
+        const t = tv.tenders[i];
+        if (!isStoredValueTender(t)) { tendersOut.push(t); continue; }
+        const rt = await svResolveTender(bId, t, hasCustomer ? String(customerUid) : null);
+        if (rt.ok === false) { await rollbackSv(); return res.status(400).json({ error: rt.error, code: 'STORED_VALUE' }); }
+        const key = `sale_${orderId}_${i}`;
+        const rr = await svApply(bId, rt.cardId, { type: 'REDEEM', idemKey: key, amountCents: t.amountCents, ref: orderId, by: actor.staffId, byName: actor.staffName }, svCfg);
+        if (rr.ok === false) { await rollbackSv(); return res.status(rr.code === 'CONFLICT' ? 409 : 400).json({ error: rr.code === 'NOT_FOUND' || rr.code === 'VOID' || rr.code === 'EXPIRED' ? 'That card is not valid.' : rr.error, code: 'STORED_VALUE', balanceCents: rr.balanceCents }); }
+        svDone.push({ cardId: rt.cardId, key, cents: t.amountCents });
+        tendersOut.push({ type: t.type, amountCents: t.amountCents, cardId: rt.cardId, cardLast4: rr.last4, balanceCents: rr.balanceCents });   // raw code never stored
+      }
+      const giftOut: { cardId: string; code: string | null; last4: string; amountCents: number; emailed: boolean }[] = [];
+      for (let i = 0; i < gp.gifts.length; i++) {
+        const g = gp.gifts[i];
+        const ir = await svIssueCoded(bId, { kind: 'GIFT', cents: g.cents, cardId: `gc_${orderId}_${i}`, idemKey: `iss_${orderId}_${i}`, ref: orderId, by: actor.staffId, byName: actor.staffName, recipientEmail: g.email, recipientName: g.name });
+        if (ir.ok === false) { await rollbackSv(); return res.status(500).json({ error: ir.error, code: 'GIFT' }); }
+        svIssued.push(ir.cardId);
+        giftOut.push({ cardId: ir.cardId, code: ir.code, last4: ir.last4, amountCents: g.cents, emailed: false });
+      }
+      // Points are earned on the pre-tax amount actually paid (stored so a refund can claw back proportionally).
+      const pointsEarned = hasCustomer ? Math.round(((subtotalCents - discountTotal) / 100) * LOYALTY_PTS_PER_DOLLAR) : 0;
+      const itemsJson = lines.map((l: any, i: number) => {
+        const t = taxed.lines[i], p = products.get(l.productId) || {};
+        return { productId: l.productId, variantId: l.variantId || null, title: l.title, qty: l.qty, unitAmount: l.unitAmount, variantName: l.variantName || null,
+          discountCents: t.discountCents, netCents: t.netCents, taxCents: t.taxCents, chargeCents: t.chargeCents, rateBps: t.rateBps,
+          taxClass: normalizeTaxClass(p.taxClass), snapEligible: !!p.snapEligible, snapCoveredCents: t.snapCoveredCents };
+      });
+      if (ticketPrep) {   // CAS-claim the ticket BEFORE writing the order so two registers cannot both charge it
+        ticketOrderId = orderId;
+        if (!(await ticketSaleHooks.claim(ticketPrep, orderId, actor.staffName))) { ticketOrderId = ''; await rollbackSv(); return res.status(409).json({ error: 'This ticket was just paid or changed. Reload it.', code: 'TICKET_CLAIM' }); }
+      }
+      const ebt = tv.tenders.filter((t: any) => t.type === 'EXTERNAL' && (t.kind === 'EBT_SNAP' || t.kind === 'EBT_CASH'));
       await firestoreWrite('storeOrders', orderId, {
         businessUid, customerUid: customerUid || 'walkin',
         buyerId: customerUid || 'walkin', sellerId: businessUid,
-        items: JSON.stringify(priced), subtotalCents,
-        offerDiscountCents: offerCents, redeemCents, totalCents,
-        source: 'POS', tender: tender === 'CARD' ? 'CARD' : 'CASH',
+        items: JSON.stringify(itemsJson),
+        subtotalCents,
+        offerDiscountCents: offerCents, redeemCents, manualDiscountCents: manualCents, discountApprovedBy, discountCents: discountTotal,
+        taxCents: taxed.taxCents, taxInclusive: !!settings.tax.inclusive, tipCents, totalCents, paidCents: dueCents,
+        snapCents: tv.snapCents, snapMaxCents, pointsEarned,
+        tenders: JSON.stringify(tendersOut),
+        storedValueSoldCents: giftSoldCents, giftCardsSold: JSON.stringify(giftOut.map(g => ({ cardId: g.cardId, last4: g.last4, amountCents: g.amountCents }))),
+        tender: tv.tenders.length > 1 ? 'SPLIT' : (tv.tenders[0].type === 'EXTERNAL' ? String(tv.tenders[0].kind) : tv.tenders[0].type),
+        ebtReference: ebt.map(t => t.reference).filter(Boolean).join(','),
+        staffId: actor.staffId, staffName: actor.staffName,
+        ageVerified: ageMin > 0, ageMin,
+        source: 'POS', ...(ticketPrep ? ticketSaleHooks.orderFields(ticketPrep, creditCents) : {}),
         fulfillment: 'PICKUP', status: 'CONFIRMED', createdAt: Date.now(), paidAt: Date.now(),
-      });
-      // Decrement stock atomically.
-      for (const li of priced) await firestoreIncrement(`storeProducts/${li.productId}`, { stock: -Math.abs(li.qty) }).catch(() => {});
+      }, true).catch(async (e: any) => { await rollbackSv(); throw e; });
+      // Gift-card emails (best effort; the code is also in this response, once).
+      for (let i = 0; i < giftOut.length; i++) { const g = gp.gifts[i]; if (g.email && giftOut[i].code) giftOut[i].emailed = await svEmailGift({ to: g.email, businessName: String(req.body?.businessName || 'our shop').slice(0, 80), code: giftOut[i].code!, amountCents: g.cents, recipientName: g.name, message: g.message }); }
+      // Decrement stock atomically + write the ledger (flags the order if the count went negative).
+      ticketOrderId = '';   // order is written: never release the ticket claim after this point
+      const oversold = await applyStockSale(lines.filter((l: any) => !String(l.productId).startsWith('tkt:')), { orderId, sellerId: businessUid, reason: 'POS_SALE', by: actor.staffId });
+      if (oversold) await firestoreWrite('storeOrders', orderId, { oversold: true }).catch(() => {});
 
-      // Loyalty: award points on the amount actually paid, and DEDUCT any points redeemed — a single
-      // net increment (may be negative) so the balance stays correct.
-      let pointsEarned = 0;
+      // Loyalty: award points, DEDUCT redeemed points - a single net increment.
       if (hasCustomer) {
-        pointsEarned = Math.round((totalCents / 100) * LOYALTY_PTS_PER_DOLLAR);
-        const net = pointsEarned - redeemCents; // redeemCents == points spent (1pt=1¢)
+        const net = pointsEarned - redeemCents; // redeemCents == points spent (1pt=1c)
         if (net !== 0) {
           await firestoreIncrement(`businesses/${businessUid}/loyalty/${customerUid}`, { points: net }, { customerUid, businessUid, updatedAt: Date.now() }).catch(() => {});
         }
       }
-      res.json({ orderId, subtotalCents, offerDiscountCents: offerCents, redeemCents, totalCents, pointsEarned });
+      if (ticketPrep) await ticketSaleHooks.finalize(ticketPrep, orderId, { paidCents: dueCents, by: actor.staffName, creditCents });
+      res.json({ orderId, subtotalCents, offerDiscountCents: offerCents, redeemCents, manualDiscountCents: manualCents, discountCents: discountTotal, taxCents: taxed.taxCents, tipCents, totalCents, paidCents: dueCents, tenders: tendersOut, giftCards: giftOut, storedValueSoldCents: giftSoldCents, changeCents: tv.changeCents, snapCents: tv.snapCents, lines: itemsJson, staffName: actor.staffName, pointsEarned, oversold });
     } catch (err: any) {
+      if (ticketPrep && ticketOrderId) await ticketSaleHooks.release(ticketPrep, ticketOrderId).catch(() => {});
       console.error('/api/store/pos-sale', err?.message || err);
       res.status(500).json({ error: err.message });
     }
   });
+
+  // ── POS refund / return ───────────────────────────────────────────────────────────────────────
+  // CONCURRENCY: the already-refunded state (`refundLog`) lives ON THE ORDER DOC and is updated with a
+  // compare-and-swap (restCas + refundCore.commitRefund), so two simultaneous refunds cannot both pass the paid
+  // amount; the loser re-reads and is re-planned. Same `idempotencyKey` = same refund id = no-op replay.
+  // After the CAS commit, side effects are each idempotent so a crash/retry converges: refund doc (create-once),
+  // restock (create-once ledger id per line), loyalty clawback (refund id recorded on the loyalty doc).
+  const jparse = (v: any, d: any) => { try { return typeof v === 'string' ? JSON.parse(v) : (v ?? d); } catch { return d; } };
+
+  app.post('/api/store/pos-refund', authMiddleware, express.json({ limit: '64kb' }), async (req: any, res) => {
+    try {
+      const { businessUid, orderId, lines, method, reason, note, managerPin, idempotencyKey } = req.body || {};
+      if (!businessUid || !orderId || !Array.isArray(lines)) return res.status(400).json({ error: 'businessUid and orderId and lines required.' });
+      const b = String(businessUid);
+      const actor = await resolveRegisterActor(req, b, 'RING_SALES');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      const m: RefundMethod = method === 'CASH' ? 'CASH' : method === 'STORE_CREDIT' ? 'STORE_CREDIT' : 'ORIGINAL';
+      const why: RefundReason = (REFUND_REASONS as readonly string[]).includes(String(reason)) ? reason : 'OTHER';
+      const key = String(idempotencyKey || '').replace(/[^A-Za-z0-9_-]/g, '').slice(0, 60) || `${Date.now()}${Math.random().toString(36).slice(2, 8)}`;
+      const refundId = `rf_${key}`;
+      const orders = restCas('storeOrders');
+
+      // Preflight: size the refund against the current state to decide whether a manager must approve.
+      const settings = await loadRegisterSettings(b);
+      const cur = await orders.get(String(orderId));
+      if (!cur || cur.data.sellerId !== b) return res.status(404).json({ error: 'Order not found.' });
+      const pre = planFromOrderDoc(cur.data, { lines, method: m });
+      let approvedBy = '';
+      if (pre.ok && !refundLogOf(cur.data).some(e => e.id === refundId)) {
+        const needs = !actor.perms.has('REFUND') || (refundNeedsManager(pre.plan.amountCents, settings.refundApprovalCents) && !canApprove(actor.role));
+        if (needs) {
+          const mgr = await managerApproval(b, managerPin);
+          if (!mgr) return res.status(403).json({ error: actor.perms.has('REFUND') ? `Refunds of $${(settings.refundApprovalCents / 100).toFixed(2)} or more need a manager PIN.` : 'A manager PIN is needed to approve this refund.', code: 'MANAGER_PIN' });
+          approvedBy = mgr.name;
+        }
+      }
+      const approved = !!approvedBy || canApprove(actor.role);
+      const committed = await commitRefund(orders, String(orderId), {
+        refundId, lines, method: m, sellerId: b,
+        gate: plan => (!actor.perms.has('REFUND') || refundNeedsManager(plan.amountCents, settings.refundApprovalCents)) && !approved
+          ? { ok: false, error: 'A manager PIN is needed to approve this refund.', code: 'MANAGER_PIN' } : { ok: true },
+      });
+      if (committed.ok === false) return res.status(committed.code === 'MANAGER_PIN' ? 403 : committed.code === 'CONFLICT' ? 409 : committed.code === 'ERROR' ? 503 : 400).json({ error: committed.error, code: committed.code });
+      const { entry } = committed;
+
+      // 1) refund record (create-once)
+      await firestoreCreateOnce('storeRefunds', refundId, {
+        businessUid: b, sellerId: b, orderId: String(orderId), amountCents: entry.amountCents, taxCents: entry.taxCents,
+        method: m, reason: why, note: String(note || '').slice(0, 300),
+        lines: JSON.stringify(entry.lines), allocations: JSON.stringify(entry.allocations),
+        staffId: actor.staffId, staffName: actor.staffName, approvedBy, createdAt: entry.at,
+      });
+      // 2) restock through the ledger (create-once id per refund line)
+      let restocked = 0;
+      const order = cur.data;
+      const orderLines = orderLinesFromDoc(order);
+      for (const rl of entry.lines.filter(l => l.restock)) {
+        try {
+          const ol = orderLines[rl.index]; if (!ol) continue;
+          const p = await loadStoreProduct(ol.productId);
+          if (!p || p.sellerId !== b) continue;
+          const moveId = restockMoveId(refundId, ol.productId, ol.variantId);
+          const tracked = isTrackedInventory(p);
+          const before = ol.variantId && p.variants?.length ? Number(p.variantStock?.[ol.variantId] ?? (p.variants.find((v: any) => v.id === ol.variantId)?.stock ?? 0)) : Number(p.stock ?? 0);
+          const claimMove = await firestoreCreateOnce('stockMoves', moveId, { sellerId: b, productId: ol.productId, productTitle: String(p.title || ''), ...(ol.variantId ? { variantId: ol.variantId } : {}), delta: tracked ? rl.qty : 0, before, after: tracked ? before + rl.qty : before, reason: 'RETURN', orderId: String(orderId), refundId, by: actor.staffId, at: Date.now() });
+          if (claimMove !== 'created') continue;
+          const inc: Record<string, number> = { soldCount: -rl.qty };
+          if (tracked) { inc.stock = rl.qty; if (ol.variantId && p.variants?.length && isSafeVariantIdInventory(ol.variantId)) inc[`variantStock.${ol.variantId}`] = rl.qty; }
+          const seed = tracked ? variantStockSeedInventory(p) : null;
+          if (seed) await firestorePatchDeep('storeProducts', ol.productId, { variantStock: seed });
+          const ok = await firestoreIncrement(`storeProducts/${ol.productId}`, inc);
+          if (!ok) await firestoreDeleteDoc('stockMoves', moveId); else restocked++;
+        } catch (e: any) { console.error('[refund] restock failed', e?.message || e); }
+      }
+      // 2b) stored value: STORE_CREDIT issues credit; stored-value tenders return to their ORIGINAL card. Each op has a
+      // deterministic idempotency key, so a retried refund converges instead of double-crediting.
+      const credits: { kind: string; cardId: string; last4: string; amountCents: number; code: string | null; restoredToOriginal: boolean }[] = [];
+      try {
+        const origTenders = parseTenders(order.tenders, order.tender, Math.round(Number(order.paidCents ?? order.totalCents) || 0));
+        const custUid = String(order.customerUid || '');
+        const hasCust = !!custUid && custUid !== 'walkin';
+        for (let ai = 0; ai < entry.allocations.length; ai++) {
+          const al = entry.allocations[ai];
+          const key = `rf_${refundId}_${ai}`;
+          if (typeof al.tenderIndex === 'number' && isStoredValueTender(al.type)) {
+            const cardId = (origTenders[al.tenderIndex] as any)?.cardId;
+            const rr = cardId ? await svApply(b, String(cardId), { type: 'REFUND_RESTORE', idemKey: key, amountCents: al.amountCents, ref: refundId, by: actor.staffId, byName: actor.staffName }) : null;
+            if (rr && rr.ok === true) { credits.push({ kind: rr.kind, cardId: String(cardId), last4: rr.last4, amountCents: al.amountCents, code: null, restoredToOriginal: true }); continue; }
+            // original card voided/expired/missing: fall through to fresh store credit
+          } else if (al.type !== 'STORE_CREDIT') continue;
+          if (hasCust) {
+            const cr = await svCustomerCard(b, 'CREDIT', custUid, { cents: al.amountCents, idemKey: key, ref: refundId, reason: 'refund to store credit', by: actor.staffId, byName: actor.staffName });
+            if (cr.ok === true) { credits.push({ kind: 'CREDIT', cardId: cr.cardId, last4: cr.last4, amountCents: al.amountCents, code: null, restoredToOriginal: false }); continue; }
+          }
+          const ic = await svIssueCoded(b, { kind: 'CREDIT', cents: al.amountCents, cardId: `cr_${refundId}_${ai}`.slice(0, 120), idemKey: key, ref: refundId, reason: 'refund to store credit', by: actor.staffId, byName: actor.staffName });
+          if (ic.ok === true) credits.push({ kind: 'CREDIT', cardId: ic.cardId, last4: ic.last4, amountCents: al.amountCents, code: ic.code, restoredToOriginal: false });
+          else console.error('[refund] store credit failed', refundId, ic.error);
+        }
+        if (credits.length) await firestoreWrite('storeRefunds', refundId, { credits: JSON.stringify(credits.map(c => ({ ...c, code: null }))) }).catch(() => {});
+      } catch (e: any) { console.error('[refund] stored value failed', e?.message || e); }
+      // 3) loyalty clawback: cumulative-proportional, never below zero, idempotent per refund id
+      let pointsRequested = 0, pointsClawed = 0;
+      const cust = String(order.customerUid || '');
+      if (cust && cust !== 'walkin' && Number(order.pointsEarned) > 0) {
+        pointsRequested = clawbackPoints({
+          earnedPoints: Number(order.pointsEarned), orderNetCents: Math.max(0, (Number(order.subtotalCents) || 0) - (Number(order.discountCents) || 0)),
+          priorRefundNetCents: committed.priorNetCents, thisRefundNetCents: entry.amountCents - entry.taxCents,
+        });
+        if (pointsRequested > 0) {
+          const out = await casUpdate<number>(restCas(`businesses/${b}/loyalty`), cust, curL => {
+            const applied: string[] = jparse(curL?.clawedRefunds, []);
+            if (applied.includes(refundId)) return { abort: true, result: -1 };       // already applied on an earlier attempt
+            const { newBalance, clawed } = applyClawback(Number(curL?.points) || 0, pointsRequested);
+            return { patch: { points: newBalance, clawedRefunds: JSON.stringify([...applied, refundId].slice(-100)), updatedAt: Date.now() }, result: clawed };
+          });
+          pointsClawed = out.ok ? out.result : 0;
+        }
+        await firestoreWrite('storeRefunds', refundId, { pointsRequested, pointsClawed }).catch(() => {});
+      }
+      res.json({ ok: true, refundId, duplicate: committed.duplicate, amountCents: entry.amountCents, taxCents: entry.taxCents, allocations: entry.allocations, restocked, fullyRefunded: committed.fullyRefunded, approvedBy, pointsClawed, credits });
+    } catch (err: any) { console.error('/api/store/pos-refund', err?.message || err); res.status(500).json({ error: 'Refund failed.' }); }
+  });
+
+  // ── Cash drawer + end of day ──────────────────────────────────────────────────────────────────
+  // businesses/{b}/drawerSessions/{id}: server-written. CONCURRENCY: "only one open drawer" is a CAS on the
+  // pointer doc businesses/{b}/drawerState/current; every movement and the close are CAS writes on the session
+  // doc, so a movement racing a close forces the close to recompute its Z report from the new movements.
+  const loadZInputs = async (businessUid: string, from: number, to: number) => {
+    const [os, rs] = await Promise.all([sellerDocs('storeOrders', businessUid), sellerDocs('storeRefunds', businessUid)]);
+    return {
+      orders: os.filter((o: any) => o.source === 'POS').map(normalizeOrderZ).filter(o => o.createdAt >= from && o.createdAt <= to),
+      refunds: rs.map(normalizeRefundZ).filter(r => r.createdAt >= from && r.createdAt <= to),
+    };
+  };
+  const drawerView = (id: string, d: Record<string, any>) => ({ id, openedAt: d.openedAt, openedByName: d.openedByName, startFloatCents: d.startFloatCents, movements: jparse(d.movements, []), status: d.status });
+  const currentDrawer = async (b: string) => {
+    const ptr = await restCas(`businesses/${b}/drawerState`).get('current');
+    const id = ptr?.data.openId ? String(ptr.data.openId) : '';
+    if (!id) return null;
+    const s = await restCas(`businesses/${b}/drawerSessions`).get(id);
+    return s && s.data.status === 'OPEN' ? { id, data: s.data } : null;
+  };
+
+  app.post('/api/register/drawer', authMiddleware, express.json({ limit: '32kb' }), async (req: any, res) => {
+    try {
+      const { businessUid, action } = req.body || {};
+      if (!businessUid) return res.status(400).json({ error: 'businessUid required.' });
+      const b = String(businessUid);
+      const need: RegisterPermission = action === 'close' ? 'CLOSE_DRAWER' : 'RING_SALES';
+      const actor = await resolveRegisterActor(req, b, need);
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      const sessions = restCas(`businesses/${b}/drawerSessions`), pointer = restCas(`businesses/${b}/drawerState`);
+      const cur = await currentDrawer(b);
+
+      if (action === 'status') {
+        if (!cur) return res.json({ open: null });
+        const body: any = { open: drawerView(cur.id, cur.data) };
+        if (actor.perms.has('VIEW_REPORTS')) {
+          const z = await loadZInputs(b, cur.data.openedAt, Date.now());
+          body.z = buildZReport(z.orders, z.refunds, jparse(cur.data.movements, []), cur.data.startFloatCents, { from: cur.data.openedAt, to: Date.now() });
+        }
+        return res.json(body);
+      }
+      if (action === 'open') {
+        const startFloatCents = Math.max(0, Math.min(100_000_000, Math.round(Number(req.body?.startFloatCents) || 0)));
+        const id = `ds_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const now = Date.now();
+        // Win the pointer first (CAS) - only one concurrent open can succeed; then create the session.
+        const won = await casUpdate<string>(pointer, 'current', async p => {
+          const existing = p?.openId ? await sessions.get(String(p.openId)) : null;
+          if (existing && existing.data.status === 'OPEN') return { abort: true, result: 'OPEN' };
+          return { patch: { openId: id }, result: 'WON' };
+        });
+        if (won.ok === false) return res.status(won.reason === 'ABORT' ? 409 : 503).json({ error: won.reason === 'ABORT' ? 'A drawer is already open.' : 'Drawer is busy - try again.' });
+        const made = await firestoreCreateOnce(`businesses/${b}/drawerSessions`, id, { status: 'OPEN', openedAt: now, openedBy: actor.staffId, openedByName: actor.staffName, startFloatCents, movements: '[]' });
+        if (made !== 'created') { await casUpdate(pointer, 'current', () => ({ patch: { openId: '' }, result: null })); return res.status(503).json({ error: 'Could not open the drawer.' }); }
+        return res.json({ open: { id, openedAt: now, openedByName: actor.staffName, startFloatCents, movements: [], status: 'OPEN' } });
+      }
+      if (!cur) return res.status(409).json({ error: 'Open the drawer first.' });
+
+      if (action === 'move') {
+        const mv = sanitizeMovement(req.body?.movement, Date.now(), actor.staffName);
+        if (mv.ok === false) return res.status(400).json({ error: mv.error });
+        if (mv.m.type !== 'PAID_IN' && !actor.perms.has('CLOSE_DRAWER') && mv.m.amountCents > 10000) return res.status(403).json({ error: 'Payouts and drops over $100 need a manager.', code: 'FORBIDDEN' });
+        const out = await casUpdate<DrawerMovement[] | null>(sessions, cur.id, s => {
+          if (!s || s.status !== 'OPEN') return { abort: true, result: null };
+          const next: DrawerMovement[] = [...jparse(s.movements, []), mv.m];
+          return { patch: { movements: JSON.stringify(next) }, result: next };
+        });
+        if (!out.ok || !out.result) return res.status(out.ok === false && out.reason === 'ABORT' ? 409 : 503).json({ error: 'Could not record that - the drawer may have just closed.' });
+        return res.json({ open: { ...drawerView(cur.id, cur.data), movements: out.result } });
+      }
+      if (action === 'close') {
+        const counted = Math.round(Number(req.body?.countedCents));
+        if (!Number.isFinite(counted) || counted < 0) return res.status(400).json({ error: 'Enter the cash you counted.' });
+        const out = await casUpdate<ZReport | null>(sessions, cur.id, async s => {
+          if (!s || s.status !== 'OPEN') return { abort: true, result: null };
+          const now = Date.now();
+          const zi = await loadZInputs(b, s.openedAt, now);
+          const z = buildZReport(zi.orders, zi.refunds, jparse(s.movements, []), s.startFloatCents, { from: s.openedAt, to: now }, counted);
+          return { patch: { status: 'CLOSED', closedAt: now, closedBy: actor.staffId, closedByName: actor.staffName, countedCents: counted, expectedCents: z.cash.expectedCents, varianceCents: z.cash.varianceCents ?? 0, zReport: JSON.stringify(z) }, result: z };
+        });
+        if (!out.ok || !out.result) return res.status(out.ok === false && out.reason === 'ABORT' ? 409 : 503).json({ error: out.ok === false && out.reason === 'ABORT' ? 'That drawer is already closed.' : 'Could not close - try again.' });
+        await casUpdate(pointer, 'current', p => (p?.openId === cur.id ? { patch: { openId: '' }, result: null } : { abort: true, result: null })).catch(() => {});
+        return res.json({ closed: true, z: out.result });
+      }
+      res.status(400).json({ error: 'Unknown drawer action.' });
+    } catch (err: any) { console.error('/api/register/drawer', err?.message || err); res.status(500).json({ error: 'Drawer request failed.' }); }
+  });
+
+  // ── Receipts: public read-only link (+ optional email) ────────────────────────────────────────
+  // Token = 24 random bytes (unguessable); `posReceipts/{token}` -> { orderId }. GET /r/:token renders HTML.
+  const escHtml = (s: any) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c] as string));
+  const fmtMoney = (c: any) => `$${((Number(c) || 0) / 100).toFixed(2)}`;
+  const renderReceiptHtml = (o: any, businessName: string): string => {
+    const items = jparse(o.items, []) as any[];
+    const tenders = parseTenders(o.tenders, o.tender, Math.round(Number(o.paidCents ?? o.totalCents) || 0));
+    const rows = items.map(i => `<tr><td>${escHtml(i.qty)} x ${escHtml(i.title)}${i.variantName ? ` (${escHtml(i.variantName)})` : ''}</td><td class="r">${fmtMoney(i.chargeCents ?? i.unitAmount * i.qty)}</td></tr>`).join('');
+    const tRows = tenders.map(t => `<tr><td>${escHtml(tenderLabel(t))}${t.reference ? ` <span class="m">ref ${escHtml(t.reference)}</span>` : ''}</td><td class="r">${fmtMoney(t.amountCents)}</td></tr>${typeof t.balanceCents === 'number' ? `<tr><td class="m" colspan="2">Remaining ${escHtml(tenderLabel(t))} balance: ${fmtMoney(t.balanceCents)}</td></tr>` : ''}`).join('');
+    return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>Receipt - ${escHtml(businessName)}</title><style>body{font-family:ui-monospace,Menlo,monospace;background:#0a0a0f;color:#fff;margin:0;padding:24px}.c{max-width:360px;margin:0 auto;background:#15151d;border:1px solid #2a2a36;border-radius:20px;padding:20px}h1{font-size:20px;margin:0 0 4px;font-style:italic;font-weight:900}table{width:100%;border-collapse:collapse;font-size:14px}td{padding:3px 0}.r{text-align:right}.m{color:#9a9aab;font-size:12px}hr{border:0;border-top:1px dashed #3a3a4a;margin:12px 0}.t td{font-weight:800;font-size:17px}</style></head><body><div class="c"><h1>${escHtml(businessName)}</h1><div class="m">${escHtml(new Date(Number(o.createdAt) || Date.now()).toLocaleString('en-US'))}${o.staffName ? ` - served by ${escHtml(o.staffName)}` : ''}</div><hr><table>${rows}</table><hr><table><tr><td>Subtotal</td><td class="r">${fmtMoney(o.subtotalCents)}</td></tr>${Number(o.discountCents) ? `<tr><td>Discounts</td><td class="r">-${fmtMoney(o.discountCents)}</td></tr>` : ''}${Number(o.taxCents) ? `<tr><td>Tax</td><td class="r">${fmtMoney(o.taxCents)}</td></tr>` : ''}${Number(o.tipCents) ? `<tr><td>Tip</td><td class="r">${fmtMoney(o.tipCents)}</td></tr>` : ''}<tr class="t"><td>Total</td><td class="r">${fmtMoney((Number(o.totalCents) || 0) + (Number(o.tipCents) || 0))}</td></tr></table><hr><table>${tRows}</table><hr><div class="m" style="text-align:center">Thank you!</div></div></body></html>`;
+  };
+  app.post('/api/store/receipt-link', authMiddleware, express.json({ limit: '16kb' }), async (req: any, res) => {
+    try {
+      const { businessUid, orderId, businessName, email } = req.body || {};
+      if (!businessUid || !orderId) return res.status(400).json({ error: 'businessUid and orderId required.' });
+      const actor = await resolveRegisterActor(req, String(businessUid), 'RING_SALES');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      const order = await firestoreRead('storeOrders', String(orderId));
+      if (!order || order.sellerId !== businessUid) return res.status(404).json({ error: 'Order not found.' });
+      let token = String(order.receiptToken || '');
+      if (!token) {
+        token = nodeCrypto.randomBytes(24).toString('hex');
+        const made = await firestoreCreateOnce('posReceipts', token, { orderId: String(orderId), businessUid: String(businessUid), businessName: String(businessName || 'Receipt').slice(0, 80), createdAt: Date.now() });
+        if (made !== 'created') return res.status(503).json({ error: 'Could not create the receipt link.' });
+        await firestoreWrite('storeOrders', String(orderId), { receiptToken: token }).catch(() => {});
+      }
+      const url = `${trustedRequestOrigin(req)}/r/${token}`;
+      let emailed = false, configured = !!process.env.RESEND_API_KEY;
+      const to = String(email || '').trim();
+      if (to && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to) && configured) {
+        const r = await fetch('https://api.resend.com/emails', {
+          method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ from: process.env.RESEND_FROM || 'Plajah <onboarding@resend.dev>', to, subject: `Your receipt from ${String(businessName || 'your purchase').slice(0, 80)}`, text: `Thanks for your purchase!\n\nView your receipt: ${url}` }),
+        });
+        emailed = r.ok;
+      }
+      res.json({ url, emailed, emailConfigured: configured });
+    } catch (err: any) { console.error('/api/store/receipt-link', err?.message || err); res.status(500).json({ error: 'Could not create the receipt link.' }); }
+  });
+  app.get('/r/:token', async (req, res, next) => {
+    try {
+      const token = String(req.params.token || '');
+      if (!/^[a-f0-9]{48}$/.test(token)) return next();
+      const link = await firestoreRead('posReceipts', token);
+      const order = link ? await firestoreRead('storeOrders', String(link.orderId)) : null;
+      if (!link || !order) return res.status(404).type('html').send('<!doctype html><title>Receipt</title><p style="font-family:sans-serif;padding:24px">Receipt not found.</p>');
+      res.set('Cache-Control', 'private, no-store').type('html').send(renderReceiptHtml(order, String(link.businessName || 'Receipt')));
+    } catch { res.status(500).send('Could not load receipt.'); }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════════════════════════
+  // ── STORED VALUE: gift cards, store credit, prepaid wallets (services/storedValueCore) ──────────
+  // businesses/{b}/storedValue/{cardId}       the card + its balance (CAS-updated; SERVER-WRITE-ONLY)
+  // businesses/{b}/storedValueLedger/{id}     append-only entries, create-once id = cardId_idemKey
+  // businesses/{b}/storedValueIndex/{hash}    code HASH -> cardId (server-only; no client rule). Full codes are never stored.
+  // Customer-tied cards use deterministic ids (wallet w_<uid>, credit cr_<uid>) and have no code.
+  // Selling a card is a LIABILITY (order.storedValueSoldCents), never revenue, never taxed, never stock.
+  const svCards = (b: string): CasStore => restCas(`businesses/${b}/storedValue`);
+  const svIdxPath = (b: string) => `businesses/${b}/storedValueIndex`;
+  const svLedgerPath = (b: string) => `businesses/${b}/storedValueLedger`;
+  const svHash = (b: string, code16: string) => nodeCrypto.createHmac('sha256', process.env.STORED_VALUE_PEPPER || `plajah-sv:${b}`).update(`${b}:${code16}`).digest('hex');
+  const svSettings = async (b: string): Promise<{ limits: StoredValueLimits; expiryDays: number }> => {
+    let sv: any = {};
+    try { const d = await firestoreRead('businesses', b); const raw = d?.registerSettings ? (typeof d.registerSettings === 'string' ? JSON.parse(d.registerSettings) : d.registerSettings) : null; sv = raw?.storedValue || {}; } catch { /* defaults */ }
+    const num = (v: any, d: number, lo: number, hi: number) => (Number.isFinite(Number(v)) && v !== null && v !== '' ? Math.min(hi, Math.max(lo, Math.round(Number(v)))) : d);
+    // expiryDays: OWNER OPT-IN only (default 0 = never). Some US states restrict gift-card expiry.
+    return { limits: { minIssueGiftCents: num(sv.minGiftCents, SV_DEFAULT.minIssueGiftCents, 100, 100_000), maxBalanceCents: num(sv.maxBalanceCents, SV_DEFAULT.maxBalanceCents, 1000, 1_000_000), minReloadCents: num(sv.minReloadCents, SV_DEFAULT.minReloadCents, 100, 100_000) }, expiryDays: num(sv.expiryDays, 0, 0, 3650) };
+  };
+  type SvOp = Omit<LedgerOp, 'now' | 'limits'>;
+  /** Apply one op via CAS, then write the append-only ledger entry (create-once; replays re-write harmlessly). */
+  const svApply = async (b: string, cardId: string, op: SvOp, cfg?: { limits: StoredValueLimits }): Promise<OpResult> => {
+    const limits = (cfg || await svSettings(b)).limits;
+    const full: LedgerOp = { ...op, now: Date.now(), limits };
+    const r = await applyOp(svCards(b), cardId, full);
+    if (r.ok === true) {
+      const e = r.entry;
+      await firestoreCreateOnce(svLedgerPath(b), ledgerEntryId(cardId, op.idemKey), {
+        businessUid: b, cardId, kind: r.kind, last4: r.last4, customerUid: r.customerUid, type: e.type, deltaCents: e.deltaCents, balanceAfterCents: e.balanceAfterCents,
+        at: e.at, idemKey: op.idemKey, ref: e.ref, reason: e.reason, by: e.by, byName: e.byName,
+      }).catch(() => {});
+    }
+    return r;
+  };
+  /** Issue a CODED (bearer) card. Returns the full code ONCE; only the hash is stored. */
+  const svIssueCoded = async (b: string, o: { kind: CardKind; cents: number; cardId?: string; idemKey: string; ref?: string; reason?: string; by?: string; byName?: string; recipientEmail?: string; recipientName?: string; customerUid?: string }): Promise<{ ok: true; duplicate: boolean; cardId: string; code: string | null; last4: string; balanceCents: number } | { ok: false; error: string; code?: string }> => {
+    const cfg = await svSettings(b);
+    for (let t = 0; t < 3; t++) {
+      const code16 = generateCode(n => nodeCrypto.randomBytes(n));
+      const hash = svHash(b, code16);
+      const cardId = o.cardId || `gc_${nodeCrypto.randomBytes(9).toString('hex')}`;
+      const claim = await firestoreCreateOnce(svIdxPath(b), hash, { cardId, kind: o.kind, createdAt: Date.now() });
+      if (claim === 'exists') continue;
+      if (claim === 'error') return { ok: false, error: 'Could not create the card. Nothing was charged.' };
+      const expiresAt = o.kind === 'GIFT' && cfg.expiryDays > 0 ? Date.now() + cfg.expiryDays * 86_400_000 : undefined;
+      const r = await svApply(b, cardId, { type: 'ISSUE', idemKey: o.idemKey, ref: o.ref, reason: o.reason, by: o.by, byName: o.byName,
+        init: { kind: o.kind, last4: last4Of(code16), initialCents: o.cents, ...(o.customerUid ? { customerUid: o.customerUid } : {}), ...(o.recipientEmail ? { recipientEmail: o.recipientEmail } : {}), ...(o.recipientName ? { recipientName: o.recipientName } : {}), ...(expiresAt ? { expiresAt } : {}) } }, cfg);
+      if (r.ok === false) { await firestoreDeleteDoc(svIdxPath(b), hash); return { ok: false, error: r.error, code: r.code }; }
+      if (r.duplicate) { await firestoreDeleteDoc(svIdxPath(b), hash); return { ok: true, duplicate: true, cardId, code: null, last4: r.last4, balanceCents: r.balanceCents }; }
+      return { ok: true, duplicate: false, cardId, code: formatCode(code16), last4: r.last4, balanceCents: r.balanceCents };
+    }
+    return { ok: false, error: 'Could not create the card. Try again.' };
+  };
+  /** Customer-tied wallet/credit (no code). Creates on first use. `RELOAD`/`REFUND_RESTORE` thereafter. */
+  const svCustomerCard = async (b: string, kind: 'WALLET' | 'CREDIT', uid: string, o: { cents: number; idemKey: string; ref?: string; reason?: string; by?: string; byName?: string }): Promise<OpResult & { cardId: string }> => {
+    const cardId = `${kind === 'WALLET' ? 'w' : 'cr'}_${uid}`.replace(/[^A-Za-z0-9_\-]/g, '').slice(0, 120);
+    const cfg = await svSettings(b);
+    const base = { idemKey: o.idemKey, ref: o.ref, reason: o.reason, by: o.by, byName: o.byName };
+    let r = await svApply(b, cardId, { ...base, type: 'ISSUE', init: { kind, last4: uid.slice(-4).toUpperCase().padStart(4, '0'), initialCents: o.cents, customerUid: uid } }, cfg);
+    if (r.ok === false && r.code === 'EXISTS' && o.cents > 0) r = await svApply(b, cardId, { ...base, type: kind === 'WALLET' ? 'RELOAD' : 'REFUND_RESTORE', amountCents: o.cents }, cfg);
+    return { ...r, cardId };
+  };
+  const svCardByCode = async (b: string, codeIn: any): Promise<{ cardId: string; data: Record<string, any> } | null> => {
+    const code16 = normalizeCode(codeIn) || 'X'.repeat(16);          // same work for malformed input
+    const idx = await firestoreRead(svIdxPath(b), svHash(b, code16));
+    if (!idx || !normalizeCode(codeIn)) return null;
+    const c = await svCards(b).get(String(idx.cardId));
+    return c ? { cardId: String(idx.cardId), data: c.data } : null;
+  };
+  /** Which card does this stored-value tender draw from? Generic error: never says whether a code exists. */
+  const svResolveTender = async (b: string, t: Tender, customerUid: string | null): Promise<{ ok: true; cardId: string } | { ok: false; error: string }> => {
+    const bad = { ok: false as const, error: 'That card is not valid.' };
+    if (t.type === 'WALLET') return customerUid ? { ok: true, cardId: `w_${customerUid}`.replace(/[^A-Za-z0-9_\-]/g, '').slice(0, 120) } : { ok: false, error: 'Attach the customer to pay from their wallet.' };
+    if (t.code) { const c = await svCardByCode(b, t.code); return c && c.data.kind === (t.type === 'GIFT' ? 'GIFT' : 'CREDIT') ? { ok: true, cardId: c.cardId } : bad; }
+    if (t.type === 'STORE_CREDIT' && customerUid) return { ok: true, cardId: `cr_${customerUid}`.replace(/[^A-Za-z0-9_\-]/g, '').slice(0, 120) };
+    return bad;
+  };
+  const svEmailGift = async (o: { to: string; businessName: string; code: string; amountCents: number; recipientName?: string; message?: string }): Promise<boolean> => {
+    if (!process.env.RESEND_API_KEY || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(o.to)) return false;
+    try {
+      const r = await fetch('https://api.resend.com/emails', { method: 'POST', headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from: process.env.RESEND_FROM || 'Plajah <onboarding@resend.dev>', to: o.to, subject: `Your ${o.businessName.slice(0, 60)} gift card`, text: giftCardEmailText({ businessName: o.businessName, code16: o.code.replace(/-/g, ''), amountCents: o.amountCents, recipientName: o.recipientName, message: o.message }) }) });
+      return r.ok;
+    } catch { return false; }
+  };
+  /** Sale-time gift lines out of the request body. */
+  const svParseGiftLines = (raw: any, limits: StoredValueLimits): { ok: true; gifts: { cents: number; email?: string; name?: string; message?: string }[] } | { ok: false; error: string } => {
+    const arr = Array.isArray(raw) ? raw.slice(0, 5) : [];
+    const gifts: { cents: number; email?: string; name?: string; message?: string }[] = [];
+    for (const g of arr) {
+      const a = sanitizeIssueAmount(g?.amountCents, limits);
+      if (a.ok === false) return { ok: false, error: a.error };
+      if (a.cents < limits.minIssueGiftCents) return { ok: false, error: `Minimum gift card is $${(limits.minIssueGiftCents / 100).toFixed(2)}.` };
+      const email = String(g?.recipientEmail || '').trim().slice(0, 120);
+      gifts.push({ cents: a.cents, ...(/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email) ? { email } : {}), ...(g?.recipientName ? { name: String(g.recipientName).slice(0, 60) } : {}), ...(g?.message ? { message: String(g.message).slice(0, 300) } : {}) });
+    }
+    return { ok: true, gifts };
+  };
+  /** Online digital gift cards, issued by the Stripe webhook once paid (deterministic ids => webhook retries are safe). */
+  const issueOnlineGiftCards = async (orderId: string, order: Record<string, any>): Promise<void> => {
+    const b = String(order.businessUid || order.sellerId || '');
+    let gifts: any[] = []; try { gifts = JSON.parse(String(order.giftCardsPending || '[]')); } catch { /* none */ }
+    if (!b || !gifts.length || order.giftCardsIssued === true) return;
+    const biz = await firestoreRead('businesses', b); const name = String(biz?.name || biz?.businessName || 'our shop').slice(0, 80);
+    const links: string[] = [];
+    for (let i = 0; i < gifts.length; i++) {
+      const g = gifts[i];
+      const r = await svIssueCoded(b, { kind: 'GIFT', cents: Math.round(g.cents), cardId: `gc_${orderId}_${i}`, idemKey: `iss_${orderId}_${i}`, ref: orderId, recipientEmail: g.email, recipientName: g.name, by: 'online', byName: 'Online store' });
+      if (r.ok === true && r.code) {
+        const to = g.email || String(order.customerEmail || '');
+        const sent = to ? await svEmailGift({ to, businessName: name, code: r.code, amountCents: g.cents, recipientName: g.name, message: g.message }) : false;
+        // No email service / no address: hold the code as a one-time link record the buyer can open from the order page.
+        if (!sent) { const tok = nodeCrypto.randomBytes(24).toString('hex'); await firestoreCreateOnce('giftCardLinks', tok, { businessUid: b, orderId, code: r.code, amountCents: g.cents, createdAt: Date.now(), opened: false }); links.push(tok); }
+      }
+    }
+    await firestoreWrite('storeOrders', orderId, { giftCardsIssued: true, ...(links.length ? { giftCardLinkTokens: JSON.stringify(links) } : {}) }).catch(() => {});
+  };
+
+  // Public balance check - rate limited per business+ip; always the same work and a minimum latency; every
+  // failure (malformed, unknown, voided, expired) is the same 'Invalid card.' so it cannot be used to probe for codes.
+  const svRate = new Map<string, RateState>();
+  app.post('/api/stored-value/balance', express.json({ limit: '4kb' }), async (req: any, res) => {
+    const t0 = Date.now();
+    const pad = async () => { const w = 250 - (Date.now() - t0); if (w > 0) await new Promise(r => setTimeout(r, w)); };
+    try {
+      const b = String(req.body?.businessUid || '').slice(0, 128);
+      const key = `${b}|${req.ip}`;
+      const rl = rateCheck(svRate.get(key), t0, { max: 12, windowMs: 10 * 60_000 });
+      svRate.set(key, rl.state);
+      if (svRate.size > 5000) for (const [k, v] of svRate) if (t0 - v.windowStart > 10 * 60_000) svRate.delete(k);
+      if (!rl.allowed) { await pad(); return res.status(429).json({ error: 'Too many attempts. Try again later.', code: 'RATE', retryAfterSec: Math.ceil(rl.retryAfterMs / 1000) }); }
+      const c = b ? await svCardByCode(b, req.body?.code) : null;
+      await pad();
+      if (!c || c.data.status !== 'ACTIVE' || svIsExpired(c.data as any, Date.now())) return res.status(404).json({ error: 'Invalid card.' });
+      res.json({ ok: true, kind: c.data.kind, balanceCents: Math.round(Number(c.data.balanceCents) || 0), last4: c.data.last4, ...(c.data.expiresAt ? { expiresAt: c.data.expiresAt } : {}) });
+    } catch { await pad(); res.status(404).json({ error: 'Invalid card.' }); }
+  });
+
+  // Register: a customer's wallet + store credit balances (so the cashier can offer them as tenders).
+  app.post('/api/stored-value/customer', authMiddleware, express.json({ limit: '4kb' }), async (req: any, res) => {
+    try {
+      const b = String(req.body?.businessUid || ''), uid = String(req.body?.customerUid || '').replace(/[^A-Za-z0-9_\-]/g, '');
+      const actor = await resolveRegisterActor(req, b, 'RING_SALES');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      if (!uid) return res.status(400).json({ error: 'customerUid required.' });
+      const [w, c] = await Promise.all([svCards(b).get(`w_${uid}`), svCards(b).get(`cr_${uid}`)]);
+      const pick = (x: any, id: string) => (x && x.data.status === 'ACTIVE' ? { cardId: id, balanceCents: Math.round(Number(x.data.balanceCents) || 0), last4: x.data.last4 } : null);
+      res.json({ wallet: pick(w, `w_${uid}`), credit: pick(c, `cr_${uid}`) });
+    } catch (err: any) { console.error('/api/stored-value/customer', err?.message || err); res.status(500).json({ error: 'Lookup failed.' }); }
+  });
+
+  // Manager gate shared by comp-issue / void / adjust: manager-or-owner role, or a manager PIN.
+  const svManager = async (actor: any, b: string, pin: any): Promise<{ ok: true; name: string } | { ok: false; error: string }> => {
+    if (actor.perms.has('REFUND') && canApprove(actor.role)) return { ok: true, name: actor.staffName };
+    const m = await managerApproval(b, pin);
+    return m ? { ok: true, name: m.name } : { ok: false, error: 'A manager PIN is needed for this.' };
+  };
+
+  // Issue WITHOUT a sale: manager comp (reason required) of a gift card / credit, or open a customer's wallet (optionally comped).
+  app.post('/api/stored-value/issue', authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
+    try {
+      const b = String(req.body?.businessUid || '');
+      const actor = await resolveRegisterActor(req, b, 'RING_SALES');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      const kind: CardKind = req.body?.kind === 'WALLET' ? 'WALLET' : req.body?.kind === 'CREDIT' ? 'CREDIT' : 'GIFT';
+      const cents = Math.round(Number(req.body?.amountCents) || 0);
+      const reason = String(req.body?.reason || '').trim().slice(0, 200);
+      const idem = cleanIdem(req.body?.idempotencyKey, `comp_${Date.now()}${Math.random().toString(36).slice(2, 8)}`);
+      const uid = String(req.body?.customerUid || '').replace(/[^A-Za-z0-9_\-]/g, '');
+      if (kind === 'WALLET') {
+        if (!uid) return res.status(400).json({ error: 'Attach a customer to open a wallet.' });
+        if (cents > 0) { if (!reason) return res.status(400).json({ error: 'A reason is required to comp wallet funds.' }); const m = await svManager(actor, b, req.body?.managerPin); if (m.ok === false) return res.status(403).json({ error: m.error, code: 'MANAGER_PIN' }); }
+        const r = await svCustomerCard(b, 'WALLET', uid, { cents, idemKey: `wopen_${idem}`, reason: reason || 'wallet opened', by: actor.staffId, byName: actor.staffName });
+        return r.ok === false ? res.status(400).json({ error: r.error, code: r.code }) : res.json({ ok: true, cardId: r.cardId, balanceCents: r.balanceCents, last4: r.last4 });
+      }
+      const a = sanitizeIssueAmount(cents, (await svSettings(b)).limits);
+      if (a.ok === false) return res.status(400).json({ error: a.error });
+      if (!reason) return res.status(400).json({ error: 'A reason is required for a comped card.' });
+      const m = await svManager(actor, b, req.body?.managerPin);
+      if (m.ok === false) return res.status(403).json({ error: m.error, code: 'MANAGER_PIN' });
+      const email = String(req.body?.recipientEmail || '').trim().slice(0, 120);
+      const out = await svIssueCoded(b, { kind, cents: a.cents, idemKey: `comp_${idem}`, reason: `comp: ${reason} (approved ${m.name})`, by: actor.staffId, byName: actor.staffName, recipientEmail: email || undefined });
+      if (out.ok === false) return res.status(400).json({ error: out.error, code: out.code });
+      let emailed = false;
+      if (email && out.code) emailed = await svEmailGift({ to: email, businessName: String(req.body?.businessName || 'our shop').slice(0, 80), code: out.code, amountCents: a.cents });
+      res.json({ ok: true, cardId: out.cardId, code: out.code, last4: out.last4, balanceCents: out.balanceCents, emailed, duplicate: out.duplicate });
+    } catch (err: any) { console.error('/api/stored-value/issue', err?.message || err); res.status(500).json({ error: 'Could not issue the card.' }); }
+  });
+
+  // Reload a customer's wallet, PAID FOR with a tender (cash/card/external). Recorded as a POS order whose
+  // storedValueSoldCents is the reload (liability up, not revenue).
+  app.post('/api/stored-value/reload', authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
+    try {
+      const b = String(req.body?.businessUid || '');
+      const actor = await resolveRegisterActor(req, b, 'RING_SALES');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      const uid = String(req.body?.customerUid || '').replace(/[^A-Za-z0-9_\-]/g, '');
+      if (!uid) return res.status(400).json({ error: 'Attach the customer first.' });
+      const cfg = await svSettings(b);
+      const a = sanitizeIssueAmount(req.body?.amountCents, cfg.limits);
+      if (a.ok === false) return res.status(400).json({ error: a.error });
+      const tv = validateTenders(req.body?.tenders, a.cents, { storedValueMaxCents: 0 });
+      if (tv.ok === false) return res.status(400).json({ error: tv.error, code: 'TENDER' });
+      const orderId = `pos_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      const r = await svCustomerCard(b, 'WALLET', uid, { cents: a.cents, idemKey: `reload_${orderId}`, ref: orderId, by: actor.staffId, byName: actor.staffName });
+      if (r.ok === false) return res.status(400).json({ error: r.error, code: r.code });
+      try {
+        await firestoreWrite('storeOrders', orderId, {
+          businessUid: b, customerUid: uid, buyerId: uid, sellerId: b, items: '[]', subtotalCents: 0, discountCents: 0, taxCents: 0, tipCents: 0, totalCents: 0, paidCents: a.cents,
+          storedValueSoldCents: a.cents, walletReloadCardId: r.cardId, tenders: JSON.stringify(tv.tenders), tender: tv.tenders.length > 1 ? 'SPLIT' : (tv.tenders[0].type === 'EXTERNAL' ? String(tv.tenders[0].kind) : tv.tenders[0].type),
+          staffId: actor.staffId, staffName: actor.staffName, source: 'POS', fulfillment: 'PICKUP', status: 'CONFIRMED', createdAt: Date.now(), paidAt: Date.now(),
+        }, true);
+      } catch (e) {
+        await svApply(b, r.cardId, { type: 'VOID', idemKey: `rbv_${orderId}`, reason: 'reload order failed' }).catch(() => {});   // never leave unpaid funds
+        throw e;
+      }
+      // Top-up bonus (owner-set promo, e.g. load $50 get $5): an ADJUST ledger entry with a deterministic idempotency key,
+      // so a retried reload can never pay it twice. A bonus failure never fails the (already paid) reload.
+      let bonusCents = 0; let balanceAfter = r.balanceCents;
+      try {
+        const promo = await loadWalletPromo(firestoreRead, b); const bonus = computeTopUpBonus(promo, a.cents);
+        if (bonus.bonusCents > 0) {
+          const br = await svApply(b, r.cardId, { type: 'ADJUST', idemKey: bonusIdemKey(orderId), amountCents: bonus.bonusCents, ref: orderId, reason: bonus.label, by: actor.staffId, byName: actor.staffName }, cfg);
+          if (br.ok === true) { bonusCents = bonus.bonusCents; balanceAfter = br.balanceCents; } else console.error('wallet bonus not applied', br.code);
+        }
+      } catch (e: any) { console.error('wallet bonus failed', e?.message); }
+      res.json({ ok: true, orderId, cardId: r.cardId, balanceCents: balanceAfter, bonusCents, changeCents: tv.changeCents, paidCents: a.cents, tenders: tv.tenders });
+    } catch (err: any) { console.error('/api/stored-value/reload', err?.message || err); res.status(500).json({ error: 'Could not reload the wallet.' }); }
+  });
+
+  // Void / adjust (manager PIN or manager role + reason; both land in the audit ledger).
+  app.post('/api/stored-value/modify', authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
+    try {
+      const b = String(req.body?.businessUid || ''), cardId = String(req.body?.cardId || '').replace(/[^A-Za-z0-9_\-]/g, '');
+      const actor = await resolveRegisterActor(req, b, 'VIEW_REPORTS');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      const reason = String(req.body?.reason || '').trim().slice(0, 200);
+      if (!cardId || !reason) return res.status(400).json({ error: 'cardId and a reason are required.' });
+      const m = await svManager(actor, b, req.body?.managerPin);
+      if (m.ok === false) return res.status(403).json({ error: m.error, code: 'MANAGER_PIN' });
+      const idem = cleanIdem(req.body?.idempotencyKey, `m_${Date.now()}${Math.random().toString(36).slice(2, 8)}`);
+      const action = req.body?.action === 'ADJUST' ? 'ADJUST' : 'VOID';
+      const r = await svApply(b, cardId, { type: action, idemKey: `${action.toLowerCase()}_${idem}`, amountCents: action === 'ADJUST' ? Math.round(Number(req.body?.deltaCents) || 0) : undefined, reason: `${reason} (approved ${m.name})`, by: actor.staffId, byName: actor.staffName });
+      if (r.ok === false) return res.status(r.code === 'NOT_FOUND' ? 404 : r.code === 'CONFLICT' ? 409 : 400).json({ error: r.error, code: r.code });
+      res.json({ ok: true, balanceCents: r.balanceCents, duplicate: r.duplicate });
+    } catch (err: any) { console.error('/api/stored-value/modify', err?.message || err); res.status(500).json({ error: 'Could not update the card.' }); }
+  });
+
+  // Back office: card list (no hashes ever) + liability report for a period.
+  app.post('/api/stored-value/admin', authMiddleware, express.json({ limit: '4kb' }), async (req: any, res) => {
+    try {
+      const b = String(req.body?.businessUid || '');
+      const actor = await resolveRegisterActor(req, b, 'VIEW_REPORTS');
+      if (actor.ok === false) return res.status(actor.status).json({ error: actor.error, code: actor.code });
+      const now = Date.now();
+      const from = Number.isFinite(Number(req.body?.from)) ? Number(req.body.from) : now - 30 * 86_400_000, to = Number.isFinite(Number(req.body?.to)) ? Number(req.body.to) : now;
+      const [cardDocs, ledDocs] = await Promise.all([fsListSub(`businesses/${b}`, 'storedValue', 1000), fsListSub(`businesses/${b}`, 'storedValueLedger', 3000)]);
+      const cards = cardDocs.map(d => ({ id: d.id, kind: d.data.kind as CardKind, status: (d.data.status || 'ACTIVE') as any, balanceCents: Math.round(Number(d.data.balanceCents) || 0), initialCents: Math.round(Number(d.data.initialCents) || 0), last4: String(d.data.last4 || ''), createdAt: Number(d.data.createdAt) || 0, updatedAt: Number(d.data.updatedAt) || 0, customerUid: d.data.customerUid, recipientEmail: d.data.recipientEmail, recipientName: d.data.recipientName, expiresAt: d.data.expiresAt }));
+      const ledger = ledDocs.map(d => ({ id: d.id, cardId: String(d.data.cardId), type: d.data.type, deltaCents: Math.round(Number(d.data.deltaCents) || 0), balanceAfterCents: Math.round(Number(d.data.balanceAfterCents) || 0), at: Number(d.data.at) || 0, reason: d.data.reason, ref: d.data.ref, byName: d.data.byName, last4: d.data.last4 }));
+      const q = String(req.body?.q || '');
+      res.json({ report: buildLiabilityReport(cards as any, ledger as any, { from, to }, now), cards: searchCards(cards as any, q).sort((a: any, b2: any) => b2.createdAt - a.createdAt).slice(0, 200),
+        ledger: (req.body?.cardId ? ledger.filter(l => l.cardId === String(req.body.cardId)) : ledger.slice(-0)).sort((a, b2) => b2.at - a.at).slice(0, 100), truncated: cardDocs.length >= 1000 || ledDocs.length >= 3000 });
+    } catch (err: any) { console.error('/api/stored-value/admin', err?.message || err); res.status(500).json({ error: 'Could not load stored value.' }); }
+  });
+
+  // Online: a customer buys a DIGITAL gift card from the storefront (own Stripe session; webhook issues + emails it).
+  app.post('/api/stored-value/buy-online', authMiddleware, express.json({ limit: '8kb' }), async (req: any, res) => {
+    try {
+      const b = String(req.body?.businessUid || '');
+      if (!b) return res.status(400).json({ error: 'businessUid required.' });
+      const org = await firestoreRead('organizations', b);
+      let acct: string | undefined = org?.stripeAccountId;
+      if (!acct) { const u = await firestoreRead('users', b); acct = u?.stripeConnectAccountId; }
+      if (!acct) return res.status(400).json({ error: 'This shop has not connected Stripe payouts yet.' });
+      const parsed = svParseGiftLines(req.body?.giftCards, (await svSettings(b)).limits);
+      if (parsed.ok === false) return res.status(400).json({ error: parsed.error });
+      if (!parsed.gifts.length) return res.status(400).json({ error: 'Choose a gift card amount.' });
+      const orderId = `so_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+      const total = parsed.gifts.reduce((s, g) => s + g.cents, 0);
+      const origin = trustedRequestOrigin(req);
+      const session = await getStripe().checkout.sessions.create({
+        mode: 'payment', payment_method_types: ['card'], expires_at: Math.floor(Date.now() / 1000) + 31 * 60,
+        line_items: parsed.gifts.map(g => ({ price_data: { currency: 'usd', product_data: { name: 'Gift card' }, unit_amount: g.cents }, quantity: 1 })),
+        payment_intent_data: { transfer_data: { destination: acct }, metadata: { type: 'store_order', orderId, businessUid: b } },
+        success_url: `${origin}/?order=success`, cancel_url: `${origin}/?order=cancelled`, metadata: { type: 'store_order', orderId, businessUid: b },
+      });
+      await firestoreWrite('storeOrders', orderId, {
+        businessUid: b, customerUid: req.uid, buyerId: req.uid, sellerId: b, items: '[]', subtotalCents: 0, shippingCents: 0, taxCents: 0, totalCents: total, storedValueSoldCents: total,
+        giftCardsPending: JSON.stringify(parsed.gifts), fulfillment: 'PICKUP', status: 'PENDING_PAYMENT', createdAt: Date.now(), stripeSessionId: session.id,
+      });
+      res.json({ url: session.url, orderId });
+    } catch (err: any) { console.error('/api/stored-value/buy-online', err?.message || err); res.status(500).json({ error: 'Could not start checkout.' }); }
+  });
+  // ═══════════ end STORED VALUE ═══════════════════════════════════════════════════════════════════
 
   // ── Music sync license — one-time per-project license, pays the musician ─────
   app.post('/api/stripe/purchase-sync-license', authMiddleware, express.json(), async (req: any, res) => {
