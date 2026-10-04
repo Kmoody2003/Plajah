@@ -4,11 +4,14 @@ import {
   Video, VideoOff, Mic, MicOff, PhoneOff, Monitor,
   FileText, Activity, BookOpen, Layers, Sparkles,
   Maximize2, Minimize2, CheckCircle2, ChevronRight, User,
-  Share2, Shield, Heart, Eye
+  Share2, Shield, Heart, Eye, MessageSquare, Send, Copy, ExternalLink, FlaskConical, Loader2, Users
 } from 'lucide-react';
 import type { Appointment, ClinicalSoapNote } from '../../types/clinic';
 import { getSoapNoteByAppointmentId, getAvailableMedicalCourses, saveSoapNote } from '../../services/clinicService';
 import ClinicalSoapNoteEditor from './ClinicalSoapNoteEditor';
+import TelehealthPatientView from './TelehealthPatientView';
+import { VisitCall, newVisitSessionId, patientJoinUrl, type VisitChatMessage } from '../../services/clinic/telehealthCall';
+import { ensureGuestAuth } from '../../services/backendService';
 
 interface TelehealthVisitRoomProps {
   appointment: Appointment;
@@ -23,7 +26,7 @@ export const TelehealthVisitRoom: React.FC<TelehealthVisitRoomProps> = ({
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [callDuration, setCallDuration] = useState(0);
-  const [activeDrawerTab, setActiveDrawerTab] = useState<'SOAP' | 'ANATOMY' | 'EDUCATION'>('SOAP');
+  const [activeDrawerTab, setActiveDrawerTab] = useState<'SOAP' | 'ANATOMY' | 'EDUCATION' | 'CHAT'>('SOAP');
   const [isDrawerOpen, setIsDrawerOpen] = useState(true);
 
   // Active anatomical system for 3D education
@@ -69,6 +72,23 @@ export const TelehealthVisitRoom: React.FC<TelehealthVisitRoomProps> = ({
   });
 
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  // ── Real call (demo): provider side. The patient joins from a link or the on-device preview. ──
+  const [sessionId] = useState(newVisitSessionId);
+  const callRef = useRef<VisitCall | null>(null);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const [patientHere, setPatientHere] = useState(false);
+  const [patientConsented, setPatientConsented] = useState(false);
+  const [connState, setConnState] = useState<RTCPeerConnectionState>('new');
+  const [callError, setCallError] = useState<string | null>(null);
+  const [chat, setChat] = useState<VisitChatMessage[]>([]);
+  const [chatDraft, setChatDraft] = useState('');
+  const [previewPatient, setPreviewPatient] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const joinLink = patientJoinUrl(sessionId, appointment.patientName);
+  const connected = connState === 'connected' && !!remoteStream;
 
   // Call timer
   useEffect(() => {
@@ -76,20 +96,28 @@ export const TelehealthVisitRoom: React.FC<TelehealthVisitRoomProps> = ({
     return () => clearInterval(timer);
   }, []);
 
-  // WebRTC UserMedia simulation
+  // Real WebRTC call: camera/mic capture + signalling run through the platform's rtcCore.
   useEffect(() => {
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      navigator.mediaDevices
-        .getUserMedia({ video: true, audio: true })
-        .then(stream => {
-          if (localVideoRef.current) {
-            localVideoRef.current.srcObject = stream;
-          }
-        })
-        .catch(err => {
-          console.warn('Camera preview unavailable (running in sandbox/permission denied)', err);
-        });
-    }
+    let cancelled = false;
+    const call = new VisitCall(sessionId, 'provider', appointment.providerName || 'Provider', {
+      onLocal: setLocalStream,
+      onRemote: setRemoteStream,
+      onPeerLeft: () => { setRemoteStream(null); setConnState('disconnected'); },
+      onPresence: here => setPatientHere(here),
+      onState: setConnState,
+      onChat: m => setChat(c => [...c, m]),
+      onConsent: () => setPatientConsented(true),
+      onError: setCallError,
+    });
+    callRef.current = call;
+    ensureGuestAuth().then(() => { if (!cancelled) call.join().catch(() => { /* shown via onError */ }); });
+    return () => { cancelled = true; call.leave().catch(() => {}); callRef.current = null; };
+  }, [sessionId]);
+
+  useEffect(() => { if (localVideoRef.current) localVideoRef.current.srcObject = localStream; }, [localStream]);
+  useEffect(() => { if (remoteVideoRef.current) remoteVideoRef.current.srcObject = remoteStream; }, [remoteStream, connected]);
+
+  useEffect(() => {
 
     // Load existing SOAP note if present
     getSoapNoteByAppointmentId(appointment.id).then(existing => {
@@ -135,7 +163,7 @@ export const TelehealthVisitRoom: React.FC<TelehealthVisitRoomProps> = ({
             <strong className="text-white">{formatSeconds(callDuration)}</strong>
           </div>
           <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#06D6A0]/10 border border-[#06D6A0]/30 text-[10px] font-mono text-[#06D6A0] font-bold">
-            <Shield size={11} /> 256-bit P2P Encrypted
+            <Shield size={11} /> Demo · encrypted in transit
           </div>
           <button
             type="button"
@@ -156,23 +184,49 @@ export const TelehealthVisitRoom: React.FC<TelehealthVisitRoomProps> = ({
           {/* Main Remote Video (Patient View Canvas) */}
           <div className="relative w-full max-w-4xl h-full max-h-[720px] rounded-3xl overflow-hidden border border-white/10 bg-black/60 shadow-2xl flex items-center justify-center">
             
-            {/* Visual patient placeholder backdrop */}
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent z-10" />
-            
-            <div className="relative z-10 flex flex-col items-center text-center p-6">
-              <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-[#6B0099] via-[#00DAF3] to-[#06D6A0] flex items-center justify-center text-white mb-4 shadow-2xl border-2 border-white/20">
-                <User size={48} className="text-white/90" />
+            {/* Remote video: the patient, once connected */}
+            <video ref={remoteVideoRef} autoPlay playsInline className={`absolute inset-0 w-full h-full object-cover ${connected ? 'block' : 'hidden'}`} />
+
+            {!connected && (
+              <div className="relative z-10 flex flex-col items-center text-center p-6 max-w-md">
+                <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-[#6B0099] via-[#00DAF3] to-[#06D6A0] flex items-center justify-center text-white mb-4 shadow-2xl border-2 border-white/20">
+                  <User size={48} className="text-white/90" />
+                </div>
+                <h3 className="text-2xl font-black text-white font-['Space_Grotesk']">{appointment.patientName}</h3>
+                <p className="text-xs font-mono text-[#FFD166] mt-1 flex items-center gap-1.5">
+                  <Loader2 size={12} className="animate-spin" />
+                  {patientHere ? 'Patient is in the room — connecting…' : 'Waiting for the patient to join'}
+                </p>
+                {callError && <p className="text-xs text-red-300 mt-2">{callError}</p>}
+                <div className="mt-4 w-full rounded-2xl bg-black/50 border border-white/10 p-3 text-left space-y-2">
+                  <span className="text-[10px] font-mono uppercase tracking-wider text-white/50 block">Invite the (demo) patient</span>
+                  <div className="flex items-center gap-2">
+                    <input readOnly value={joinLink} onFocus={e => e.currentTarget.select()} className="flex-1 min-w-0 bg-white/5 border border-white/10 rounded-lg px-2 py-1.5 text-[11px] text-white/80 font-mono" />
+                    <button type="button" onClick={() => { navigator.clipboard?.writeText(joinLink).then(() => { setLinkCopied(true); setTimeout(() => setLinkCopied(false), 1500); }).catch(() => {}); }} className="shrink-0 px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] font-bold flex items-center gap-1"><Copy size={12} /> {linkCopied ? 'Copied' : 'Copy'}</button>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => window.open(joinLink, '_blank', 'noopener')} className="px-2.5 py-1.5 rounded-lg bg-[#00DAF3] text-black text-[11px] font-bold flex items-center gap-1"><ExternalLink size={12} /> Open patient view in a new window</button>
+                    <button type="button" onClick={() => setPreviewPatient(p => !p)} className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-[11px] font-bold flex items-center gap-1"><Users size={12} /> {previewPatient ? 'Hide' : 'Preview'} patient on this device</button>
+                  </div>
+                  <p className="text-[10px] text-white/40">Open the link on a phone or another computer to try a real two-way call. Demo patients only.</p>
+                </div>
               </div>
-              <h3 className="text-2xl font-black text-white font-['Space_Grotesk']">
-                {appointment.patientName}
-              </h3>
-              <p className="text-xs font-mono text-[#06D6A0] mt-1">
-                Connected • 1080p60 Low-Latency P2P • Opus 48kHz
-              </p>
-              <div className="mt-3 px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-white/60 max-w-md">
-                CC: {appointment.chiefComplaint || 'General clinical review'}
+            )}
+
+            {connected && (
+              <div className="absolute top-4 left-4 z-20 flex items-center gap-2 px-2.5 py-1 rounded-full bg-black/60 border border-white/15 text-[10px] font-mono text-white/80">
+                <span className="w-2 h-2 rounded-full bg-[#06D6A0]" /> {appointment.patientName}
+                {patientConsented && <span className="text-[#06D6A0]">· accepted demo notice</span>}
               </div>
-            </div>
+            )}
+
+            {/* On-device preview of what the patient sees (a second real peer in this window) */}
+            {previewPatient && (
+              <div className="absolute bottom-24 left-4 z-30 w-56 h-40 rounded-2xl overflow-hidden border-2 border-[#FFD166] shadow-2xl">
+                <div className="absolute top-0 inset-x-0 z-10 px-2 py-0.5 bg-black/70 text-[9px] font-mono text-[#FFD166] uppercase tracking-wider">Patient's view (preview)</div>
+                <TelehealthPatientView embedded sessionId={sessionId} patientName={appointment.patientName} />
+              </div>
+            )}
 
             {/* Picture-in-Picture: Doctor Self View */}
             <div className="absolute top-4 right-4 z-20 w-36 h-28 sm:w-44 sm:h-32 rounded-2xl overflow-hidden border-2 border-[#00DAF3] shadow-2xl bg-black">
@@ -198,7 +252,7 @@ export const TelehealthVisitRoom: React.FC<TelehealthVisitRoomProps> = ({
             <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-3 px-5 py-2.5 rounded-2xl bg-black/80 border border-white/20 backdrop-blur-2xl shadow-2xl">
               <button
                 type="button"
-                onClick={() => setIsMuted(!isMuted)}
+                onClick={() => { const m = !isMuted; setIsMuted(m); callRef.current?.setMuted(m); }}
                 className={`p-3 rounded-xl transition-all ${
                   isMuted ? 'bg-[#EF4444] text-white' : 'bg-white/10 hover:bg-white/20 text-white'
                 }`}
@@ -209,7 +263,7 @@ export const TelehealthVisitRoom: React.FC<TelehealthVisitRoomProps> = ({
 
               <button
                 type="button"
-                onClick={() => setIsVideoOff(!isVideoOff)}
+                onClick={() => { const o = !isVideoOff; setIsVideoOff(o); callRef.current?.setVideoOff(o); }}
                 className={`p-3 rounded-xl transition-all ${
                   isVideoOff ? 'bg-[#EF4444] text-white' : 'bg-white/10 hover:bg-white/20 text-white'
                 }`}
@@ -220,7 +274,7 @@ export const TelehealthVisitRoom: React.FC<TelehealthVisitRoomProps> = ({
 
               <button
                 type="button"
-                onClick={() => setIsScreenSharing(!isScreenSharing)}
+                onClick={async () => { if (isScreenSharing) { callRef.current?.stopShare(); setIsScreenSharing(false); } else { setIsScreenSharing(await (callRef.current?.startShare() ?? Promise.resolve(false))); } }}
                 className={`p-3 rounded-xl transition-all ${
                   isScreenSharing ? 'bg-[#00DAF3] text-black font-bold' : 'bg-white/10 hover:bg-white/20 text-white'
                 }`}
@@ -295,6 +349,15 @@ export const TelehealthVisitRoom: React.FC<TelehealthVisitRoomProps> = ({
                   </button>
                 </div>
 
+                <button
+                  type="button"
+                  onClick={() => setActiveDrawerTab('CHAT')}
+                  className={`ml-auto mr-2 px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
+                    activeDrawerTab === 'CHAT' ? 'bg-white text-black' : 'text-white/60 hover:text-white hover:bg-white/5'
+                  }`}
+                >
+                  <MessageSquare size={13} /> Chat{chat.length ? ` (${chat.length})` : ''}
+                </button>
                 <button
                   type="button"
                   onClick={() => setIsDrawerOpen(false)}
@@ -410,6 +473,24 @@ export const TelehealthVisitRoom: React.FC<TelehealthVisitRoomProps> = ({
                 )}
 
                 {/* Tab 3: Prescribe Curriculum Modules */}
+                {/* Tab: visit chat (demo — ephemeral, nothing is stored) */}
+                {activeDrawerTab === 'CHAT' && (
+                  <div className="flex flex-col h-[60vh]">
+                    <div className="flex-1 overflow-y-auto space-y-2 text-sm pr-1">
+                      {chat.length === 0 && <p className="text-xs text-white/40">Visit chat with the patient. In this demo messages are not saved anywhere.</p>}
+                      {chat.map(m => (
+                        <div key={m.id} className={m.who === 'me' ? 'text-right' : ''}>
+                          <span className={`inline-block px-3 py-1.5 rounded-2xl text-xs ${m.who === 'me' ? 'bg-[#00DAF3] text-black' : 'bg-white/10 text-white'}`}>{m.text}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="pt-3 flex gap-2">
+                      <input value={chatDraft} onChange={e => setChatDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { callRef.current?.sendChat(chatDraft); setChatDraft(''); } }} placeholder="Message the patient…" className="flex-1 bg-white/5 border border-white/10 rounded-xl px-3 py-2 text-xs text-white outline-none focus:border-[#00DAF3]" />
+                      <button type="button" onClick={() => { callRef.current?.sendChat(chatDraft); setChatDraft(''); }} className="px-3 rounded-xl bg-[#00DAF3] text-black" aria-label="Send"><Send size={14} /></button>
+                    </div>
+                  </div>
+                )}
+
                 {activeDrawerTab === 'EDUCATION' && (
                   <div className="space-y-4">
                     <div>

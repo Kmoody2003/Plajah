@@ -434,6 +434,7 @@ const AmboPresenter = retryLazy(() => import('./components/scripture/AmboPresent
 const AmboProPresenter = retryLazy(() => import('./components/scripture/AmboProPresenter'));
 const FollowAlongView = retryLazy(() => import('./components/scripture/FollowAlongView'));
 const AmboOutputWindow = retryLazy(() => import('./components/scripture/AmboOutputWindow'));
+const TelehealthJoinPage = retryLazy(() => import('./components/clinic/TelehealthJoinPage'));
 const AmboPartyEventReceiver = retryLazy(() => import('./components/scripture/AmboPartyEventReceiver'));
 import { registerEventDevice } from './services/ambo/amboPartyEventService';
 
@@ -640,6 +641,15 @@ const App: React.FC = () => {
     return (
       <Suspense fallback={<div className="fixed inset-0 bg-black flex items-center justify-center text-white/40 font-mono text-sm">Initializing Output Window...</div>}>
         <AmboOutputWindow outputId={amboOutId} />
+      </Suspense>
+    );
+  }
+
+  // Demo telehealth: the "patient" opens ?telehealth=<session> — a standalone join page, no app shell.
+  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('telehealth')) {
+    return (
+      <Suspense fallback={<div className="fixed inset-0 bg-[#07030d] flex items-center justify-center text-white/40 font-mono text-sm">Loading visit…</div>}>
+        <TelehealthJoinPage />
       </Suspense>
     );
   }
