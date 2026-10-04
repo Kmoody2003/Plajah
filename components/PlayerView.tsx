@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { cleanDescription } from '../utils/description';
 import { Album, Track, Comment, Character, IPWorld, Video } from '../types';
-import { buildShareUrl } from '../services/deepLinkService';
+import { buildShareUrl, buildShowUrl } from '../services/deepLinkService';
 import { getActiveCaption } from '../src/lib/captions';
 import WorldBadge from './WorldBadge';
 import ImmersiveBadge from './ImmersiveBadge';
@@ -19,8 +19,9 @@ import AlbumTvView from './tv/AlbumTvView';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
 import FxStageVisualizers, { type FxEngine, fxPresetName, FX_ENGINE_PRESETS, loadMilkdropNames, loadShaderNames } from './FxStageVisualizers';
 import Logo from './Logo';
-import { publishToCloud, postComment, subscribeToComments, updateAlbum, updatePersonalAlbum, updatePersonalTrack, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig, createPost, auth, fetchPersonalPlaylists, addTracksToPlaylist } from '../services/backendService';
+import { publishToCloud, postComment, subscribeToComments, updateAlbum, updatePersonalAlbum, updatePersonalTrack, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig, createPost, auth, loginWithGoogle, fetchPersonalPlaylists, addTracksToPlaylist } from '../services/backendService';
 import ShareButton from './ShareButton';
+import ArtistSupportSheet, { musicOffers, type SupportTab } from './ArtistSupportSheet';
 import ChoraQualityButton from './ChoraQualityButton';
 import { createPortal } from 'react-dom';
 import OfflineDownloadButton from './OfflineDownloadButton';
@@ -519,6 +520,8 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   // position (audio streams locally per listener — see services/partyService.ts). Same primitive
   // as watch-along/read-along.
   const [activePartyId, setActivePartyId] = useState<string | null>(partyId ?? null);
+  // Gift / buy / Plajah+ sheet (shared with Show Mode)
+  const [supportSheet, setSupportSheet] = useState<SupportTab | null>(null);
   useEffect(() => { setActivePartyId(partyId ?? null); }, [partyId]);
   const party = useParty(activePartyId);
 
@@ -2115,6 +2118,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                             artist={t.artist || album.artist}
                             text={`Check out ${t.title} by ${t.artist || album.artist} on Plajah.com`}
                             url={buildShareUrl('album', album.id, { track: t.id })}
+                            showModeUrl={buildShowUrl(album.id, { track: t.id })}
                             imageUrl={album.coverImage}
                             contentType="music"
                             ctaText="▶ LISTEN LOSSLESS ON PLAJAH"
@@ -3785,6 +3789,16 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                      </button>
                    )}
 
+                   {/* Back the artist — gift always; buy only when the artist priced the release */}
+                   {album.ownerId && album.ownerId !== user?.uid && (
+                     <div className={`flex items-center gap-2 ${currentTrack ? '' : 'ml-auto'}`}>
+                       <button onClick={() => setSupportSheet('gift')} className="pj-btn pj-btn--primary pj-btn--sm">Gift this artist</button>
+                       {musicOffers(album, currentTrack).any && (
+                         <button onClick={() => setSupportSheet('buy')} className="pj-btn pj-btn--accent pj-btn--sm">Buy</button>
+                       )}
+                     </div>
+                   )}
+
                    {/* Share — to the Plajah feed or out to social sites */}
                    <div className={currentTrack ? '' : 'ml-auto'}>
                      <ShareButton
@@ -3792,6 +3806,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                        artist={album.artist}
                        text={`Check out ${currentTrack?.title || album.title} by ${album.artist} on Plajah.com`}
                        url={buildShareUrl('album', album.id, { track: currentTrack?.id })}
+                       showModeUrl={buildShowUrl(album.id, { track: currentTrack?.id })}
                        imageUrl={album.coverImage}
                        contentType="album"
                        ctaText="▶ LISTEN LOSSLESS ON PLAJAH"
@@ -4983,6 +4998,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             exitSelectMode();
           }}
         />
+      )}
+      {supportSheet && (
+        <ArtistSupportSheet album={album} track={currentTrack as any} user={user as any} initialTab={supportSheet} onClose={() => setSupportSheet(null)} onSignUp={() => { loginWithGoogle(); }} />
       )}
     </div>
   );

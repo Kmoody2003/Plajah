@@ -1,5 +1,5 @@
 import React, { useState, useEffect, lazy, Suspense, useCallback, useRef, useMemo } from 'react';
-import { Album, AppView, ThemeType, Game, IPWorld, LiveFeed, PhotoGallery, Photo } from './types';
+import { Album, Track, AppView, ThemeType, Game, IPWorld, LiveFeed, PhotoGallery, Photo } from './types';
 import { fetchGallery } from './services/galleryService';
 import Logo from './components/Logo';
 import { motion, AnimatePresence } from 'motion/react';
@@ -54,6 +54,9 @@ const AlbumCreator = retryLazy(() => import('./components/AlbumCreator'));
 const EarthGlobe = retryLazy(() => import('./components/EarthGlobe')); // home hero globe
 const PlayerView = retryLazy(() => import('./components/PlayerView'));
 const MixPlayerView = retryLazy(() => import('./components/MixPlayerView')); // Chora Mixes player
+const ShowModeView = retryLazy(() => import('./components/ShowModeView')); // Share in Show Mode (fullscreen stage landing)
+const ArtistSupportSheet = retryLazy(() => import('./components/ArtistSupportSheet')); // gift / buy / Plajah+ sheet
+const SupportReturnModal = retryLazy(() => import('./components/SupportReturnModal')); // thank-you after gift / purchase
 const SearchView = retryLazy(() => import('./components/SearchView'));
 const FeedView = retryLazy(() => import('./components/FeedView'));
 const LiveHubView = retryLazy(() => import('./components/LiveHubView'));
@@ -551,6 +554,10 @@ const THEME_BG: Record<string, string> = {
     '#080200',
   ].join(','),
 };
+import { parseShowMode, type ShowMode } from './services/deepLinkService';
+import { loadOwnedMusic, MUSIC_LOCKED_EVENT } from './services/musicAccess';
+import { PENDING_GIFT_KEY } from './services/stripeService';
+import type { ReturnInfo } from './components/SupportReturnModal';
 import { auth, fetchProjectFromCloud, fetchAllPublicAlbums, deleteCloudAlbum, checkCloudConnection, loginWithGoogle, loginWithTwitter, logout, onAuthUpdate, seedMockUsers, seedPublicDomainBooks, createChatRoom, updateGamePlayCount, fetchUserProfile, listenToUserProfile, listenToMyPayItForwardWins, simulateDailySelection, createDemoArticle, updateOnboardingStatus, updateTooltipSettings, updateUserProfile, createIPWorld, updateIPWorld, seedDemoWorlds, fetchThemePresetById, fetchFeaturedProfiles, fetchLatestAlbumForUser, loadUserAd, fetchSystemSettingsConfig, allocateChannelNumber, fetchAllLiveFeeds } from './services/backendService';
 import { initFeatureFlagListener } from './services/featureFlagService';
 import { Plus, Music2, Layers, Mic, Play, Pause, SkipBack, SkipForward, Maximize2, Trash2, User, Share2, Check, Box, Globe, ClipboardList, ShieldCheck, ShieldAlert, Shield, ShoppingBag, LogOut, LogIn, Search, Rss, Sun, Moon, Palette, Radio, Sparkles, Database, Tv, Gamepad2, MessageSquare, MessageCircle, GraduationCap, Ticket, Video as VideoIcon, BookOpen, ChevronLeft, ChevronRight, Camera, Settings, Heart, Pen, Newspaper, Megaphone, HelpCircle, ChevronDown, ChevronUp, Home, Film, Users, AppWindow, Mail, X as XIcon, Upload, Zap, Monitor, Briefcase, TrendingUp, FlaskConical, Clapperboard, AlignJustify, Pin, Activity, Repeat, Repeat1, Volume2, VolumeX, Headphones, RotateCcw, Bell, Compass, Landmark, Library, Cctv, Bug, AlertTriangle, MapPin, Cross, MonitorPlay } from 'lucide-react';
@@ -1149,6 +1156,40 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [isLoading, setIsLoading] = useState(true);
   const [wcMobileBannerDismissed, setWcMobileBannerDismissed] = useState(() => !!localStorage.getItem('wc26_mobile_banner_dismissed'));
   const [isPublicView, setIsPublicView] = useState(false);
+  const [showModeOpts, setShowModeOpts] = useState<{ mode: ShowMode; trackId?: string | null }>({ mode: 'DEFAULT' });
+  // Priced-release preview ended → offer the buy flow; Stripe return → thank-you / download.
+  const [lockedInfo, setLockedInfo] = useState<{ album: Album; track?: Track } | null>(null);
+  const [returnInfo, setReturnInfo] = useState<ReturnInfo | null>(null);
+  // Purchased-music ownership cache (drives the 30s preview gate in the player).
+  useEffect(() => { loadOwnedMusic(user?.uid).catch(() => {}); }, [user?.uid]);
+  useEffect(() => {
+    const onLocked = (e: Event) => {
+      const d = (e as CustomEvent).detail || {};
+      if (d.album) setLockedInfo({ album: d.album, track: d.track });
+    };
+    window.addEventListener(MUSIC_LOCKED_EVENT, onLocked);
+    return () => window.removeEventListener(MUSIC_LOCKED_EVENT, onLocked);
+  }, []);
+  // Returning from Stripe: ?gift=success (thank the artist) or ?content_purchased=album:<id> | track:<albumId>__<trackId>
+  useEffect(() => {
+    const sp = new URLSearchParams(window.location.search);
+    const strip = (...keys: string[]) => { keys.forEach(k => sp.delete(k)); const q = sp.toString(); window.history.replaceState({}, '', window.location.pathname + (q ? `?${q}` : '')); };
+    if (sp.get('gift') === 'success') {
+      let g: any = {};
+      try { g = JSON.parse(sessionStorage.getItem(PENDING_GIFT_KEY) || '{}'); sessionStorage.removeItem(PENDING_GIFT_KEY); } catch { /* none */ }
+      setReturnInfo({ mode: 'gift', artist: g.artist || '', title: g.title || '', amount: Number(g.amount) || 0 });
+      strip('gift', 'session_id');
+    } else if (sp.get('gift') === 'cancelled') {
+      strip('gift');
+    }
+    const cp = sp.get('content_purchased');
+    if (cp && /^(album|track):/.test(cp)) {
+      const [kind, rest] = [cp.split(':')[0] as 'album' | 'track', cp.slice(cp.indexOf(':') + 1)];
+      const [albumId, trackId] = rest.split('__');
+      strip('content_purchased', 'session_id');
+      fetchProjectFromCloud(albumId).then(album => { if (album) setReturnInfo({ mode: 'purchase', album, kind, trackId }); }).catch(() => {});
+    }
+  }, []);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [cloudStatus, setCloudStatus] = useState<'CONNECTED' | 'OFFLINE' | 'CHECKING'>('CHECKING');
 
@@ -2946,6 +2987,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               setSelectedVideo(null);
               setSelectedGame(null);
               setView('MIX_PLAYER');
+              setIsPublicView(true);
+            } else if (params.get('show') && !(remoteAlbum.isScheduled && remoteAlbum.releaseDate && remoteAlbum.releaseDate > Date.now())) {
+              // "Share in Show Mode": open the release on the fullscreen stage first.
+              setSelectedAlbum(remoteAlbum);
+              setShowModeOpts({ mode: parseShowMode(params.get('show')), trackId: params.get('track') });
+              setView('SHOW_MODE');
               setIsPublicView(true);
             } else {
               const isUnreleased = remoteAlbum.isScheduled && remoteAlbum.releaseDate && remoteAlbum.releaseDate > Date.now();
@@ -7061,6 +7108,27 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   partyId={partyIdForAlbum || undefined}
                 />
               )
+            )}
+            {view === 'SHOW_MODE' && selectedAlbum && (
+              <ShowModeView
+                album={selectedAlbum}
+                mode={showModeOpts.mode}
+                trackId={showModeOpts.trackId}
+                user={user}
+                onExit={() => setView('PLAYER')}
+                onSignUp={() => loginWithGoogle()}
+              />
+            )}
+            {lockedInfo && (
+              <React.Suspense fallback={null}>
+                <ArtistSupportSheet album={lockedInfo.album} track={lockedInfo.track} user={user} initialTab="buy" previewEnded
+                  onClose={() => setLockedInfo(null)} onSignUp={() => loginWithGoogle()} />
+              </React.Suspense>
+            )}
+            {returnInfo && (
+              <React.Suspense fallback={null}>
+                <SupportReturnModal info={returnInfo} uid={user?.uid} onClose={() => setReturnInfo(null)} />
+              </React.Suspense>
             )}
             {view === 'MIX_PLAYER' && selectedAlbum && (
               <MixPlayerView

@@ -2210,6 +2210,49 @@ async function startServer() {
             // plajah-payments-direction + plajah-ocme-integration memos.
           }
 
+          // ── Music purchase → the buyer's private locker ───────────────────────
+          // A bought album/track is added to personal_tracks (owner-only, never shareable) so it plays
+          // from My Library on every device. Copies point at the same audio URL; deterministic ids make
+          // a re-fired webhook idempotent.
+          if (mode === 'payment' && meta.type === 'content_purchase' && (meta.kind === 'album' || meta.kind === 'track') && meta.contentId && meta.uid) {
+            try {
+              const albumId = String(meta.contentId).split('__')[0];
+              const onlyTrack = meta.kind === 'track' ? String(meta.contentId).split('__')[1] : '';
+              const adoc = await fetchFirebaseDoc('albums', albumId);
+              const f = adoc?.fields;
+              if (f) {
+                const str = (v: any) => v?.stringValue || '';
+                const num = (v: any) => v?.doubleValue !== undefined ? Number(v.doubleValue) : v?.integerValue !== undefined ? Number(v.integerValue) : 0;
+                const albumTitle = str(f.title), albumArtist = str(f.artist), albumCover = str(f.coverImage);
+                const trs = (f.tracks?.arrayValue?.values || []).map((v: any) => v.mapValue?.fields).filter(Boolean);
+                let n = 0;
+                for (const t of trs) {
+                  const tid = str(t.id);
+                  if (!tid || (onlyTrack && tid !== onlyTrack) || !str(t.url)) continue;
+                  n++;
+                  await firestoreWrite('personal_tracks', `ptrack_buy_${albumId}_${tid}`.slice(0, 120), {
+                    id: `ptrack_buy_${albumId}_${tid}`.slice(0, 120),
+                    ownerId: meta.uid,
+                    rightsOwnerId: meta.uid,
+                    isPersonalMedia: true,
+                    isGlobalArchive: false,
+                    purchased: true,
+                    purchasedFromAlbumId: albumId,
+                    purchasedFromTrackId: tid,
+                    title: str(t.title) || albumTitle,
+                    artist: str(t.artist) || albumArtist,
+                    url: str(t.url),
+                    albumId: `purchase_${albumId}`,
+                    albumTitle,
+                    albumCover,
+                    trackNo: num(t.trackNo) || n,
+                    timestamp: now,
+                  });
+                }
+              }
+            } catch (e: any) { console.error('[Stripe] locker add for music purchase failed:', e?.message); }
+          }
+
           // ── Sanctuary: one-time campaign pledge ───────────────────────────────
           // Recorded as its own doc; the campaign's raised/backer totals are summed
           // from these client-side (firestoreWrite can't safely mutate the nested
@@ -2221,6 +2264,19 @@ async function startServer() {
               amount: parseFloat(meta.amount || '0'),
               kind: meta.kind || 'PROJECT',
               platformFeeCents: parseInt(meta.platformFeeCents || '0'),
+              stripePaymentIntentId: (session.payment_intent as string) || '',
+              createdAt: now,
+            });
+          }
+
+          // ── Artist gift: ledger row for the gifter's receipt and the artist's thank-you list ──
+          if (mode === 'payment' && meta.type === 'artist_gift') {
+            await firestoreCreate('artistGifts', {
+              fromUid: meta.uid || '',
+              toUid: meta.creatorUid || '',
+              albumId: meta.albumId || '',
+              title: meta.title || '',
+              amount: parseFloat(meta.amount || '0'),
               stripePaymentIntentId: (session.payment_intent as string) || '',
               createdAt: now,
             });
@@ -2397,7 +2453,7 @@ async function startServer() {
               meta.type === 'store_order'           ? `Store Order${meta.title ? `: ${meta.title}` : ''}` :
               meta.type === 'club_membership'       ? `Club Membership` :
               meta.type === 'seedraiser_pledge'     ? `SeedRaiser Pledge` :
-              meta.type === 'content_purchase'      ? `${meta.kind === 'book' ? 'Book' : 'Film'} ${meta.grant === 'RENTAL' ? 'Rental' : 'Sale'}${meta.title ? `: ${meta.title}` : ''}` : 'Payment';
+              meta.type === 'content_purchase'      ? `${meta.kind === 'book' ? 'Book' : meta.kind === 'album' ? 'Album' : meta.kind === 'track' ? 'Track' : 'Film'} ${meta.grant === 'RENTAL' ? 'Rental' : 'Sale'}${meta.title ? `: ${meta.title}` : ''}` : 'Payment';
 
             await firestoreCreate('creatorEarnings', {
               creatorUid:            recipientUid,
@@ -9486,14 +9542,40 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   // metadata so the license reflects what the creator chose in the uploader.
   app.post('/api/stripe/content-purchase', authMiddleware, express.json(), async (req: any, res) => {
     try {
-      const { kind, contentId, creatorUid, title, grant, price, delivery, watermark, rentalWindowHrs } = req.body;
-      if ((kind !== 'film' && kind !== 'book') || !contentId || !creatorUid || typeof price !== 'number' || price <= 0) {
-        return res.status(400).json({ error: 'kind (film|book), contentId, creatorUid and a positive price are required' });
+      let { kind, contentId, creatorUid, title, grant, price, delivery, watermark, rentalWindowHrs } = req.body;
+      const { trackId } = req.body;
+      // Music (Chora): the album/track price is read from Firestore, never trusted from the client.
+      // A track purchase is licensed as `track` with contentId `<albumId>__<trackId>`.
+      if (kind === 'album' || kind === 'track') {
+        const albumId = String(contentId || '');
+        if (!albumId || (kind === 'track' && !trackId)) return res.status(400).json({ error: 'albumId (contentId) and, for a track, trackId are required' });
+        const adoc = await fetchFirebaseDoc('albums', albumId);
+        const f = adoc?.fields;
+        if (!f) return res.status(404).json({ error: 'Release not found' });
+        const owner = f.ownerId?.stringValue || f.ownerUid?.stringValue || f.uid?.stringValue || f.creatorUid?.stringValue || '';
+        if (!owner) return res.status(400).json({ error: 'This release has no owner to pay' });
+        const num = (v: any) => v?.doubleValue !== undefined ? Number(v.doubleValue) : v?.integerValue !== undefined ? Number(v.integerValue) : 0;
+        let resolved = 0, resolvedTitle = f.title?.stringValue || '';
+        if (kind === 'album') {
+          resolved = num(f.price);
+        } else {
+          const tr = (f.tracks?.arrayValue?.values || []).map((v: any) => v.mapValue?.fields).find((t: any) => t?.id?.stringValue === trackId);
+          if (!tr) return res.status(404).json({ error: 'Track not found' });
+          resolved = num(tr.price);
+          resolvedTitle = tr.title?.stringValue || resolvedTitle;
+        }
+        if (!(resolved > 0)) return res.status(400).json({ error: 'This release is not for sale' });
+        creatorUid = owner; price = resolved; title = title || resolvedTitle; grant = 'PURCHASE';
+        if (kind === 'track') contentId = `${albumId}__${trackId}`;
+        delivery = 'PLAJAH_ONLY';
+      }
+      if ((kind !== 'film' && kind !== 'book' && kind !== 'album' && kind !== 'track') || !contentId || !creatorUid || typeof price !== 'number' || price <= 0) {
+        return res.status(400).json({ error: 'kind (film|book|album|track), contentId, creatorUid and a positive price are required' });
       }
       const g = grant === 'RENTAL' || grant === 'PPV' ? grant : 'PURCHASE';
       const stripe = getStripe();
       const origin = trustedRequestOrigin(req);
-      const noun = kind === 'book' ? 'Book' : 'Film';
+      const noun = kind === 'book' ? 'Book' : kind === 'album' ? 'Album' : kind === 'track' ? 'Track' : 'Film';
       const verb = g === 'RENTAL' ? 'Rental' : g === 'PPV' ? 'Premiere' : 'Purchase';
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
@@ -9588,6 +9670,44 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       res.json({ url: session.url });
     } catch (err: any) {
       console.error('[Stripe] sanctuary-pledge error:', err.message);
+      res.status(500).json({ error: err.message || 'Failed to create checkout session' });
+    }
+  });
+
+  // ── Artist gift (Chora) ───────────────────────────────────────────────────────
+  // A pure gift from a listener to an artist. Connect DIRECT destination charge: it settles to the
+  // artist's connected account (Plajah never holds it) with a 0% application fee, same as a
+  // Sanctuary DONATION. Bounded $1-$500 so a typo can't send a large charge.
+  app.post('/api/stripe/artist-gift', authMiddleware, express.json(), async (req: any, res) => {
+    try {
+      const { creatorId, amount, albumId, title } = req.body;
+      if (!creatorId || typeof amount !== 'number' || !(amount >= 1 && amount <= 500)) {
+        return res.status(400).json({ error: 'creatorId and an amount between $1 and $500 are required' });
+      }
+      if (creatorId === req.uid) return res.status(400).json({ error: 'You cannot gift yourself.' });
+      const ownerUser = await firestoreRead('users', creatorId);
+      const acct = ownerUser?.stripeConnectAccountId as string | undefined;
+      if (!acct) return res.status(400).json({ error: 'This artist has not set up payouts yet, so gifts cannot be sent to them.' });
+      const stripe = getStripe();
+      try {
+        const acctInfo = await stripe.accounts.retrieve(acct);
+        if (!acctInfo.payouts_enabled) return res.status(400).json({ error: 'This artist cannot receive payouts yet.' });
+      } catch { return res.status(400).json({ error: 'Could not verify the artist payout account.' }); }
+      const amountCents = Math.round(amount * 100);
+      const origin = trustedRequestOrigin(req);
+      const meta = { type: 'artist_gift', uid: req.uid, creatorUid: creatorId, albumId: albumId || '', amount: String(amount), title: String(title || '').slice(0, 120) };
+      const session = await stripe.checkout.sessions.create({
+        mode: 'payment',
+        payment_method_types: ['card'],
+        line_items: [{ price_data: { currency: 'usd', product_data: { name: `Gift for ${title || 'the artist'}` }, unit_amount: amountCents }, quantity: 1 }],
+        payment_intent_data: { transfer_data: { destination: acct }, metadata: meta },
+        success_url: `${origin}/?gift=success&session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin}/?gift=cancelled`,
+        metadata: meta,
+      });
+      res.json({ url: session.url });
+    } catch (err: any) {
+      console.error('[Stripe] artist-gift error:', err.message);
       res.status(500).json({ error: err.message || 'Failed to create checkout session' });
     }
   });

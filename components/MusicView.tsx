@@ -48,10 +48,28 @@ import PlajahPlusBanner from './PlajahPlusBanner';
 import { WC26_TEAMS } from '../data/worldCup2026';
 import { ANTHEM_LYRICS } from '../data/anthemLyrics';
 import { WC_ANTHEM_ALBUM } from '../data/wcAnthemAlbum';
-import { shareAsset, shareText } from '../services/deepLinkService';
+import { shareAsset, shareText, buildShareUrl, buildShowUrl } from '../services/deepLinkService';
+import ShareButton from './ShareButton';
 
 // Share a single Chora track — the link lands on the track's album page and (via the
 // AutoPlayCountdown) offers a 5s auto-play. `albumId` is the track's parent album.
+// Track share with the full platform menu (copy / social / Show Mode) instead of the bare native sheet.
+// Touch devices have no hover, so the control stays visible there.
+const TrackShare: React.FC<{ albumId: string; album?: Album; track: { id: string; title?: string; artist?: string }; className: string }> = ({ albumId, album, track, className }) => (
+  <div onClick={e => e.stopPropagation()}>
+    <ShareButton
+      title={track.title || album?.title || ''}
+      artist={track.artist || album?.artist}
+      text={shareText(track.title, track.artist || album?.artist)}
+      url={buildShareUrl('track', albumId, { track: track.id })}
+      showModeUrl={buildShowUrl(albumId, { track: track.id })}
+      imageUrl={album?.coverImage}
+      contentType="music"
+      iconSize={10}
+      className={className + ' [@media(hover:none)]:opacity-100'}
+    />
+  </div>
+);
 const shareTrack = (albumId: string, track: { id: string; title?: string; artist?: string }) => {
   shareAsset('track', albumId, {
     title: track.title,
@@ -2400,13 +2418,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                            <Plus size={10} />
                          </button>
                          {/* Share this track — lands on its album page with a 5s auto-play countdown */}
-                         <button
-                           onClick={e => { e.stopPropagation(); const alb = albums.find(a => a.tracks?.some(t => t.id === track.id)); if (alb) shareTrack(alb.id, track); }}
-                           className="tap p-1.5 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 hover:bg-small-orange/20 hover:text-small-orange transition-all shrink-0"
-                           title="Share this track"
-                         >
-                           <Share2 size={10} />
-                         </button>
+                         {(() => { const alb = albums.find(a => a.tracks?.some(t => t.id === track.id)); return alb ? <TrackShare albumId={alb.id} album={alb} track={track} className="tap p-1.5 rounded-full bg-white/5 opacity-0 group-hover:opacity-100 hover:bg-small-orange/20 hover:text-small-orange transition-all shrink-0" /> : null; })()}
                          {/* The Breakdown */}
                          <button
                            onClick={e => { e.stopPropagation(); window.dispatchEvent(new CustomEvent('OPEN_BREAKDOWN', { detail: { track, album: albums.find(a => a.tracks?.some(t => t.id === track.id)) ?? null } })); }}
@@ -2647,13 +2659,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                                             <p className="text-[8px] font-bold text-white/30 uppercase tracking-widest truncate">{track.artist}</p>
                                           </div>
                                           <span className="text-[9px] font-bold text-white/40 shrink-0">{fmtPlays(trackStats[track.id] ?? 0)} plays</span>
-                                          <button
-                                            onClick={e => { e.stopPropagation(); const albId = (track as any).albumId || albums.find(a => a.tracks?.some(t => t.id === track.id))?.id; if (albId) shareTrack(albId, track); }}
-                                            className="p-1.5 rounded-full opacity-0 group-hover:opacity-100 hover:bg-small-orange/20 text-white/30 hover:text-small-orange transition-all shrink-0"
-                                            title="Share this track"
-                                          >
-                                            <Share2 size={10} />
-                                          </button>
+                                          {(() => { const albId = (track as any).albumId || albums.find(a => a.tracks?.some(t => t.id === track.id))?.id; return albId ? <TrackShare albumId={albId} album={albums.find(a => a.id === albId)} track={track} className="p-1.5 rounded-full opacity-0 group-hover:opacity-100 hover:bg-small-orange/20 text-white/30 hover:text-small-orange transition-all shrink-0" /> : null; })()}
                                           <button
                                             onClick={async () => {
                                               await removeTrackFromPlaylist(pl.id, track.id);

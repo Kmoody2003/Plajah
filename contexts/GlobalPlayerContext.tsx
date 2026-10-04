@@ -28,6 +28,7 @@ import Hls from 'hls.js';
 import { peekTrackStream, prefetchTrackStreams, pickStreamUrl, getQuality as getAudioQuality, enqueueTranscode, enqueueAlbumTranscodes, getTrackStream } from '../services/choraStreamService';
 import { attachPlaybackHealth, configurePlaybackHealth, getSummary as getHealthSummary, getEvents as getHealthEvents, reset as resetHealth } from '../services/playbackHealth';
 import { auth as fbAuth } from '../services/firebase';
+import { canPlayFull, PREVIEW_SECONDS, MUSIC_LOCKED_EVENT } from '../services/musicAccess';
 import { buildRadioQueue, type UpNextItem } from '../services/musicRecommender';
 import { FxChainHost, newInstance, type FxInstance } from '../services/melos/beats/fx/devices';
 
@@ -2095,6 +2096,19 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const onTimeUpdate = () => {
       const time = audio.currentTime;
       stateRef.current.currentTime = time;
+
+      // Priced release, not bought: the listener hears a PREVIEW_SECONDS preview, then we stop and ask
+      // the app to offer the buy flow. Locker copies, radio and the artist's own plays are exempt.
+      if (time >= PREVIEW_SECONDS && stateRef.current.audioSource === 'LIBRARY') {
+        const lockedTrack = stateRef.current.currentTrack, lockedAlbum = stateRef.current.currentAlbum;
+        if (!canPlayFull(lockedTrack, lockedAlbum, fbAuth.currentUser?.uid)) {
+          intendedPlayingRef.current = false;
+          audio.pause();
+          audio.currentTime = 0;
+          window.dispatchEvent(new CustomEvent(MUSIC_LOCKED_EVENT, { detail: { track: lockedTrack, album: lockedAlbum } }));
+          return;
+        }
+      }
 
       setCurrentTime(prev => {
         if (Math.abs(prev - time) >= 0.05 || time === 0) {

@@ -308,6 +308,21 @@ export async function purchaseContent(opts: {
   await redirectToCheckout('/api/stripe/content-purchase', opts);
 }
 
+// ── Chora: gift an artist + buy an album/track ────────────────────────────────
+// Gift = Connect DIRECT, 0% platform fee (server.ts /api/stripe/artist-gift).
+export const PENDING_GIFT_KEY = 'plajah:pendingGift';
+export async function giftArtist(opts: { creatorId: string; amount: number; albumId?: string; title?: string; artistName?: string }): Promise<void> {
+  // Remembered across the Stripe round-trip so the return screen can thank the artist by name.
+  try { sessionStorage.setItem(PENDING_GIFT_KEY, JSON.stringify({ artist: opts.artistName || '', title: opts.title || '', amount: opts.amount, albumId: opts.albumId || '' })); } catch { /* private mode */ }
+  const { artistName: _omit, ...body } = opts;
+  await redirectToCheckout('/api/stripe/artist-gift', body);
+}
+
+// Music purchase. The server reads the price from the release itself; the client sends ids only.
+export async function purchaseMusic(opts: { kind: 'album' | 'track'; albumId: string; trackId?: string; title?: string }): Promise<void> {
+  await redirectToCheckout('/api/stripe/content-purchase', { kind: opts.kind, contentId: opts.albumId, trackId: opts.trackId, title: opts.title });
+}
+
 // ── Tier Metadata ─────────────────────────────────────────────────────────────
 
 export const TIER_META = {

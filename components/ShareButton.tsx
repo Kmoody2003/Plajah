@@ -37,12 +37,15 @@ interface ShareButtonProps {
   authorName?: string;
   authorPhoto?: string;
   ctaText?: string;
+  /** When provided, the menu offers "Share in Show Mode" — the same release opened first on a
+   *  fullscreen visualizer stage (see ShowModeView). Toggling swaps the link everything below shares. */
+  showModeUrl?: string;
   children?: React.ReactNode;
 }
 
 const ShareButton: React.FC<ShareButtonProps> = ({
   title, text, url, imageUrl, artist, className, style, label, iconSize = 18,
-  onPostToPlajah, plajahLabel, contentType, pollData, postText, authorName, authorPhoto, ctaText, children
+  onPostToPlajah, plajahLabel, contentType, pollData, postText, authorName, authorPhoto, ctaText, showModeUrl, children
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -51,7 +54,8 @@ const ShareButton: React.FC<ShareButtonProps> = ({
   const [card, setCard] = useState<{ dataUrl: string; blob: Blob | null } | null>(null);
   const [showGuide, setShowGuide] = useState(false);
 
-  const shareUrl = url || window.location.href;
+  const [showOn, setShowOn] = useState(false);
+  const shareUrl = (showOn && showModeUrl) ? showModeUrl : (url || window.location.href);
   // Album/track/video links render a playable mini-player when shared — show the guide.
   const isEmbedLink = /[?&]type=(album|video|feed)\b/.test(shareUrl) || shareUrl.includes('/embed') || shareUrl.includes('/share?');
 
@@ -96,7 +100,7 @@ const ShareButton: React.FC<ShareButtonProps> = ({
 
   // With a Plajah action present, open the menu directly (so it's never skipped
   // by the native share sheet); otherwise prefer the OS share sheet.
-  const handleButtonClick = () => { if (onPostToPlajah) setIsOpen(true); else handleNativeShare(); };
+  const handleButtonClick = () => { if (onPostToPlajah || showModeUrl) setIsOpen(true); else handleNativeShare(); };
 
   // Ensure share text never contains .com or duplicate URLs, so social preview scrapers only see the single deep link.
   const cleanText = (text || '')
@@ -286,6 +290,17 @@ const ShareButton: React.FC<ShareButtonProps> = ({
                   </button>
                 )}
               </div>
+
+              {/* Share in Show Mode — opens the release fullscreen on the visualizer stage first */}
+              {showModeUrl && (
+                <div className="mb-3 flex rounded-2xl overflow-hidden border border-white/10 bg-white/5 text-[10px] font-black uppercase tracking-widest">
+                  <button onClick={() => setShowOn(false)} className={`flex-1 py-2.5 transition-all ${!showOn ? 'bg-white text-black' : 'text-white/50 hover:text-white'}`}>Standard</button>
+                  <button onClick={() => setShowOn(true)} className={`flex-1 py-2.5 flex items-center justify-center gap-1.5 transition-all ${showOn ? 'text-white' : 'text-white/50 hover:text-white'}`}
+                    style={showOn ? { background: 'linear-gradient(120deg,#6B0099,#D40055 55%,#FF8C00)' } : undefined}>
+                    <Sparkles size={12} /> Show Mode
+                  </button>
+                </div>
+              )}
 
               {/* Embed links render a playable mini-player when shared — quick guide. */}
               {isEmbedLink && (

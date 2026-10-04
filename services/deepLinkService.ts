@@ -69,6 +69,18 @@ export function buildShareUrl(asset: ShareAsset, id: string, extra?: Record<stri
   }
 }
 
+export type ShowMode = 'DEFAULT' | 'FX' | 'SLIDES';
+export const parseShowMode = (v?: string | null): ShowMode =>
+  v === 'fx' || v === 'FX' ? 'FX' : v === 'slides' || v === 'SLIDES' ? 'SLIDES' : 'DEFAULT';
+
+/** "Share in Show Mode" — the album link plus `show=<mode>`; App's boot handler opens it on the
+ *  fullscreen ShowModeView. Still routes through /share, so link previews (OG) are the album's. */
+export function buildShowUrl(albumId: string, opts?: { track?: string; mode?: 'default' | 'fx' | 'slides' }): string {
+  const u = new URLSearchParams({ type: 'album', id: albumId, show: opts?.mode || 'default' });
+  if (opts?.track) u.set('track', opts.track);
+  return `${shareOrigin()}/share?${u.toString()}`;
+}
+
 /** The default social post body — creator-forward, mirrors the /share OG description so
  *  the typed text and the link-preview card read the same: "Check out X by Y on Plajah". */
 export function shareText(title?: string, artist?: string): string {

@@ -582,6 +582,8 @@ export interface Album {
   genre?: string;
   price?: number; // Price for full album
   isPaywalled?: boolean;
+  /** Artist's deliberate choice: non-buyers get a 30s preview only. Default off — priced music still streams in full and buying means owning/downloading it. */
+  previewOnly?: boolean;
   /** Content license id (see services/licensingService ContentLicenseId).
    *  Defaults to All Rights Reserved when unset. Gated behind CONTENT_LICENSING. */
   license?: string;
@@ -3603,6 +3605,7 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'TELA_EMBED_DEMO'
   // Chora Mixes — the dedicated long-form DJ-set player (waveform + Pixels auto-show)
   | 'MIX_PLAYER'
+  | 'SHOW_MODE'
   // Chora Artist Page — music-centric artist profile (Editorial Gallery layout)
   | 'CHORA_ARTIST'
   // Personal Artist Page — enriched external artist from music locker (Wikipedia + MusicBrainz)

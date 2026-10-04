@@ -26,7 +26,7 @@ import { doc, getDoc, getDocs, collection, query, where } from 'firebase/firesto
 import { db } from './firebase';
 import { passportIdFor, isPlaceholderPassport, stripUndefined } from './creatorPassport';
 
-export type ContentKind = 'film' | 'book';
+export type ContentKind = 'film' | 'book' | 'album' | 'track';
 /** PURCHASE / PPV are owned forever; RENTAL expires. */
 export type LicenseGrant = 'PURCHASE' | 'RENTAL' | 'PPV';
 /** How the buyer receives the work once owned. Films: FilmDistribution.delivery. */
