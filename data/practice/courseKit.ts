@@ -32,3 +32,5 @@ export const tf = (
 /** Shown in the course panel for every Law and Medicine course. */
 export const LAW_NOTICE = 'Educational use only. This is general legal education, mostly about United States law, and it is not legal advice. Laws differ by place and change over time, so talk to a licensed lawyer about a real situation.';
 export const MEDICINE_NOTICE = 'Educational use only. This is general health and medical education, not medical advice, diagnosis or treatment. It is not a substitute for a clinician. In an emergency call your local emergency number.';
+/** Shown in the course panel for Machines and Trades courses (Machine Atlas). */
+export const MACHINES_NOTICE = 'Educational use only, and a Draft. Brakes are a safety system: this course is general, generic-vehicle teaching, not a repair procedure for any specific vehicle. Always follow the factory service manual, use proper stands and tools, and have safety-critical work done or checked by a qualified technician. Content needs review by an ASE-certified master technician before any verified label.';

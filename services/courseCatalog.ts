@@ -10,7 +10,7 @@
  */
 import type { Curriculum } from './schoolChassis';
 import { ROSTER, LAW_ACCENT, INTL_ACCENT, MED_ACCENT, type LadderStage } from '../data/lawMedicineRoster';
-import { LAW_NOTICE, MEDICINE_NOTICE } from '../data/practice/courseKit';
+import { LAW_NOTICE, MEDICINE_NOTICE, MACHINES_NOTICE } from '../data/practice/courseKit';
 
 export type CourseKind = 'curriculum' | 'math' | 'context' | 'link';
 export interface Course {
@@ -45,6 +45,7 @@ export const SUBJECTS: Subject[] = [
   { id: 'sport', title: 'Sport, Movement & Culture', blurb: 'The history and culture of the world’s games and martial arts.', emoji: '🏟️', accent: '#3FB98E' },
   { id: 'law', title: 'Law', blurb: 'Open law, from "what is fair?" in preschool to a full law school curriculum, with international and comparative law. Kept current from new court rulings.', emoji: '⚖️', accent: LAW_ACCENT },
   { id: 'medicine', title: 'Medicine', blurb: 'Open medicine, from "how does my body work?" to a full medical school curriculum, with ethics, pharmacology and the philosophy of medicine. Kept current from new research.', emoji: '🩺', accent: MED_ACCENT },
+  { id: 'machines', title: 'Machines & Trades', blurb: 'How machines work and the trades that fix them, from simple machines to technician-level systems, tied to the 3D Machine Atlas. Brakes first.', emoji: '🔧', accent: '#FF8C00' },
   { id: 'museums', title: 'Museums & Exploration', blurb: 'Walk through living museums and open archives.', emoji: '🗿', accent: '#36c5f0' },
 ];
 
@@ -154,6 +155,10 @@ export const COURSES: Course[] = [
   { id: 'film-museum', subject: 'museums', title: 'Film Museum', blurb: 'Public-domain cinema and film history.', emoji: '🎞️', accent: '#e23b6d', kind: 'link', view: 'MOVIES_TV' },
   // Law and Medicine ladders (data/lawMedicineRoster.ts)
   ...ROSTER_COURSES,
+  // Machines & Trades (Machine Atlas): brakes pilot, three stages of one topic
+  { id: 'atlas-brakes-g68', subject: 'machines', title: 'How Brakes Work', blurb: 'Friction, pressure, the pedal-to-wheel path, disc and drum brakes, ABS, safe habits and warning signs.', emoji: '🛞', accent: '#FF8C00', kind: 'curriculum', view: 'MACHINE_ATLAS', curriculumId: 'atlas-brakes-g68', stage: 'g68', notice: MACHINES_NOTICE },
+  { id: 'atlas-brakes-hs', subject: 'machines', title: 'Auto Tech: Brakes', blurb: 'Hydraulics, boosters, calipers and drums, fluid, ABS basics, inspection, diagnosis, estimating and customer communication.', emoji: '🔧', accent: '#FF8C00', kind: 'curriculum', view: 'MACHINE_ATLAS', curriculumId: 'atlas-brakes-hs', stage: 'g912', notice: MACHINES_NOTICE },
+  { id: 'atlas-brakes-college', subject: 'machines', title: 'Brake Systems for Technicians', blurb: 'Force and heat calculations, ABS control theory, scan-tool diagnosis, bleeding methods, regenerative braking, documentation and liability.', emoji: '🛠️', accent: '#FF8C00', kind: 'curriculum', view: 'MACHINE_ATLAS', curriculumId: 'atlas-brakes-college', stage: 'college', notice: MACHINES_NOTICE },
 ];
 
 export const coursesIn = (subjectId: string) => COURSES.filter(c => c.subject === subjectId);
@@ -284,6 +289,9 @@ CURRICULUM_LOADERS['med-clin-em'] = () => import('../data/practice/courses/med-c
 CURRICULUM_LOADERS['med-clin-fm'] = () => import('../data/practice/courses/med-clin-fm').then(m => m.COURSE_MODULE.curriculum);
 CURRICULUM_LOADERS['med-ethics-prof'] = () => import('../data/practice/courses/med-ethics-prof').then(m => m.COURSE_MODULE.curriculum);
 CURRICULUM_LOADERS['med-global-health'] = () => import('../data/practice/courses/med-global-health').then(m => m.COURSE_MODULE.curriculum);
+CURRICULUM_LOADERS['atlas-brakes-g68'] = () => import('../data/practice/courses/atlas-brakes-g68').then(m => m.COURSE_MODULE.curriculum);
+CURRICULUM_LOADERS['atlas-brakes-hs'] = () => import('../data/practice/courses/atlas-brakes-hs').then(m => m.COURSE_MODULE.curriculum);
+CURRICULUM_LOADERS['atlas-brakes-college'] = () => import('../data/practice/courses/atlas-brakes-college').then(m => m.COURSE_MODULE.curriculum);
 export const loadCurriculum = (id: string): Promise<Curriculum | null> =>
   (CURRICULUM_LOADERS[id] ? CURRICULUM_LOADERS[id]() : Promise.resolve(null)).catch(() => null);
 

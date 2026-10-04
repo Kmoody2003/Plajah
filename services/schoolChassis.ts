@@ -52,6 +52,8 @@ export interface Lesson {
   anchors?: LessonAnchor[];
   /** YYYY-MM the lesson's facts were last checked against current sources. */
   asOf?: string;
+  /** Machine Atlas: simulation scenario id this lesson can deep-link into (e.g. 'apply', 'abs', 'fault-worn-pads'). */
+  atlasScenario?: string;
 }
 
 export type AnchorKind = 'case' | 'statute' | 'regulation' | 'treaty' | 'mesh' | 'drug' | 'trial' | 'guideline' | 'concept';
@@ -81,6 +83,8 @@ export interface Curriculum {
   blurb: string;
   accent: string;
   framework?: string;    // standards framework for ledger records
+  /** Review caveat shown with the course (e.g. safety-critical content awaiting expert review). */
+  reviewNote?: string;
   tracks: Track[];
 }
 

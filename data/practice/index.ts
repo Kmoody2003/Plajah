@@ -127,6 +127,9 @@ LOADERS['med-clin-em'] = () => import('./courses/med-clin-em').then(m => m.COURS
 LOADERS['med-clin-fm'] = () => import('./courses/med-clin-fm').then(m => m.COURSE_MODULE.bank);
 LOADERS['med-ethics-prof'] = () => import('./courses/med-ethics-prof').then(m => m.COURSE_MODULE.bank);
 LOADERS['med-global-health'] = () => import('./courses/med-global-health').then(m => m.COURSE_MODULE.bank);
+LOADERS['atlas-brakes-g68'] = () => import('./courses/atlas-brakes-g68').then(m => m.COURSE_MODULE.bank);
+LOADERS['atlas-brakes-hs'] = () => import('./courses/atlas-brakes-hs').then(m => m.COURSE_MODULE.bank);
+LOADERS['atlas-brakes-college'] = () => import('./courses/atlas-brakes-college').then(m => m.COURSE_MODULE.bank);
 
 const cache = new Map<string, QuestionBank>();
 export const hasBank = (curriculumId: string) => curriculumId in LOADERS;
