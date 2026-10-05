@@ -7,7 +7,7 @@
   xmlns:uap10="http://schemas.microsoft.com/appx/manifest/uap/windows10/10"
   IgnorableNamespaces="uap rescap desktop4 uap10">
 
-  <Identity Name="Plajah.Platform" Publisher="CN=Plajah" Version="1.0.55.0" />
+  <Identity Name="Plajah.Platform" Publisher="CN=Plajah" Version="1.0.56.0" />
 
   <Properties>
     <DisplayName>Plajah</DisplayName>
