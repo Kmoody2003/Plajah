@@ -1,0 +1,1541 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Cell Atlas Darkfield</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Geist:wght@400;500;600&family=Geist+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: dark-field stage with a color key rail attached; controls under it; explanation + instruments below. Plajah purple/magenta/orange used sparingly. */
+:root{
+  --bg:#07050c;--panel:#0e0a15;--fg:#f1e8ee;--muted:#a395a8;--line:rgba(241,232,238,.16);
+  --pj-purple:#6B0099;--pj-magenta:#D40055;--pj-orange:#FF8C00;
+  --grad:linear-gradient(110deg,#8a1fc2,#D40055 58%,#FF8C00);
+  --f-disp:"Instrument Serif",Georgia,serif;--f-body:"Geist",system-ui,sans-serif;--f-mono:"Geist Mono",ui-monospace,monospace;
+  --gut:clamp(16px,3vw,40px);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.55 var(--f-body);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--pj-orange);outline-offset:2px}
+[hidden]{display:none!important}
+
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 24px;padding:16px var(--gut);border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+.brand b{font:500 12px var(--f-mono);letter-spacing:.2em;text-transform:uppercase;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand span{color:var(--muted);font-size:13px}
+.top h1{margin:0;font:400 clamp(24px,3vw,36px)/1 var(--f-disp);letter-spacing:-.01em}
+
+.app{padding:18px var(--gut) 24px;display:grid;gap:18px;min-width:0}
+.app>*{min-width:0}
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:0;border:1px solid var(--line);background:#07050c}
+.stage{position:relative;aspect-ratio:16/10;overflow:hidden;background:#07050c;box-shadow:0 0 140px rgba(212,0,85,.10)}
+.stage canvas{display:block;width:100%;height:100%;touch-action:manipulation}
+.stage::after{content:"";position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 50% 50%,transparent 60%,rgba(0,0,0,.5))}
+.ov{position:absolute;pointer-events:none;z-index:2}
+#place{left:18px;top:14px}
+#place small{display:block;font:500 10.5px var(--f-mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+#place b{display:block;font:400 clamp(24px,3.2vw,40px)/1 var(--f-disp);font-style:italic}
+#ticker{display:grid;gap:6px;font-size:13.5px;line-height:1.35}
+#ticker div{display:flex;gap:9px;align-items:flex-start}
+#ticker i{flex:none;width:9px;height:9px;border-radius:50%;margin-top:5px;box-shadow:0 0 8px currentColor}
+#sub{left:50%;transform:translateX(-50%);bottom:14px;width:min(86%,780px);text-align:center;font:400 clamp(18px,2.3vw,28px)/1.25 var(--f-disp);background:rgba(7,5,12,.72);padding:10px 18px;border-radius:12px;backdrop-filter:blur(4px)}
+#sub span{color:#cbbfd0;transition:color .1s}
+#sub span.on{color:#fff;text-shadow:0 0 14px rgba(255,140,0,.7)}
+#tip{position:absolute;z-index:3;width:min(290px,70%);background:rgba(14,10,21,.96);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.4;pointer-events:none;box-shadow:0 12px 40px rgba(0,0,0,.6)}
+#tip b{display:flex;align-items:center;gap:8px;font:500 11px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px}
+#tip b::before{content:"";width:10px;height:10px;border-radius:50%;background:var(--c);box-shadow:0 0 8px var(--c)}
+#tip em{display:block;margin-top:6px;font:normal 11px var(--f-mono);color:var(--muted)}
+
+.key{position:relative;border-left:1px solid var(--line);background:var(--panel)}
+.key .in{position:absolute;inset:0;overflow:auto;padding:12px 12px 14px}
+.lab{font:500 11px var(--f-mono);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
+.key h3{margin:12px 0 6px}
+.key h3:first-child{margin-top:0}
+.krow{display:grid;grid-template-columns:28px 1fr;gap:8px;align-items:center;width:100%;text-align:left;background:transparent;border:1px solid transparent;border-radius:8px;padding:4px 6px}
+.krow:hover,.krow[aria-pressed="true"]{background:rgba(255,255,255,.06);border-color:var(--line)}
+.krow[aria-pressed="true"]{border-color:var(--pj-magenta)}
+.krow b{display:block;font-weight:500;font-size:13.5px;line-height:1.2}
+.krow small{display:block;color:var(--muted);font-size:12px;line-height:1.25}
+.kbtn{margin-top:10px;width:100%}
+.panel{border-top:1px solid var(--line);padding:18px 0 0;min-width:0}
+.btn{background:transparent;border:1px solid var(--line);padding:7px 14px;border-radius:999px;font-size:13px;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn.on,.btn[aria-pressed="true"]{border-color:var(--pj-magenta);background:rgba(212,0,85,.16)}
+.btn.main{background:var(--grad);border:0;color:#fff;font-weight:600;padding:9px 18px}
+.btn.main:hover{filter:brightness(1.1)}
+.row{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
+.row+.row{margin-top:12px}
+.zoom{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.zoom .btn small{display:block;font:400 10px var(--f-mono);color:var(--muted)}
+.sep{width:1px;height:26px;background:var(--line)}
+.journey{flex:1 1 220px;display:flex;align-items:center;gap:10px;min-width:0}
+.journey span{font:500 11px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);white-space:nowrap}
+input[type=range]{flex:1;min-width:80px;accent-color:var(--pj-magenta)}
+.hint{font-size:12.5px;color:var(--muted);margin:12px 0 0}
+.tourbar{display:flex;gap:8px;align-items:center}
+.tourbar .n{font:500 11px var(--f-mono);letter-spacing:.12em;color:var(--muted);text-transform:uppercase}
+
+.two{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr);gap:28px 36px}
+.tiers{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.tiers button{background:transparent;border:1px solid var(--line);padding:5px 12px;border-radius:999px;font-size:12.5px}
+.tiers button[aria-pressed="true"]{background:var(--fg);color:var(--bg);border-color:var(--fg)}
+.where{font:500 11px var(--f-mono);letter-spacing:.14em;text-transform:uppercase;margin:0 0 6px;background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent;display:inline-block}
+.explain h2{margin:0 0 6px;font:400 clamp(28px,3.4vw,44px)/1.02 var(--f-disp);text-wrap:balance}
+.explain .cap{font-size:16.5px;max-width:64ch;margin:0 0 14px;min-height:5.2em}
+.partbox{border-left:2px solid var(--c,var(--pj-magenta));padding:2px 0 2px 14px;font-size:14.5px;max-width:64ch;min-height:5em;margin-top:14px}
+.partbox b{display:block;font:500 11px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--c,var(--muted));margin-bottom:3px}
+.meter{display:flex;align-items:center;gap:12px;margin-bottom:14px}
+.mbar{flex:1;height:12px;border-radius:99px;background:var(--line);overflow:hidden}
+.mbar i{display:block;height:100%;width:50%;background:linear-gradient(90deg,#6a1436,#ff3a35);border-radius:99px;transition:width .2s}
+.meter span{font:500 13px var(--f-mono);min-width:8em;text-align:right}
+dl.g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin:0}
+dl.g dt{font:500 10.5px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+dl.g dd{margin:0;font:500 19px var(--f-mono);font-variant-numeric:tabular-nums}
+dl.g dd small{font-size:11px;color:var(--muted);margin-left:2px}
+.side{display:grid;gap:22px;align-content:start}
+.curve canvas{display:block;width:100%;height:190px}
+.eq{font:400 13px/1.7 var(--f-mono);color:var(--muted);margin:10px 0 0;overflow-wrap:anywhere}
+.eq b{color:var(--fg);font-weight:500}
+body[data-tier="0"] .t2,
+body[data-tier="0"] .t3,
+body:not([data-tier="2"]) .t4,body:not([data-tier="0"]) .t0only{display:none}
+
+.stagecol{display:flex;flex-direction:column;min-width:0}
+.strip{border-top:1px solid var(--line);padding:12px 16px;background:var(--panel);min-height:68px}
+.lesson{display:grid;gap:12px}
+.lesson .meta{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font:500 11px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.lesson .meta .sp{flex:1}
+.dots{display:flex;gap:5px}.dots i{width:22px;height:4px;border-radius:2px;background:var(--line)}.dots i.on{background:var(--pj-magenta)}.dots i.cur{background:var(--pj-orange)}
+.lesson .goal{font:italic 400 16px/1.3 var(--f-disp);color:var(--fg)}
+.lesson .q{margin:0;font:400 clamp(21px,2.3vw,28px)/1.18 var(--f-disp);text-wrap:balance}
+.lesson .txt{margin:0;font-size:16px;line-height:1.5;max-width:72ch}
+.opts{display:grid;gap:8px}
+.opts button{text-align:left;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:15px}
+.opts button:hover:not(:disabled){border-color:var(--muted)}
+.opts button.ok{border-color:#4fe3a0;background:rgba(79,227,160,.14)}
+.opts button.no{border-color:#ffb23e;background:rgba(255,178,62,.12)}
+.opts button.pk{border-color:var(--pj-magenta);background:rgba(212,0,85,.16)}
+.opts button:disabled{cursor:default}
+.fb{border-left:3px solid var(--c);padding:4px 0 4px 12px;font-size:15px;max-width:72ch}
+.fb.ok{--c:#4fe3a0}.fb.no{--c:#ffb23e}.fb.hint{--c:#69d2ff}
+.fb b{display:block;font:500 10.5px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--c);margin-bottom:2px}
+.myth{background:rgba(255,178,62,.08);border:1px solid rgba(255,178,62,.3);border-radius:10px;padding:10px 14px;font-size:14.5px;max-width:72ch}
+.score{font:400 clamp(30px,4vw,48px)/1 var(--f-disp)}
+.blind .krow b,.blind .krow small{filter:blur(6px)}.blind{pointer-events:none}
+.learnbar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.learnbar h2{margin:0;font:400 clamp(24px,2.6vw,32px)/1 var(--f-disp)}
+.learnbar span{color:var(--muted);font-size:13.5px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:10px}
+.card{text-align:left;border:1px solid var(--line);border-radius:12px;background:transparent;padding:12px 14px;min-width:0}
+.card:hover{border-color:var(--pj-magenta)}
+.card b{display:block;font:400 20px/1.1 var(--f-disp)}
+.card small{display:block;color:var(--muted);margin-top:5px;font-size:12.5px;line-height:1.3}
+.card .st{font:500 10.5px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;margin-top:9px;color:var(--muted)}
+.card.done .st{color:#4fe3a0}
+.stagecol{display:flex;flex-direction:column;min-width:0}
+.strip{border-top:1px solid var(--line);padding:12px 16px;background:var(--panel);min-height:68px}
+.lesson{display:grid;gap:12px}
+.lesson .meta{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;font:500 11px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.lesson .meta .sp{flex:1}
+.dots{display:flex;gap:5px}.dots i{width:22px;height:4px;border-radius:2px;background:var(--line)}.dots i.on{background:var(--pj-magenta)}.dots i.cur{background:var(--pj-orange)}
+.lesson .goal{font:italic 400 16px/1.3 var(--f-disp);color:var(--fg)}
+.lesson .q{margin:0;font:400 clamp(21px,2.3vw,28px)/1.18 var(--f-disp);text-wrap:balance}
+.lesson .txt{margin:0;font-size:16px;line-height:1.5;max-width:72ch}
+.opts{display:grid;gap:8px}
+.opts button{text-align:left;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-size:15px}
+.opts button:hover:not(:disabled){border-color:var(--muted)}
+.opts button.ok{border-color:#4fe3a0;background:rgba(79,227,160,.14)}
+.opts button.no{border-color:#ffb23e;background:rgba(255,178,62,.12)}
+.opts button.pk{border-color:var(--pj-magenta);background:rgba(212,0,85,.16)}
+.opts button:disabled{cursor:default}
+.fb{border-left:3px solid var(--c);padding:4px 0 4px 12px;font-size:15px;max-width:72ch}
+.fb.ok{--c:#4fe3a0}.fb.no{--c:#ffb23e}.fb.hint{--c:#69d2ff}
+.fb b{display:block;font:500 10.5px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--c);margin-bottom:2px}
+.myth{background:rgba(255,178,62,.08);border:1px solid rgba(255,178,62,.3);border-radius:10px;padding:10px 14px;font-size:14.5px;max-width:72ch}
+.myth b{display:block;font:500 10.5px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:#ffb23e;margin-bottom:2px}
+.score{font:400 clamp(30px,4vw,48px)/1 var(--f-disp)}
+.blind .krow b,.blind .krow small{filter:blur(6px)}
+.blind{pointer-events:none}
+.learnbar{display:flex;flex-wrap:wrap;gap:10px 18px;align-items:center;justify-content:space-between;margin-bottom:12px}
+.learnbar h2{margin:0;font:400 clamp(24px,2.6vw,32px)/1 var(--f-disp)}
+.learnbar span{color:var(--muted);font-size:13.5px}
+.cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(215px,1fr));gap:10px}
+.card{text-align:left;border:1px solid var(--line);border-radius:12px;background:transparent;padding:12px 14px;min-width:0}
+.card:hover{border-color:var(--pj-magenta)}
+.card b{display:block;font:400 20px/1.1 var(--f-disp)}
+.card small{display:block;color:var(--muted);margin-top:5px;font-size:12.5px;line-height:1.3}
+.card .st{font:500 10.5px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;margin-top:9px;color:var(--muted)}
+.card.done .st{color:#4fe3a0}
+
+.math{padding-top:22px}
+.msub{color:var(--muted);max-width:84ch;font-size:14px;margin:0 0 14px}
+.eqs{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,430px),1fr));gap:14px}
+.eqc{border:1px solid var(--line);border-radius:12px;padding:14px 16px;min-width:0}
+.eqc h3{margin:0 0 8px;font:400 22px/1.1 var(--f-disp)}
+.eqf{font:400 14px/1.55 var(--f-mono);background:rgba(255,255,255,.05);padding:8px 10px;border-radius:8px;margin-bottom:8px;overflow-x:auto}
+.eqc p{margin:6px 0;font-size:14.5px}
+.eqw{background:rgba(105,210,255,.07);border-left:2px solid #69d2ff;padding:6px 10px}
+.eqx{color:var(--muted)}
+.eqc b:first-child{font-weight:600}
+.lv{font-family:var(--f-mono);color:var(--pj-orange);font-weight:500}
+.eqs2{margin-top:6px}
+.tw{overflow-x:auto}
+.math table{border-collapse:collapse;width:100%;font-size:13.5px;min-width:620px}
+.math th{text-align:left;font:500 10.5px var(--f-mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:6px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+.math td{padding:8px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+.math td small{display:block;color:var(--muted);font-size:12px;margin-top:2px}
+.mono{font-family:var(--f-mono);white-space:nowrap}
+.bd{display:inline-block;font:500 10.5px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--c,#ffb23e);border:1px solid var(--c,#ffb23e);border-radius:999px;padding:1px 8px;white-space:nowrap}
+.cite{color:var(--pj-orange);text-decoration:none;font:500 12px var(--f-mono);margin-right:4px}
+.cite:hover{text-decoration:underline}
+.srcs{padding-left:24px;display:grid;gap:12px;font-size:13.5px;max-width:110ch}
+.srcs li{padding:4px 6px;border-radius:6px;scroll-margin-top:90px}
+.srcs li.flash{background:rgba(255,140,0,.18)}
+.srcs .used{color:var(--muted);font-size:12px;margin-top:2px}
+.srcs a{color:var(--fg);overflow-wrap:anywhere}
+.lims{max-width:84ch}
+.lims dt{font:500 11px var(--f-mono);letter-spacing:.12em;text-transform:uppercase;color:var(--fg);margin-top:14px}
+.lims dd{margin:3px 0 0;color:var(--muted)}
+.srcrow{display:flex;flex-wrap:wrap;gap:4px 8px;align-items:center;margin:10px 0 0;font:500 11px var(--f-mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.srcrow:empty{display:none}
+
+.foot{padding:4px var(--gut) 40px;color:var(--muted);font-size:13px;max-width:90ch}
+@media (max-width:1000px){
+  .wrap{grid-template-columns:1fr}.stage{aspect-ratio:1/1.05}
+  .key{border-left:0;border-top:1px solid var(--line)}.key .in{position:static}
+  .two{grid-template-columns:1fr}
+  #place{display:none}#ticker{max-width:92%;font-size:12.5px}
+}
+@media (prefers-reduced-motion:reduce){.mbar i{transition:none}}
+</style>
+
+<body data-tier="1">
+<div role="note" style="position:sticky;top:0;z-index:50;background:#2a1a05;border-bottom:1px solid #FF8C00;color:#ffd9a0;font:500 13px/1.4 system-ui,sans-serif;padding:8px 16px;text-align:center">Under review: this content is being checked for accuracy. Figures and shapes are teaching models, not for assessment.</div>
+<header class="top">
+  <div class="brand"><b>Cell Atlas</b><span>Plajah · Human Body</span></div>
+  <h1>The red blood cell</h1>
+</header>
+
+<main class="app">
+  <div class="wrap">
+    <div class="stagecol">
+    <section class="stage" id="stage" aria-label="Live simulation of a red blood cell">
+      <canvas id="cv"></canvas>
+      <div class="ov" id="place"></div>
+      <div class="ov" id="sub" hidden></div>
+      <div id="tip" hidden></div>
+    </section>
+    <div class="strip"><div id="ticker" aria-live="off"></div><div id="lesson" class="lesson" hidden aria-live="polite"></div></div>
+    </div>
+    <aside class="key" aria-label="Key">
+      <div class="in" id="key"></div>
+    </aside>
+  </div>
+
+  <section class="panel learn" aria-label="Lessons">
+    <div class="learnbar"><h2>Learn it, step by step</h2><span id="lprog"></span></div>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section class="panel controls" aria-label="Controls">
+    <div class="row">
+      <button class="btn main" id="tour">Start guided tour</button>
+      <div class="tourbar" id="tbar" hidden>
+        <button class="btn" id="tback">Back</button><button class="btn" id="tnext">Next</button><button class="btn" id="tstop">Exit tour</button><span class="n" id="tn"></span>
+      </div>
+      <span class="sep"></span>
+      <button class="btn" id="voice" aria-pressed="false">Voice off</button>
+      <button class="btn" id="listen">Listen to this</button>
+    </div>
+    <div class="row">
+      <button class="btn" id="play" aria-pressed="true">Pause</button>
+      <div class="journey"><span>Lungs</span><input type="range" id="rng" min="0" max="1" step="0.005" value="0" aria-label="Position along the journey"><span>Muscle</span></div>
+    </div>
+    <div class="row">
+      <div class="zoom" id="zoom">
+        <button class="btn" data-z="0">Cell <small>10⁻⁵ m</small></button>
+        <button class="btn" data-z="1">Hemoglobin <small>10⁻⁸ m</small></button>
+        <button class="btn" data-z="2">Heme <small>10⁻¹⁰ m</small></button>
+      </div>
+      <span class="sep"></span>
+      <div class="zoom" id="scen">
+        <button class="btn" data-s="rest">Rest</button>
+        <button class="btn" data-s="exercise">Exercise</button>
+        <button class="btn t2" data-s="co">Carbon monoxide</button>
+      </div>
+      <span class="sep"></span>
+      <div class="zoom">
+        <button class="btn" id="sq" aria-pressed="false">Squeeze</button>
+        <button class="btn" id="lb" aria-pressed="true">Labels</button>
+        <button class="btn t0only" id="fc" aria-pressed="true">Character</button>
+        <button class="btn" id="spd" title="Simulation speed">1×</button>
+      </div>
+    </div>
+    <p class="hint" id="hint"></p>
+  </section>
+
+  <div class="two">
+    <section class="panel explain" aria-live="polite">
+      <div class="tiers" id="tiers" role="group" aria-label="Level"></div>
+      <p class="where" id="where"></p>
+      <h2 id="ttl"></h2>
+      <p class="cap" id="cap"></p>
+      <div class="srcrow" id="capsrc"></div>
+      <div class="partbox" id="partbox"></div>
+    </section>
+    <div class="side">
+      <section class="panel hud">
+        <p class="lab">This cell, right now</p>
+        <div class="meter"><div class="mbar"><i id="mfill"></i></div><span id="mtxt"></span></div>
+        <dl class="g t3">
+          <div><dt>PO₂</dt><dd id="h-po2"></dd></div><div><dt>PCO₂</dt><dd id="h-pco2"></dd></div><div><dt>pH</dt><dd id="h-ph"></dd></div>
+          <div><dt>Temp</dt><dd id="h-t"></dd></div><div><dt>P₅₀</dt><dd id="h-p50"></dd></div><div><dt>SO₂</dt><dd id="h-so2"></dd></div>
+        </dl>
+      </section>
+      <section class="panel curve t2">
+        <p class="lab">Oxygen dissociation curve</p>
+        <canvas id="cc" aria-label="Hemoglobin oxygen saturation against oxygen pressure"></canvas>
+        <p class="eq t3"><b>Hill</b> S = Pⁿ / (P₅₀ⁿ + Pⁿ), n = 2.7<br><b>CO₂</b> CO₂ + H₂O ⇌ H₂CO₃ ⇌ H⁺ + HCO₃⁻</p>
+        <p class="eq t4"><b>Bohr + temperature</b> log P₅₀ = log 26.8 + 0.48 (7.40 − pH) + 0.024 (T − 37)<br>Now P₅₀ = <b id="eq-p50"></b> mmHg</p>
+      </section>
+    </div>
+  </div>
+  <section class="panel math" id="math" aria-label="The math and the sources">
+    <div class="learnbar"><h2>The math, and where it comes from</h2><span>Equations with live examples, every parameter, accuracy checks, and the sources behind each claim</span></div>
+    <div class="tiers" id="mtabs" role="tablist"><button data-m="eq">Equations</button><button data-m="par">Parameters</button><button data-m="chk">Accuracy checks</button><button data-m="src">Sources</button><button data-m="lim">Limits</button></div>
+    <div id="mbody"></div>
+  </section>
+</main>
+<footer class="foot">Voice uses the speech engine built into your device, so how it sounds depends on the browser. Saturation and gas movement are counted from the simulated molecules. The hemoglobin switch and the CO₂ steps are simplified teaching models. Sources were opened and read by reviewers, but pages were summarised by a fetch tool, so a subject expert should still check every row marked Read before this is used for assessment.</footer>
+
+<script>
+(()=>{
+'use strict';
+const $=s=>document.querySelector(s);
+const TAU=Math.PI*2,clamp=(v,a,b)=>Math.min(b,Math.max(a,v)),lerp=(a,b,t)=>a+(b-a)*t;
+const sstep=(a,b,x)=>{const t=clamp((x-a)/(b-a),0,1);return t*t*(3-2*t)};
+const ease=t=>t*t*(3-2*t),rnd=(a,b)=>b===undefined?Math.random()*a:a+Math.random()*(b-a);
+const hx=h=>{h=h.replace('#','').trim();if(h.length===3)h=[...h].map(c=>c+c).join('');return[parseInt(h.slice(0,2),16),parseInt(h.slice(2,4),16),parseInt(h.slice(4,6),16)]};
+const rgba=(h,a)=>{const[r,g,b]=hx(h);return`rgba(${r},${g},${b},${a})`};
+const mix=(a,b,t)=>{const A=hx(a),B=hx(b);return'#'+A.map((v,i)=>Math.round(lerp(v,B[i],t)).toString(16).padStart(2,'0')).join('')};
+const mulberry=a=>()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296};
+const reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const FONT={disp:'"Instrument Serif",Georgia,serif',mono:'"Geist Mono",ui-monospace,monospace'};
+const TK={stage:'#07050c',fg:'#f1e8ee',muted:'#a395a8',line:'rgba(241,232,238,.2)',lumen:'#190914',wall:'#3a1466',acc:'#FF8C00',mag:'#D40055',pur:'#6B0099'};
+const OXY='#ff3b36',DEOXY='#6a1436';
+
+/* ================= Content ================= */
+const COL={o2:'#69d2ff',co2:'#ffb23e',hco3:'#b98cff',h:'#ffe14d',cl:'#76e0a4',co:'#ff4f86',hb:'#ff3b36',b3:'#4fe3d6',ca:'#ffd23f',mem:'#ffb08a',shape:'#ff5a6a',plasma:'#e8b4c0',wall:'#a77bff',air:'#8aa8ff',muscle:'#ff5a7a',mito:'#ff9a3d',sub:'#7aa8ff',heme:'#ff5a6a',bpg:'#ffe14d',fe:'#ff6a45',porph:'#ff8a70',n:'#6aa5ff',his:'#c8a8ff'};
+const INFO={
+ o2:{n:['Oxygen','Oxygen (O₂)','Oxygen (O₂)'],r:'Breathed in. The fuel muscles need.',d:['Oxygen is what you breathe in. Your body needs it to make energy. Blue dots are oxygen.','O₂ moves by diffusion from the air sac into the plasma and the cell, then binds hemoglobin. In muscle it travels the other way, to the mitochondria.','O₂ crosses the alveolar–capillary barrier by simple diffusion down its PO₂ gradient (about 100 versus 40 mmHg). It is carried 98.5% bound to Hb and 1.5% dissolved.']},
+ co2:{n:['Carbon dioxide','Carbon dioxide (CO₂)','Carbon dioxide (CO₂)'],r:'Waste from muscles. Breathed out.',d:['Carbon dioxide is the waste your muscles make. The cell carries it to the lungs so you can breathe it out. Amber dots.','CO₂ is made by mitochondria. Of the CO₂ that enters the blood, about 70% travels as bicarbonate, about 20% on hemoglobin and 7–10% dissolved.','CO₂ (PCO₂ about 45–46 mmHg venous, 40 arterial) is about 20 times more soluble than O₂ in blood, so it diffuses readily. Of the CO₂ that enters the blood: HCO₃⁻ (≈70%), carbamino-Hb (≈20%) and dissolved CO₂ (≈7–10%). In the total CO₂ content of blood, bicarbonate is about 90%.']},
+ hco3:{n:['Bicarbonate','Bicarbonate (HCO₃⁻)','Bicarbonate (HCO₃⁻)'],r:'CO₂ in a form that dissolves in blood.',d:['Bicarbonate is carbon dioxide in disguise: a form that dissolves in blood so it can ride along. Purple dots.','CO₂ + H₂O → H₂CO₃ → H⁺ + HCO₃⁻. Bicarbonate leaves the cell through band 3 and travels dissolved in plasma.','HCO₃⁻ is the main CO₂ carrier and the blood’s main buffer (pKa 6.1, Henderson–Hasselbalch). It is exported by AE1 in exchange for Cl⁻.']},
+ h:{n:['Acid bit','Hydrogen ion (H⁺)','Hydrogen ion (H⁺)'],r:'Acid made along with bicarbonate.',d:['Hydrogen ions are tiny bits of acid made along with bicarbonate. Hemoglobin mops them up so the blood stays balanced. Yellow dots.','Each CO₂ converted releases one H⁺. Hemoglobin buffers it (the Haldane effect), and the extra acid also helps hemoglobin release oxygen (the Bohr effect).','H⁺ is buffered mainly by histidines (His146β, His122α). Deoxy-Hb buffers better than oxy-Hb (Haldane), and protonation stabilises the T state (Bohr).']},
+ cl:{n:['Salt (chloride)','Chloride (Cl⁻)','Chloride (Cl⁻)'],r:'Swapped for bicarbonate at the doors.',d:['Chloride is a salt. The doors swap it for bicarbonate, one for one. Green dots.','Chloride moves in as bicarbonate moves out so the electric charge stays balanced. This is the chloride shift.','Cl⁻ enters via AE1 in 1:1 electroneutral exchange for HCO₃⁻ (the chloride shift, also called the Hamburger effect), so venous red cells carry slightly more chloride.']},
+ co:{n:['Poison gas','Carbon monoxide (CO)','Carbon monoxide (CO)'],r:'Holds the iron very tightly.',d:['Carbon monoxide is a poison gas from fires and faulty heaters. It sticks to hemoglobin and holds on very tightly, so oxygen cannot ride. Pink dots.','CO binds heme about 200–250 times more tightly than oxygen, so even a little blocks oxygen transport.','CO affinity is about 200–250 times that of O₂. Carboxyhemoglobin also left-shifts the curve of the remaining sites, impairing unloading. Treat with 100% O₂ or hyperbaric O₂.']},
+ hb:{n:['Oxygen carrier','Hemoglobin','Hemoglobin (HbA)'],r:'Red protein. Bright = holding O₂, dark = empty.',d:['Hemoglobin is the red protein that carries oxygen. Each cluster is one hemoglobin with four hands. Bright dots hold oxygen. Dark dots are empty. One cell has about 250 to 300 million!','Each red cell holds about 250–300 million hemoglobin molecules. Each cluster of four dots is one molecule: bright dots are carrying O₂, dark dots are empty. A small yellow dot on top means it is holding an H⁺.','HbA = α₂β₂, 64.5 kDa, about 1.34 mL O₂ per g. Each cluster shows its four hemes: bright = oxygenated, dark = deoxygenated, pink = CO. A yellow dot marks a protonated Hb (H⁺ buffered). HbS (β6 Glu→Val) polymerises when deoxygenated.']},
+ b3:{n:['Little door','Band 3','Band 3 (AE1)'],r:'Doors that swap bicarbonate for chloride.',d:['A tiny door in the cell skin. It swaps bicarbonate for chloride, one for one. Teal doors.','Band 3 swaps bicarbonate (HCO₃⁻) for chloride (Cl⁻), so the cell can send CO₂ through plasma as bicarbonate. This is the chloride shift.','Anion exchanger 1 (AE1, SLC4A1), about 10⁶ copies per cell. Electroneutral Cl⁻/HCO₃⁻ exchange. Its cytoplasmic domain binds deoxy-Hb, glycolytic enzymes and ankyrin. Mutations cause SAO, spherocytosis and distal RTA.']},
+ ca:{n:['Helper enzyme','Carbonic anhydrase','Carbonic anhydrase II'],r:'Turns CO₂ into bicarbonate, very fast.',d:['The gold star is a helper that turns carbon dioxide into something that dissolves in blood, super fast.','Carbonic anhydrase II speeds CO₂ + H₂O ⇌ H₂CO₃ ⇌ H⁺ + HCO₃⁻ by about ten million times. That is why red cells carry most of the body’s CO₂.','Zn²⁺(His)₃ active site, kcat about 10⁶ s⁻¹ and kcat/KM about 10⁸ M⁻¹s⁻¹, near the diffusion limit. Zn–OH⁻ attacks CO₂ to give Zn–HCO₃⁻, then water displaces it. His64 shuttles the proton. Acetazolamide inhibits it.']},
+ mem:{n:['Skin','Membrane + spectrin','Membrane + spectrin'],r:'Stretchy skin held by a protein net.',d:['The cell skin is stretchy. It squishes through tiny tubes and springs back. Try the Squeeze button.','A flexible membrane held up by a net of spectrin protein (the little dots on the inner edge) lets the cell fold through capillaries narrower than itself and recover.','Lipid bilayer anchored to a spectrin–actin–ankyrin–4.1R network (via band 3). Defects cause hereditary spherocytosis and elliptocytosis. Lifespan is about 120 days, then macrophages recycle it.']},
+ shape:{n:['Cell body','Biconcave disc','Biconcave disc'],r:'Dented disc: lots of surface, bends easily.',d:['This is the red blood cell. It is shaped like a donut with no hole, which is great for swapping gases fast. We are looking at a slice through the middle.','The biconcave disc has lots of surface for its size, so no part of the cell is far from the surface where gases cross. We see a cross-section, which is why it looks like a peanut.','About 7.8 µm across, 2.6 µm at the rim and 0.8 µm at the centre (Evans–Fung profile), roughly 90 fL and 135 µm² of membrane. The roughly 30–40% excess area over a sphere lets it deform. No nucleus or mitochondria.']},
+ plasma:{n:['Blood liquid','Plasma','Plasma'],r:'The liquid part of blood.',d:['Plasma is the liquid part of blood. Red cells float in it like boats in a river. Other cells drift by too.','Plasma is about 55% of blood volume, mostly water, carrying proteins, salts, nutrients and dissolved gases.','About 55% of blood volume, around 92% water; albumin maintains oncotic pressure. Dissolved O₂ is only about 0.3 mL per dL, versus about 20 mL per dL bound to Hb.']},
+ wall:{n:['Tube wall','Capillary wall','Capillary wall (endothelium)'],r:'One cell thick, so gases slip through.',d:['The blood runs in a tiny tube called a capillary. Its wall is only one cell thick, so oxygen can slip right through.','Capillary walls are a single layer of endothelial cells (the bumps are their nuclei). Gases and small molecules cross easily here, which is why exchange happens in capillaries.','Continuous capillary endothelium, about 0.2–0.5 µm thick with a glycocalyx on the lumen side. In the lung the alveolar–capillary barrier is about 0.5 µm, so O₂ equilibrates in roughly a third of the transit time.']},
+ air:{n:['Air sac','Air sac (alveolus)','Alveolus'],r:'Lung air sac full of fresh oxygen.',d:['This is an air sac in your lungs. You have hundreds of millions of these tiny balloons, full of the air you just breathed in.','Alveoli are tiny air sacs where gas exchange happens. An adult has roughly 480 million of them, with 70–80 m² of surface.','Alveoli: about 480 million, 70–80 m² gas-exchange surface. Type I pneumocytes form the thin barrier; type II cells make surfactant. Alveolar PO₂ ≈ 104 mmHg, PCO₂ ≈ 40 mmHg (about 100 mmHg in blood leaving the lung).']},
+ muscle:{n:['Muscle','Muscle fiber','Skeletal muscle fiber'],r:'Uses oxygen to move you.',d:['This is a muscle. When you run or jump, the stripy fibers pull. They need lots of oxygen.','Muscle fibers are packed with striped sarcomeres that slide to contract. Working muscle uses oxygen fast, so blood leaves with much less.','Skeletal muscle fiber with sarcomeres (A and I bands, Z-lines). Myoglobin, a high-affinity O₂ store, takes O₂ from Hb. Venous PO₂ in working muscle can fall to about 10 mmHg at maximal effort.']},
+ mito:{n:['Power plant','Mitochondrion','Mitochondrion'],r:'Burns O₂ to make energy, makes CO₂.',d:['Mitochondria are tiny power plants. They burn oxygen with sugar to make energy, and make carbon dioxide as waste. Watch them flash when oxygen arrives.','Mitochondria use O₂ in the electron transport chain to make most of the cell’s ATP, releasing CO₂ from the citric acid cycle.','Oxidative phosphorylation: cytochrome c oxidase reduces O₂ to water (PO₂ at the mitochondrion is only a few mmHg). CO₂ comes from pyruvate dehydrogenase and the TCA cycle.']},
+ sub:{n:['Protein chains','Globin chains (α, β)','Globin chains (α₂β₂)'],r:'Four protein chains, each holds a heme.',d:['Four chains of protein, like four petals. Each one hides a pocket for oxygen. Blue and pink.','Hemoglobin has two alpha and two beta chains. Each folds around a heme.','α₂β₂ tetramer; each chain is a globin fold of 7–8 helices (A–H). The α₁β₂ interface carries the allosteric switch; α₁β₁ is a rigid dimer.']},
+ heme:{n:['Iron pocket','Heme','Heme'],r:'Ring with iron: where O₂ sticks.',d:['The heme is a flat ring with an iron in the middle. It is the pocket where oxygen sticks.','Each chain has one heme. When oxygen binds, the whole protein shifts shape.','Protoporphyrin IX with Fe²⁺, anchored by proximal His F8. O₂ binds the distal face, stabilised by distal His E7.']},
+ bpg:{n:['Helper molecule','2,3-BPG','2,3-BPG'],r:'Helps hemoglobin let go of oxygen.',d:['A helper molecule that sits in the middle when hemoglobin is empty and helps it let go of oxygen. Yellow dots.','2,3-BPG fits into the middle cavity of tense hemoglobin and lowers its grip on oxygen. Cells make more of it at altitude.','2,3-bisphosphoglycerate, made by the Rapoport–Luebering shunt. It binds the β–β cleft of deoxy-Hb at about 1:1 and raises P₅₀. It declines in stored blood, which left-shifts the curve.']},
+ fe:{n:['Iron','Iron atom (Fe²⁺)','Iron (Fe²⁺)'],r:'The atom that grabs oxygen.',d:['This is the iron. It is the part that grabs oxygen, like a tiny magnet. Iron is why blood is red.','The iron atom (Fe²⁺) binds one O₂. Its colour changes when it holds oxygen, which is why blood is bright red or dark red.','Deoxy: five-coordinate (four pyrrole N plus His F8), high-spin (S = 2), domed roughly 0.4–0.6 Å out of the porphyrin plane. Oxy: six-coordinate (O₂ is the sixth ligand), low-spin, nearly in plane.']},
+ porph:{n:['Ring','Porphyrin ring','Protoporphyrin IX'],r:'Ring that holds the iron.',d:['A flat ring that holds the iron safely in the middle.','The porphyrin ring is four small rings joined by carbon bridges. It holds the iron in place.','Four pyrroles linked by methine bridges, with vinyl, methyl and propionate side chains. The conjugated ring gives heme its intense Soret band, near 414 nm (oxy) and 430 nm (deoxy).']},
+ n:{n:['Fingers','Nitrogen atoms','Pyrrole nitrogens'],r:'Four nitrogens gripping the iron.',d:['Four nitrogen atoms (blue) grip the iron like fingers.','Four nitrogen atoms from the ring share electrons to hold the iron.','Four pyrrole nitrogens at Fe–N ≈ 2.0 Å (slightly longer in deoxy-Hb) are the equatorial ligands.']},
+ his:{n:['Anchor','Proximal histidine','Proximal His F8'],r:'Ties the iron to the protein.',d:['A piece of the protein under the ring that anchors the iron to the rest of hemoglobin.','The proximal histidine links the iron to the protein. When the iron moves it tugs the protein, which starts the shape change.','Proximal His F8 (Nε2–Fe about 2.1 Å). Fe movement into the plane on oxygenation pulls the F helix and breaks α₁β₂ salt bridges, the trigger of cooperativity.']}
+};
+const LEG=[
+ [['Molecules',['o2','co2','hco3','h','cl','co']],['Inside the cell',['hb','b3','ca','mem','shape']],['Around the cell',['plasma','wall','air','muscle','mito']]],
+ [['Hemoglobin',['sub','heme','bpg','o2','co']]],
+ [['The heme',['fe','porph','n','his','o2','co']]]
+];
+const LBL=[['skin','oxygen carrier','door','helper'],['cell membrane','hemoglobin','gate','helper enzyme'],['membrane','hemoglobin','band 3','carbonic anhydrase'],['membrane · spectrin','hemoglobin ≈ 270 M','band 3 / AE1','carbonic anhydrase II'],['membrane · spectrin','HbA α₂β₂ (≈ 270 M)','band 3 / AE1','CA II']];
+const REG=[['tube wall','blood liquid','air sac','muscle'],['capillary wall','plasma','air sac (alveolus)','muscle fiber'],['capillary wall · endothelium','plasma · blood flow →','alveolus · PO₂ ≈ 100','skeletal muscle fiber']];
+const TIERS=['Basic','Medium technical','University · fully technical'];
+const ZT=['The red blood cell','Hemoglobin','Heme'];
+const CAP=[
+[ ['This is a red blood cell. It is super tiny! Oxygen from the air sac hops in, and the cell turns bright red.','The cell is in your muscle now. It drops off the oxygen. Your muscle says thank you!'],
+  ['Your red blood cell is passing the lungs. The air has lots of oxygen, so oxygen moves in and sticks to hemoglobin, a red protein with iron. Full of oxygen means bright red.','In a hard-working muscle there is less oxygen, so hemoglobin lets go. The muscle uses it to make energy. The cell picks up carbon dioxide, the waste, to carry back.'],
+  ['Oxygen moves from where there is a lot (the air sac) to where there is less (the cell). This is diffusion. Hemoglobin grabs it, so blood carries roughly 65 times more oxygen than plasma could alone.','Working muscle uses oxygen, so oxygen pressure there is low and hemoglobin lets go. The cell takes in carbon dioxide, which carbonic anhydrase turns into bicarbonate that dissolves in plasma.'],
+  ['Alveolar PO₂ ≈ 100 mmHg loads hemoglobin to about 98% saturation. CO₂ leaves: bicarbonate re-enters through band 3 (Cl⁻/HCO₃⁻ exchange), recombines with H⁺ released from Hb and exits as CO₂.','Tissue PO₂ ≈ 40 mmHg at rest and Hb unloads about 22–25% of its O₂. CO₂ enters, carbonic anhydrase makes HCO₃⁻ + H⁺, Hb buffers the H⁺ (Haldane effect) and HCO₃⁻ leaves by band 3 for Cl⁻ (the chloride shift).'],
+  ['Equilibration takes about 0.25 s of a 0.75 s capillary transit. Cooperativity (Hill n ≈ 2.7, P₅₀ ≈ 26.8 mmHg at pH 7.40, 37 °C) gives the sigmoid curve. Oxygenation lowers Hb’s H⁺ and CO₂ affinity (Haldane). Of the CO₂ that enters the blood, about 70% travels as HCO₃⁻, about 20% as carbamino-Hb and 7–10% as dissolved CO₂.','H⁺ and CO₂ (the Bohr effect), plus heat and 2,3-BPG, right-shift the curve so Hb unloads at higher PO₂. The erythrocyte has no mitochondria: about 90% of glucose runs through glycolysis, about 10% through the pentose phosphate pathway for NADPH, and the Rapoport–Luebering shunt makes 2,3-BPG.'] ],
+[ ['Inside are lots of tiny helpers called hemoglobin. Each one has four little hands that hold oxygen.','The hands open and let the oxygen go.'],
+  ['Each hemoglobin has 4 parts. Every part has a pocket with iron that grabs one oxygen. Four parts means up to four oxygens.','In the muscle the pockets let go and the oxygen floats out to where it is needed.'],
+  ['Hemoglobin is a protein made of 4 chains (2 alpha, 2 beta). Each chain holds a heme with an iron atom. When one oxygen binds, the protein relaxes and the others bind more easily.','When oxygen leaves, the protein tightens again, which helps it let go of the rest quickly.'],
+  ['Cooperativity: binding O₂ shifts hemoglobin from the tense (T) to the relaxed (R) state. The αβ dimers rotate about 15° and 2,3-BPG is expelled, which raises O₂ affinity.','Deoxygenation returns Hb to T. 2,3-BPG binds the β-chain cavity and lowers affinity so O₂ unloads. H⁺ and CO₂ (as carbamino groups) also stabilise T.'],
+  ['MWC / Perutz model: HbA is an α₂β₂ tetramer, 64.5 kDa, about 5.5 nm across. O₂ pulls Fe into the porphyrin plane, dragging proximal His F8 and the F helix. Salt bridges at the α₁β₂ interface break and the tetramer goes T → R.','Deoxy-Hb (T): salt bridges (for example His146β–Asp94β) hold the T state. 2,3-BPG sits in the β–β cleft, bound by Val1, Lys82 and His143 of each β chain. His146β is a main source of Bohr protons.'] ],
+[ ['This is the iron. It works like a tiny magnet for oxygen!','The iron lets the oxygen go.'],
+  ['Every part has a flat ring called heme with one iron atom in the middle. Oxygen sticks to the iron.','Oxygen lets go of the iron and floats away.'],
+  ['Heme is a ring of carbon and nitrogen with an iron atom (Fe²⁺) at its centre. One O₂ molecule binds to the iron. The iron is also what makes blood red.','With no oxygen on it, the iron sits slightly out of the ring and the blood looks darker.'],
+  ['Fe²⁺ is held by four nitrogens of the porphyrin and a histidine below. O₂ binds the other face. Oxygenated blood is bright red and deoxygenated blood is darker because the iron changes spin state.','Releasing O₂ lets the iron move back out of the plane toward the histidine, which tugs the protein toward its tense shape.'],
+  ['Fe–N ≈ 2.0 Å, Fe–O ≈ 1.8 Å with a bent end-on Fe–O–O of about 120° (115–160° depending on the structure). Deoxy: high-spin Fe(II), about 0.4–0.6 Å out of plane toward His F8. Oxy: low-spin, in plane, with Fe(III)–superoxide character. CO binds about 200–250 times tighter than O₂.','Deoxygenation: Fe(II) goes high-spin, becomes slightly too big for the porphyrin hole and domes toward His F8. That motion couples the heme to the F helix and the T state. CO occupies heme sites, which blocks loading, and left-shifts the remaining sites, which impairs unloading.'] ]
+];
+const HINT=['Hover anything for a quick description. Click to pin it and light it up. Use the key on the right.','Hover or click a part. Click a subunit to choose its heme, then zoom in again.','Drag the journey bar and watch the iron grab and release oxygen.'];
+const ACT_TXT={
+ o2in:[COL.o2,'Oxygen is moving INTO the cell and clicking onto hemoglobin.','O₂ diffuses in down its gradient and binds heme Fe²⁺ (loading).'],
+ o2out:[COL.o2,'Oxygen is letting go and flying OUT to the mitochondria.','Hb unloads O₂ (low PO₂, low pH, 2,3-BPG). It diffuses to the mitochondria.'],
+ co2in:[COL.co2,'Carbon dioxide is coming IN. The gold star turns it into bicarbonate and acid.','CO₂ + H₂O → HCO₃⁻ + H⁺ by carbonic anhydrase. Hb buffers H⁺; band 3 exports HCO₃⁻.'],
+ co2out:[COL.co2,'Carbon dioxide is leaving, back into the air sac to be breathed out.','HCO₃⁻ re-enters via band 3, recombines with H⁺ to CO₂ and diffuses into the alveolus.']
+};
+/* Guided tour: z zoom, go = journey target, t = [young, middle, expert] */
+const TOUR=[
+ {z:0,go:0,hl:'shape',reset:1,t:['Hi! I am a red blood cell. I look like a donut with no hole, and my job is to carry air around your body.','This is a red blood cell. Its dented disc shape gives it lots of surface to swap gases quickly. It has no nucleus, so almost all the room inside is for hemoglobin.','An erythrocyte: a biconcave disc about 7.8 micrometers wide. With no nucleus or mitochondria, about a third of its weight can be hemoglobin, and its energy comes purely from glycolysis.']},
+ {hl:'wall',t:['I ride inside a tiny tube called a capillary. Its wall is only one cell thick, so oxygen can slip right through.','The blood flows through a capillary. Its wall is a single layer of cells, with a bump where each nucleus sits. That thin wall is why gases can cross.','Continuous capillary endothelium is about half a micrometer thick at most, and in the lung the whole barrier is about half a micrometer. Gas exchange happens only here.']},
+ {hl:'air',t:['We are in the lungs. The big bubble above us is an air sac, full of fresh oxygen from your breath.','This is an alveolus, an air sac in the lung. It is full of fresh air, with a lot of oxygen. The blood arriving here is low on oxygen.','An alveolus. Alveolar P O 2 is about 100 millimeters of mercury, while the blood arriving is at about 40. That gradient drives diffusion.']},
+ {hl:'hb',t:['The red dots inside me are hemoglobin. Bright dots are holding oxygen. Dark dots are empty hands.','Each cluster of four dots is one hemoglobin molecule. Bright dots carry oxygen, dark dots are empty. I hold about two hundred fifty to three hundred million of them.','Each cluster is one HbA tetramer showing its four hemes: bright is oxygenated, dark is deoxygenated. About two hundred fifty to three hundred million per cell.']},
+ {hl:'o2',t:['Watch the blue dots! Oxygen from the air sac slips through the wall and clicks onto the hemoglobin. I am turning bright red!','Oxygen is moving in down its gradient and binding to hemoglobin. As more hemes fill, the whole cell gets brighter red.','O 2 diffuses in and binds heme iron. Loading is cooperative, so saturation climbs steeply and reaches about 98 percent well within the capillary transit.']},
+ {hl:'co2',t:['I am also dropping off waste. The amber dots are carbon dioxide, and they leave toward the air sac to be breathed out.','Carbon dioxide leaves the other way. Bicarbonate comes back in through the teal doors, turns back into carbon dioxide, and goes out to be exhaled.','Bicarbonate re-enters via band 3, recombines with H plus released from hemoglobin, and the carbonic anhydrase reaction runs in reverse, producing CO 2 that diffuses into the alveolus.']},
+ {hl:null,go:1,sq:1,dur:6,t:['Now the heart sends me on a trip to the muscles. I am squishy, so I can bend to fit through even the tightest tubes.','Now the blood carries the cell to a muscle. Capillaries can be narrower than the cell, so it folds and bends, then springs back.','The cell travels to a working muscle. Spectrin and the membrane let it deform through capillaries narrower than its own diameter, then recover its biconcave shape.']},
+ {hl:'muscle',sq:0,t:['This is a muscle. The stripy fibers are what pull when you move, and they are hungry for oxygen.','Here is skeletal muscle. The stripes are repeating units that slide to make the muscle pull, and they use up oxygen fast.','Skeletal muscle fiber. The stripes are sarcomeres. Working muscle runs on aerobic ATP, so local P O 2 is low.']},
+ {hl:'mito',t:['These glowing blobs are mitochondria, tiny power plants. They burn oxygen to make energy.','Mitochondria are the cell’s power plants. They use oxygen to make ATP, the energy molecule, and give off carbon dioxide.','Mitochondria run oxidative phosphorylation. Cytochrome c oxidase reduces oxygen to water, and the citric acid cycle releases carbon dioxide.']},
+ {hl:'o2',t:['Here oxygen is low, so my hemoglobin lets go. Blue dots fly out to the mitochondria and make them flash.','Oxygen pressure is low in muscle, so hemoglobin releases oxygen, which flies to the mitochondria.','Low P O 2, lower pH and 2,3-B P G shift hemoglobin toward the T state, so it unloads, and oxygen diffuses to the mitochondria.']},
+ {hl:'co2',t:['The mitochondria hand me waste: carbon dioxide, the amber dots. I will carry it back to the lungs.','Mitochondria make carbon dioxide as waste. It diffuses into the cell, where it is converted so it can travel back.','Carbon dioxide diffuses in down its gradient. Of the carbon dioxide that enters the blood, about seventy percent will travel as bicarbonate, about twenty percent on hemoglobin, and seven to ten percent dissolved.']},
+ {hl:'ca',t:['The gold star is a helper enzyme. It turns carbon dioxide into bicarbonate, which dissolves easily in blood.','Carbonic anhydrase is an enzyme that makes the carbon dioxide reaction about ten million times faster. The result is bicarbonate and an acid bit.','Carbonic anhydrase two catalyzes CO 2 plus water to bicarbonate plus H plus at close to diffusion limited rates, via a zinc bound hydroxide.']},
+ {hl:'b3',t:['The teal doors let bicarbonate out and take chloride in. A fair swap, one for one.','Band 3 doors swap bicarbonate for chloride so the electric balance stays even. This is called the chloride shift.','Band 3, also called AE one, performs electroneutral chloride bicarbonate exchange, the chloride shift, exporting bicarbonate into the plasma.']},
+ {hl:'h',t:['The leftover acid, the yellow dots, is mopped up by hemoglobin so the blood does not turn sour.','The hydrogen ions are buffered by hemoglobin. This also helps hemoglobin let go of its oxygen, which is the Bohr effect.','Hydrogen ions bind histidines on deoxygenated hemoglobin, which buffers pH, the Haldane effect, and stabilizes the T state, the Bohr effect.']},
+ {hl:null,go:0,dur:6,t:['Now back to the lungs, where it all happens in reverse.','The blood returns to the lungs, where oxygen loads and carbon dioxide leaves.','The cell returns to the pulmonary capillary, where the gradients reverse.']},
+ {z:1,hl:'sub',t:['Let us zoom into one hemoglobin. It has four chains, and each one hides a pocket for oxygen.','Zooming in, one hemoglobin has two alpha and two beta chains. Each folds around a heme that can hold one oxygen.','One HbA tetramer: two alpha and two beta chains. Oxygen binding triggers the T to R transition, with a rotation of about fifteen degrees between the dimers.']},
+ {z:2,hl:'fe',t:['Now deeper still. This iron atom is what really grabs the oxygen. And that is why blood is red! That is the whole trip.','At the deepest level, the heme iron holds one oxygen molecule. The iron is why blood is red. That completes the trip, and now you can explore on your own.','At the heme, iron two plus sits about two angstroms from four nitrogens. Oxygen binding moves it into the porphyrin plane, which triggers the allosteric transition. That completes the trip.']}
+];
+
+/* ================= Geometry ================= */
+const R0=3.91,D0=7.82;
+const zFull=x=>{const p=Math.abs(x)/R0;if(p>=1)return 0;const q=p*p;return .5*D0*Math.sqrt(1-q)*(.207161+2.002558*q-1.122762*q*q)};
+const hT=x=>zFull(x)/2;
+const LP=[],NP=80;
+for(let i=0;i<=NP;i++){const x=-R0+2*R0*i/NP;LP.push([x,-hT(x)])}
+for(let i=NP;i>=0;i--){const x=-R0+2*R0*i/NP;LP.push([x,hT(x)])}
+const SITES=[-2.9,-1.5,-.1,1.3,2.7],CA_L=[1.55,.1],EYE=2.45;
+const MITO=[[-6.3,-7.9],[.8,-8.15],[7.4,-7.8]];
+const MG=[0,0,0];
+
+/* ================= State ================= */
+const st={tier:1,zoom:0,zoomT:0,loc:0,playing:!reduce,jt:0,scen:'rest',speed:1,labels:true,face:true,squeeze:false,sqT:0,time:0,
+ sel:null,hover:null,legHover:null,hl:null,selU:0,selH:0,TS:.75,voice:false,ptr:null,tween:null};
+const HIT=[],LQ=[];
+let M={cx:0,cy:0,s:1},Mc={cx:0,cy:0,s:1},W=0,H=0,CW=0,CH=0,dpr=1;
+const act={o2in:0,o2out:0,co2in:0,co2out:0};
+
+/* ================= Hemoglobin units ================= */
+const U=[];
+(()=>{const r=mulberry(7);let tries=0;
+ while(U.length<68&&tries++<8000){const x=(r()*2-1)*3.7,y=(r()*2-1)*1.3;
+  if(Math.abs(y)>hT(x)-.24)continue;
+  if(Math.hypot(x-CA_L[0],y-CA_L[1])<.62)continue;
+  if(Math.hypot(Math.abs(x)-EYE,y+.08)<.62)continue;
+  if(Math.abs(x)<1.2&&Math.abs(y)<.42)continue;
+  if(U.some(u=>Math.hypot(u.x-x,u.y-y)<.52))continue;
+  U.push({x,y,ph:r()*TAU,h:[0,0,0,0],r:[0,0,0,0],fe:[0,0,0,0],prot:false,rT:0})}
+})();
+st.selU=U.reduce((b,u,i)=>Math.hypot(u.x,u.y)<Math.hypot(U[b].x,U[b].y)?i:b,0);
+const GX=[[-1,-1],[1,-1],[-1,1],[1,1]];
+const cw=(x,y)=>{const k=st.sqT,a=-k*1.45+Math.sin(st.time*.8)*.05*(1-k);
+ const lx=x*(1-.30*k),ly=y*(1+.15*k)-k*.5*(lx*lx)/R0;const c=Math.cos(a),s=Math.sin(a);
+ return[lx*c-ly*s,lx*s+ly*c+Math.sin(st.time*1.1)*.04]};
+const uPos=u=>cw(u.x+Math.sin(st.time*1.7+u.ph)*.05,u.y+Math.cos(st.time*1.3+u.ph*2)*.05);
+const hemeW=(u,j)=>{const p=uPos(u);return[p[0]+GX[j][0]*.09,p[1]+GX[j][1]*.09]};
+const caW=()=>cw(CA_L[0],CA_L[1]);
+const siteW=i=>{const x=SITES[i],p=cw(x,hT(x)),a=cw(x-.06,hT(x-.06)),b=cw(x+.06,hT(x+.06));
+ let nx=b[1]-a[1],ny=-(b[0]-a[0]);const l=Math.hypot(nx,ny)||1;nx/=l;ny/=l;if(nx*p[0]+ny*p[1]<0){nx=-nx;ny=-ny}return{x:p[0],y:p[1],nx,ny}};
+const lumenH=()=>lerp(5.2,3.2,st.sqT);
+
+/* ================= Physiology ================= */
+const SC={rest:{po2:40,pco2:46,ph:7.36,T:37,co:0},exercise:{po2:20,pco2:60,ph:7.20,T:39,co:0},co:{po2:40,pco2:46,ph:7.36,T:37,co:.3}};
+function env(){const s=SC[st.scen],e=ease(st.loc);
+ return{po2:lerp(100,s.po2,e),pco2:lerp(40,s.pco2,e),ph:lerp(7.40,s.ph,e),T:lerp(37,s.T,e),co:s.co,e}}
+const p50Of=en=>26.8*Math.pow(10,.48*(7.40-en.ph))*Math.pow(10,.024*(en.T-37))*(en.co?.55:1);
+const hill=(p,p50)=>{const a=Math.pow(Math.max(p,0),2.7);return a/(a+Math.pow(p50,2.7))};
+
+/* ================= Particles & events ================= */
+const P=[],FX=[];
+const addP=(type,x,y,o)=>{if(P.length<380)P.push(Object.assign({type,x,y,a:1,sp:rnd(5.5,8),age:0},o))};
+const fx=(x,y,c)=>FX.push({x,y,c,t:0});
+let inO=0,inC=0,pend=0,loaded=0,oB=0,cB=0,bound=0,coN=0;
+function applyScenario(){const co=SC[st.scen].co;
+ for(const u of U)for(let j=0;j<4;j++){
+  if(co>0){if(u.h[j]!==2&&!u.r[j]&&Math.random()<co)u.h[j]=2}else if(u.h[j]===2)u.h[j]=0}}
+function initState(kind){
+ const p0=kind==='art'?.97:kind==='empty'?.08:.75,np=(kind==='art'||kind==='empty')?0:18;
+ for(const u of U){for(let j=0;j<4;j++){u.h[j]=Math.random()<p0?1:0;u.r[j]=0}u.prot=false;u.rT=u.h.filter(v=>v).length>=3?1:0;u.h.forEach((v,j)=>u.fe[j]=v?1:0)}
+ loaded=0;for(let k=0;k<np;k++){const u=U[(Math.random()*U.length)|0];if(!u.prot){u.prot=true;loaded++}}
+ inO=0;inC=0;pend=0;P.length=0;FX.length=0;st.TS=p0;
+ if(SC[st.scen].co)applyScenario()}
+function pickBind(){let best=null,bs=-1;
+ for(let k=0;k<6;k++){const u=U[(Math.random()*U.length)|0],free=[];
+  for(let j=0;j<4;j++)if(u.h[j]===0&&!u.r[j])free.push(j);
+  if(!free.length)continue;const nb=u.h.filter(v=>v===1).length,sc=nb+Math.random()*1.2;
+  if(sc>bs){bs=sc;best=[u,free[(Math.random()*free.length)|0]]}}
+ return best}
+function pickRelease(){let best=null,bs=-9;
+ for(let k=0;k<6;k++){const u=U[(Math.random()*U.length)|0],on=[];
+  for(let j=0;j<4;j++)if(u.h[j]===1&&!u.r[j])on.push(j);
+  if(!on.length)continue;const nb=u.h.filter(v=>v===1).length,sc=-nb+Math.random()*1.2;
+  if(sc>bs){bs=sc;best=[u,on[(Math.random()*on.length)|0]]}}
+ return best}
+const mitoW=i=>({x:MITO[i][0]+Math.sin(st.time*.5+i)*.2,y:MITO[i][1]});
+function stepO2(dt,en){
+ const total=U.length*4;bound=0;coN=0;for(const u of U)for(let j=0;j<4;j++){if(u.h[j]===1)bound++;else if(u.h[j]===2)coN++}
+ const avail=total-coN;
+ st.TS+=(hill(en.po2,p50Of(en))-st.TS)*Math.min(1,dt*3);
+ const want=Math.round(st.TS*avail),Hc=lumenH();
+ oB=Math.min(8,oB+dt*70);
+ while(oB>=1){const have=bound+inO;
+  if(have<want){const b=pickBind();if(!b)break;const[u,j]=b;u.r[j]=1;inO++;act.o2in+=1;
+   addP('o2',rnd(-3.5,3.5),-Hc-rnd(1.8,3.2),{tgt:()=>{const q=hemeW(u,j);return{x:q[0],y:q[1]}},done:p=>{u.h[j]=1;u.r[j]=0;inO--;fx(p.x,p.y,COL.o2)}})}
+  else if(have>want){const b=pickRelease();if(!b)break;const[u,j]=b;u.h[j]=0;bound--;act.o2out+=1;const q=hemeW(u,j);
+   if(en.e>.5){const mi=(Math.random()*MITO.length)|0;
+    addP('o2',q[0],q[1],{tgt:()=>{const m=mitoW(mi);return{x:m.x,y:m.y}},sp:rnd(5,7),done:p=>{MG[mi]=Math.min(1.4,MG[mi]+.35);fx(p.x,p.y,'#ffd27a')}})}
+   else addP('o2',q[0],q[1],{vx:rnd(-.5,.5),vy:-rnd(2.4,3.4),life:2.6,maxLife:2.6})}
+  else break;oB--}
+}
+function stepCO2(dt,en){
+ const M0=40,want=Math.round(clamp((en.pco2-40)/12,0,1)*M0),Hc=lumenH();
+ cB=Math.min(4,cB+dt*16);
+ while(cB>=1){const have=loaded+inC;
+  if(have<want){inC++;act.co2in+=1;
+   const mi=(Math.random()*MITO.length)|0,m0=mitoW(mi);
+   addP('co2',m0.x,m0.y,{tgt:()=>{const q=caW();return{x:q[0],y:q[1]}},done:p=>{
+    fx(p.x,p.y,COL.co2);const si=(Math.random()*SITES.length)|0,u=U[(Math.random()*U.length)|0];
+    addP('hco3',p.x,p.y,{tgt:()=>{const s=siteW(si);return{x:s.x,y:s.y}},done:q=>{const s=siteW(si);
+      addP('hco3',s.x,s.y,{vx:s.nx*1.8,vy:s.ny*1.8,life:1.5,maxLife:1.5});
+      addP('cl',s.x+s.nx*.9,s.y+s.ny*.9,{tgt:()=>{const t=siteW(si);return{x:t.x-t.nx*.9,y:t.y-t.ny*.9}},end:'fade',sp:3})}});
+    addP('h',p.x,p.y,{tgt:()=>{const q=uPos(u);return{x:q[0],y:q[1]-.3}},done:q=>{u.prot=true;loaded++;inC--;fx(q.x,q.y,COL.h)}})}})}
+  else if(have>want){const pr=U.filter(u=>u.prot);if(!pr.length)break;const u=pr[(Math.random()*pr.length)|0];u.prot=false;loaded--;act.co2out+=1;
+   const arrive=()=>{pend++;if(pend>=2){pend-=2;const q=caW();fx(q[0],q[1],COL.co2);addP('co2',q[0],q[1],{vx:rnd(-.5,.5),vy:-rnd(2.2,3),life:2.8,maxLife:2.8})}};
+   const q=uPos(u);addP('h',q[0],q[1]-.3,{tgt:()=>{const t=caW();return{x:t[0],y:t[1]}},done:arrive});
+   const si=(Math.random()*SITES.length)|0,s=siteW(si);
+   addP('hco3',s.x+s.nx*1.2,s.y+s.ny*1.2,{tgt:()=>{const t=caW();return{x:t[0],y:t[1]}},done:arrive});
+   addP('cl',s.x,s.y,{vx:s.nx*1.4,vy:s.ny*1.4,life:1.2,maxLife:1.2})}
+  else break;cB--}
+}
+function stepP(dt){
+ for(const p of P){p.age+=dt;
+  if(p.tgt){const t=p.tgt(),dx=t.x-p.x,dy=t.y-p.y,d=Math.hypot(dx,dy);
+   if(d<.15){if(p.done)p.done(p);if(p.end==='fade'){p.tgt=null;p.vx=p.vy=0;p.life=.45;p.maxLife=.45;p.done=null}else p.dead=true;continue}
+   const s=Math.min(d,p.sp*dt);p.x+=dx/d*s+(Math.random()-.5)*.05;p.y+=dy/d*s+(Math.random()-.5)*.05}
+  else{p.x+=p.vx*dt+(Math.random()-.5)*.03;p.y+=p.vy*dt;p.life-=dt;p.a=clamp(p.life/p.maxLife*2.2,0,1);if(p.life<=0)p.dead=true}}
+ for(let i=P.length-1;i>=0;i--)if(P[i].dead)P.splice(i,1);
+ for(const f of FX)f.t+=dt*2.2;
+ for(let i=FX.length-1;i>=0;i--)if(FX[i].t>1)FX.splice(i,1);
+ for(let i=0;i<3;i++)MG[i]*=Math.exp(-dt*1.4);
+ for(const k in act)act[k]*=Math.exp(-dt*.9);
+ for(const u of U){const n=u.h.filter(v=>v).length;u.rT+=((n>=3?1:0)-u.rT)*Math.min(1,dt*3);
+  for(let j=0;j<4;j++)u.fe[j]+=((u.h[j]===1?1:0)-u.fe[j])*Math.min(1,dt*5)}
+}
+
+/* ================= Canvas plumbing ================= */
+const cv=$('#cv'),ctx=cv.getContext('2d'),cc=$('#cc'),cx2=cc.getContext('2d');
+function resize(){const r=cv.getBoundingClientRect();dpr=Math.min(2,devicePixelRatio||1);W=r.width;H=r.height;cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);
+ const r2=cc.getBoundingClientRect();CW=r2.width;CH=r2.height;cc.width=Math.round(CW*dpr);cc.height=Math.round(CH*dpr)}
+new ResizeObserver(resize).observe(cv);new ResizeObserver(resize).observe(cc);
+const rr=(c,x,y,w,h,r)=>{c.beginPath();c.roundRect?c.roundRect(x,y,w,h,r):c.rect(x,y,w,h)};
+const S=(wx,wy)=>[M.cx+wx*M.s,M.cy+wy*M.s];
+const cellScale=()=>Math.min(W/(W<600?14:20),H/15.5);
+const wpts=()=>LP.map(p=>cw(p[0],p[1]));
+function pathPts(c,pts){c.beginPath();pts.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));c.closePath()}
+const lt=()=>[1,2,4][st.tier],lvl=()=>st.tier;
+const FLOW=[];{const r=mulberry(3);for(let i=0;i<80;i++)FLOW.push([r()*36,r()*2-1,.8+r()*.6])}
+const AIR=[];{const r=mulberry(11);for(let i=0;i<34;i++)AIR.push([r()*32-16,r(),r()*TAU])}
+const chev=(c,x,y,dir,col,a,s)=>{c.strokeStyle=rgba(col,a);c.lineWidth=.12;c.lineCap='round';c.lineJoin='round';c.beginPath();c.moveTo(x-s,y-dir*s*.6);c.lineTo(x,y+dir*s*.3);c.lineTo(x+s,y-dir*s*.6);c.stroke()};
+
+function drawMito(c,i,A,Wd){const m=mitoW(i),g=MG[i],t=st.time;
+ c.save();c.translate(m.x,m.y);c.globalAlpha=A;
+ const gr=c.createRadialGradient(0,0,.2,0,0,2.6+g*1.4);gr.addColorStop(0,rgba('#ffb040',.25+.5*Math.min(1,g)));gr.addColorStop(1,rgba('#ffb040',0));
+ c.fillStyle=gr;c.beginPath();c.arc(0,0,2.6+g*1.4,0,TAU);c.fill();
+ c.fillStyle=rgba('#ff8a2d',.35+.4*Math.min(1,g));c.strokeStyle=rgba('#ffd09a',.85);c.lineWidth=.06;c.beginPath();c.ellipse(0,0,1.45,.72,0,0,TAU);c.fill();c.stroke();
+ c.strokeStyle=rgba('#ffd09a',.55);c.lineWidth=.045;c.beginPath();for(let k=-3;k<=3;k++){const x=k*.34;c.moveTo(x,-.5);c.lineTo(x+.06,.1+(k%2?.18:0))}c.stroke();
+ if(Wd){c.fillStyle='#fff';c.beginPath();c.arc(0,0,.05,0,TAU);c.fill()}
+ c.restore()}
+
+/* ================= Cell scene ================= */
+function cellScene(c,en,A){
+ const t=st.time,Hc=lumenH(),e=en.e,topY=-Hc-1.2,spd=1+st.sqT*1.8,hl=st.hl;
+ const al=(...k)=>A*(hl?(k.includes(hl)?1:.2):1);
+ const on=k=>hl===k;
+ // tissue below
+ c.globalAlpha=A*.5;c.fillStyle='rgba(70,20,110,.2)';c.fillRect(-18,Hc+1.2,36,9);
+ // plasma
+ c.globalAlpha=al('plasma');
+ const pg=c.createLinearGradient(0,-Hc,0,Hc);pg.addColorStop(0,'#1c0a1c');pg.addColorStop(.5,TK.lumen);pg.addColorStop(1,'#14081f');c.fillStyle=pg;c.fillRect(-18,-Hc,36,Hc*2);
+ if(on('plasma')){c.fillStyle='rgba(255,150,170,.12)';c.fillRect(-18,-Hc,36,Hc*2)}
+ c.save();c.beginPath();c.rect(-18,-Hc,36,Hc*2);c.clip();
+ for(const d of FLOW){const x=(((d[0]-t*spd*d[2])%36)+36)%36-18,y=d[1]*Hc*.95;c.fillStyle=rgba(TK.fg,.18);c.beginPath();c.arc(x,y,.05,0,TAU);c.fill()}
+ // neighbour red cells drifting by
+ const gh=(1-Math.min(1,st.sqT*1.6));
+ if(gh>.02)for(let i=0;i<4;i++){const x=(((i*9.5-t*spd*1.6)%38)+38)%38-19,y=(i%2?1:-1)*(Hc-1.75),sgn=i%2?1:-1;
+  if(Math.abs(x)<4.8&&Math.abs(y)<2.4)continue;
+  c.save();c.translate(x,y);c.rotate(sgn*.25*Math.sin(t*.5+i));c.scale(.62,.62);pathPts(c,LP);c.fillStyle=rgba('#a01a46',.32*gh);c.fill();c.strokeStyle=rgba('#ff7a8a',.4*gh);c.lineWidth=.1;c.stroke();c.restore()}
+ c.restore();
+ // walls (capillary endothelium)
+ for(const s of[-1,1]){const y0=s<0?topY:Hc;c.globalAlpha=al('wall');
+  c.fillStyle=on('wall')?'#6a30c0':rgba(TK.wall,.85);c.fillRect(-18,y0,36,1.2);
+  for(let i=0;i<5;i++){const x=(((i*7.2-t*spd)%36)+36)%36-18;
+   c.fillStyle=on('wall')?'#8c55e8':'#5a24a6';c.beginPath();c.ellipse(x,s<0?-Hc-.38:Hc+.38,1.9,.72,0,0,TAU);c.fill();
+   c.strokeStyle='rgba(255,255,255,.14)';c.lineWidth=.04;c.beginPath();c.moveTo(x+3.6,y0);c.lineTo(x+3.6,y0+1.2);c.stroke()}
+  c.strokeStyle=rgba(on('wall')?'#d6bcff':'#a77bff',on('wall')?.95:.55);c.lineWidth=on('wall')?.09:.04;c.beginPath();c.moveTo(-18,s<0?-Hc:Hc);c.lineTo(18,s<0?-Hc:Hc);c.stroke()}
+ // alveolus (lungs)
+ c.globalAlpha=al('air')*(1-e);
+ {const g=c.createLinearGradient(0,-11.5,0,topY);g.addColorStop(0,'rgba(110,100,255,.04)');g.addColorStop(1,on('air')?'rgba(130,130,255,.5)':'rgba(120,100,255,.26)');c.fillStyle=g;c.fillRect(-18,-11.5,36,11.5+topY);
+  c.strokeStyle='rgba(176,150,255,.28)';c.lineWidth=.06;for(const q of[[-14,-9.5,5],[15,-9.5,5.5],[-1,-14,4.5]]){c.beginPath();c.arc(q[0],q[1],q[2],0,TAU);c.stroke()}
+  c.strokeStyle='rgba(206,176,255,.75)';c.lineWidth=.1;c.beginPath();for(let x=-18;x<=18;x+=.4){const y=topY-.3+Math.sin(x*1.3+1)*.09;x===-18?c.moveTo(x,y):c.lineTo(x,y)}c.stroke();
+  for(const a of AIR){const x=a[0]+Math.sin(t*.7+a[2])*.6,y=-9+a[1]*(9+topY-.6)+Math.cos(t*.9+a[2])*.3;c.fillStyle=rgba(COL.o2,.5);c.beginPath();c.arc(x,y,.1,0,TAU);c.fill()}}
+ // muscle (tissue)
+ c.globalAlpha=al('muscle','mito')*e;
+ {const g=c.createLinearGradient(0,-11.5,0,topY);g.addColorStop(0,'rgba(212,0,85,.10)');g.addColorStop(1,on('muscle')?'rgba(255,60,120,.42)':'rgba(212,0,85,.22)');c.fillStyle=g;c.fillRect(-18,-11.5,36,11.5+topY-.5);
+  const sp=.5*(1+.06*Math.sin(t*(st.scen==='exercise'?7:2.2)));
+  c.fillStyle='rgba(110,8,50,.42)';for(let x=-18;x<18;x+=sp)c.fillRect(x+sp*.2,-11.5,sp*.42,11.5+topY-.55);
+  c.fillStyle='rgba(255,170,170,.2)';for(let x=-18;x<18;x+=sp)c.fillRect(x,-11.5,.035,11.5+topY-.55);
+  c.strokeStyle='rgba(255,150,130,.7)';c.lineWidth=.1;c.beginPath();c.moveTo(-18,topY-.45);c.lineTo(18,topY-.45);c.stroke();
+  for(let i=0;i<3;i++)drawMito(c,i,al('muscle','mito')*e,on('mito'))}
+ c.globalAlpha=A;
+ // exchange chevrons
+ {const sx=-3.4,sy=0;const f=(t*1.6)%1;
+  if(act.o2in>.8){for(let k=0;k<3;k++){const y=topY-1.4+((f+k/3)%1)*(1.4+(Hc+topY)*0+1.0);chev(c,sx,y+.4,1,COL.o2,.55*Math.min(1,act.o2in/3),.35)}}
+  if(act.o2out>.8){for(let k=0;k<3;k++){const y=-Hc+.4-((f+k/3)%1)*1.6;chev(c,sx,y,-1,COL.o2,.55*Math.min(1,act.o2out/3),.35)}}
+  if(act.co2out>.8){for(let k=0;k<3;k++){const y=-Hc+.4-((f+k/3)%1)*1.6;chev(c,3.4,y,-1,COL.co2,.55*Math.min(1,act.co2out/3),.35)}}
+  if(act.co2in>.8){for(let k=0;k<3;k++){const y=topY-1.4+((f+k/3)%1)*1.0;chev(c,3.4,y+.4,1,COL.co2,.55*Math.min(1,act.co2in/3),.35)}}}
+
+ // ---- cell body
+ const pts=wpts(),satVis=clamp(bound/(U.length*4),0,1)/.97;
+ const col=mix(DEOXY,OXY,clamp(satVis+(coN?coN/(U.length*4)*.7:0),0,1));
+ const bodyA=al('shape','mem');
+ c.save();c.globalAlpha=bodyA;pathPts(c,pts);
+ {const g=c.createRadialGradient(0,-.2,.2,0,0,4.4);g.addColorStop(0,rgba(col,.34));g.addColorStop(.75,rgba(col,.6));g.addColorStop(1,rgba(mix(col,'#ff9a8a',.5),.92));c.fillStyle=g;c.fill();
+  const rg=c.createLinearGradient(-4,0,4,0);rg.addColorStop(0,'#b45cff');rg.addColorStop(.5,'#ff4d94');rg.addColorStop(1,'#ff9a3d');
+  c.lineWidth=on('mem')||on('shape')?.14:.07;c.strokeStyle=rg;c.shadowColor=on('mem')?COL.mem:col;c.shadowBlur=on('mem')||on('shape')?42:26;c.stroke()}
+ c.restore();c.globalAlpha=A;
+ // spectrin
+ {c.globalAlpha=al('mem','shape');const hi=on('mem');c.fillStyle=rgba('#ffd2b8',hi?1:.55);c.strokeStyle=rgba('#ffd2b8',hi?.7:.25);c.lineWidth=hi?.05:.025;
+  const ring=LP.map(p=>cw(p[0]*.95,p[1]*.72));c.beginPath();ring.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));c.closePath();c.stroke();
+  for(let i=0;i<ring.length;i+=4){c.beginPath();c.arc(ring[i][0],ring[i][1],hi?.07:.045,0,TAU);c.fill()}c.globalAlpha=A}
+ // ---- hemoglobin
+ for(let i=0;i<U.length;i++){const u=U[i],p=uPos(u),r=.19,ang=u.ph+t*.15,sel=i===st.selU;
+  c.globalAlpha=al('hb');
+  for(let j=0;j<4;j++){const gx=GX[j][0]*r*.95,gy=GX[j][1]*r*.95,x=p[0]+gx*Math.cos(ang)-gy*Math.sin(ang),y=p[1]+gx*Math.sin(ang)+gy*Math.cos(ang);
+   const s=u.h[j],cl=s===1?OXY:s===2?COL.co:DEOXY;
+   c.fillStyle=rgba(cl,s===1?.34:.2);c.beginPath();c.arc(x,y,r*1.2,0,TAU);c.fill();c.fillStyle=s===1?'#ffd0c0':s===2?'#ffb0c8':mix(cl,'#000000',.4);c.beginPath();c.arc(x,y,r*.64,0,TAU);c.fill()}
+  if(u.prot){c.fillStyle=COL.h;c.beginPath();c.arc(p[0],p[1]-.36,.075,0,TAU);c.fill()}
+  if(on('hb')||sel){c.strokeStyle=rgba('#ffffff',on('hb')?.5:.85);c.lineWidth=.035;c.beginPath();c.arc(p[0],p[1],.42+(sel?.04*Math.sin(t*6):0),0,TAU);c.stroke()}
+  const q=S(p[0],p[1]);HIT.push({k:'hb',i,x:q[0],y:q[1],r:Math.max(11,M.s*.34)})}
+ c.globalAlpha=A;
+ // ---- CA
+ {const ca=caW();c.save();c.globalAlpha=al('ca');c.translate(ca[0],ca[1]);const pulse=1+.12*Math.sin(t*5)+(on('ca')?.4:0);
+  const g=c.createRadialGradient(0,0,0,0,0,.8*pulse);g.addColorStop(0,'rgba(255,230,130,1)');g.addColorStop(1,'rgba(255,170,40,0)');c.fillStyle=g;c.beginPath();c.arc(0,0,.8*pulse,0,TAU);c.fill();
+  c.fillStyle='#fff3c0';c.beginPath();for(let i=0;i<10;i++){const a=i*TAU/10-Math.PI/2,r=i%2?.12:.3;c.lineTo(Math.cos(a)*r*pulse,Math.sin(a)*r*pulse)}c.closePath();c.fill();c.restore();
+  const q=S(ca[0],ca[1]);HIT.push({k:'ca',x:q[0],y:q[1],r:Math.max(13,M.s*.5)})}
+ // ---- band 3
+ for(let i=0;i<SITES.length;i++){const s=siteW(i),hi=on('b3');c.save();c.globalAlpha=al('b3');c.translate(s.x,s.y);c.rotate(Math.atan2(s.ny,s.nx)-Math.PI/2);
+  c.shadowColor=COL.b3;c.shadowBlur=hi?24:8;c.fillStyle=rgba(COL.b3,hi?1:.85);rr(c,-.26,-.14,.52,.28,.12);c.fill();c.shadowBlur=0;c.strokeStyle='rgba(0,20,20,.7)';c.lineWidth=.035;c.beginPath();c.moveTo(0,-.14);c.lineTo(0,.14);c.stroke();
+  if(hi){c.strokeStyle=rgba('#fff',.5+.5*Math.sin(t*6));c.lineWidth=.05;c.beginPath();c.arc(0,0,.5,0,TAU);c.stroke()}
+  c.restore();const q=S(s.x,s.y);HIT.push({k:'b3',x:q[0],y:q[1],r:Math.max(13,M.s*.42)})}
+ c.globalAlpha=A;
+ // ---- character
+ if(st.face&&st.tier===0)face(c,al('shape','mem'),satVis,en);
+ // ---- particles
+ for(const p of P){const rd={o2:.15,co2:.18,hco3:.2,h:.1,cl:.11}[p.type],col2=COL[p.type],hi=hl===p.type,k=hl?(hi?1:.2):1;c.globalAlpha=A*p.a*k;
+  const R=rd*(hi?1.5:1);const g=c.createRadialGradient(p.x,p.y,0,p.x,p.y,R*3.4);g.addColorStop(0,rgba(col2,.8));g.addColorStop(1,rgba(col2,0));c.fillStyle=g;c.beginPath();c.arc(p.x,p.y,R*3.4,0,TAU);c.fill();
+  c.fillStyle='#fff';c.beginPath();c.arc(p.x,p.y,R*.5,0,TAU);c.fill();
+  if(hi){c.strokeStyle=rgba(col2,.9);c.lineWidth=.04;c.beginPath();c.arc(p.x,p.y,R*1.9,0,TAU);c.stroke()}
+  const q=S(p.x,p.y);HIT.push({k:p.type,x:q[0],y:q[1],r:Math.max(11,M.s*.36)})}
+ c.globalAlpha=A;
+ for(const f of FX){c.strokeStyle=rgba(f.c,1-f.t);c.lineWidth=.05;c.beginPath();c.arc(f.x,f.y,.15+f.t*.6,0,TAU);c.stroke()}
+ for(let i=0;i<pts.length;i+=3){const q=S(pts[i][0],pts[i][1]);HIT.push({k:'mem',x:q[0],y:q[1],r:9})}
+ // ---- labels
+ if(st.labels){const L=LBL[lt()],R=REG[lvl()];
+  const mp=cw(-3.1,-hT(-3.1)),hp=uPos(U[st.selU]),b=siteW(1),ca=caW();
+  const mq=S(mp[0],mp[1]),hq=S(hp[0],hp[1]),bq=S(b.x,b.y),cq=S(ca[0],ca[1]);
+  LQ.push({k:'lab',x:mq[0],y:mq[1],dx:-70,dy:-52,text:L[0],A:A*(hl&&!['mem','shape'].includes(hl)?.3:1)});
+  LQ.push({k:'lab',x:hq[0],y:hq[1],dx:78,dy:-66,text:L[1],A:A*(hl&&hl!=='hb'?.3:1)});
+  if(L[2])LQ.push({k:'lab',x:bq[0],y:bq[1],dx:-74,dy:66,text:L[2],A:A*(hl&&hl!=='b3'?.3:1)});
+  if(L[3])LQ.push({k:'lab',x:cq[0],y:cq[1],dx:80,dy:72,text:L[3],A:A*(hl&&hl!=='ca'?.3:1)});
+  const lx=M.cx-W/2+16;
+  LQ.push({k:'tag',x:lx,y:S(0,topY+.62)[1],text:R[0].toUpperCase(),al:'left',A:A*.9,c:'#d9c2ff'});
+  LQ.push({k:'tag',x:lx,y:S(0,Hc-.5)[1],text:R[1].toUpperCase(),al:'left',A:A*.8,c:'#f0c6d0'});
+  LQ.push({k:'tag',x:lx,y:S(0,topY-.9)[1],text:(e<.5?R[2]:R[3]).toUpperCase(),al:'left',A:A*.95,c:e<.5?'#b8c6ff':'#ffb4c4'});
+  if(e>.5){const m=mitoW(1),q=S(m.x,m.y);LQ.push({k:'lab',x:q[0],y:q[1],dx:60,dy:-30,text:lvl()===0?'power plant':'mitochondrion',A:A*e})}}
+ LQ.push({k:'bar',x:W-24,y:H-22,len:M.s,A,text:'1 µm'});
+ // dims for hover tooltips: regions
+ Mc={cx:M.cx,cy:M.cy,s:M.s};
+}
+function face(c,A,satVis,en){
+ const t=st.time,k=st.sqT,co=SC[st.scen].co>0;
+ const mood=k>.45?'squeeze':(co&&en.e>.6)?'dizzy':satVis>.82?'happy':'calm';
+ const blink=(t%4.3)<.12;let look=[1,-.2];
+ if(st.ptr&&st.zoomT<.2){look=[(st.ptr.x-Mc.cx)/Mc.s,(st.ptr.y-Mc.cy)/Mc.s]}else look=[Math.cos(t*.4)*3,-3+Math.sin(t*.6)];
+ c.save();c.globalAlpha=A;c.lineCap='round';c.lineJoin='round';
+ for(const sx of[-1,1]){const p=cw(sx*EYE,-.08);
+  if(mood==='squeeze'){c.strokeStyle='#2a0a14';c.lineWidth=.09;c.beginPath();c.moveTo(p[0]-sx*.2,p[1]-.2);c.lineTo(p[0]+sx*.14,p[1]);c.lineTo(p[0]-sx*.2,p[1]+.2);c.stroke()}
+  else if(mood==='dizzy'){c.strokeStyle='#2a0a14';c.lineWidth=.08;c.beginPath();c.moveTo(p[0]-.18,p[1]-.18);c.lineTo(p[0]+.18,p[1]+.18);c.moveTo(p[0]+.18,p[1]-.18);c.lineTo(p[0]-.18,p[1]+.18);c.stroke()}
+  else if(blink){c.strokeStyle='#2a0a14';c.lineWidth=.08;c.beginPath();c.arc(p[0],p[1]-.05,.2,.15*Math.PI,.85*Math.PI);c.stroke()}
+  else{c.fillStyle='rgba(255,255,255,.96)';c.beginPath();c.ellipse(p[0],p[1],.31,.34,0,0,TAU);c.fill();
+   let dx=look[0]-p[0],dy=look[1]-p[1];const d=Math.hypot(dx,dy)||1;const m=Math.min(.12,d*.03);dx=dx/d*m;dy=dy/d*m;
+   c.fillStyle='#1d0812';c.beginPath();c.arc(p[0]+dx,p[1]+dy,.17,0,TAU);c.fill();c.fillStyle='#fff';c.beginPath();c.arc(p[0]+dx-.05,p[1]+dy-.06,.05,0,TAU);c.fill()}}
+ // mouth
+ const m0=cw(-.8,.1),m2=cw(.8,.1);
+ c.strokeStyle='#2a0a14';c.lineWidth=.085;c.beginPath();
+ if(mood==='squeeze'){const q=cw(0,.1);c.fillStyle='#2a0a14';c.beginPath();c.ellipse(q[0],q[1],.17,.2,0,0,TAU);c.fill()}
+ else if(mood==='dizzy'){c.moveTo(m0[0],m0[1]);for(let i=1;i<=8;i++){const q=cw(-.8+i*.2,.1+(i%2?.09:-.09));c.lineTo(q[0],q[1])}c.stroke()}
+ else{const sag=mood==='happy'?.34:.14,m1=cw(0,.1+sag*2);c.moveTo(m0[0],m0[1]);c.quadraticCurveTo(m1[0],m1[1],m2[0],m2[1]);c.stroke();
+  if(mood==='happy'){for(const sx of[-1,1]){const q=cw(sx*1.55,.34),g=c.createRadialGradient(q[0],q[1],0,q[0],q[1],.4);g.addColorStop(0,'rgba(255,70,140,.55)');g.addColorStop(1,'rgba(255,70,140,0)');c.fillStyle=g;c.beginPath();c.arc(q[0],q[1],.4,0,TAU);c.fill()}}}
+ if(st.scen==='exercise'&&en.e>.5){const q=cw(-3.0,-1.1),b=Math.sin(t*3)*.08;c.fillStyle='rgba(140,210,255,.9)';c.beginPath();c.moveTo(q[0],q[1]-.3+b);c.quadraticCurveTo(q[0]+.22,q[1]+b,q[0],q[1]+.16+b);c.quadraticCurveTo(q[0]-.22,q[1]+b,q[0],q[1]-.3+b);c.fill()}
+ c.restore()}
+
+/* ================= Hemoglobin scene ================= */
+const SUB=[[-1.75,-1.15,'α₁'],[-1.6,1.35,'β₁'],[1.75,1.15,'α₂'],[1.6,-1.35,'β₂']];
+const HELIX=(()=>{const r=mulberry(21),o=[];for(let s=0;s<4;s++){const h=[];for(let k=0;k<8;k++)h.push([k*TAU/8+r()*.4,.62+r()*.25,.55+r()*.5,r()*TAU]);o.push(h)}return o})();
+function hbScene(c,A){
+ const u=U[st.selU],t=st.time,n=u.h.filter(v=>v).length,rT=u.rT,hl=st.hl;
+ const al=(...k)=>A*(hl?(k.includes(hl)?1:.2):1);
+ const tc=['#7aa8ff','#ff7ab0'];
+ for(let d=0;d<2;d++){c.save();c.rotate((d?1:-1)*.13*rT);
+  for(const s of[d*2,d*2+1]){const sb=SUB[s],isA=s%2===0,col=tc[isA?0:1],x=sb[0]+(d?.1:-.1)*rT*-1,y=sb[1];
+   c.save();c.translate(x,y);c.globalAlpha=al('sub');
+   const g=c.createRadialGradient(0,0,.2,0,0,1.7);g.addColorStop(0,rgba(col,hl==='sub'?.4:.22));g.addColorStop(1,rgba(col,0));c.fillStyle=g;c.beginPath();c.arc(0,0,1.7,0,TAU);c.fill();
+   for(const h of HELIX[s]){const a=h[0]+Math.sin(t*.6+h[3])*.04,px=Math.cos(a)*h[1],py=Math.sin(a)*h[1],tx=-Math.sin(a),ty=Math.cos(a),L2=h[2];
+    c.lineCap='round';c.beginPath();c.moveTo(px-tx*L2*.5,py-ty*L2*.5);c.lineTo(px+tx*L2*.5,py+ty*L2*.5);
+    c.lineWidth=.36;c.strokeStyle=rgba(col,.5);c.stroke();c.lineWidth=.1;c.strokeStyle=rgba(mix(col,'#ffffff',.6),.9);c.stroke()}
+   c.globalAlpha=al('heme','sub');
+   const j=s,st2=u.h[j],b=st2===1,hc=st2===2?COL.co:b?OXY:DEOXY;
+   c.rotate(s*.7);c.fillStyle=rgba(hc,.35);c.strokeStyle=hc;c.lineWidth=hl==='heme'?.12:.07;rr(c,-.42,-.42,.84,.84,.14);c.fill();c.stroke();
+   c.fillStyle=b?'#ffd7c8':hc;c.beginPath();c.arc(0,0,.16,0,TAU);c.fill();c.rotate(-s*.7);
+   c.globalAlpha=al('o2','co','heme','sub');
+   if(b||st2===2){const oc=st2===2?COL.co:COL.o2;c.fillStyle=oc;c.strokeStyle=rgba(oc,.9);c.lineWidth=.05;c.beginPath();c.arc(.55,-.55,.2,0,TAU);c.fill();c.stroke();c.beginPath();c.arc(.85,-.8,.2,0,TAU);c.fill();c.stroke()}
+   c.globalAlpha=A;
+   if(s===st.selH){c.strokeStyle=rgba('#fff',.5+.4*Math.sin(t*6));c.lineWidth=.06;c.beginPath();c.arc(0,0,1.62,0,TAU);c.stroke()}
+   c.restore();
+   const q=S(x,y);HIT.push({k:'sub',i:s,x:q[0],y:q[1],r:M.s*1.4});
+   const q2=S(x+.1,y+.1);HIT.push({k:'heme',i:s,x:q2[0],y:q2[1],r:M.s*.6});
+   if(b||st2===2){const q3=S(x+.7,y-.65);HIT.push({k:st2===2?'co':'o2',x:q3[0],y:q3[1],r:M.s*.4})}}
+  c.restore()}
+ c.globalAlpha=al('bpg')*(1-rT);c.fillStyle=COL.bpg;for(const q of[[0,-.18],[-.16,.12],[.17,.14]]){c.beginPath();c.arc(q[0],q[1],.11,0,TAU);c.fill()}
+ {const q=S(0,0);HIT.push({k:'bpg',x:q[0],y:q[1],r:Math.max(10,M.s*.4)})}
+ c.globalAlpha=A;
+ const cq=S(0,0),st3=lt()>=3?(rT>.5?'R state · relaxed':'T state · tense'):lt()>=2?(rT>.5?'Relaxed':'Tense'):lt()>=1?`${n} of 4 pockets full`:`${n} oxygen${n===1?'':'s'}`;
+ LQ.push({k:'tag',x:W/2,y:26,text:st3,al:'center',A,big:true});
+ if(lt()>=2)for(const s of SUB.keys()){const q=S(SUB[s][0]*1.07,SUB[s][1]+(s%2?1.85:-1.85));LQ.push({k:'tag',x:q[0],y:q[1],text:SUB[s][2],al:'center',A})}
+ if(lt()>=3)LQ.push({k:'lab',x:cq[0]+4,y:cq[1]-4,dx:0,dy:-120,text:'2,3-BPG',A:A*(1-rT)});
+ LQ.push({k:'bar',x:W-24,y:H-22,len:M.s,A,text:'1 nm'});
+}
+
+/* ================= Heme scene ================= */
+const pent=(cx,cy,R,rot)=>{const p=[];for(let i=0;i<5;i++){const a=rot+i*TAU/5;p.push([cx+R*Math.cos(a),cy+R*Math.sin(a)])}return p};
+const PYR=[[3.2,0,Math.PI],[0,3.2,-Math.PI/2],[-3.2,0,0],[0,-3.2,Math.PI/2]].map(a=>pent(a[0],a[1],1.2,a[2]));
+const BRG=[[2.45,2.45],[-2.45,2.45],[-2.45,-2.45],[2.45,-2.45]];
+const BLINK=BRG.map(b=>{const all=PYR.flatMap((p,pi)=>p.map((v,vi)=>({v,pi,vi,d:Math.hypot(v[0]-b[0],v[1]-b[1])}))).filter(o=>o.vi!==0).sort((x,y)=>x.d-y.d);
+ const first=all[0],second=all.find(o=>o.pi!==first.pi);return[first.v,second.v]});
+function hemeScene(c,A){
+ const u=U[st.selU],j=st.selH,fe=u.fe[j],s=u.h[j],hl=st.hl;
+ const al=(...k)=>A*(hl?(k.includes(hl)?1:.2):1);
+ const ringC='#ff8a70';
+ c.globalAlpha=al('his');const his=pent(1.5,1.6,.9,.3);
+ c.strokeStyle=hl==='his'?'#e6d6ff':'#c8a8ff';c.lineWidth=hl==='his'?.14:.1;c.beginPath();his.forEach((p,i)=>i?c.lineTo(p[0],p[1]):c.moveTo(p[0],p[1]));c.closePath();c.stroke();c.beginPath();c.moveTo(0,0);c.lineTo(his[0][0],his[0][1]);c.stroke();
+ {const q=S(1.5,1.6);HIT.push({k:'his',x:q[0],y:q[1],r:M.s*1.0})}
+ c.lineJoin='round';c.globalAlpha=al('porph');
+ for(const p of PYR){c.beginPath();p.forEach((v,i)=>i?c.lineTo(v[0],v[1]):c.moveTo(v[0],v[1]));c.closePath();
+  c.fillStyle=rgba(ringC,hl==='porph'?.34:.16);c.fill();c.shadowColor=ringC;c.shadowBlur=hl==='porph'?30:14;c.lineWidth=.1;c.strokeStyle=rgba(ringC,.95);c.stroke();c.shadowBlur=0;
+  const q=S(p[0][0]*1.5+(p[2][0]-p[0][0])*.3,p[0][1]*1.5+(p[2][1]-p[0][1])*.3);HIT.push({k:'porph',x:S(p[0][0]*1.28,p[0][1]*1.28)[0],y:S(p[0][0]*1.28,p[0][1]*1.28)[1],r:M.s*1.2});void q}
+ c.strokeStyle=rgba(ringC,.9);c.lineWidth=.08;
+ BRG.forEach((b,i)=>{c.beginPath();c.moveTo(BLINK[i][0][0],BLINK[i][0][1]);c.lineTo(b[0],b[1]);c.lineTo(BLINK[i][1][0],BLINK[i][1][1]);c.stroke();c.fillStyle=rgba(ringC,.9);c.beginPath();c.arc(b[0],b[1],.2,0,TAU);c.fill()});
+ PYR.forEach(p=>{const ex=(p[2][0]+p[3][0])/2,ey=(p[2][1]+p[3][1])/2,l=Math.hypot(ex,ey);c.strokeStyle=rgba(ringC,.6);c.lineWidth=.07;c.beginPath();c.moveTo(ex,ey);c.lineTo(ex+ex/l*.9,ey+ey/l*.9);c.stroke();c.fillStyle=rgba(ringC,.6);c.beginPath();c.arc(ex+ex/l*.9,ey+ey/l*.9,.15,0,TAU);c.fill()});
+ c.globalAlpha=al('n');
+ PYR.forEach(p=>{c.fillStyle=COL.n;c.shadowColor=COL.n;c.shadowBlur=hl==='n'?24:6;c.strokeStyle='rgba(0,0,0,.4)';c.lineWidth=.05;c.beginPath();c.arc(p[0][0],p[0][1],.36,0,TAU);c.fill();c.shadowBlur=0;c.stroke();
+  const q=S(p[0][0],p[0][1]);HIT.push({k:'n',x:q[0],y:q[1],r:M.s*.5})});
+ c.globalAlpha=al('fe');
+ const feC=s===1?'#ff6a45':s===2?COL.co:'#8a3a22',fr=.62;
+ c.save();c.shadowColor=feC;c.shadowBlur=hl==='fe'?44:26;
+ const g=c.createRadialGradient(-.15,-.2,.05,0,0,fr);g.addColorStop(0,mix(feC,'#ffffff',.5));g.addColorStop(1,feC);c.fillStyle=g;c.beginPath();c.arc(0,0,fr,0,TAU);c.fill();c.restore();
+ {const q=S(0,0);HIT.push({k:'fe',x:q[0],y:q[1],r:M.s*.8})}
+ c.globalAlpha=al('o2','co');
+ if(s===1||s===2){const oc=s===2?COL.co:COL.o2,pa=[[-.9,-1.0],[-1.9,-1.5]];
+  c.strokeStyle=oc;c.lineWidth=.16;c.beginPath();c.moveTo(0,0);c.lineTo(pa[0][0],pa[0][1]);c.lineTo(pa[1][0],pa[1][1]);c.stroke();
+  for(const q of pa){c.fillStyle=oc;c.strokeStyle='rgba(0,0,0,.35)';c.lineWidth=.06;c.shadowColor=oc;c.shadowBlur=hl===(s===2?'co':'o2')?30:10;c.beginPath();c.arc(q[0],q[1],.42,0,TAU);c.fill();c.shadowBlur=0;c.stroke()}
+  const q=S(-1.4,-1.25);HIT.push({k:s===2?'co':'o2',x:q[0],y:q[1],r:M.s*.9})}
+ c.globalAlpha=A;
+ const q0=S(0,0),qh=S(1.5,1.6),qo=S(-1.9,-1.5);
+ LQ.push({k:'tag',x:W/2,y:26,text:s===1?(lt()>=3?'Fe²⁺ · O₂ bound':'Oxygen holding on'):s===2?'Carbon monoxide bound':(lt()>=3?'Fe²⁺ · empty':'Pocket is empty'),al:'center',A,big:true});
+ if(st.labels&&lt()>=1){LQ.push({k:'lab',x:q0[0],y:q0[1],dx:70,dy:-80,text:lt()>=3?'iron  Fe²⁺':'iron',A});
+  if(lt()>=2)LQ.push({k:'lab',x:S(3.2,0)[0],y:S(3.2,0)[1],dx:60,dy:70,text:lt()>=3?'porphyrin ring':'heme ring',A});
+  if(lt()>=3)LQ.push({k:'lab',x:qh[0],y:qh[1],dx:70,dy:60,text:'proximal His F8',A});
+  if(s===1||s===2)LQ.push({k:'lab',x:qo[0],y:qo[1],dx:-60,dy:-40,text:s===2?'CO':'O₂',A})}
+ LQ.push({k:'bar',x:W-24,y:H-22,len:M.s,A,text:'1 Å'});
+ LQ.push({k:'inset',fe,s,A});
+}
+
+/* ================= Screen-space labels ================= */
+function drawLQ(c){
+ c.textBaseline='middle';
+ for(const L of LQ){const A=L.A??1;if(A<.02)continue;c.save();c.globalAlpha=A;
+  if(L.k==='lab'){const x=L.x,y=L.y,tx=x+L.dx,ty=y+L.dy,right=L.dx<0,fg=TK.fg;
+   c.strokeStyle=rgba(fg,.55);c.lineWidth=1;c.beginPath();c.moveTo(x,y);c.lineTo(tx,ty);c.lineTo(tx+(right?-14:14),ty);c.stroke();c.fillStyle=fg;c.beginPath();c.arc(x,y,2.5,0,TAU);c.fill();
+   c.font=`italic 17px ${FONT.disp}`;c.textAlign=right?'right':'left';c.fillStyle=fg;c.fillText(L.text,tx+(right?-20:20),ty)}
+  else if(L.k==='tag'){const big=L.big;c.textAlign=L.al||'left';c.fillStyle=big?TK.fg:(L.c||TK.muted);
+   if(big){c.font=`italic 24px ${FONT.disp}`;c.fillText(L.text,L.x,L.y)}else{c.font=`500 10.5px ${FONT.mono}`;c.letterSpacing='1.6px';c.fillText(L.text,L.x,L.y);c.letterSpacing='0px'}}
+  else if(L.k==='bar'){c.strokeStyle=TK.fg;c.fillStyle=TK.fg;c.lineWidth=1.5;const x1=L.x;c.beginPath();c.moveTo(x1-L.len,L.y);c.lineTo(x1,L.y);c.stroke();
+   c.font=`500 11px ${FONT.mono}`;c.textAlign='right';c.fillText(L.text,x1-L.len-10,L.y)}
+  else if(L.k==='inset')drawInset(c,L);
+  c.restore()}
+}
+function drawInset(c,L){
+ const w=Math.min(210,W*.42),h=150,bx=W-w-14,by=H-h-44,sc=24,cx=bx+w/2,py=by+h*.5;
+ c.fillStyle='rgba(7,5,12,.9)';c.strokeStyle=TK.line;c.lineWidth=1;rr(c,bx,by,w,h,6);c.fill();c.stroke();
+ c.font=`500 10px ${FONT.mono}`;c.textAlign='left';c.fillStyle=TK.muted;c.fillText('SIDE VIEW',bx+10,by+14);
+ const off=(1-L.fe)*.6,fy=py+off*sc;
+ c.strokeStyle=rgba(TK.fg,.7);c.lineWidth=2.5;c.lineCap='round';c.beginPath();c.moveTo(cx-3.4*sc,py);c.lineTo(cx+3.4*sc,py);c.stroke();
+ c.fillStyle=COL.n;for(const dx of[-2,2]){c.beginPath();c.arc(cx+dx*sc,py,3.5,0,TAU);c.fill()}
+ const hy=py+2.1*sc;c.strokeStyle=rgba(COL.his,.7);c.lineWidth=1.5;c.beginPath();c.moveTo(cx,fy);c.lineTo(cx,hy);c.stroke();
+ c.beginPath();c.ellipse(cx,hy+.5*sc,.8*sc,.45*sc,0,0,TAU);c.stroke();
+ if(L.s===1||L.s===2){const oc=L.s===2?COL.co:COL.o2,ox=cx-.55*sc,oy=py-1.62*sc,ox2=cx-1.2*sc,oy2=py-2.6*sc;c.strokeStyle=oc;c.lineWidth=2;c.beginPath();c.moveTo(cx,fy);c.lineTo(ox,oy);c.lineTo(ox2,oy2);c.stroke();c.fillStyle=oc;for(const q of[[ox,oy],[ox2,oy2]]){c.beginPath();c.arc(q[0],q[1],5,0,TAU);c.fill()}}
+ c.fillStyle=L.s===1?'#ff6a45':L.s===2?COL.co:'#8a3a22';c.beginPath();c.arc(cx,fy,8,0,TAU);c.fill();
+ c.font=`500 10px ${FONT.mono}`;c.fillStyle=TK.muted;c.textAlign='left';c.fillText('His F8',cx+14,hy);
+ if(lt()>=4){c.fillStyle=TK.fg;c.fillText(L.s===1?'Fe in plane':'Fe 0.4–0.6 Å out',bx+10,by+h-12);c.textAlign='right';c.fillText('Fe–N 2.0 Å',bx+w-10,by+h-12)}
+}
+
+/* ================= Render ================= */
+function render(){
+ const c=ctx;c.setTransform(dpr,0,0,dpr,0,0);c.globalAlpha=1;c.fillStyle=TK.stage;c.fillRect(0,0,W,H);
+ LQ.length=0;HIT.length=0;const z=st.zoomT,en=env();
+ const ca=1-sstep(.05,.7,z);
+ if(ca>.01){const base=cellScale(),off=base*1.25*(1-sstep(0,.8,z));M={cx:W/2,cy:H/2+off,s:base*(1+sstep(0,1,z)*5.5)};c.save();c.translate(M.cx,M.cy);c.scale(M.s,M.s);cellScene(c,en,ca);c.restore()}
+ const ha=sstep(.25,.85,z)*(1-sstep(1.1,1.65,z));
+ if(ha>.01){M={cx:W/2,cy:H/2,s:Math.min(W/14,H/10)*(.7+.3*sstep(.25,1,z))*(1+2.6*sstep(1.1,1.8,z))};c.save();c.translate(M.cx,M.cy);c.scale(M.s,M.s);hbScene(c,ha);c.restore()}
+ const ma=sstep(1.3,1.95,z);
+ if(ma>.01){M={cx:W/2,cy:H/2,s:Math.min(W/16,H/11)*(.75+.25*sstep(1.3,2,z))};c.save();c.translate(M.cx,M.cy);c.scale(M.s,M.s);hemeScene(c,ma);c.restore()}
+ drawLQ(c);
+ if(Math.abs(z-Math.round(z))>.12)HIT.length=0;
+ drawCurve(en);
+}
+function drawCurve(en){
+ if(!CW||!CH||lt()<2)return;const c=cx2;c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,CW,CH);
+ const L=38,Rt=10,Tp=10,B=28,pw=CW-L-Rt,ph=CH-Tp-B,X=p=>L+p/110*pw,Y=s=>Tp+(1-s)*ph;
+ c.font=`400 10.5px ${FONT.mono}`;c.textBaseline='middle';c.strokeStyle=TK.line;c.lineWidth=1;c.fillStyle=TK.muted;c.textAlign='right';
+ for(let i=0;i<=4;i++){const s=i/4;c.beginPath();c.moveTo(L,Y(s));c.lineTo(L+pw,Y(s));c.stroke();c.fillText(Math.round(s*100),L-6,Y(s))}
+ c.textAlign='center';for(let p=0;p<=100;p+=25)c.fillText(p,X(p),Tp+ph+12);
+ c.fillText('PO₂ (mmHg)',L+pw/2,CH-4);c.save();c.translate(10,Tp+ph/2);c.rotate(-Math.PI/2);c.fillText('% saturated',0,0);c.restore();
+ const curve=p50=>{c.beginPath();for(let p=0;p<=110;p+=2){const x=X(p),y=Y(hill(p,p50));p?c.lineTo(x,y):c.moveTo(x,y)}};
+ c.setLineDash([4,4]);c.strokeStyle=TK.muted;c.lineWidth=1.2;curve(26.8);c.stroke();c.setLineDash([]);
+ const p50=p50Of(en);curve(p50);const gg=c.createLinearGradient(L,0,L+pw,0);gg.addColorStop(0,'#b45cff');gg.addColorStop(.6,'#ff4d94');gg.addColorStop(1,'#ff9a3d');c.strokeStyle=gg;c.lineWidth=2.6;c.stroke();
+ if(lt()>=3){c.setLineDash([2,3]);c.strokeStyle=TK.muted;c.lineWidth=1;for(const p of[40,100]){c.beginPath();c.moveTo(X(p),Tp);c.lineTo(X(p),Tp+ph);c.stroke()}c.setLineDash([]);c.fillStyle=TK.muted;c.textAlign='left';c.fillText('venous 40',X(40)+4,Y(.08));c.textAlign='right';c.fillText('arterial 100',X(100)-4,Y(.08))}
+ const meas=clamp(bound/Math.max(1,U.length*4-coN),0,1),dx=X(en.po2),dy=Y(meas);
+ c.fillStyle=TK.acc;c.beginPath();c.arc(dx,dy,5.5,0,TAU);c.fill();c.strokeStyle=TK.stage;c.lineWidth=2;c.stroke();
+}
+
+/* ================= Voice ================= */
+const synth=window.speechSynthesis;let voice=null,speakTok=0;
+function pickVoice(){if(!synth)return;const vs=synth.getVoices().filter(v=>/^en/i.test(v.lang));
+ voice=vs.find(v=>/natural|aria|jenny|samantha|ava|allison|google us english|zira/i.test(v.name))||vs[0]||null}
+if(synth){pickVoice();synth.onvoiceschanged=pickVoice}
+const say=s=>s.replace(/CO₂/g,'carbon dioxide').replace(/O₂/g,'oxygen').replace(/HCO₃⁻/g,'bicarbonate').replace(/H₂CO₃/g,'carbonic acid').replace(/H⁺/g,'hydrogen ion').replace(/Cl⁻/g,'chloride').replace(/H₂O/g,'water').replace(/Fe²⁺/g,'ferrous iron')
+ .replace(/PO₂/g,'P O 2').replace(/PCO₂/g,'P C O 2').replace(/P₅₀/g,'P 50').replace(/SO₂/g,'S O 2').replace(/mmHg/g,'millimeters of mercury').replace(/µm/g,'micrometers').replace(/Å/g,'angstroms').replace(/→/g,'to').replace(/⇌/g,'goes both ways to').replace(/≈/g,'about').replace(/α₂β₂/g,'alpha 2 beta 2').replace(/α/g,'alpha ').replace(/β/g,'beta ').replace(/Hb/g,'hemoglobin').replace(/ATP/g,'A T P').replace(/[·]/g,',').replace(/2,3-BPG/g,'2 3 B P G');
+function stopSpeak(){speakTok++;if(synth)synth.cancel();subHide()}
+function speak(text,cb,showSub){
+ const tok=++speakTok;let done=false;const fin=()=>{if(done||tok!==speakTok)return;done=true;cb&&cb()};
+ if(showSub)subShow(text);
+ const est=Math.max(3200,text.length*72);
+ if(!st.voice||!synth){setTimeout(fin,est);return}
+ try{synth.cancel();const u=new SpeechSynthesisUtterance(say(text));if(voice)u.voice=voice;u.lang='en-US';u.rate=st.tier===0?.9:.97;u.pitch=1.05;
+  u.onend=fin;u.onerror=fin;
+  if(showSub)u.onboundary=e=>{if(tok!==speakTok)return;const spans=[...document.querySelectorAll('#sub span')];let acc=0,idx=-1;const sayText=say(text);
+   const ratio=e.charIndex/Math.max(1,sayText.length);idx=Math.min(spans.length-1,Math.floor(ratio*spans.length));spans.forEach((s,i)=>s.classList.toggle('on',i===idx))};
+  synth.speak(u);setTimeout(fin,est+4000)}catch(e){setTimeout(fin,est)}}
+function subShow(text){const el=$('#sub');el.hidden=false;el.innerHTML=text.split(/\s+/).map(w=>`<span>${w.replace(/</g,'&lt;')}</span>`).join(' ')}
+function syncStrip(){$('#lesson').hidden=!les.a;$('#ticker').hidden=!!les.a||tour.on}
+function subHide(){$('#sub').hidden=true;syncStrip()}
+
+/* ================= Tour ================= */
+const tour={on:false,i:0,tok:0,sp:false,tr:false};
+function startTour(){if(les.a)endLesson(true);if(synth&&!st.voice)setVoice(true);tour.on=true;syncStrip();tour.i=0;$('#tour').hidden=true;$('#tbar').hidden=false;enterStep()}
+function stopTour(){tour.on=false;tour.tok++;stopSpeak();st.tween=null;$('#tour').hidden=false;$('#tbar').hidden=true;$('#tour').textContent='Replay guided tour';syncStrip()}
+function enterStep(){
+ const s=TOUR[tour.i],tok=++tour.tok;
+ if(s.z!==undefined)st.zoom=s.z;
+ if(s.reset){st.scen='rest';initState();st.loc=0;st.squeeze=false}
+ if(s.sq!==undefined)st.squeeze=!!s.sq;
+ st.playing=false;st.sel=s.hl||null;
+ tour.sp=false;tour.tr=true;
+ if(s.go!==undefined&&Math.abs(st.loc-s.go)>.01){tour.tr=false;st.tween={from:st.loc,to:s.go,p:0,dur:s.dur||5,tok}}
+ ui();$('#tn').textContent=`Step ${tour.i+1} of ${TOUR.length}`;
+ const lv=st.tier;
+ speak(s.t[lv],()=>{if(tok!==tour.tok)return;tour.sp=true;adv(tok)},true)}
+function adv(tok){if(tok!==tour.tok||!tour.on)return;if(tour.sp&&tour.tr){setTimeout(()=>{if(tok===tour.tok)nextStep()},1100)}}
+function nextStep(){if(tour.i>=TOUR.length-1){stopTour();return}tour.i++;enterStep()}
+function prevStep(){tour.i=Math.max(0,tour.i-1);enterStep()}
+
+/* ================= UI ================= */
+const sw=k=>{const c=COL[k],id='g'+k;
+ const glow=`<defs><radialGradient id="${id}"><stop offset="0" stop-color="${c}" stop-opacity=".95"/><stop offset="1" stop-color="${c}" stop-opacity="0"/></radialGradient></defs>`;
+ const dot=`<svg width="28" height="28" viewBox="0 0 28 28">${glow}<circle cx="14" cy="14" r="13" fill="url(#${id})"/><circle cx="14" cy="14" r="3.4" fill="#fff"/></svg>`;
+ const S2=(b)=>`<svg width="28" height="28" viewBox="0 0 28 28">${b}</svg>`;
+ switch(k){
+  case'hb':return S2(`<circle cx="9" cy="9" r="4.4" fill="#ffd0c0"/><circle cx="19" cy="9" r="4.4" fill="#ffd0c0"/><circle cx="9" cy="19" r="4.4" fill="#4a0f28"/><circle cx="19" cy="19" r="4.4" fill="#4a0f28"/><circle cx="9" cy="9" r="6.5" fill="#ff3b36" opacity=".35"/><circle cx="19" cy="9" r="6.5" fill="#ff3b36" opacity=".35"/>`);
+  case'b3':return S2(`<rect x="3" y="9" width="22" height="10" rx="5" fill="${c}"/><line x1="14" y1="9" x2="14" y2="19" stroke="#002020" stroke-width="1.5"/>`);
+  case'ca':return S2(`<polygon points="14,2 17,10 26,10 19,15.5 22,25 14,19.5 6,25 9,15.5 2,10 11,10" fill="#fff3c0" stroke="${c}" stroke-width="1.5"/>`);
+  case'mem':return S2(`<ellipse cx="14" cy="14" rx="11" ry="8" fill="none" stroke="#ffd2b8" stroke-opacity=".5"/>${[0,1,2,3,4,5,6,7].map(i=>`<circle cx="${14+11*Math.cos(i*TAU/8)}" cy="${14+8*Math.sin(i*TAU/8)}" r="1.9" fill="#ffd2b8"/>`).join('')}`);
+  case'shape':return S2(`<path d="M3 14 C3 5,10 4,14 9 C18 4,25 5,25 14 C25 23,18 24,14 19 C10 24,3 23,3 14Z" fill="#ff5a6a" fill-opacity=".5" stroke="#ff8a8a" stroke-width="1.6"/>`);
+  case'plasma':return S2(`<path d="M2 9 q4-4 8 0 t8 0 t8 0 M2 15 q4-4 8 0 t8 0 t8 0 M2 21 q4-4 8 0 t8 0 t8 0" fill="none" stroke="${c}" stroke-width="1.6" stroke-opacity=".8"/>`);
+  case'wall':return S2(`<rect x="1" y="9" width="26" height="10" rx="2" fill="#3a1466" stroke="#a77bff"/><ellipse cx="14" cy="14" rx="6" ry="3.4" fill="#7a40d0"/>`);
+  case'air':return S2(`<circle cx="14" cy="14" r="11" fill="${c}" fill-opacity=".25" stroke="${c}" stroke-width="1.6"/><circle cx="10" cy="11" r="1.6" fill="#69d2ff"/><circle cx="17" cy="16" r="1.6" fill="#69d2ff"/><circle cx="13" cy="19" r="1.4" fill="#69d2ff"/>`);
+  case'muscle':return S2(`<rect x="2" y="4" width="24" height="20" rx="3" fill="#6e0832" opacity=".7"/>${[5,9,13,17,21].map(x=>`<rect x="${x}" y="4" width="2" height="20" fill="#ff5a7a" opacity=".7"/>`).join('')}`);
+  case'mito':return S2(`<ellipse cx="14" cy="14" rx="12" ry="7" fill="#ff8a2d" fill-opacity=".5" stroke="#ffd09a" stroke-width="1.5"/><path d="M7 10v7M11 11v6M15 10v7M19 11v6" stroke="#ffd09a" stroke-width="1.2" fill="none"/>`);
+  case'sub':return S2(`<circle cx="9" cy="14" r="7" fill="#7aa8ff" fill-opacity=".6" stroke="#9cc0ff"/><circle cx="19" cy="14" r="7" fill="#ff7ab0" fill-opacity=".6" stroke="#ffa0c8"/>`);
+  case'heme':return S2(`<rect x="5" y="5" width="18" height="18" rx="4" fill="#ff5a6a" fill-opacity=".3" stroke="#ff5a6a" stroke-width="2"/><circle cx="14" cy="14" r="3.4" fill="#ffd7c8"/>`);
+  case'bpg':return S2(`<circle cx="14" cy="8" r="4" fill="${c}"/><circle cx="8" cy="19" r="4" fill="${c}"/><circle cx="20" cy="19" r="4" fill="${c}"/>`);
+  case'fe':return S2(`<defs><radialGradient id="gfe" cx=".35" cy=".3"><stop offset="0" stop-color="#ffd2c0"/><stop offset="1" stop-color="#ff6a45"/></radialGradient></defs><circle cx="14" cy="14" r="9" fill="url(#gfe)"/>`);
+  case'porph':return S2(`<polygon points="14,3 25,11 21,24 7,24 3,11" fill="none" stroke="#ff8a70" stroke-width="2.4"/>`);
+  case'n':return S2(`<circle cx="14" cy="14" r="8" fill="#6aa5ff" stroke="#000" stroke-opacity=".3"/>`);
+  case'his':return S2(`<polygon points="14,4 24,11 20,23 8,23 4,11" fill="none" stroke="#c8a8ff" stroke-width="2.2"/>`);
+  default:return dot}};
+function buildKey(){
+ const g=LEG[st.zoom],ks=[];
+ let h=`<p class="lab">Key · hover to preview, click to pin</p>`;
+ for(const[name,keys]of g){h+=`<p class="lab" style="margin-top:12px">${name}</p>`;
+  for(const k of keys){if(k==='co'&&st.zoom===0&&st.scen!=='co')continue;if(k==='co'&&st.zoom>0&&st.scen!=='co'&&false)continue;ks.push(k);const I=INFO[k];
+   h+=`<button class="krow" data-k="${k}" aria-pressed="${st.sel===k}">${sw(k)}<span><b>${I.n[lvl()]}</b><small>${I.r}</small></span></button>`}}
+ h+=`<button class="btn kbtn" id="kclear">Show everything</button>`;
+ $('#key').innerHTML=h;
+}
+function setSel(k,speakIt){st.sel=st.sel===k?null:k;ui(true);if(st.sel&&speakIt&&st.voice&&!tour.on){const I=INFO[st.sel];speak(I.n[lvl()]+'. '+I.d[lvl()],null,false)}}
+let capKey='';
+function ui(keepKey){
+ document.body.dataset.tier=st.tier;
+ $('#tiers').innerHTML=TIERS.map((t,i)=>`<button data-t="${i}" aria-pressed="${i===st.tier}">${t}</button>`).join('');
+ document.querySelectorAll('#zoom button').forEach(b=>b.classList.toggle('on',+b.dataset.z===st.zoom));
+ document.querySelectorAll('#scen button').forEach(b=>b.classList.toggle('on',b.dataset.s===st.scen));
+ $('#sq').setAttribute('aria-pressed',st.squeeze);$('#play').textContent=st.playing?'Pause':'Play';$('#play').setAttribute('aria-pressed',st.playing);
+ $('#hint').textContent=HINT[st.zoom];
+ buildKey();partbox();buildLearn();renderMath();capKey='';caption();syncStrip()}
+function partbox(){const b=$("#partbox"),k=st.sel||st.legHover||st.hover;
+ if(!k||!INFO[k]){b.style.setProperty('--c','#D40055');b.innerHTML=`<b>Nothing pinned</b>Hover over anything in the animation, or pick a row in the key. Click to pin it, and the rest of the scene dims so you can see exactly where it is.`;return}
+ const I=INFO[k];b.style.setProperty('--c',COL[k]);b.innerHTML=`<b>${I.n[lvl()]}</b>${I.d[lvl()]}<div class="srcrow">${srcRow(INFOSRC[k])}${PENDING.has(k)?'<span class="bd">Some details not yet verified</span>':''}</div>`}
+function caption(){
+ const ph=st.loc<.5?0:1,k=st.zoom+'|'+lt()+'|'+ph+'|'+st.scen;if(k===capKey)return;capKey=k;
+ let txt=CAP[st.zoom][lt()][ph];
+ if(st.scen==='exercise'&&ph===1&&lt()>=2)txt+=' During exercise PO₂ falls further, pH drops and the cell is warmer, so Hb gives up far more oxygen.';
+ if(st.scen==='co')txt+=lt()>=3?' Carbon monoxide occupies hemes about 200–250 times more tightly than O₂ and shifts the curve left, so the remaining O₂ is held on and not delivered.':' Carbon monoxide sticks to the iron and holds on very tightly, so less oxygen gets carried. That is why it is dangerous.';
+ $('#cap').textContent=txt;$('#ttl').textContent=ZT[st.zoom];
+ const where=st.loc<.2?'In the lungs':st.loc>.8?(st.scen==='exercise'?'In working muscle':'In the muscle'):'On the way';
+ $('#where').textContent=where;$('#capsrc').innerHTML=srcRow(CAPSRC[st.zoom])}
+function placeTxt(){const el=$('#place');if(st.zoom>0){el.innerHTML='';return}
+ const a=st.loc<.2?['The lungs','Capillary around an air sac']:st.loc>.8?['The muscle','Capillary feeding a muscle fiber']:['On the way','Blood vessel'];
+ const h=`<small>${a[1]}</small><b>${a[0]}</b>`;if(el.dataset.v!==h){el.dataset.v=h;el.innerHTML=h}}
+function ticker(en){
+ if(les.a||tour.on||st.zoom>0){$('#ticker').innerHTML='';return}
+ const items=Object.entries(act).filter(([k,v])=>v>.7).sort((a,b)=>b[1]-a[1]).slice(0,2);
+ const l=lvl()===2?2:1;let h='';
+ if(st.sqT>.5)h+=`<div><i style="color:${COL.mem};background:${COL.mem}"></i><span>${lvl()===2?'Spectrin and the lipid bilayer deform so the cell can pass a capillary narrower than itself.':'Squeezing through a tube narrower than the cell. It bends and springs back.'}</span></div>`;
+ for(const[k]of items)h+=`<div><i style="color:${ACT_TXT[k][0]};background:${ACT_TXT[k][0]}"></i><span>${ACT_TXT[k][l]}</span></div>`;
+ if(!h)h=`<div><i style="color:#aaa;background:#aaa"></i><span>${lvl()===2?'At equilibrium for this PO₂ and PCO₂. Drag the journey bar to change the surroundings.':'Everything is balanced here. Press play, or drag the journey bar, to move to a new place.'}</span></div>`;
+ const el=$('#ticker');if(el.dataset.v!==h){el.dataset.v=h;el.innerHTML=h}}
+function hud(en){
+ const meas=clamp(bound/Math.max(1,U.length*4),0,1);
+ $('#mfill').style.width=(meas*100).toFixed(0)+'%';
+ $('#mtxt').textContent=lt()<2?(meas>.8?'Full of oxygen':meas>.4?'Some oxygen':'Mostly empty'):(meas*100).toFixed(0)+'% O₂ loaded';
+ $('#h-po2').innerHTML=en.po2.toFixed(0)+'<small>mmHg</small>';$('#h-pco2').innerHTML=en.pco2.toFixed(0)+'<small>mmHg</small>';
+ $('#h-ph').textContent=en.ph.toFixed(2);$('#h-t').innerHTML=en.T.toFixed(1)+'<small>°C</small>';
+ const p=p50Of(en);$('#h-p50').innerHTML=p.toFixed(1)+'<small>mmHg</small>';$('#h-so2').textContent=(meas*100).toFixed(0)+'%';$('#eq-p50').textContent=p.toFixed(1);
+ caption();placeTxt();ticker(en);updateLive();$('#rng').value=st.loc}
+function setVoice(v){st.voice=v&&!!synth;$('#voice').textContent=st.voice?'Voice on':(synth?'Voice off':'Voice unavailable');$('#voice').setAttribute('aria-pressed',st.voice);if(!st.voice&&synth)synth.cancel()}
+
+/* ================= Hover / click ================= */
+const tipEl=$('#tip'),stage=$('#stage');
+function pick(x,y){
+ let best=null,bd=1e9;for(const h of HIT){const d=Math.hypot(h.x-x,h.y-y)/h.r;if(d<1&&d<bd){bd=d;best=h}}
+ if(best)return best;
+ if(st.zoomT<.15){const wx=(x-Mc.cx)/Mc.s,wy=(y-Mc.cy)/Mc.s,Hc=lumenH(),topY=-Hc-1.2,e=ease(st.loc);
+  const poly=wpts();let ins=false;for(let i=0,j=poly.length-1;i<poly.length;j=i++){const a=poly[i],b=poly[j];if((a[1]>wy)!==(b[1]>wy)&&wx<(b[0]-a[0])*(wy-a[1])/(b[1]-a[1])+a[0])ins=!ins}
+  if(ins)return{k:'shape'};
+  if(Math.abs(wy)<Hc)return{k:'plasma'};
+  if((wy<-Hc&&wy>topY)||(wy>Hc&&wy<Hc+1.2))return{k:'wall'};
+  if(wy<topY){if(e>.4)for(let i=0;i<3;i++){const m=mitoW(i);if(Math.abs(wx-m.x)<1.6&&Math.abs(wy-m.y)<.9)return{k:'mito'}}return{k:e<.5?'air':'muscle'}}}
+ return null}
+function bindCanvas(){
+ cv.addEventListener('pointermove',e=>{const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;st.ptr={x,y};const h=blindQ()?null:pick(x,y);st.hover=h&&INFO[h.k]?h.k:null;
+  cv.style.cursor=st.hover?'pointer':'default';
+  if(st.hover){const I=INFO[st.hover],l=lvl(),sents=I.d[l].split(/(?<=[.!?])\s+/).slice(0,2).join(' ');
+   const key=st.hover+l;if(tipEl.dataset.k!==key){tipEl.dataset.k=key;tipEl.innerHTML=`<b style="--c:${COL[st.hover]}">${I.n[l]}</b>${sents}<em>Click to pin${st.voice?' and hear it':''}</em>`}
+   tipEl.hidden=false;const w=tipEl.offsetWidth,hh=tipEl.offsetHeight;tipEl.style.left=clamp(x+16,6,r.width-w-6)+'px';tipEl.style.top=clamp(y+16>r.height-hh-6?y-hh-12:y+16,6,r.height-hh-6)+'px'}
+  else{tipEl.hidden=true;tipEl.dataset.k=''}
+  if(!st.sel)partbox()});
+ cv.addEventListener('pointerleave',()=>{st.ptr=null;st.hover=null;tipEl.hidden=true;if(!st.sel)partbox()});
+ cv.addEventListener('click',e=>{const r=cv.getBoundingClientRect(),h=pick(e.clientX-r.left,e.clientY-r.top);
+  if(blindQ()){lesClick(h);return}
+  if(!h){st.sel=null;ui();return}
+  if(h.k==='hb')st.selU=h.i;if(h.k==='sub')st.selH=h.i;
+  if(INFO[h.k])setSel(h.k,true)})}
+function bind(){
+ $('#tiers').onclick=e=>{const b=e.target.closest('button');if(b){st.tier=+b.dataset.t;ui()}};
+ $('#key').addEventListener('click',e=>{if(e.target.closest('#kclear')){st.sel=null;ui();return}const b=e.target.closest('.krow');if(b)setSel(b.dataset.k,true)});
+ $('#key').addEventListener('pointerover',e=>{const b=e.target.closest('.krow');st.legHover=b?b.dataset.k:null;if(b&&!st.sel)partbox()});
+ $('#key').addEventListener('pointerleave',()=>{st.legHover=null});
+ $('#zoom').onclick=e=>{const b=e.target.closest('button');if(b){st.zoom=+b.dataset.z;st.sel=null;ui()}};
+ $('#scen').onclick=e=>{const b=e.target.closest('button');if(b){st.scen=b.dataset.s;applyScenario();ui()}};
+ $('#play').onclick=()=>{st.playing=!st.playing;st.tween=null;ui()};
+ $('#rng').oninput=e=>{st.playing=false;st.tween=null;st.loc=+e.target.value;$('#play').textContent='Play';$('#play').setAttribute('aria-pressed','false');capKey=''};
+ $('#sq').onclick=()=>{st.squeeze=!st.squeeze;$('#sq').setAttribute('aria-pressed',st.squeeze)};
+ $('#lb').onclick=()=>{st.labels=!st.labels;$('#lb').setAttribute('aria-pressed',st.labels)};
+ $('#fc').onclick=()=>{st.face=!st.face;$('#fc').setAttribute('aria-pressed',st.face)};
+ const sp=[1,.5,.25,2];let si=0;$('#spd').onclick=()=>{si=(si+1)%sp.length;st.speed=sp[si];$('#spd').textContent=sp[si]+'×'};
+ $('#voice').onclick=()=>{setVoice(!st.voice)};
+ $('#listen').onclick=()=>{if(!synth){return}if(!st.voice)setVoice(true);const k=st.sel,I=k&&INFO[k];speak(($('#cap').textContent)+(I?' '+I.n[lvl()]+'. '+I.d[lvl()]:''),null,false)};
+ $('#tour').onclick=startTour;$('#tnext').onclick=nextStep;$('#tback').onclick=prevStep;$('#tstop').onclick=stopTour;
+ let wl=0;cv.addEventListener('wheel',e=>{const n=performance.now();if(n-wl<250)return;wl=n;const d=e.deltaY<0?1:-1,z=clamp(st.zoom+d,0,2);if(z!==st.zoom){e.preventDefault();st.zoom=z;st.sel=null;ui()}},{passive:false});
+ bindCanvas()}
+
+
+/* ================= Lessons ================= */
+const esc=t=>String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+const les={a:null};
+const V3=a=>Array.isArray(a)?a[Math.min(st.tier,a.length-1)]:a;
+const LES=[
+{id:'cell',t:'Meet the red blood cell',d:'What it does and why it is dented.',
+ g:["Say what a red blood cell does and why it looks like a donut.","Explain what a red blood cell does and how its shape helps.","Explain how erythrocyte geometry and composition support gas transport."],
+ myth:["Myth: red blood cells have a nucleus in the middle, like other cells.","Truth: mature red cells have no nucleus. That leaves more room for hemoglobin."],
+ steps:[
+ {t:'show',z:0,go:0,reset:'ven',scen:'rest',hl:'shape',x:["This is a red blood cell. It carries oxygen from your lungs to every part of your body. It is shaped like a donut with no hole.","A red blood cell carries oxygen from the lungs to the whole body. Its dented disc shape gives it lots of surface for swapping gases, and lets it bend through tiny vessels.","An erythrocyte is a biconcave disc about 7.8 µm across with no nucleus or organelles. The shape gives a high surface-to-volume ratio (roughly 30–40% more membrane than a sphere of the same volume), which shortens diffusion distances and lets the cell deform."]},
+ {t:'click',z:0,ans:['shape','mem','hb','b3','ca'],hint:["It is the big red shape in the middle.","Click anywhere on the red disc in the middle.","Click the cell itself, not the vessel around it."],q:["Click the red blood cell.","Click the red blood cell.","Click the erythrocyte."],ex:["Yes! That is the red blood cell. We are looking at a slice through the middle.","Right. We see a cross-section, which is why a disc looks like a peanut.","Correct. This is a cross-section through the disc, which is why it looks like a peanut."]},
+ {t:'mcq',v:[
+  {q:"What is the red blood cell's main job?",o:[{l:"Carry oxygen around the body",ok:1},{l:"Make energy for the body",why:"Your muscles make the energy. The red cell just delivers the oxygen they use."},{l:"Fight germs",why:"That is the job of white blood cells."}],ex:"Red cells are the oxygen delivery trucks."},
+  {q:"Why does the cell have a dented shape?",o:[{l:"More surface for gases to cross, and it bends easily",ok:1},{l:"It holds more hemoglobin than a ball would",why:"A ball of the same volume holds the same amount. The dent adds surface, not space."},{l:"It helps the cell swim",why:"Red cells do not swim. The flowing blood carries them."}],ex:"The dent gives more surface for the same volume, and a flexible shape."},
+  {q:"What is the main advantage of biconcave geometry?",o:[{l:"High surface-to-volume ratio and deformability",ok:1},{l:"More hemoglobin capacity than a sphere of equal volume",why:"Capacity depends on volume, and the volumes are equal."},{l:"Active motility through capillaries",why:"Erythrocytes have no motility. Flow carries them passively."}],ex:"Surface-to-volume ratio and deformability, not extra capacity."}]}
+ ]},
+{id:'load',t:'Loading oxygen in the lungs',d:'Why oxygen moves in and where it sticks.',
+ g:["Say why oxygen goes into the cell in the lungs.","Explain why oxygen moves into the cell in the lungs and where it binds.","Explain loading of O₂ across the alveolar–capillary barrier and onto hemoglobin."],
+ myth:["Myth: the lungs pump oxygen into the blood.","Truth: oxygen moves in by itself, from where there is more of it to where there is less."],
+ steps:[
+ {t:'show',z:0,go:0,reset:'ven',scen:'rest',hl:'air',x:["We are in the lungs. This air sac is full of fresh oxygen from your breath. The blood arriving here has used up a lot of its oxygen.","In the lungs, the air sac has far more oxygen than the blood arriving. Gases move from where there is more to where there is less. This is called diffusion.","Alveolar PO₂ is about 100 mmHg versus about 40 mmHg in arriving mixed venous blood. This gradient drives passive diffusion across the roughly 0.5 µm alveolar–capillary barrier."]},
+ {t:'predict',setup:{z:0,go:0,reset:'ven',scen:'rest',hl:'o2'},w:["Watch the blue dots come in. Does the cell get brighter?","Watch the blue dots enter and the oxygen meter rise.","Watch loading proceed and compare SO₂ with the 75% venous start."],v:[
+  {q:"The cell still has some empty hemoglobin hands. What will happen to the oxygen in the cell here?",o:[{l:"More oxygen sticks to it",ok:1},{l:"Oxygen leaves the cell",why:"Oxygen leaves in the muscle, where there is less of it."},{l:"Nothing changes",why:"There is lots of oxygen here and empty hands, so things will change."}],ex:"Oxygen moved IN and stuck to the hemoglobin hands. The cell turns bright red because it is nearly full of oxygen."},
+  {q:"Blood arrives here about 75% loaded with oxygen. What will the cell's oxygen load do in the lungs?",o:[{l:"Rise to nearly full",ok:1},{l:"Fall to about half",why:"Falling would need less oxygen outside than inside, and the air sac has far more."},{l:"Stay at 75%",why:"With so much oxygen outside and empty hemoglobin inside, binding continues until almost full."}],ex:"Oxygen diffuses in and binds hemoglobin, taking the load from about 75% to nearly 98%. The more oxygen on hemoglobin, the brighter red the cell. It now reads {SAT} of heme sites."},
+  {q:"Mixed venous Hb is about 75% saturated at PO₂ ≈ 40 mmHg. At alveolar PO₂ ≈ 100 mmHg, what steady saturation do you expect?",o:[{l:"About 97–98%",ok:1},{l:"Exactly 100%, since every heme must fill",why:"Binding is reversible, so a few percent of hemes stay empty even at 100 mmHg."},{l:"About 85%",why:"The curve is nearly flat above about 80 mmHg, so at 100 mmHg it is already about 97%."}],ex:"Saturation rises to about 97–98%. The curve is nearly flat above ~80 mmHg, so alveolar PO₂ can fall a little without much loss of loading. This run reads {SAT}."}]},
+ {t:'click',z:0,ans:['hb'],hint:["The red dots inside the cell.","Look for the clusters of four dots inside the cell.","Each cluster of four dots is one tetramer."],q:["Click the part of the cell that grabs the oxygen.","Click the molecule that carries oxygen.","Click the protein that binds O₂."],ex:["Yes! Hemoglobin is the red protein that holds oxygen.","Right. Hemoglobin holds the oxygen. Each cluster of four dots is one molecule.","Correct. Hemoglobin: each cluster shows one tetramer with its four hemes."]},
+ {t:'mcq',v:[
+  {q:"Why does oxygen go into the cell in the lungs?",o:[{l:"There is more oxygen outside than inside",ok:1},{l:"The cell sucks it in like a vacuum",why:"Nothing sucks it in. Molecules spread out from crowded places to less crowded places."},{l:"The cell is hungry for it",why:"Cells do not feel hunger. It is simply where more oxygen is."}],ex:"More oxygen outside than inside, so it spreads in."},
+  {q:"What makes oxygen move into the red cell?",o:[{l:"It spreads from high to low oxygen pressure",ok:1},{l:"The lungs push it in with muscle",why:"Lungs move air in and out, but the oxygen then crosses the wall by itself."},{l:"Hemoglobin pumps it in using energy",why:"Hemoglobin only holds oxygen. It does not pump."}],ex:"Diffusion from high to low pressure."},
+  {q:"What drives O₂ across the barrier?",o:[{l:"The PO₂ gradient (passive diffusion)",ok:1},{l:"Active transport by band 3",why:"Band 3 swaps bicarbonate and chloride. It does not move O₂."},{l:"ATP-dependent pumps in the endothelium",why:"O₂ is small and nonpolar, so it crosses by simple diffusion without pumps."}],ex:"A passive PO₂ gradient."}]}
+ ]},
+{id:'unload',t:'Delivering oxygen to muscle',d:'Why it lets go, and what changes in exercise.',
+ g:["Say why the cell gives oxygen to the muscle.","Explain why hemoglobin lets go in muscle and what changes in exercise.","Explain O₂ unloading and the right shift in exercising muscle."],
+ myth:["Myth: the blood gives up all its oxygen in the muscle.","Truth: at rest only about a quarter is given up. Blood returning to the heart still holds about 72–75%."],
+ steps:[
+ {t:'show',z:0,go:1,dur:4,reset:'art',scen:'rest',hl:'muscle',x:["Now the cell travels to a muscle. Muscles use oxygen to move, so there is less oxygen there.","In muscle, cells use oxygen constantly, so oxygen pressure is low. Hemoglobin lets go of some, and the oxygen spreads into the muscle.","Tissue PO₂ is about 40 mmHg at rest. Hb unloads about 22–25% of its O₂. The released O₂ diffuses down its gradient to mitochondria, where PO₂ is only a few mmHg."]},
+ {t:'predict',setup:{z:0,go:1,scen:'exercise',hl:'o2'},w:["Watch how many blue dots fly out to the mitochondria.","Compare the oxygen meter with the resting value of about 72%.","Compare SO₂ with the resting value of about 72% and note the new P₅₀."],v:[
+  {q:"Now the muscle works very hard, like a sprint. Will the cell give away more oxygen or less?",o:[{l:"More",ok:1},{l:"Less",why:"A hard-working muscle needs more oxygen, so the cell gives more."},{l:"The same",why:"Hemoglobin lets go more when the muscle is working hard."}],ex:"More! A working muscle uses lots of oxygen, so the cell lets go of much more. It is now holding {SAT} of its capacity."},
+  {q:"The muscle is sprinting. Will the cell release more or less oxygen than at rest?",o:[{l:"More, since oxygen is lower and the blood is more acid and warmer",ok:1},{l:"Less, because the cell is in a hurry",why:"Speed is not the issue. Chemistry changes: lower oxygen, more acid and more heat all push oxygen off hemoglobin."},{l:"The same, hemoglobin always lets go equally",why:"Hemoglobin affinity changes with acidity, carbon dioxide and heat."}],ex:"More. In hard exercise the muscle has even less oxygen, more acid and more heat. All three make hemoglobin let go of more oxygen. It now holds {SAT}."},
+  {q:"In heavy exercise PO₂, pH and local temperature change. Predict the effect on O₂ delivery per red cell.",o:[{l:"Unloading rises (PO₂ down, pH down, T up: right shift)",ok:1},{l:"Unloading falls because of a left shift",why:"Acid, CO₂ and heat cause a right shift, which lowers affinity."},{l:"Unchanged, since P₅₀ is constant",why:"P₅₀ is not constant. H⁺ and CO₂ (the Bohr effect), heat and 2,3-BPG all raise it."}],ex:"Unloading rises sharply: PO₂ falls to about 20 mmHg while P₅₀ rises from about 28 to about 39 mmHg, so saturation drops to {SAT} here."}]},
+ {t:'mcq',v:[
+  {q:"What do the mitochondria do with the oxygen?",o:[{l:"Burn it to make energy",ok:1},{l:"Keep it to use later",why:"Muscle uses oxygen right away. Only a tiny store (myoglobin) exists, and it lasts seconds."},{l:"Turn it into carbon dioxide",why:"The carbon dioxide comes from breaking down food. The oxygen ends up as water."}],ex:"They use it to make energy."},
+  {q:"Which change helps hemoglobin release oxygen in a working muscle?",o:[{l:"More acid and more heat",ok:1},{l:"Less carbon dioxide",why:"Working muscle makes more carbon dioxide, and that pushes oxygen off hemoglobin."},{l:"Higher oxygen pressure",why:"Muscle has lower oxygen pressure. That is why oxygen leaves."}],ex:"Acid, carbon dioxide and heat all help hemoglobin let go. The effect of acid and carbon dioxide is called the Bohr effect."},
+  {q:"Which best describes the Bohr effect?",o:[{l:"Lower pH and higher PCO₂ reduce Hb's O₂ affinity (right shift)",ok:1},{l:"Higher PO₂ reduces Hb's CO₂ affinity",why:"That is the Haldane effect, the reverse coupling."},{l:"Falling 2,3-BPG shifts the curve left",why:"That is a different effect. The Bohr effect is about H⁺ and CO₂."}],ex:"H⁺ and CO₂ lower O₂ affinity, so the curve shifts right and oxygen unloads."}]}
+ ]},
+{id:'co2',t:'Carrying carbon dioxide back',d:'How waste gas rides home in the blood.',
+ g:["Follow the waste gas from the muscle to the lungs.","Trace carbon dioxide from the muscle to the lungs and name what carries it.","Trace CO₂ transport: carbonic anhydrase, band 3, buffering and the three carriage forms."],
+ myth:["Myth: carbon dioxide travels in the blood as gas bubbles, or only on hemoglobin.","Truth: about 70% of the CO₂ that enters the blood travels as bicarbonate ions, not gas bubbles."],
+ steps:[
+ {t:'show',z:0,go:1,dur:3,reset:'art',scen:'exercise',hl:'co2',x:["The muscle hands the cell waste called carbon dioxide. The cell carries it back to the lungs so you can breathe it out.","Mitochondria make carbon dioxide. It spreads into the red cell, but most of it is carried home in a different form that dissolves in blood.","Of the CO₂ that enters the blood, about 70% is carried as HCO₃⁻, about 20% as carbamino-hemoglobin and 7–10% as dissolved CO₂. Exercise is shown so that more CO₂ loads."]},
+ {t:'click',z:0,ans:['ca'],hint:["It is gold and star shaped.","The gold star inside the cell.","The enzyme sits free in the cytoplasm."],q:["Click the helper that turns carbon dioxide into something that dissolves in blood.","Click the enzyme that turns carbon dioxide into bicarbonate.","Click carbonic anhydrase."],ex:["Yes! The gold star is the helper. It works super fast.","Right. Carbonic anhydrase makes the reaction about ten million times faster.","Correct. CA II: CO₂ + H₂O ⇌ H⁺ + HCO₃⁻ with a kcat/KM near the diffusion limit."]},
+ {t:'click',z:0,ans:['b3'],hint:["Little teal pills on the cell skin.","Teal gates in the membrane.","The band 3 anion exchangers are teal."],q:["Click a door that lets bicarbonate out and chloride in.","Click a door that swaps bicarbonate for chloride.","Click an AE1 exchanger."],ex:["Yes! The teal doors swap one for one.","Right. This swap is called the chloride shift.","Correct. AE1 performs electroneutral Cl⁻/HCO₃⁻ exchange."]},
+ {t:'mcq',v:[
+  {q:"Most carbon dioxide travels back as…",o:[{l:"Bicarbonate, dissolved in the blood",ok:1},{l:"A big bubble of gas",why:"Bubbles in blood would be dangerous. It rides as dissolved bicarbonate."},{l:"Stuck on the cell skin",why:"It travels inside the cell and dissolved in the blood, not on the skin."}],ex:"Bicarbonate is carbon dioxide in a form that dissolves."},
+  {q:"What happens to the hydrogen ions (acid bits) made along with bicarbonate?",o:[{l:"Hemoglobin soaks them up",ok:1},{l:"They leave through band 3",why:"Band 3 swaps bicarbonate and chloride. It does not move hydrogen ions."},{l:"They turn into oxygen",why:"Hydrogen ions do not become oxygen."}],ex:"Hemoglobin acts as a buffer, keeping the blood from getting too acid."},
+  {q:"Why does Cl⁻ move into the red cell as HCO₃⁻ moves out?",o:[{l:"Electroneutral AE1 exchange keeps charge balanced",ok:1},{l:"Chloride powers ATP synthesis",why:"Red cells have no mitochondria and the exchange does not make ATP."},{l:"Chloride binds heme",why:"Heme binds O₂, CO and NO. Chloride is not a heme ligand here."}],ex:"One-for-one exchange of anions keeps charge balanced (the chloride shift, also called the Hamburger effect)."}]}
+ ]},
+{id:'switch',t:"Hemoglobin's switch",d:'Four parts that work as a team.',
+ g:["Say why the four parts of hemoglobin work as a team.","Explain why hemoglobin grabs oxygen more easily once some is on.","Explain cooperativity and the T to R transition."],
+ myth:["Myth: each hemoglobin pocket works alone.","Truth: the four pockets cooperate. Binding one oxygen makes the others grab more easily."],
+ steps:[
+ {t:'show',z:1,go:0,reset:'empty',scen:'rest',hl:'sub',x:["Zoom in! One hemoglobin has four parts, like four petals. Each part has a pocket for one oxygen.","Hemoglobin has four chains, two alpha and two beta. Each holds a heme, and each heme can hold one oxygen.","HbA is an α₂β₂ tetramer with four hemes. O₂ binding is cooperative and shifts the quaternary structure from T to R."]},
+ {t:'predict',setup:{z:1,go:0,reset:'empty',scen:'rest',hl:'sub'},w:["Watch the pockets fill and the shape relax.","Watch the oxygens bind. The label changes from tense to relaxed.","Watch the T to R label flip once two or three O₂ have bound."],v:[
+  {q:"One oxygen has stuck. Will the next one stick more easily, less easily, or the same?",o:[{l:"More easily",ok:1},{l:"Less easily",why:"The molecule actually gets better at grabbing as it fills."},{l:"The same",why:"The four parts talk to each other, so it changes."}],ex:"Easier! The four hands work as a team."},
+  {q:"After one oxygen binds, will the next bind more easily, less easily, or the same?",o:[{l:"More easily",ok:1},{l:"Less easily",why:"The shape change makes the other pockets better, not worse."},{l:"The same",why:"If it were the same, the curve would be a simple bend, not an S shape."}],ex:"Easier. Binding one oxygen changes the shape and makes the other pockets grab more easily. This team effect gives the S-shaped curve."},
+  {q:"After the first O₂ binds, how does the affinity of the remaining hemes change?",o:[{l:"It increases (positive cooperativity, Hill n ≈ 2.7)",ok:1},{l:"It decreases (negative cooperativity)",why:"Hemoglobin shows positive cooperativity. Negative would flatten the curve."},{l:"It is unchanged (independent sites)",why:"Independent sites would give a hyperbola like myoglobin, not a sigmoid."}],ex:"Affinity rises: binding promotes T to R and raises the affinity of the remaining hemes, giving a sigmoid curve and steep unloading over the physiological range."}]},
+ {t:'click',z:1,ans:['sub'],hint:["One of the four blue or pink blobs.","Click one of the four chains.","Click one globin subunit."],q:["Click one of the four parts of hemoglobin.","Click one of the four chains.","Click a globin subunit."],ex:["Yes! Four parts, each with a pocket.","Right. Two alpha (blue) and two beta (pink) chains.","Correct. Two α and two β chains."]},
+ {t:'mcq',v:[
+  {q:"When hemoglobin is nearly full, its shape is…",o:[{l:"Relaxed, so it grabs oxygen easily",ok:1},{l:"Tight, so oxygen cannot get in",why:"The tight shape is when it is empty. Relaxed is when it is full."},{l:"Broken apart into four pieces",why:"It stays together as one four-part molecule."}],ex:"Full hemoglobin is relaxed."},
+  {q:"What does 2,3-BPG do?",o:[{l:"Helps hemoglobin let go of oxygen",ok:1},{l:"Helps hemoglobin grab oxygen",why:"It does the opposite. It fits in the middle of the tense shape and lowers the grip."},{l:"Carries carbon dioxide",why:"CO₂ travels mostly as bicarbonate."}],ex:"2,3-BPG lowers hemoglobin's grip on oxygen, which helps delivery."},
+  {q:"Which statement about the T to R transition is correct?",o:[{l:"O₂ binding breaks α₁β₂ salt bridges and raises affinity of the remaining hemes",ok:1},{l:"It lowers affinity so that Hb unloads",why:"That describes R to T, which happens on deoxygenation."},{l:"It requires ATP hydrolysis",why:"Allostery here is driven by ligand binding, not ATP hydrolysis."}],ex:"Ligand binding drives T to R and raises affinity."}]}
+ ]},
+{id:'iron',t:'The iron at the center',d:'Why blood is red, and what holds oxygen.',
+ g:["Say what holds the oxygen and why blood is red.","Explain how iron holds oxygen and why blood changes color.","Explain heme coordination, spin-state change and the color of oxy and deoxy blood."],
+ myth:["Myth: the blood in your veins is blue.","Truth: blood is always red. Without oxygen it is dark red. Veins look blue because of how light passes through skin."],
+ steps:[
+ {t:'show',z:2,go:0,reset:'ven',scen:'rest',hl:'fe',x:["Now deeper still. This iron atom is what really grabs the oxygen. Iron is what makes blood red.","Each heme has an iron atom in the middle of a flat ring. One oxygen molecule sticks to the iron. When it does, the blood turns bright red.","Fe²⁺ is held by four pyrrole nitrogens and a proximal histidine. O₂ binds the sixth site. Fe–N is about 2.0 Å. On oxygenation the iron moves into the porphyrin plane."]},
+ {t:'click',z:2,ans:['fe'],hint:["The round orange ball in the middle.","The atom at the center of the ring.","The central Fe²⁺."],q:["Click the iron atom.","Click the iron.","Click the central Fe²⁺."],ex:["Yes! That is the iron.","Right. The iron holds the oxygen.","Correct. This is the heme iron, Fe²⁺."]},
+ {t:'mcq',v:[
+  {q:"What color is blood in your veins?",o:[{l:"Dark red",ok:1},{l:"Blue",why:"Veins look blue through skin, but the blood inside is dark red."},{l:"Bright red",why:"Bright red is oxygen-rich blood, which is mostly in arteries."}],ex:"Always red. Dark red without much oxygen."},
+  {q:"Why does blood look darker when it has less oxygen?",o:[{l:"The iron changes when oxygen leaves, which changes the color",ok:1},{l:"The blood cells turn blue",why:"They stay red. Only the shade changes."},{l:"Oxygen is itself bright red",why:"Oxygen is a colorless gas. The change is in the iron."}],ex:"The iron's state changes with oxygen, and that changes how it absorbs light."},
+  {q:"Why is deoxygenated hemoglobin darker than oxygenated hemoglobin?",o:[{l:"The Fe(II) spin state and geometry change, altering light absorption",ok:1},{l:"The porphyrin ring is lost",why:"The ring stays intact."},{l:"Fe²⁺ is oxidised to Fe³⁺",why:"That produces methemoglobin, which is brown and cannot carry oxygen."}],ex:"Spin-state and geometry change at Fe(II) alter absorption."}]}
+ ]},
+{id:'co',t:'When delivery goes wrong',d:'Carbon monoxide and why it is dangerous.',
+ g:["Say why carbon monoxide is dangerous.","Explain how carbon monoxide blocks oxygen delivery.","Explain COHb: reduced capacity and left shift."],
+ myth:["Myth: carbon monoxide hurts by blocking the lungs.","Truth: it hurts by taking over hemoglobin, so blood cannot carry oxygen."],
+ steps:[
+ {t:'show',z:0,go:1,dur:4,reset:'art',scen:'co',hl:'co',x:["Carbon monoxide is a poison gas from fires and faulty heaters. The pink dots are carbon monoxide stuck to hemoglobin.","Carbon monoxide takes a share of the hemoglobin hands. Here 3 in 10 are blocked. The pink dots are hemes holding CO.","CO binds heme about 200–250 times more tightly than O₂. Here carboxyhemoglobin is about 30% of heme sites, and the curve is left-shifted."]},
+ {t:'predict',setup:{z:0,go:1,scen:'co',hl:'co'},w:["Watch how few oxygens the cell carries.","Watch the oxygen meter. It cannot reach the usual level.","Watch SO₂ plateau below the possible maximum and note the lower P₅₀."],v:[
+  {q:"Carbon monoxide fills 3 of every 10 hands. How much oxygen will the cell carry?",o:[{l:"Less",ok:1},{l:"The same",why:"Blocked hands cannot hold oxygen."},{l:"More",why:"Blocked hands make it carry less."}],ex:"Less. The pink hands are taken, so oxygen has fewer places to ride."},
+  {q:"With 30% of hemes holding CO, how much oxygen gets delivered compared to normal?",o:[{l:"Less",ok:1},{l:"The same",why:"Blocked sites carry no oxygen, and the rest hold on tighter."},{l:"More",why:"Fewer sites and tighter holding both mean less delivery."}],ex:"Less. CO occupies heme sites, and the remaining oxygen is held on more tightly, so even less is delivered. Loaded: {SAT}."},
+  {q:"With COHb ≈ 30%, what happens to O₂ delivery?",o:[{l:"It falls: lower capacity and a left-shifted curve",ok:1},{l:"It falls only through lower capacity",why:"CO also increases the affinity of the remaining hemes, impairing unloading."},{l:"It is unchanged because PO₂ is normal",why:"Dissolved PO₂ can be normal, yet the content of bound O₂ is greatly reduced."}],ex:"Delivery falls through reduced capacity and a left shift. SO₂ here reads {SAT} of all heme sites."}]},
+ {t:'mcq',v:[
+  {q:"Why is carbon monoxide dangerous?",o:[{l:"It sticks to the iron and holds on very tightly",ok:1},{l:"It makes the cell burst",why:"The cell stays whole. The problem is the hemoglobin."},{l:"It turns oxygen into carbon dioxide",why:"It does not change oxygen. It takes the oxygen's place."}],ex:"It takes the places oxygen should use."},
+  {q:"What is the main way carbon monoxide harms the body?",o:[{l:"It takes over hemoglobin so blood carries less oxygen",ok:1},{l:"It blocks the lungs so air cannot enter",why:"The lungs work fine. The harm is in the blood."},{l:"It makes red cells lose their iron",why:"The iron stays. CO simply sits on it."}],ex:"CO binds the iron about 200–250 times more tightly than oxygen."},
+  {q:"Why does CO impair delivery beyond just reducing capacity?",o:[{l:"It left-shifts the curve so remaining sites hold O₂ more tightly",ok:1},{l:"It oxidises Fe²⁺ to Fe³⁺",why:"That is methemoglobin formation, a different problem."},{l:"It inhibits carbonic anhydrase",why:"CO does not inhibit CA II. The issue is heme binding."}],ex:"Left shift: remaining hemes keep their O₂, so tissues are starved."}]}
+ ]}
+];
+function makeReview(){
+ const pool=[];for(const L of LES)for(const s of L.steps)if(s.t==='mcq'||s.t==='click')pool.push(Object.assign({},s,{setup:undefined}));
+ for(let i=pool.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[pool[i],pool[j]]=[pool[j],pool[i]]}
+ return{id:'review',t:'Quick review',g:["A few questions from across all lessons.","A few questions from across all lessons.","A few questions from across all lessons."],steps:pool.slice(0,5),myth:null}}
+const store={get(){try{return JSON.parse(localStorage.getItem('cellAtlas.v1')||'{}')}catch(e){return{}}},set(o){try{localStorage.setItem('cellAtlas.v1',JSON.stringify(o))}catch(e){}}};
+const qCount=L=>L.steps.filter(s=>s.t!=='show').length;
+const blindQ=()=>{const A=les.a;if(!A||A.fin)return false;const s=A.L.steps[A.i];return s.t==='click'&&!A.done};
+function buildLearn(){
+ const d=store.get().done||{},n=LES.filter(l=>d[l.id]).length;
+ $('#lprog').textContent=les.a?`In lesson: ${les.a.L.t}`:`${n} of ${LES.length} lessons finished`;
+ const card=(id,t,sub,stt,done)=>`<button class="card${done?' done':''}" data-l="${id}"><b>${esc(t)}</b><small>${esc(sub)}</small><div class="st">${stt}</div></button>`;
+ let h=LES.map((l,i)=>{const r=d[l.id];return card(l.id,`${i+1}. ${l.t}`,l.d,r?`✓ best ${r.best} of ${r.total}`:`${qCount(l)} questions`,!!r)}).join('');
+ h+=card('review','Quick review','Five mixed questions from every lesson.','Practice');
+ $('#cards').innerHTML=h}
+function applySetup(s){
+ if(s.scen&&s.scen!==st.scen)st.scen=s.scen;
+ if(s.reset){initState(s.reset);st.loc=0}else if(s.scen!==undefined)applyScenario();
+ if(s.z!==undefined)st.zoom=s.z;
+ if(s.sq!==undefined)st.squeeze=!!s.sq;
+ st.playing=false;st.sel=s.hl||null;st.tween=null;
+ if(s.go!==undefined&&Math.abs(st.loc-s.go)>.01)st.tween={from:st.loc,to:s.go,p:0,dur:s.dur||3,tok:-1};
+ ui()}
+function startLesson(id){if(tour.on)stopTour();stopSpeak();
+ const L=id==='review'?makeReview():LES.find(l=>l.id===id);if(!L)return;
+ les.a={L,i:0,score:0,total:qCount(L),tries:0,done:false,fb:null,phase:'ask',pick:null,fin:false,t0:0,wrong:new Set()};
+ stepEnter();const st0=$('#stage');if(st0&&st0.scrollIntoView)st0.scrollIntoView({behavior:'smooth',block:'start'})}
+function endLesson(silent){const A=les.a;if(A&&A.iv)clearInterval(A.iv);les.a=null;st.sel=null;$('#key').classList.remove('blind');stopSpeak();syncStrip();ui();$('#lesson').innerHTML=''}
+function stepEnter(){const A=les.a,s=A.L.steps[A.i];A.tries=0;A.done=false;A.fb=null;A.phase='ask';A.pick=null;A.wrong=new Set();
+ if(s.t==='show')applySetup(s);
+ else if(s.t==='predict'){if(s.setup.z!==undefined)st.zoom=s.setup.z;st.sel=null;ui()}
+ else{if(s.z!==undefined)st.zoom=s.z;st.sel=null;ui()}
+ syncStrip();renderLes();
+ const v=(s.t==='mcq'||s.t==='predict')?V3(s.v):null;
+ speak(s.t==='show'?V3(s.x):s.t==='click'?V3(s.q):v.q,null,false)}
+function nextLes(){const A=les.a;if(A.i>=A.L.steps.length-1){finishLes();return}A.i++;stepEnter()}
+function finishLes(){const A=les.a;A.fin=true;st.sel=null;$('#key').classList.remove('blind');
+ if(A.L.id!=='review'){const o=store.get();o.done=o.done||{};const prev=o.done[A.L.id];o.done[A.L.id]={best:Math.max(prev?prev.best:0,A.score),total:A.total};store.set(o)}
+ buildLearn();renderLes();speak(`Lesson complete. You got ${A.score} of ${A.total} on the first try.`,null,false)}
+function renderLes(){
+ const A=les.a;if(!A)return;const L=A.L,s=L.steps[A.i],el=$('#lesson');
+ const idx=LES.findIndex(l=>l.id===L.id);
+ $('#key').classList.toggle('blind',blindQ());
+ let h=`<div class="meta"><span>${idx>=0?`Lesson ${idx+1} of ${LES.length} · `:''}${esc(L.t)}</span><span class="dots">${L.steps.map((_,k)=>`<i class="${k<A.i||A.fin?'on':k===A.i?'cur':''}"></i>`).join('')}</span><span class="sp"></span><button class="btn" data-a="exit">Exit lesson</button></div>`;
+ if(A.fin){
+  const ni=idx>=0&&idx<LES.length-1?LES[idx+1]:null;
+  h+=`<div class="score">${A.score} of ${A.total} right on the first try</div><div class="goal">Goal reached: ${esc(V3(L.g))}</div>`;
+  if(L.myth)h+=`<div class="myth"><b>Watch out for this one.</b> ${esc(L.myth[0])} ${esc(L.myth[1])}</div>`;
+  h+=`<div class="srcrow"><span>Sources for this lesson</span>${chips(LESSRC[L.id])}</div>`;
+  h+=`<div class="row">${ni?`<button class="btn main" data-a="nextl" data-l="${ni.id}">Next: ${esc(ni.t)}</button>`:''}<button class="btn" data-a="again">Do this lesson again</button><button class="btn" data-a="exit">Back to lessons</button></div>`;
+  el.innerHTML=h;return}
+ if(A.i===0&&L.g)h+=`<div class="goal">Goal: ${esc(V3(L.g))}</div>`;
+ if(s.t==='show')h+=`<p class="txt">${esc(V3(s.x))}</p><div class="row"><button class="btn main" data-a="cont">Continue</button><button class="btn" data-a="say">Hear it</button></div>`;
+ else if(s.t==='click'){h+=`<p class="q">${esc(V3(s.q))}</p><p class="txt" style="color:var(--muted)">Click it in the animation. The key is blurred so you can work it out.</p>`;
+  if(A.fb)h+=`<div class="fb ${A.fb.c}"><b>${A.fb.c==='ok'?'Correct':A.fb.c==='hint'?'Hint':'Not quite'}</b>${esc(A.fb.t)}</div>`;
+  h+=`<div class="row">${A.done?'<button class="btn main" data-a="cont">Continue</button>':'<button class="btn" data-a="hint">Give me a hint</button>'}</div>`}
+ else{const v=V3(s.v);
+  h+=`<p class="q">${esc(v.q)}</p><div class="opts">${v.o.map((o,k)=>{let c='';const dis=A.done||(s.t==='predict'&&A.phase!=='ask');
+   if(s.t==='mcq'){if(A.wrong.has(k))c='no';if(A.done&&o.ok)c='ok'}
+   else{if(A.pick===k)c='pk';if(A.phase==='rev'){if(o.ok)c='ok';else if(A.pick===k)c='no'}}
+   return `<button data-a="opt" data-k="${k}" class="${c}" ${dis?'disabled':''}>${esc(o.l)}</button>`}).join('')}</div>`;
+  if(s.t==='predict'&&A.phase==='run')h+=`<div class="fb hint"><b>Running the experiment</b>${esc(V3(s.w))} <span id="cd"></span></div><div class="row"><button class="btn main" id="revbtn" data-a="reveal" disabled>Show what happened</button></div>`;
+  if(A.fb)h+=`<div class="fb ${A.fb.c}"><b>${A.fb.c==='ok'?(s.t==='predict'?'Good prediction':'Correct'):'Not quite'}</b>${esc(A.fb.t)}</div>`;
+  if(A.done)h+=`<div class="row"><button class="btn main" data-a="cont">Continue</button><button class="btn" data-a="say">Hear it</button></div>`}
+ el.innerHTML=h}
+function satTxt(){return Math.round(clamp(bound/Math.max(1,U.length*4),0,1)*100)+'%'}
+function lesClick(h){const A=les.a,s=A.L.steps[A.i];if(!h||A.done)return;
+ if(s.ans.includes(h.k)){A.done=true;if(A.tries===0)A.score++;A.fb={c:'ok',t:V3(s.ex)};st.sel=INFO[h.k]?h.k:null;ui();renderLes();speak(V3(s.ex),null,false)}
+ else{A.tries++;const nm=INFO[h.k]?INFO[h.k].n[lvl()]:'something else';A.fb={c:'no',t:`That is ${nm}. Look again.`};renderLes()}}
+function lesAct(a,b){const A=les.a;if(!A)return;const s=A.L.steps[A.i];
+ if(a==='exit'){endLesson();return}
+ if(a==='cont'){nextLes();return}
+ if(a==='say'){const v=s.v?V3(s.v):null;speak(s.t==='show'?V3(s.x):(A.fb?A.fb.t:v?v.q:''),null,false);return}
+ if(a==='hint'){A.fb={c:'hint',t:V3(s.hint)};renderLes();return}
+ if(a==='again'){startLesson(A.L.id);return}
+ if(a==='nextl'){startLesson(b.dataset.l);return}
+ if(a==='opt'){const k=+b.dataset.k,v=V3(s.v),o=v.o[k];
+  if(s.t==='mcq'){if(A.done)return;if(o.ok){A.done=true;if(A.tries===0)A.score++;A.fb={c:'ok',t:v.ex}}else{A.tries++;A.wrong.add(k);A.fb={c:'no',t:o.why+' Try again.'}}renderLes();speak(A.fb.t,null,false)}
+  else{if(A.phase!=='ask')return;A.pick=k;A.phase='run';A.t0=performance.now();applySetup(s.setup);renderLes();
+   clearInterval(A.iv);A.iv=setInterval(()=>{if(les.a!==A){clearInterval(A.iv);return}const t=Math.max(0,8-(performance.now()-A.t0)/1000),cd=$('#cd'),rb=$('#revbtn');if(cd)cd.textContent=t>0?`(${Math.ceil(t)}s)`:'';if(rb&&t<=0){rb.disabled=false;clearInterval(A.iv)}},250)}
+  return}
+ if(a==='reveal'){const v=V3(s.v),o=v.o[A.pick];A.phase='rev';A.done=true;clearInterval(A.iv);if(o.ok)A.score++;
+  A.fb={c:o.ok?'ok':'no',t:(o.ok?'':(o.why?o.why+' ':''))+v.ex.replace('{SAT}',satTxt())};renderLes();speak(A.fb.t,null,false)}}
+$('#lesson').addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(b)lesAct(b.dataset.a,b)});
+$('#cards').addEventListener('click',e=>{const b=e.target.closest('[data-l]');if(b)startLesson(b.dataset.l)});
+
+
+/* ================= Sources and claim ledger =================
+   Every entry below was fetched by a reviewer in this project. WebFetch summarises pages, so quotes are as relayed.
+   k: open = textbook/paper, abs = abstract only, wiki = secondary source (Wikipedia), used only where no primary page was reached. */
+const OS='OpenStax, Rice University';
+const SRC={
+ os225:{a:'Betts JG, et al.',y:'2022',t:'22.5 Transport of Gases, Anatomy and Physiology 2e',p:OS,u:'https://openstax.org/books/anatomy-and-physiology-2e/pages/22-5-transport-of-gases',k:'open',use:['Hemoglobin saturation 95–99%','About 1.5% of O₂ dissolved','Bohr effect, 2,3-BPG, temperature','CO₂ forms and the carbonic anhydrase reaction','Chloride shift','Haldane effect']},
+ os224:{a:'Betts JG, et al.',y:'2022',t:'22.4 Gas Exchange, Anatomy and Physiology 2e',p:OS,u:'https://openstax.org/books/anatomy-and-physiology-2e/pages/22-4-gas-exchange',k:'open',use:['Alveolar PO₂ about 104, PCO₂ about 40 mmHg','Deoxygenated blood PO₂ about 40, PCO₂ about 45 mmHg']},
+ os221:{a:'Betts JG, et al.',y:'2022',t:'22.1 Organs and Structures of the Respiratory System, Anatomy and Physiology 2e',p:OS,u:'https://openstax.org/books/anatomy-and-physiology-2e/pages/22-1-organs-and-structures-of-the-respiratory-system',k:'open',use:['Respiratory membrane about 0.5 µm','Type I and type II alveolar cells, surfactant']},
+ os201:{a:'Betts JG, et al.',y:'2022',t:'20.1 Structure and Function of Blood Vessels, Anatomy and Physiology 2e',p:OS,u:'https://openstax.org/books/anatomy-and-physiology-2e/pages/20-1-structure-and-function-of-blood-vessels',k:'open',use:['Capillary diameter 5–10 µm','Capillary wall is endothelium plus basement membrane','Exchange occurs in capillaries']},
+ os181:{a:'Betts JG, et al.',y:'2022',t:'18.1 An Overview of Blood, Anatomy and Physiology 2e',p:OS,u:'https://openstax.org/books/anatomy-and-physiology-2e/pages/18-1-an-overview-of-blood',k:'open',use:['Plasma about 92% water','Plasma 53–59% of blood volume']},
+ os183:{a:'Betts JG, et al.',y:'2022',t:'18.3 Erythrocytes, Anatomy and Physiology 2e',p:OS,u:'https://openstax.org/books/anatomy-and-physiology-2e/pages/18-3-erythrocytes',k:'open',use:['Diameter 7–8 µm','No nucleus or mitochondria','Lifespan 120 days','More than 2 million made per second','About 300 million Hb per cell']},
+ os264:{a:'Betts JG, et al.',y:'2022',t:'26.4 Acid-Base Balance, Anatomy and Physiology 2e',p:OS,u:'https://openstax.org/books/anatomy-and-physiology-2e/pages/26-4-acid-base-balance',k:'open',use:['Carbonic anhydrase in red cells and blood acidity']},
+ os102:{a:'Betts JG, et al.',y:'2022',t:'10.2 Skeletal Muscle, Anatomy and Physiology 2e',p:OS,u:'https://openstax.org/books/anatomy-and-physiology-2e/pages/10-2-skeletal-muscle',k:'open',use:['Sarcomere runs from Z-line to Z-line']},
+ os242:{a:'Betts JG, et al.',y:'2022',t:'24.2 Carbohydrate Metabolism, Anatomy and Physiology 2e',p:OS,u:'https://openstax.org/books/anatomy-and-physiology-2e/pages/24-2-carbohydrate-metabolism',k:'open',use:['CO₂ released from pyruvate in aerobic respiration','Electron transport chain forms water from O₂']},
+ sev79:{a:'Severinghaus JW',y:'1979',t:'Simple, accurate equations for human blood O₂ dissociation computations',p:'Journal of Applied Physiology 46(3):599–602, DOI 10.1152/jappl.1979.46.3.599',u:'https://europepmc.org/article/MED/35496',k:'abs',use:['A modified Hill equation fits the standard curve to ±0.0055 saturation (abstract only)']},
+ sar17:{a:'Sarkar M, Niranjan N, Banyal PK',y:'2017',t:'Mechanisms of hypoxemia',p:'Lung India, PMC5234199',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC5234199/',k:'open',use:['Capillary transit 0.75 s, gas exchange needs 0.25 s','Mixed venous PO₂ 40 mmHg at 75% saturation']},
+ ska20:{a:'Skattebo Ø, Calbet JAL, Rud B, Capelli C, Hallén J',y:'2020',t:'Contribution of oxygen extraction fraction to maximal oxygen uptake in healthy young men',p:'Acta Physiologica, PMC7540168',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC7540168/',k:'open',use:['Femoral venous PO₂ falls to about 10 mmHg at maximal effort']},
+ bro26:{a:'Broxterman RM, Ruple BA, Wagner PD, Richardson RS',y:'2026',t:'Evidence that myoglobin PO₂ is a noninvasive measure of in vivo skeletal muscle mitochondrial PO₂ during exercise in humans',p:'Function, PMC13626265',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC13626265/',k:'open',use:['Muscle PO₂ near mitochondria is only a few mmHg at maximal exercise']},
+ pdb41:{a:'RCSB Protein Data Bank',y:'(not shown on page)',t:'Molecule of the Month: Hemoglobin',p:'PDB-101',u:'https://pdb101.rcsb.org/motm/41',k:'open',use:['Two alpha and two beta chains, each with a heme and iron','HbS is β6 Glu→Val']},
+ mik09:{a:'Mikulski RL, Silverman DN',y:'2009',t:'Proton transfer in catalysis and the role of proton shuttles in carbonic anhydrase',p:'Biochimica et Biophysica Acta, PMC2818086',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC2818086/',k:'open',use:['His64 is the proton shuttle','Zinc-bound hydroxide attacks CO₂','Maximal turnover about 10⁶ s⁻¹']},
+ rau23:{a:'Raum HN, Fisher SZ, Weininger U',y:'2023',t:'Energetics and dynamics of the proton shuttle of carbonic anhydrase II',p:'Cellular and Molecular Life Sciences, PMC10492700',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC10492700/',k:'open',use:['kcat up to 1.4 × 10⁶ s⁻¹ for CO₂ to bicarbonate']},
+ jen21:{a:'Jennings ML',y:'2021',t:'Cell physiology and molecular mechanism of anion transport by erythrocyte band 3/AE1',p:'American Journal of Physiology Cell Physiology, PMC8714990',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC8714990/',k:'open',use:['Band 3 catalyses Cl⁻/HCO₃⁻ exchange','About 1.2 × 10⁶ copies per cell']},
+ one17:{a:"O'Neill DP, Robbins PA",y:'2017',t:'A mechanistic physicochemical model of carbon dioxide transport in blood',p:'Journal of Applied Physiology, PMC5341128',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC5341128/',k:'open',use:['About half of the Haldane effect comes from carbamino formation, half from bicarbonate']},
+ das06:{a:'Dash RK, Bassingthwaighte JB',y:'2006',t:'Simultaneous blood-tissue exchange of oxygen, carbon dioxide, bicarbonate, and hydrogen ion',p:'Annals of Biomedical Engineering, PMC4232240',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC4232240/',k:'open',use:['Lower pH or higher PO₂ reduces Hb affinity for CO₂ (Haldane)']},
+ sp532988:{a:'Doyle J, Cooper JS',y:'2023',t:'Physiology, Carbon Dioxide Transport',p:'StatPearls, NCBI Bookshelf NBK532988',u:'https://www.ncbi.nlm.nih.gov/sites/books/NBK532988/',k:'open',use:['Bicarbonate leaves the red cell in exchange for chloride','Oxygenated blood carries less CO₂ than venous blood']},
+ sp507807:{a:'Hopkins E, Sanvictores T, Sharma S',y:'2022',t:'Physiology, Acid Base Balance',p:'StatPearls, NCBI Bookshelf NBK507807',u:'https://www.ncbi.nlm.nih.gov/sites/books/NBK507807/',k:'open',use:['Blood pH 7.35–7.45, mean 7.40','Bicarbonate 22–26 mEq/L, PCO₂ 35–45 mmHg']},
+ bar11:{a:'Barcellini W, et al.',y:'2011',t:'Hereditary red cell membrane defects: diagnostic and clinical aspects',p:'Blood Transfusion 9(3):274–277, PMC3136593',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC3136593/',k:'open',use:['Spectrin, ankyrin, band 3 and 4.1R form the membrane skeleton','Spherocytosis and elliptocytosis from skeleton defects']},
+ dal23:{a:"D'Alessandro A, et al.",y:'2023',t:'Red blood cell metabolism in vivo and in vitro',p:'Metabolites 13(7):793, PMC10386156',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC10386156/',k:'open',use:['Red cells rely on glycolysis','Pentose phosphate pathway supplies NADPH']},
+ spi24:{a:'Spinelli S, Marino A, Morabito R, Remigante A',y:'2024',t:'Interplay between metabolic pathways and increased oxidative stress in human red blood cells',p:'Cells 13(23):2026, PMC11640724',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC11640724/',k:'open',use:['About 90% of glucose through glycolysis, 10% through the pentose phosphate shunt','Rapoport–Luebering shunt makes 2,3-BPG']},
+ elb24:{a:'El Brihi J, Pathak S',y:'2024',t:'Normal and Abnormal Complete Blood Count With Differential',p:'StatPearls, NCBI Bookshelf NBK604207',u:'https://www.ncbi.nlm.nih.gov/sites/books/NBK604207/',k:'open',use:['MCV 80–100 fL','MCH 27–32 pg']},
+ ef72:{a:'Evans EA, Fung YC',y:'1972',t:'Improved measurements of the erythrocyte geometry',p:'Microvascular Research 4:335, as reproduced in PMC5438868 (original not opened)',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC5438868/',k:'open',use:['Profile formula with C₀ = 0.207161 and C₁ = 2.002558 (minus sign of C₂ not confirmed)']},
+ wRBC:{a:'Wikipedia',y:'accessed 2026',t:'Red blood cell',p:'Secondary source, used only where no primary page was reached',u:'https://en.wikipedia.org/wiki/Red_blood_cell',k:'wiki',use:['Thickness 2–2.5 µm, centre 0.8–1 µm','Volume about 90 fL','Surface area about 136 µm²','About 270 million Hb per cell','Hb about 96% of dry weight']},
+ wHb:{a:'Wikipedia',y:'accessed 2026',t:'Hemoglobin',p:'Secondary source',u:'https://en.wikipedia.org/wiki/Hemoglobin',k:'wiki',use:['Tetramer mass 64,458 g/mol']},
+ wCO:{a:'Wikipedia',y:'accessed 2026',t:'Carbon monoxide poisoning',p:'Secondary source',u:'https://en.wikipedia.org/wiki/Carbon_monoxide_poisoning',k:'wiki',use:['CO binds hemoglobin about 240 times more strongly than O₂','Raises O₂ affinity of the remaining sites','COHb half-life 320 min in air, 80 min on oxygen']},
+ wHbF:{a:'Wikipedia',y:'accessed 2026',t:'Fetal hemoglobin',p:'Secondary source',u:'https://en.wikipedia.org/wiki/Fetal_hemoglobin',k:'wiki',use:['α₂γ₂','2,3-BPG interacts more with HbA than HbF']},
+ wAlv:{a:'Wikipedia',y:'accessed 2026',t:'Pulmonary alveolus',p:'Secondary source',u:'https://en.wikipedia.org/wiki/Pulmonary_alveolus',k:'wiki',use:['About 480 million alveoli','70–80 m² surface','Barrier 0.2–0.6 µm']}
+};
+/* LEDGER: v = ok (page states it), part (page states part of it or a different number), no (not found, wording changed), pend (not yet verified) */
+const LEDGER=[
+ {c:'Hemoglobin saturation in healthy people is 95–99%',v:'ok',s:['os225']},
+ {c:'About 1.5% of oxygen is dissolved in plasma (about 98.5% rides on hemoglobin)',v:'ok',s:['os225'],n:'The 98.5% is the remainder.'},
+ {c:'Lower pH, higher temperature and BPG all promote O₂ release',v:'ok',s:['os225']},
+ {c:'Modified Hill equation fits the standard O₂ curve (Severinghaus)',v:'ok',s:['sev79'],n:'Abstract only.'},
+ {c:'P₅₀ = 26.8 mmHg and n = 2.7',v:'pend',s:['sev79'],n:'The numbers are not in the abstract. Looking for a full text.'},
+ {c:'Bohr coefficient −0.48 and temperature coefficient 0.024 per °C',v:'pend',s:['sev79'],n:'Directions are supported. The values are not yet.'},
+ {c:'1.34 mL O₂ per g Hb, 0.003 mL/dL/mmHg, about 20 mL/dL arterial content',v:'pend',s:[],n:'Not found on any page opened so far.'},
+ {c:'Mixed venous blood: PO₂ 40 mmHg at 75% saturation',v:'ok',s:['sar17']},
+ {c:'Alveolar PO₂ about 104 and PCO₂ 40 mmHg; deoxygenated blood PO₂ 40 and PCO₂ 45 mmHg',v:'ok',s:['os224'],n:'The model uses 100 and 46. Both are within rounding of the source.'},
+ {c:'Capillary transit 0.75 s, gas exchange needs 0.25 s',v:'ok',s:['sar17']},
+ {c:'Respiratory membrane is about 0.5 µm thick; type I and type II cells',v:'ok',s:['os221']},
+ {c:'Capillary diameter 5–10 µm; wall is endothelium plus basement membrane',v:'ok',s:['os201']},
+ {c:'About 480 million alveoli, 70–80 m², barrier 0.2–0.6 µm',v:'part',s:['wAlv'],n:'Wikipedia only. Earlier text said 300–500 million and 70 m².'},
+ {c:'Plasma is about 92% water and 53–59% of blood volume',v:'ok',s:['os181']},
+ {c:'Red cell diameter 7–8 µm, no nucleus or mitochondria, 120-day life, 2 million made per second',v:'ok',s:['os183']},
+ {c:'Thickness 2–2.5 µm rim and 0.8–1 µm centre; volume about 90 fL; area about 136 µm²',v:'part',s:['wRBC'],n:'Wikipedia only. The model computes 2.6, 0.81, 94 and 135 from the shape formula.'},
+ {c:'MCV 80–100 fL and MCH 27–32 pg',v:'ok',s:['elb24']},
+ {c:'About 270 million hemoglobin molecules per cell',v:'part',s:['os183','wRBC'],n:'OpenStax says about 300 million, Wikipedia says 270. Text now says 270–300 million.'},
+ {c:'Tetramer mass about 64.5 kDa',v:'part',s:['wHb']},
+ {c:'Hemoglobin has two alpha and two beta chains, each with a heme and an iron atom',v:'ok',s:['pdb41']},
+ {c:'Sickle hemoglobin: β6 glutamate to valine',v:'ok',s:['pdb41']},
+ {c:'Fetal hemoglobin is α₂γ₂ and binds 2,3-BPG less than adult',v:'part',s:['wHbF']},
+ {c:'CO binds hemoglobin about 240 times more strongly than O₂ and raises affinity of the other sites',v:'part',s:['wCO'],n:'Earlier text said about 200 times.'},
+ {c:'Carbon monoxide half-life about 5 hours in air and 1.3 hours on oxygen',v:'part',s:['wCO'],n:'The page gives 320 and 80 minutes.'},
+ {c:'Carbonic anhydrase makes carbonic acid, which splits into H⁺ and bicarbonate',v:'ok',s:['os225']},
+ {c:'Carbonic anhydrase II turns over about 10⁶ times per second',v:'ok',s:['rau23','mik09']},
+ {c:'His64 is the proton shuttle and zinc-bound hydroxide attacks CO₂',v:'ok',s:['mik09']},
+ {c:'kcat/KM near 10⁸ M⁻¹s⁻¹ and uncatalysed rate about 0.15 s⁻¹ (so about ten million times faster)',v:'pend',s:[],n:'Not on a page opened so far.'},
+ {c:'Band 3 swaps Cl⁻ for HCO₃⁻; about 1.2 million copies per cell',v:'ok',s:['jen21']},
+ {c:'The chloride shift',v:'ok',s:['os225','sp532988'],n:'The name Hamburger shift was not found, so the text no longer uses it.'},
+ {c:'Haldane effect: oxygenation lowers hemoglobin’s CO₂ binding; Bohr effect: lower pH lowers O₂ binding',v:'ok',s:['os225','das06','one17']},
+ {c:'About 70% of CO₂ as bicarbonate, about 20% on hemoglobin, 7–10% dissolved',v:'part',s:['os225'],n:'OpenStax gives about 70, 20 and 7–10. The 23% used earlier was not found.'},
+ {c:'Blood pH 7.35–7.45, bicarbonate 22–26 mEq/L, PCO₂ 35–45 mmHg',v:'ok',s:['sp507807']},
+ {c:'Henderson–Hasselbalch with 6.1 and 0.03; venous pH and bicarbonate values',v:'pend',s:[],n:'The equation was not on a page opened so far.'},
+ {c:'CO₂ diffuses about 20 times faster than O₂',v:'no',s:['os225'],n:'Sources say CO₂ is more soluble and diffuses more readily. The factor was not found, so it was removed.'},
+ {c:'Membrane skeleton of spectrin, ankyrin, band 3 and 4.1R; defects cause spherocytosis and elliptocytosis',v:'ok',s:['bar11'],n:'Glycophorin C was not confirmed and was removed.'},
+ {c:'Red cells rely on glycolysis; about 90% glucose by glycolysis and 10% by the pentose shunt',v:'ok',s:['spi24','dal23']},
+ {c:'Rapoport–Luebering shunt makes 2,3-BPG; the pentose pathway supplies NADPH',v:'ok',s:['spi24','dal23']},
+ {c:'Hemoglobin is about 96% of the red cell’s dry weight',v:'part',s:['wRBC']},
+ {c:'Working-muscle venous PO₂ falls to about 10 mmHg at maximal effort',v:'ok',s:['ska20'],n:'Earlier text said 15–25 mmHg. Updated.'},
+ {c:'Muscle PO₂ near mitochondria is only a few mmHg at maximal exercise',v:'ok',s:['bro26']},
+ {c:'The sarcomere runs from one Z-line to the next; CO₂ comes from pyruvate in aerobic respiration',v:'ok',s:['os102','os242']},
+ {c:'Evans–Fung profile coefficients C₀, C₁ and the form of the equation',v:'part',s:['ef72'],n:'C₂ was returned without a sign, and D₀ = 7.82 µm was not on the page. The computed volume, area and thickness agree with the literature (see Accuracy checks).'},
+ {c:'About 40% excess surface area over a sphere',v:'no',s:[],n:'Not found. The figure is calculated from the shape model in this page.'},
+ {c:'Hemoglobin about 5.5 nm across; alpha 7 helices, beta 8',v:'pend',s:[],n:'Not found on pages opened so far.'},
+ {c:'T to R: about 15° rotation, salt bridges, 2,3-BPG site, midpoint at 2–3 oxygens',v:'pend',s:[],n:'Not found on pages opened so far.'},
+ {c:'Heme geometry: Fe–N 2.0 Å, five-coordinate deoxy, 0.4–0.6 Å displacement, Fe–O–O angle',v:'pend',s:[],n:'Not found on pages opened so far.'},
+ {c:'Soret band near 415 nm (oxy) and 430 nm (deoxy); venous blood is dark red, not blue',v:'pend',s:[],n:'Not found on pages opened so far.'},
+ {c:'Resting extraction about 25%; exercise extraction 75–80%',v:'pend',s:[],n:'Not found. One source gives leg extraction of 90–95% at maximal effort.'}
+];
+const INFOSRC={o2:['os225','os224'],co2:['os225','one17'],hco3:['os225','sp507807'],h:['os225','das06'],cl:['os225','jen21','sp532988'],co:['wCO'],hb:['pdb41','os183','wRBC'],b3:['jen21','os225'],ca:['os225','mik09','rau23'],mem:['bar11'],shape:['os183','wRBC','ef72'],plasma:['os181'],wall:['os201','os221'],air:['os221','os224','wAlv'],muscle:['os102','ska20'],mito:['os242','bro26'],sub:['pdb41'],heme:['pdb41'],bpg:['os225','spi24'],fe:['pdb41'],porph:[],n:[],his:[]};
+const PENDING=new Set(['sub','heme','bpg','fe','porph','n','his']);
+const LESSRC={cell:['os183','wRBC','elb24'],load:['os224','os225','sar17'],unload:['os225','ska20','sar17'],co2:['os225','mik09','jen21'],switch:['pdb41','os225'],iron:['pdb41'],co:['wCO']};
+const CAPSRC=[['os224','os225','os183'],['pdb41','os225'],['pdb41']];
+
+Object.assign(SRC,{
+ dash16:{a:'Dash RK, Korman B, Bassingthwaighte JB',y:'2016',t:'Simple accurate mathematical models of blood HbO₂ and HbCO₂ dissociation curves at varied physiological conditions',p:'European Journal of Applied Physiology, PMC4699875',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC4699875/',k:'open',use:['P₅₀ = 26.8 mmHg at pH 7.4, 37 °C, PCO₂ 40','Hill exponent modelled as varying from about 1.6 to 2.8 with PO₂','P₅₀ rises 1.435 mmHg per °C at 37 °C']},
+ sta25:{a:'Staier N, et al.',y:'2025',t:'Inflammation and hemoglobin oxygen affinity',p:'Inflammation, PMC12712011',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC12712011/',k:'open',use:['Measured control group: P₅₀ 26.9 (26.4–28.4) mmHg, Hill n 2.63 (2.53–2.81)']},
+ bur25:{a:'Burchert HH, Stringer WW, Dash RK',y:'2025',t:'Oxygen dissociation curve inflection point during incremental exercise: a trigger for the Bohr effect',p:'Pflügers Archiv, PMC12310897',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC12310897/',k:'open',use:['P₅₀ 26.8 mmHg at pH 7.4, 37 °C','Venous PO₂ about 21 mmHg at the gas-exchange threshold']},
+ tym26:{a:'Tymen R, Dos Santos EC, Taccone FS, Aubron C',y:'2026',t:'Physiological determinants and the red blood cells transfusion decision-making process in non-bleeding critically ill patients',p:'Intensive Care Medicine, PMC12971815',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC12971815/',k:'open',use:['1.34 mL O₂ per g Hb; dissolved O₂ = 0.003 × PaO₂','Mixed venous saturation 70–75%','Tissues extract 20–30% of Hb-bound O₂']},
+ tuc25:{a:'Tucker AM, Johnson TN',y:'2025',t:'Breathing and balance: clinical insights and management strategies of respiratory acid-base disorders',p:'Nutrition in Clinical Practice, PMC12242095',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC12242095/',k:'open',use:['pH = 6.1 + log([HCO₃⁻]/(0.03 × PCO₂))','Arterial pH 7.40 (7.35–7.45), HCO₃⁻ 24 mmol/L, PCO₂ 40 mmHg','Venous pH 7.36 (7.33–7.43), HCO₃⁻ 24–28, PCO₂ 41–51 mmHg']},
+ dajn16:{a:'Dajnowicz S, et al.',y:'2016',t:'Bohr effect in hemoglobin: neutron structure study',p:'Acta Crystallographica D, PMC4932920',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC4932920/',k:'open',use:['β C-terminus His146 bridges to αLys40 and βAsp94','Distal His hydrogen-bonded to the ligand in the R state']},
+ ren13:{a:'Ren Z',y:'2013',t:'Reverse engineering hemoglobin cooperativity',p:'PLoS ONE, PMC3842276',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC3842276/',k:'open',use:['Quaternary rotation of nearly 15° between T and R','MWC symmetry model','2,3-BPG wedged between the two β chains in T']},
+ che17:{a:'Chen WR, et al.',y:'2017',t:'Phthalide derivatives and hemoglobin oxygen affinity',p:'Scientific Reports, PMC5511246',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC5511246/',k:'open',use:['2,3-BPG binding sites βVal1, βLys82, βHis143','α₂β₂ tetramer, tetrahedral arrangement']},
+ jon14:{a:'Jones EM, et al.',y:'2014',t:'Differential control of heme reactivity',p:'Journal of the American Chemical Society, PMC4353013',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC4353013/',k:'open',use:['Iron moves down as it loses the ligand and becomes five-coordinate and high-spin']},
+ sek24:{a:'Sekyonda Z, et al.',y:'2024',t:'Rapid measurement of hemoglobin-oxygen dissociation by leveraging Bohr effect and Soret band bathochromic shift',p:'Analyst, PMC11056771',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC11056771/',k:'open',use:['Soret peak 414 nm oxygenated, 430 nm deoxygenated']},
+ sav24:{a:'Savioli G, et al.',y:'2024',t:'Carbon monoxide poisoning: from occupational health to emergency medicine',p:'Journal of Clinical Medicine, PMC11084260',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC11084260/',k:'open',use:['CO affinity 200–250 times that of O₂','COHb half-life 4–5 h in air, about 1 h on oxygen','Leftward shift of the dissociation curve']},
+ del24:{a:'Delvau N, et al.',y:'2024',t:'Carboxyhemoglobin half-life toxicokinetic profiles during and after normobaric oxygen therapy: on a swine model',p:'Toxicology Reports, PMC10907397',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC10907397/',k:'open',use:['Hb has 218-fold more affinity for CO than O₂','Half-life 320 min in air in the Peterson study']}
+});
+SRC.das06.use=['Computed venous PCO₂ 46.5 mmHg, pH 7.36, HCO₃⁻ 26.4 mM; arterial HCO₃⁻ 24.4 mM','O₂ extraction 25.4% at standard conditions','Solubility of CO₂ about 22 times that of O₂','Lower pH or higher PO₂ reduces Hb affinity for CO₂'];
+SRC.os224.use=['Alveolar PO₂ about 104, PCO₂ about 40 mmHg','Deoxygenated blood PO₂ about 40, PCO₂ about 45 mmHg','CO₂ is about 20 times more soluble than O₂ in blood'];
+(function(){
+ const set=(sub,ent)=>{const i=LEDGER.findIndex(x=>x.c.indexOf(sub)===0);if(i<0)throw new Error('ledger '+sub);LEDGER.splice(i,1,...ent)};
+ set('P₅₀ = 26.8',[
+  {c:'P₅₀ about 26.8 mmHg at pH 7.40, 37 °C, PCO₂ 40',v:'ok',s:['dash16','bur25','sta25'],n:'Measured control group: 26.9 (26.4–28.4) mmHg.'},
+  {c:'Hill coefficient n = 2.7',v:'part',s:['sta25','dash16'],n:'One study measured 2.63 (2.53–2.81). Another models n as varying from about 1.6 at low PO₂ to 2.8 at high PO₂. The model uses a fixed 2.7.'}]);
+ set('Bohr coefficient',[
+  {c:'Bohr coefficient −0.48 per pH unit',v:'pend',s:['os225'],n:'The direction is supported. The value −0.48 was not found.'},
+  {c:'Temperature raises P₅₀ by about 0.024 log units per °C (about 6%)',v:'part',s:['dash16'],n:'Source gives 1.435 mmHg per °C at 37 °C, about 5.4%, or 0.023 log units. Derived, not quoted.'}]);
+ set('1.34 mL',[
+  {c:'1.34 mL O₂ per g Hb; dissolved O₂ = 0.003 × PO₂',v:'ok',s:['tym26']},
+  {c:'About 20 mL/dL arterial content and Hb about 15 g/dL',v:'pend',s:[],n:'Not found on pages opened so far. The value follows from the row above.'}]);
+ set('Mixed venous blood',[
+  {c:'Mixed venous blood: PO₂ 40 mmHg at 75% saturation',v:'ok',s:['sar17']},
+  {c:'Mixed venous saturation 70–75%; tissues extract 20–30% of Hb-bound O₂',v:'ok',s:['tym26','das06']},
+  {c:'Venous PO₂ about 21 mmHg at the gas-exchange threshold; active tissue about 20 mmHg',v:'ok',s:['bur25','os225'],n:'Supports the 20 mmHg heavy-exercise value as a plausible choice.'}]);
+ set('Henderson',[
+  {c:'Henderson–Hasselbalch: pH = 6.1 + log([HCO₃⁻]/(0.03 × PCO₂)); arterial pH 7.40, 24 mmol/L, 40 mmHg',v:'ok',s:['tuc25']},
+  {c:'Venous: pH 7.36 (7.33–7.43), HCO₃⁻ 24–28 mmol/L, PCO₂ 41–51 mmHg; computed 46.5 mmHg and 26.4 mM',v:'ok',s:['tuc25','das06']}]);
+ set('CO₂ diffuses about 20',[
+  {c:'CO₂ is about 20 times more soluble than O₂ in blood, so it diffuses readily',v:'ok',s:['os224','das06'],n:'The 20× is a solubility ratio. A diffusion-rate factor was not stated, so the text says soluble.'}]);
+ set('T to R',[
+  {c:'T to R: quaternary rotation of nearly 15°; MWC model',v:'ok',s:['ren13']},
+  {c:'Salt bridges: His146β to αLys40 and βAsp94; distal His H-bonds the ligand in R',v:'ok',s:['dajn16']},
+  {c:'2,3-BPG sits between the β chains in T; binding residues βVal1, βLys82, βHis143',v:'ok',s:['ren13','che17'],n:'His2 was not reported. Text now lists Val1, Lys82 and His143.'},
+  {c:'T to R midpoint at about 2–3 oxygens bound',v:'pend',s:[],n:'The simulation uses three as a teaching rule.'}]);
+ set('Heme geometry',[
+  {c:'Deoxy heme is five-coordinate and high-spin, with the iron displaced',v:'ok',s:['jon14'],n:'No distance given on the page.'},
+  {c:'Fe–N 2.0 Å, displacement 0.4–0.6 Å, oxy six-coordinate low-spin, Fe–O–O angle',v:'pend',s:[],n:'Not found on pages opened so far.'}]);
+ set('Soret band',[
+  {c:'Soret band: 414 nm oxygenated, 430 nm deoxygenated',v:'ok',s:['sek24']},
+  {c:'Venous blood is dark red, not blue',v:'pend',s:[],n:'Not found on pages opened so far.'}]);
+ set('CO binds hemoglobin about 240',[
+  {c:'CO binds hemoglobin 200–250 times more strongly than O₂ and left-shifts the curve',v:'ok',s:['sav24','del24'],n:'218-fold in one study; 240-fold on Wikipedia.'},
+  {c:'COHb half-life 4–5 hours in air, about 1 hour on 100% oxygen',v:'ok',s:['sav24','del24']},
+  {c:'Haldane relation [COHb]/[O₂Hb] = M × PCO/PO₂',v:'pend',s:[],n:'Not found on a page opened so far.'}]);
+ set('Carbon monoxide half-life',[]);
+ set('Resting extraction',[{c:'Exercise extraction 75–80%',v:'pend',s:[],n:'Not found. One source gives leg extraction of 90–95% at maximal effort.'}]);
+})();
+Object.assign(INFOSRC,{co:['sav24','del24','wCO'],co2:['os225','one17','os224'],sub:['pdb41','ren13'],heme:['pdb41','jon14'],bpg:['ren13','che17','spi24'],fe:['pdb41','jon14'],h:['os225','das06'],porph:['sek24'],hb:['pdb41','os183','wRBC','ren13']});
+PENDING.delete('bpg');PENDING.delete('sub');
+CAPSRC[1]=['pdb41','ren13','dajn16'];CAPSRC[2]=['pdb41','jon14','sek24'];
+
+Object.assign(SRC,{
+ tsi24:{a:'Tsikas D',y:'2024',t:'Acetazolamide and human carbonic anhydrases: retrospect, review and discussion of an intimate relationship',p:'Journal of Enzyme Inhibition and Medicinal Chemistry, PMC11721854',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC11721854/',k:'open',use:['CA II kcat/KM 1.5 × 10⁸ M⁻¹s⁻¹, near the diffusion limit','Turnover 10⁶ s⁻¹, 10⁷ times faster than uncatalysed','Acetazolamide is a carbonic anhydrase inhibitor']},
+ lta21:{a:'Ltaief Z, Schneider AG, Liaudet L',y:'2021',t:'Pathophysiology and clinical implications of the veno-arterial PCO₂ gap',p:'Critical Care, PMC8407023',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC8407023/',k:'open',use:['Bicarbonate is about 90% of total arterial blood CO₂ content; carbamino about 5%; dissolved about 5%','Chloride shift, also called the Hamburger effect']},
+ mal25:{a:'Mallat J, et al.',y:'2025',t:'Use of CO₂-derived variables in critically ill patients',p:'Annals of Intensive Care, PMC12463780',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC12463780/',k:'open',use:['Bicarbonate about 90% of total CO₂ content, slightly lower in venous blood']},
+ bar24:{a:'Barshtein G, Livshits L, Gural A, et al.',y:'2024',t:'Hemoglobin binding to the red blood cell membrane is associated with decreased cell deformability',p:'International Journal of Molecular Sciences, PMC11172562',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC11172562/',k:'open',use:['Band 3 is SLC4A1','MCHC 32–36 g/dL','About 250–270 million hemoglobin molecules per cell']},
+ sra10:{a:'Sraj I, Szatmary AC, Marr DW, Eggleton CD',y:'2010',t:'Dynamic ray tracing for modeling optical cell manipulation',p:'Optics Express 18:16702, PMC3408928',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC3408928/',k:'open',use:['Evans–Fung C₀ = 0.207161, C₁ = 2.002558, C₂ = −1.122762','Red cell surface area 140 µm²']},
+ hos12:{a:'Hosseini SM, Feng JJ',y:'2012',t:'How malaria parasites reduce the deformability of infected red blood cells',p:'Biophysical Journal, PMC3388224',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC3388224/',k:'open',use:['Same Evans–Fung coefficients, R₀ = 3.91 µm on the central plane']},
+ gee19:{a:'Geekiyanage NM, et al.',y:'2019',t:'A coarse-grained red blood cell membrane model to study stomatocyte-discocyte-echinocyte morphologies',p:'PLOS ONE, PMC6474605',u:'https://pmc.ncbi.nlm.nih.gov/articles/PMC6474605/',k:'open',use:['About 40% excess surface area compared with a sphere of the same volume']}
+});
+(function(){
+ const set=(sub,ent)=>{const i=LEDGER.findIndex(x=>x.c.indexOf(sub)===0);if(i<0)throw new Error('ledger '+sub);LEDGER.splice(i,1,...ent)};
+ set('kcat/KM near',[
+  {c:'Carbonic anhydrase II: kcat/KM about 1.5 × 10⁸ M⁻¹s⁻¹ and about 10⁷ times faster than uncatalysed',v:'ok',s:['tsi24']},
+  {c:'Acetazolamide inhibits carbonic anhydrase',v:'ok',s:['tsi24']},
+  {c:'Uncatalysed CO₂ hydration rate about 0.1 s⁻¹',v:'part',s:['tsi24'],n:'Not stated. It follows from 10⁶ s⁻¹ divided by the 10⁷-fold speed-up.'}]);
+ set('About 70% of CO₂ as bicarbonate',[
+  {c:'About 70% of the CO₂ that enters the blood is carried as bicarbonate, about 20% on hemoglobin and 7–10% dissolved',v:'ok',s:['os225'],n:'OpenStax. The 23% used earlier was not found.'},
+  {c:'Bicarbonate is about 90% of the total CO₂ content of arterial blood; carbamino and dissolved about 5% each',v:'ok',s:['lta21','mal25'],n:'This is the content of the blood, a different quantity from the CO₂ added by tissues.'}]);
+ set('Band 3 swaps',[{c:'Band 3 (SLC4A1) swaps Cl⁻ for HCO₃⁻; about 1.2 million copies per cell',v:'ok',s:['jen21','bar24']}]);
+ set('The chloride shift',[{c:'The chloride shift, also called the Hamburger effect',v:'ok',s:['os225','sp532988','lta21']}]);
+ set('About 270 million',[{c:'About 250–300 million hemoglobin molecules per cell',v:'part',s:['bar24','os183','wRBC'],n:'250–270 million (one paper), 270 million (Wikipedia), about 300 million (OpenStax). Text now says 250–300 million.'}]);
+ set('Evans–Fung profile',[{c:'Evans–Fung profile: C₀ = 0.207161, C₁ = 2.002558, C₂ = −1.122762; R₀ = 3.91 µm',v:'ok',s:['sra10','hos12','ef72'],n:'D₀ = 2 × R₀ = 7.82 µm. The 0.81 and 2.58 µm thicknesses are model outputs, not quoted.'}]);
+ set('About 40% excess',[{c:'About 40% excess surface area compared with a sphere of the same volume',v:'part',s:['gee19'],n:'A source says about 40%. The shape formula gives about 33% for its own volume of 94 fL. Cell volumes differ between studies. The text now says 30–40%.'}]);
+ LEDGER.push({c:'MCHC 32–36 g/dL',v:'ok',s:['bar24']});
+})();
+Object.assign(INFOSRC,{ca:['os225','mik09','rau23','tsi24'],b3:['jen21','bar24','os225'],cl:['os225','jen21','lta21'],shape:['os183','wRBC','ef72','sra10','gee19'],hb:['pdb41','os183','bar24','ren13'],co2:['os225','lta21','os224']});
+
+/* ================= Math, parameters, checks, sources ================= */
+const L10=Math.log10;
+const GEO=(()=>{ // numerical integration of the Evans-Fung profile
+ const N=4000,dr=R0/N;let V=0,A=0;
+ for(let i=0;i<N;i++){const r=(i+.5)*dr;V+=2*Math.PI*r*zFull(r)*dr;
+  const h=x=>zFull(x)/2,d=(h(Math.min(R0-1e-6,r+1e-4))-h(Math.max(0,r-1e-4)))/(2e-4);
+  A+=2*(2*Math.PI*r*Math.sqrt(1+d*d))*dr}
+ let tmax=0;for(let r=0;r<R0;r+=.005)tmax=Math.max(tmax,zFull(r));
+ const sa=4*Math.PI*Math.pow(3*V/(4*Math.PI),2/3);
+ return{V,A,tmax,tmin:zFull(0),sa,ex:(A/sa-1)*100}})();
+const HB_PER_CELL=29e-12/64500*6.022e23; // MCH 29 pg / 64.5 kDa
+const f=(x,d=1)=>Number(x).toFixed(d);
+function mathVals(en){
+ const p50=p50Of(en),fa=Math.pow(10,.48*(7.40-en.ph)),ft=Math.pow(10,.024*(en.T-37)),fco=en.co?.55:1;
+ const S=hill(en.po2,p50),dco2=.03*en.pco2,A=1.34*15*S,B=.003*en.po2,tot=U.length*4,avail=tot-coN;
+ const e=ease(st.loc),sc=SC[st.scen];
+ return{po2:f(en.po2,0),pco2:f(en.pco2,0),ph:f(en.ph,2),T:f(en.T,1),dph:f(7.40-en.ph,2),dT:f(en.T-37,1),fa:f(fa,3),ft:f(ft,3),fco:f(fco,2),
+  p50:f(p50,1),Pn:f(Math.pow(en.po2,2.7),0),P50n:f(Math.pow(p50,2.7),0),S:f(S*100,1),A:f(A,1),B:f(B,2),C:f(A+B,1),share:f(A/(A+B)*100,1),ratio:f((A+B)/B,0),
+  dco2:f(dco2,2),rHH:f(24/dco2,1),pHa:f(6.1+L10(24/dco2),2),pHv:f(6.1+L10(26/dco2),2),
+  loc:f(st.loc,2),e:f(e,2),ptis:f(sc.po2,0),pcot:f(sc.pco2,0),
+  nu:String(U.length),tot:String(tot),avail:String(avail),want:String(Math.round(st.TS*avail)),bnd:String(bound),rep:f(HB_PER_CELL*4/tot/1e6,1),
+  vol:f(GEO.V,1),area:f(GEO.A,0),tmax:f(GEO.tmax,2),tmin:f(GEO.tmin,2),sa:f(GEO.sa,0),ex:f(GEO.ex,0)}}
+const CO_EX=(()=>{const ratio=.30/.70,M=220,pco=ratio*100/M;return{ratio:f(ratio,2),pco:f(pco,3),ppm:f(pco/760*1e6,0)}})();
+const v=k=>`<b class="lv" data-v="${k}">…</b>`;
+const EQ=[
+{id:'o2c',t:'How much oxygen is in blood?',
+ f:'CaO<sub>2</sub> = 1.34 × Hb × S + 0.003 × PO<sub>2</sub>',
+ b:'Blood carries oxygen two ways: stuck on hemoglobin, and dissolved in the liquid. Almost all of it rides on hemoglobin. That is why red cells matter so much.',
+ m:()=>`With 15 g of hemoglobin in every 100 mL of blood (a typical value): on hemoglobin 1.34 × 15 × ${v('S')}% = ${v('A')} mL per dL. Dissolved: 0.003 × ${v('po2')} = ${v('B')} mL per dL. Total ${v('C')} mL per dL, so hemoglobin carries ${v('share')}%. Plasma alone would carry about ${v('ratio')} times less.`,
+ x:'Units: 1.34 mL O₂ per g Hb (the value used clinically), 0.003 mL O₂ per dL per mmHg (Henry’s law solubility at 37 °C). Assumes Hb = 15 g/dL and ignores carboxyhemoglobin and methemoglobin. The live numbers use the simulated saturation S and PO₂.',
+ s:['tym26','os225']},
+{id:'hill',t:'How full does hemoglobin get?',
+ f:'S = P<sup>n</sup> / (P<sup>n</sup> + P<sub>50</sub><sup>n</sup>),  n = 2.7',
+ b:'The more oxygen pressure there is, the fuller hemoglobin gets. But it fills in an S shape: quickly at first, then it levels off near full. P₅₀ is the pressure at which half of the hemoglobin is full. A lower P₅₀ means a stronger grip.',
+ m:()=>`Now P = ${v('po2')} mmHg and P₅₀ = ${v('p50')} mmHg. P<sup>2.7</sup> = ${v('Pn')}. P₅₀<sup>2.7</sup> = ${v('P50n')}. So S = ${v('Pn')} / (${v('Pn')} + ${v('P50n')}) = ${v('S')}%. Try the journey bar: S changes as PO₂ changes.`,
+ x:'The Hill equation is an empirical fit, with n the slope of log[S/(1−S)] against log P. It works well between about 20 and 90% saturation. Real hemoglobin binds four oxygens in sequence (the Adair equation), and the Severinghaus equation fits the whole curve better. One study measured n = 2.63 and another models n rising from about 1.6 to 2.8 with PO₂, so a fixed 2.7 is a simplification. It agrees at the two points that matter, arterial and venous blood. See the accuracy checks.',
+ s:['dash16','sta25','sev79']},
+{id:'shift',t:'Why the curve shifts in muscle',
+ f:'log<sub>10</sub> P<sub>50</sub> = log<sub>10</sub> 26.8 + 0.48 (7.40 − pH) + 0.024 (T − 37)',
+ b:'Acid and heat make hemoglobin loosen its grip, so it gives oxygen up more easily. Working muscle is more acid and warmer, so more oxygen is released exactly where it is needed.',
+ m:()=>`Now pH = ${v('ph')} and T = ${v('T')} °C. Acid factor: 10<sup>0.48 × ${v('dph')}</sup> = ${v('fa')}. Heat factor: 10<sup>0.024 × ${v('dT')}</sup> = ${v('ft')}. P₅₀ = 26.8 × ${v('fa')} × ${v('ft')}${SC[st.scen].co?' × 0.55 (carbon monoxide, a model choice)':''} = ${v('p50')} mmHg.`,
+ x:'The coefficient −0.48 is the Bohr coefficient (ΔlogP₅₀/ΔpH) and 0.024 per °C is the temperature coefficient, both as in Severinghaus 1979. The temperature coefficient agrees with the 1.435 mmHg per °C slope reported by Dash and colleagues. The value −0.48 has not yet been matched to an opened page, so only the direction of the Bohr effect is sourced. CO₂ also acts directly (carbamino binding), but here its effect is carried only through pH. 2,3-BPG is held constant. The ×0.55 left shift for carbon monoxide is a modelling choice chosen to show the direction of the real effect, not a measured constant.',
+ s:['os225','dash16']},
+{id:'hh',t:'Carbon dioxide and acidity',
+ f:'pH = 6.1 + log<sub>10</sub> ( [HCO<sub>3</sub><sup>−</sup>] / (0.03 × PCO<sub>2</sub>) )',
+ b:'Carbon dioxide makes blood a little more acid. Bicarbonate in the blood balances that, like a sponge that soaks up the acid. This keeps the blood pH steady.',
+ m:()=>`With 24 mmol/L of bicarbonate and PCO₂ = ${v('pco2')} mmHg, dissolved CO₂ is 0.03 × ${v('pco2')} = ${v('dco2')} mmol/L. Ratio 24 / ${v('dco2')} = ${v('rHH')}. pH = 6.1 + log₁₀(${v('rHH')}) = ${v('pHa')}. In venous blood, which has about 26 mmol/L of bicarbonate, the same PCO₂ gives pH ${v('pHv')}.`,
+ x:'6.1 is the apparent pKa of the CO₂/HCO₃⁻ system and 0.03 mmol/L/mmHg is the CO₂ solubility coefficient. The simulation uses set pH values (7.40 arterial, 7.36 resting tissue, 7.20 heavy exercise), not this equation. The accuracy checks confirm the two agree for arterial and venous blood. Bicarbonate is held fixed here, so exercise lactate is not modelled.',
+ s:['tuc25','das06']},
+{id:'hald',t:'Why a little carbon monoxide is so dangerous',
+ f:'[COHb] / [O<sub>2</sub>Hb] = M × PCO / PO<sub>2</sub>,  M ≈ 200–250',
+ b:'Carbon monoxide is far stickier than oxygen. So even a tiny bit of it in the air fills a lot of hemoglobin hands.',
+ m:()=>`The scenario blocks 30% of hemoglobin. COHb / O₂Hb = 0.30 / 0.70 = ${CO_EX.ratio}. With PO₂ = 100 and M = 220, PCO = ${CO_EX.ratio} × 100 / 220 = ${CO_EX.pco} mmHg. That is about ${CO_EX.ppm} parts per million of air at sea level, a small amount, which is why it is so dangerous.`,
+ x:'The Haldane relation, with M ≈ 200–250 depending on conditions. It holds at equilibrium, and in life COHb rises over hours. The COHb half-life is about 4–5 hours on room air and about 1 hour on 100% oxygen. This simulation shows 30% COHb as a fixed state and does not model the time course. The equation itself has not yet been matched to a page that was opened, although the affinity ratio and half-lives have.',
+ s:['sav24','del24']},
+{id:'geo',t:'The size and shape of the cell',
+ f:'z(ρ) = ½ D<sub>0</sub> √(1−ρ²) (C<sub>0</sub> + C<sub>1</sub>ρ² + C<sub>2</sub>ρ<sup>4</sup>),  ρ = 2r / D<sub>0</sub>',
+ b:'The cell is drawn to scale as a slice through the middle of a dented disc. Its size is about 8 millionths of a meter across.',
+ m:()=>`D₀ = 7.82 µm. Adding up thin rings of the shape gives a volume of ${v('vol')} µm³ (the same as ${v('vol')} fL) and a surface of ${v('area')} µm². The thickest part is ${v('tmax')} µm and the centre is ${v('tmin')} µm. A ball of the same volume would have only ${v('sa')} µm² of surface, so the dent adds about ${v('ex')}% more surface.`,
+ x:'Evans and Fung (1972) fitted C₀ = 0.2072, C₁ = 2.0026, C₂ = −1.1228 to measured cells, where z is the full thickness at radius r. V = ∫2πr z dr and A = 2∫2πr √(1+h′²) dr with h = z/2, both integrated numerically in this page. The animation shows the cross-section only. Real cells vary: MCV 80–100 fL.',
+ s:['sra10','hos12','ef72','gee19']},
+{id:'sim',t:'How this simulation moves oxygen',
+ f:'N<sub>target</sub> = round( S × (4N − N<sub>CO</sub>) )',
+ b:'The oxygen dots you see are real events in the simulation: each blue dot lands on one hemoglobin hand. The simulation keeps adding or removing oxygens until the right number of hands are full.',
+ m:()=>`The cell shows ${v('nu')} hemoglobins, which is ${v('tot')} hands (one simulated hemoglobin stands for about ${v('rep')} million real hands). The target is S × available hands = ${v('want')}. Right now ${v('bnd')} hands hold oxygen. If there are fewer, oxygen flows in. If there are more, oxygen flows out.`,
+ x:'Steady state matches the Hill saturation by construction. The approach to steady state is a teaching device: S relaxes with a time constant of about 0.33 s of simulated time, events are limited to 70 per second, and playback speed is adjustable. It is not a kinetic model. Real equilibration takes about 0.25 s of a 0.75 s capillary transit. Binding picks partly loaded hemoglobins first (cooperativity) and unbinding picks the emptier ones. The T to R switch uses a teaching rule: three or more oxygens bound. Real transition midpoints are around two to three ligands.',
+ s:[]},
+{id:'prof',t:'How the surroundings change along the journey',
+ f:'P(x) = P<sub>lung</sub> + (P<sub>tissue</sub> − P<sub>lung</sub>) × (3x² − 2x³)',
+ b:'As the cell travels from the lungs to the muscle, the oxygen around it goes from lots to little. The bar at the top of the controls moves it along.',
+ m:()=>`Position x = ${v('loc')}, smoothed to ${v('e')}. PO₂ = 100 + (${v('ptis')} − 100) × ${v('e')} = ${v('po2')} mmHg. PCO₂ goes from 40 to ${v('pcot')} mmHg in the same way. The pH and temperature move together with them.`,
+ x:'End points: alveolar PO₂ 100 and PCO₂ 40 mmHg; resting tissue PO₂ 40, PCO₂ 46, pH 7.36; heavy exercise PO₂ 20, PCO₂ 60, pH 7.20, 39 °C. The exercise values are plausible heavy-exercise numbers and are model choices. The CO₂ loading target (a fraction of 40 slots, scaled over PCO₂ 40–52 mmHg) is an illustrative scale, not a quantitative content model.',
+ s:['os224','das06','bur25']}
+];
+const PARAMS=[
+ ['P₅₀','26.8','mmHg','Half-saturation pressure at pH 7.40, 37 °C, PCO₂ 40','lit',['dash16','bur25','sta25']],
+ ['Hill coefficient n','2.7 (fixed)','','Steepness of the curve. Measured 2.63, and modelled as 1.6–2.8 depending on PO₂','lit',['sta25','dash16']],
+ ['Bohr coefficient','−0.48','ΔlogP₅₀ per pH unit','Acid shift. Direction sourced, value not yet','unv',['os225']],
+ ['Temperature coefficient','0.024','log₁₀ units per °C','Heat shift. Source slope 1.435 mmHg per °C (about 0.023)','derived',['dash16']],
+ ['Alveolar PO₂ / PCO₂','100 / 40','mmHg','Lung end of the journey. Source: alveolar 104, blood leaving the lung 100','lit',['os224','sar17']],
+ ['Resting tissue PO₂ / PCO₂ / pH','40 / 46 / 7.36','mmHg, mmHg','Muscle at rest. Source: venous PO₂ 40, PCO₂ 45–46, pH 7.36','lit',['os224','tuc25','das06']],
+ ['Exercise PO₂ / PCO₂ / pH / T','20 / 60 / 7.20 / 39','mmHg, mmHg, °C','Heavy exercise. PO₂ is within the sourced 10–25 mmHg; the rest are plausible choices','choice',['bur25','ska20','os225']],
+ ['O₂ per gram of hemoglobin','1.34','mL O₂ per g Hb','O₂ capacity','lit',['tym26']],
+ ['O₂ solubility','0.003','mL per dL per mmHg','Dissolved oxygen','lit',['tym26']],
+ ['Hemoglobin concentration','15','g/dL','Typical value used in worked examples','unv',[]],
+ ['CO₂ solubility / pKa','0.03 / 6.1','mmol/L/mmHg','Henderson–Hasselbalch','lit',['tuc25']],
+ ['Bicarbonate (arterial / venous)','24 / 26','mmol/L','Henderson–Hasselbalch checks','lit',['tuc25','das06']],
+ ['Haldane constant M','220','','CO example. Affinity ratio is sourced (200–250); the equation is not yet','lit',['sav24','del24']],
+ ['Carbon monoxide shift','× 0.55','on P₅₀','Left shift for the CO scenario','choice',[]],
+ ['COHb in the CO scenario','30','% of hemes','Severe poisoning level, for teaching','choice',[]],
+ ['Cell radius R₀ (diameter D₀)','3.91 (7.82)','µm','Evans–Fung geometry','lit',['hos12','sra10']],
+ ['C₀ / C₁ / C₂','0.2072 / 2.0026 / −1.1228','','Thickness profile','lit',['sra10','hos12','ef72']],
+ ['Hemoglobin per cell','≈ 271 million','','Calculated from MCH 29 pg ÷ 64.5 kDa. Sources: 250–300 million','derived',['bar24','os183']],
+ ['Simulated hemoglobins','68 (272 hemes)','','A representative sample, not all of them','choice',[]],
+ ['T → R rule','≥ 3 O₂ bound','','Teaching rule. Midpoint is not yet sourced','choice',[]],
+ ['Relaxation rate / event cap','3 per s / 70 per s','','Animation pacing','choice',[]],
+ ['CO₂ loading scale','(PCO₂ − 40) / 12, × 40','','Illustrative','choice',[]]
+];
+const CHECKS=()=>{
+ const Sa=hill(100,26.8),Sv=hill(40,26.8),Sv2=hill(40,26.8*Math.pow(10,.48*.04)),HB=15;
+ const ca=1.34*HB*Sa+.003*100,cd=.003*100,dP=26.8*Math.LN10*.024;
+ return[
+ ['Arterial saturation (PO₂ 100, P₅₀ 26.8)',Sa*100,95,99,'%',['os225'],'OpenStax: 95–99% in healthy people.'],
+ ['Mixed venous saturation (PO₂ 40)',Sv*100,70,76,'%',['tym26','sar17'],'Sources: 70–75%.'],
+ ['How fast P₅₀ rises with temperature, at 37 °C',dP,1.3,1.6,'mmHg per °C',['dash16'],'Source: 1.435 mmHg per °C.'],
+ ['Share of O₂ dissolved in plasma at PO₂ 100',cd/ca*100,1,2,'%',['os225'],'OpenStax: about 1.5%.'],
+ ['Resting extraction (arterial minus tissue, at pH 7.36)',(Sa-Sv2)/Sa*100,20,30,'%',['tym26','das06'],'Sources: 20–30%, and 25.4% computed.'],
+ ['Arterial pH from Henderson–Hasselbalch (PCO₂ 40, HCO₃⁻ 24)',6.1+L10(24/(.03*40)),7.35,7.45,'',['tuc25'],'Normal arterial range.'],
+ ['Venous pH from Henderson–Hasselbalch (PCO₂ 46, HCO₃⁻ 26)',6.1+L10(26/(.03*46)),7.33,7.43,'',['tuc25','das06'],'Venous range 7.33–7.43. The simulation uses 7.36.'],
+ ['Cell volume from the shape model',GEO.V,80,100,'fL',['elb24','wRBC'],'Normal MCV is 80–100 fL.'],
+ ['Cell surface area from the shape model',GEO.A,130,145,'µm²',['sra10','wRBC'],'Sources: 136 and 140 µm².'],
+ ['Maximum thickness from the shape model',GEO.tmax,2.0,2.5,'µm',['wRBC'],'Wikipedia says 2–2.5 µm. The Evans–Fung formula gives about 2.57 µm, a small real difference.'],
+ ['Centre thickness from the shape model',GEO.tmin,.8,1.0,'µm',['wRBC'],''],
+ ['Excess surface over a sphere of the same volume',GEO.ex,35,45,'%',['gee19'],'A source says about 40%. The formula gives about 33% for its own volume, so the text says 30–40%.'],
+ ['Hemoglobin molecules per cell (MCH 29 pg ÷ 64.5 kDa)',HB_PER_CELL/1e6,250,300,'million',['bar24','os183'],'Sources: 250–300 million.'],
+ ['Heavy-exercise tissue PO₂ used by the model',20,10,25,'mmHg',['bur25','ska20','os225'],'This is a model input, shown to confirm it is in the sourced range.'],
+ ['Arterial O₂ content (Hb 15 g/dL)',ca,19,21,'mL/dL',['tym26'],'The range is the usual textbook value and has not been sourced.'],
+ ['Blood vs plasma-only capacity',ca/cd,60,70,'×',[],'Calculated. The text says roughly 65 times. No source for the ratio itself.']]};
+const INFO_NOTE='Where a row says "no direct reference", the number is a model choice that shows a real direction of change but is not taken from a source.';
+const LIM=[
+ ['Hill exponent','Real hemoglobin’s apparent Hill exponent changes with PO₂ (about 1.6 at low pressure to 2.8 at high). The model uses a single value, 2.7, so the shape is slightly off at the extremes.'],
+ ['Evidence','Some claims are not yet matched to an opened page. They are marked “Not yet verified” in the claim ledger.'],
+ ['Time and speed','The simulation is slowed and paced for viewing. Binding and unbinding events follow a target, not real reaction rates. Real equilibration takes about 0.25 s.'],
+ ['Sample size','Only 68 hemoglobins are drawn. Each stands for about 4 million real ones. Counts are exact within the sample.'],
+ ['Hemoglobin shape change','The tense-to-relaxed switch uses a simple rule (three or more oxygens). Real hemoglobin switches gradually between states.'],
+ ['Carbon dioxide','The amount of CO₂ loaded is scaled from PCO₂ for illustration. Carbamino binding is shown only as a hydrogen-ion tag, not as its own pathway.'],
+ ['Acidity','pH is set by the scenario. It is not computed from lactate or bicarbonate changes in exercise.'],
+ ['2,3-BPG','Held constant. In life it changes over hours to days (altitude, anemia, stored blood).'],
+ ['Shape','The cross-section is exact for the resting disc. The bend in the squeeze view is an illustration, not a mechanical model of membrane deformation.'],
+ ['Surroundings','The air sac and muscle are schematic. Real alveoli and muscle fibers are much larger than the strip drawn here.'],
+ ['Population','Numbers are for a healthy adult at sea level. Values vary between people.']
+];
+const KIND={unv:['Value not yet sourced','#9aa4b2'],lit:['From the literature','#4fe3a0'],derived:['Calculated','#69d2ff'],choice:['Model choice','#ffb23e']};
+let mtab='eq';
+const VER={ok:['Read','#4fe3a0'],part:['Partly','#ffb23e'],no:['Not found','#ff6a6a'],pend:['Not yet verified','#9aa4b2']};
+function chips(ids){return(ids||[]).filter(i=>SRC[i]).map(i=>`<a href="#src-${i}" class="cite" data-s="${i}" title="${esc(SRC[i].t)}">[${srcNo(i)}]</a>`).join('')}
+const srcNo=id=>Object.keys(SRC).indexOf(id)+1;
+function renderMath(){
+ const el=$('#mbody');if(!el)return;
+ document.querySelectorAll('#mtabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.m===mtab));
+ const t=st.tier;let h='';
+ if(mtab==='eq'){
+  h+=`<p class="msub">${t===0?'These are the rules the simulation follows, in everyday words. Switch to a higher level to see the numbers.':t===1?'Each rule is shown with a worked example using the live numbers from the animation. The numbers update as the cell moves.':'Each rule shows the equation, a live worked example, and the assumptions behind it.'}</p><div class="eqs">`;
+  for(const q of EQ){h+=`<article class="eqc"><h3>${q.t}</h3>`+(t>=1?`<div class="eqf">${q.f}</div>`:'')+`<p>${q.b}</p>`+(t>=1?`<p class="eqw"><b>Worked example, live.</b> ${q.m()}</p>`:'')+(t>=2?`<p class="eqx"><b>Assumptions and limits.</b> ${q.x}</p>`:'')+`<div class="eqs2">${chips(q.s)}</div></article>`}
+  h+='</div>'}
+ else if(mtab==='par'){
+  h+=`<p class="msub">Every number the model uses. Green values come from published sources. Orange values are choices made to make the lesson work, and are not measurements.</p><div class="tw"><table><thead><tr><th>Parameter</th><th>Value</th><th>Unit</th><th>Used for</th><th>Type</th><th>Sources</th></tr></thead><tbody>`;
+  for(const r of PARAMS){const k=KIND[r[4]];h+=`<tr><td>${r[0]}</td><td class="mono">${r[1]}</td><td>${r[2]}</td><td>${r[3]}</td><td><span class="bd" style="--c:${k[1]}">${k[0]}</span></td><td>${chips(r[5])}</td></tr>`}
+  h+='</tbody></table></div>'}
+ else if(mtab==='chk'){
+  const rows=CHECKS();let ok=0;
+  h+=`<p class="msub">These checks run live in your browser. Each one computes a value with the model and compares it with the range given by the sources. A failed check would be shown in red.</p><div class="tw"><table><thead><tr><th>Check</th><th>Model gives</th><th>Source range</th><th></th><th>Sources</th></tr></thead><tbody>`;
+  for(const r of rows){const pass=r[1]>=r[2]&&r[1]<=r[3];if(pass)ok++;h+=`<tr><td>${r[0]}<small>${esc(r[6])}</small></td><td class="mono">${f(r[1],r[4]==='fL'||r[4]==='µm²'||r[4]==='million'||r[4]==='×'||r[4]==='%'?1:r[4]==='µm'?2:2)} ${r[4]}</td><td class="mono">${r[2]}–${r[3]} ${r[4]}</td><td><span class="bd" style="--c:${pass?'#4fe3a0':'#ff6a6a'}">${pass?'Pass':'Outside range'}</span></td><td>${chips(r[5])}</td></tr>`}
+  h+=`</tbody></table></div><p class="msub"><b>${ok} of ${rows.length}</b> checks pass. The exercise values (P₅₀ ≈ ${f(p50Of({ph:7.20,T:39,co:0}),0)} mmHg) have no direct reference. They show the direction of the Bohr shift.</p>`}
+ else if(mtab==='src'){
+  const ids=Object.keys(SRC);
+  h+=`<p class="msub">Pages that were opened and read for this project. Each row says what the page was used for. Statuses: <span class="bd" style="--c:#4fe3a0">Read</span> means a reviewer opened the page and found the claim. <span class="bd" style="--c:#ffb23e">Partly</span> means only part of the claim was found. <span class="bd" style="--c:#ff6a6a">Not found</span> means the page did not support the wording, and it was changed. <span class="bd" style="--c:#9aa4b2">Not yet verified</span> means no opened page stated it yet, so treat it as unconfirmed.</p>`;
+  const cnt={ok:0,part:0,no:0,pend:0};LEDGER.forEach(c=>cnt[c.v]++);h+=`<p class="msub"><b>${LEDGER.length} claims.</b> ${cnt.ok} read, ${cnt.part} partly, ${cnt.no} not found, ${cnt.pend} not yet verified.</p>`;
+  h+=`<ol class="srcs">`+ids.map(i=>{const s=SRC[i];return `<li id="src-${i}"><b>${esc(s.a)}</b> (${esc(s.y)}). ${esc(s.t)}. <i>${esc(s.p)}</i>. <a href="${esc(s.u)}" target="_blank" rel="noopener">${esc(s.u.replace(/^https?:\/\//,'').slice(0,70))}</a><div class="used">${s.k==='wiki'?'<span class="bd" style="--c:#ffb23e">Secondary source</span> ':s.k==='abs'?'<span class="bd" style="--c:#ffb23e">Abstract only</span> ':''}${(s.use||[]).map(u=>esc(u)).join(' · ')}</div></li>`}).join('')+`</ol>`;
+  h+=`<h3 class="lab" style="margin-top:22px">Claim ledger</h3><div class="tw"><table><thead><tr><th>Claim</th><th>Result</th><th>Source</th><th>Note</th></tr></thead><tbody>`+LEDGER.map(c=>{const m=VER[c.v],col=m[1],lab=m[0];return `<tr><td>${esc(c.c)}</td><td><span class="bd" style="--c:${col}">${lab}</span></td><td>${chips(c.s)}</td><td>${esc(c.n||'')}</td></tr>`}).join('')+`</tbody></table></div>`}
+ else{
+  h+=`<p class="msub">What this model leaves out or simplifies. Knowing the limits is part of knowing the science.</p><dl class="lims">`+LIM.map(l=>`<dt>${l[0]}</dt><dd>${l[1]}</dd>`).join('')+`</dl><p class="msub">${INFO_NOTE}</p>`}
+ el.innerHTML=h;updateLive()}
+function updateLive(){if(mtab!=='eq')return;const vals=mathVals(env());document.querySelectorAll('#mbody [data-v]').forEach(n=>{const k=n.dataset.v;if(vals[k]!==undefined)n.textContent=vals[k]})}
+$('#mtabs').addEventListener('click',e=>{const b=e.target.closest('button');if(b){mtab=b.dataset.m;renderMath()}});
+document.addEventListener('click',e=>{const a=e.target.closest('a.cite');if(!a)return;e.preventDefault();mtab='src';renderMath();const t=document.getElementById('src-'+a.dataset.s);if(t){t.scrollIntoView({behavior:'smooth',block:'center'});t.classList.add('flash');setTimeout(()=>t.classList.remove('flash'),1800)}});
+
+function srcRow(ids){return ids&&ids.length?`<span>Sources</span>${chips(ids)}`:''}
+/* ================= Loop ================= */
+let last=performance.now(),hudT=0;
+function frame(now){
+ const raw=Math.min(.05,(now-last)/1000);last=now;const dt=raw*st.speed;
+ if(!document.hidden){
+  st.time+=dt;
+  if(st.tween){const tw=st.tween;tw.p+=raw/tw.dur;const p=Math.min(1,tw.p);st.loc=lerp(tw.from,tw.to,ease(p));if(p>=1){st.tween=null;tour.tr=true;adv(tw.tok)}}
+  else if(st.playing){st.jt=(st.jt+dt)%16;const j=st.jt;st.loc=j<3.5?0:j<8?ease((j-3.5)/4.5):j<11.5?1:1-ease((j-11.5)/4.5)}
+  st.zoomT+=(st.zoom-st.zoomT)*Math.min(1,raw*4.2);st.sqT+=((st.squeeze?1:0)-st.sqT)*Math.min(1,raw*3);
+  st.hl=st.legHover||st.hover||st.sel;
+  const en=env();stepO2(dt,en);stepCO2(dt,en);stepP(dt);
+  if(now-hudT>120){hudT=now;hud(en)}
+  render()}
+ requestAnimationFrame(frame)}
+initState();bind();resize();setVoice(false);ui();
+requestAnimationFrame(frame);
+})();
+</script>
+
+</body></html>

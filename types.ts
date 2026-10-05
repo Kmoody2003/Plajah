@@ -3605,6 +3605,7 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'TELA_EMBED_DEMO'
   // Chora Mixes — the dedicated long-form DJ-set player (waveform + Pixels auto-show)
   | 'MIX_PLAYER'
+  | 'CELL_ATLAS'
   | 'SHOW_MODE'
   // Chora Artist Page — music-centric artist profile (Editorial Gallery layout)
   | 'CHORA_ARTIST'

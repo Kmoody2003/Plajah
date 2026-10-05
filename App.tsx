@@ -55,6 +55,7 @@ const EarthGlobe = retryLazy(() => import('./components/EarthGlobe')); // home h
 const PlayerView = retryLazy(() => import('./components/PlayerView'));
 const MixPlayerView = retryLazy(() => import('./components/MixPlayerView')); // Chora Mixes player
 const ShowModeView = retryLazy(() => import('./components/ShowModeView')); // Share in Show Mode (fullscreen stage landing)
+const CellAtlasView = retryLazy(() => import('./components/anatomy/CellAtlasView')); // Cell + Brain Atlas (Human Body module)
 const ArtistSupportSheet = retryLazy(() => import('./components/ArtistSupportSheet')); // gift / buy / Plajah+ sheet
 const SupportReturnModal = retryLazy(() => import('./components/SupportReturnModal')); // thank-you after gift / purchase
 const SearchView = retryLazy(() => import('./components/SearchView'));
@@ -7126,6 +7127,9 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   partyId={partyIdForAlbum || undefined}
                 />
               )
+            )}
+            {view === 'CELL_ATLAS' && (
+              <React.Suspense fallback={null}><CellAtlasView onBack={() => setView('LEARN')} /></React.Suspense>
             )}
             {view === 'SHOW_MODE' && selectedAlbum && (
               <ShowModeView

@@ -2091,7 +2091,7 @@ function GenderSelectScreen({ onSelect, onBack }: { onSelect: (g: Gender) => voi
 
 // ─── Main Component ─────────────────────────────────────────────────────────────
 
-export default function HumanBodyExperience({ onBack }: { onBack: () => void }) {
+export default function HumanBodyExperience({ onBack, onOpenCellAtlas }: { onBack: () => void; onOpenCellAtlas?: () => void }) {
   const [phase,         setPhase]         = useState<Phase>('SELECT');
   const [gender,        setGender]        = useState<Gender>('MALE');
   const [systemTab,     setSystemTab]     = useState<Tab>('SKELETAL');
@@ -2147,6 +2147,13 @@ export default function HumanBodyExperience({ onBack }: { onBack: () => void }) 
               style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}>
               <ArrowLeft size={12} /> Back
             </button>
+            {onOpenCellAtlas && (
+              <button onClick={onOpenCellAtlas}
+                className="absolute top-4 left-28 z-50 flex items-center gap-2 px-3 py-2 rounded-xl text-xs font-bold uppercase tracking-widest transition-all"
+                style={{ background: 'rgba(212,0,85,0.16)', border: '1px solid rgba(212,0,85,0.5)', color: '#ffd0e2' }}>
+                Cell Atlas <span style={{ fontSize: 9, opacity: 0.8 }}>· under review</span>
+              </button>
+            )}
 
             <AnimatePresence>
               {appMode === 'QUIZ' && <QuizMode onExit={() => setAppMode('EXPLORE')} />}

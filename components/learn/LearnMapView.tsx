@@ -216,12 +216,13 @@ const LearnMapView: React.FC<Props> = ({ user, profile, onNavigate, onBack }) =>
                   <ChevronRight size={16} className="text-white/30 group-hover:text-white/70 mt-1" />
                 </div>
               </button>
-              <div aria-disabled="true" className="rounded-2xl border border-white/10 p-4 opacity-70" style={{ background: 'linear-gradient(155deg, rgba(212,0,85,0.2) 0%, rgba(255,255,255,0.025) 70%)' }}>
+              <button type="button" onClick={() => onNavigate('CELL_ATLAS')} className="text-left rounded-2xl border border-white/10 p-4 hover:-translate-y-0.5 hover:border-white/25 transition-all group" style={{ background: 'linear-gradient(155deg, rgba(212,0,85,0.2) 0%, rgba(255,255,255,0.025) 70%)' }}>
                 <div className="flex items-start gap-3">
                   <span className="text-2xl leading-none">🧬</span>
-                  <div className="min-w-0 flex-1"><p className="font-black leading-tight">Cell &amp; Brain Atlas</p><p className="text-[12px] text-white/55 leading-snug mt-0.5">Red blood cell to neuron, at three levels of depth.</p><span className="inline-block mt-2 text-[10px] font-black uppercase tracking-widest rounded-full border border-white/20 px-2 py-0.5 text-white/60">Coming soon</span></div>
+                  <div className="min-w-0 flex-1"><p className="font-black leading-tight">Cell &amp; Brain Atlas</p><p className="text-[12px] text-white/55 leading-snug mt-0.5">Red blood cell to neuron, at three levels of depth.</p><span className="inline-block mt-2 text-[10px] font-black uppercase tracking-widest rounded-full px-2 py-0.5" style={{ background: 'var(--pj-warning-soft)', color: 'var(--pj-warning)', border: '1px solid var(--pj-warning)' }}>Under review</span></div>
+                  <ChevronRight size={16} className="text-white/30 group-hover:text-white/70 mt-1" />
                 </div>
-              </div>
+              </button>
             </div>
           </section>
         )}

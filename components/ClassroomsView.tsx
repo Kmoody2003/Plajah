@@ -39,6 +39,7 @@ import { db } from '../services/firebase';
 import SolarSystemModule from './SolarSystemModule';
 import PlantBiologyModule from './PlantBiologyModule';
 import HumanBodyExperience from './HumanBodyExperience';
+const CellAtlasView = React.lazy(() => import('./anatomy/CellAtlasView'));
 import ErrorBoundary from './ErrorBoundary';
 import TeacherStudentsPanel from './TeacherStudentsPanel';
 import { TYPE } from '../src/lib/designSystem';
@@ -658,6 +659,16 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
     );
   }
 
+  if (selectedModule === 'CELL_ATLAS') {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={<div className="min-h-screen bg-[#07050c]" />}>
+          <CellAtlasView onBack={() => setSelectedModule('HUMAN_BODY')} />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
   if (selectedModule === 'HUMAN_BODY') {
     return (
       <ErrorBoundary>
@@ -667,7 +678,7 @@ const ClassroomsView: React.FC<ClassroomsViewProps> = ({ onBack, user, onNavigat
             <p className="text-[10px] font-black uppercase tracking-[0.4em] text-cyan-400 animate-pulse">Initialising Anatomy Scanner...</p>
           </div>
         }>
-          <HumanBodyExperience onBack={closeModule} />
+          <HumanBodyExperience onBack={closeModule} onOpenCellAtlas={() => setSelectedModule('CELL_ATLAS')} />
         </Suspense>
       </ErrorBoundary>
     );

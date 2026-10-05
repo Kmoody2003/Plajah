@@ -28,3 +28,7 @@ Wording: UNDER_REVIEW = "Under review: this content is being checked for accurac
 - Cell Atlas (RBC page), Brain Atlas: artifacts only; ledger claims still `part`/`pend` => UNDER_REVIEW when ported.
 - Trades curriculum beyond brakes (electrical, HVAC, plumbing, welding, construction): not authored => COMING_SOON.
 - Open safety standards registry: not built => COMING_SOON.
+
+
+## Cell Atlas (ported 2026-10-04)
+- Red blood cell page and Brain/neuron page now live in `public/human-body/`, opened from the Human Body module (Cell Atlas button) and the Learn map. Status: UNDER_REVIEW (each page carries its own claim ledger; expert sign-off pending). Supersedes the "artifacts only" line above.
