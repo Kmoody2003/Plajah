@@ -57,7 +57,9 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
   const [isMuted, setIsMuted] = useState(false);
   const [isTheaterMode, setIsTheaterMode] = useState(false);
   const [useUniversalPlayer, setUseUniversalPlayer] = useState(() => {
-    try { return localStorage.getItem('plajah_use_universal_player') === 'true'; } catch { return false; }
+    // New player is the default. Key is versioned so devices that had the old opt-in toggle saved
+    // as "off" also get it; the toggle still works and is remembered from here on.
+    try { return localStorage.getItem('plajah_use_universal_player_v2') !== 'false'; } catch { return true; }
   });
   const [currentTime, setCurrentTime] = useState(0);
   const [duration, setDuration] = useState(0);
@@ -351,7 +353,7 @@ const RelloView: React.FC<RelloViewProps> = ({ onBack, currentUser, initialVideo
             onClick={() => {
               const next = !useUniversalPlayer;
               setUseUniversalPlayer(next);
-              try { localStorage.setItem('plajah_use_universal_player', next ? 'true' : 'false'); } catch {}
+              try { localStorage.setItem('plajah_use_universal_player_v2', next ? 'true' : 'false'); } catch {}
             }}
             className={`flex items-center gap-1.5 px-3.5 py-2 rounded-full border text-xs font-black uppercase tracking-wider transition-all active:scale-95 ${
               useUniversalPlayer
