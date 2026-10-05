@@ -10,7 +10,9 @@ import {
 import { Video, Album } from '../../types';
 import { WindowsPickedFile } from '../../services/windowsBridgeService';
 import { listHqComments, addHqComment, type OrgAsset } from '../../services/hqCollaboration';
-import { listenToVideoComments, postVideoComment } from '../../services/backendService';
+import { listenToVideoComments, postVideoComment, createPost } from '../../services/backendService';
+import ShareButton from '../ShareButton';
+import { buildShareUrl } from '../../services/deepLinkService';
 import { LensPicker, LensVideoOverlay } from '../LensVideoOverlay';
 import { createParty, partyShareUrl, shouldResync } from '../../services/partyService';
 import { useParty } from '../../hooks/useParty';
@@ -205,7 +207,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
   const [commentsList, setCommentsList] = useState<any[]>([]);
   const [commentInput, setCommentInput] = useState('');
   const [isPostingComment, setIsPostingComment] = useState(false);
-  const [includeTimestamp, setIncludeTimestamp] = useState(true);
+  const [includeTimestamp, setIncludeTimestamp] = useState(context === 'ASSET_HQ');
 
   useEffect(() => {
     if (folderFiles && folderFiles.length > 0) {
@@ -230,7 +232,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
       const toItem = (v: Video): VideoPlaylistItem => ({
         id: v.id,
         title: v.title || 'Reello Video',
-        url: v.url || (v.muxPlaybackId ? `https://stream.mux.com/${v.muxPlaybackId}.m3u8` : ''),
+        url: v.muxPlaybackId ? `https://stream.mux.com/${v.muxPlaybackId}.m3u8` : (v.url || ''),
         video: v,
         thumbnailUrl: v.thumbnailUrl,
         subtitle: v.ownerName || 'Creator',
@@ -242,7 +244,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
       setPlaylist([{
         id: currentVideo.id,
         title: currentVideo.title || 'Reello Video',
-        url: currentVideo.url || (currentVideo.muxPlaybackId ? `https://stream.mux.com/${currentVideo.muxPlaybackId}.m3u8` : ''),
+        url: currentVideo.muxPlaybackId ? `https://stream.mux.com/${currentVideo.muxPlaybackId}.m3u8` : (currentVideo.url || ''),
         video: currentVideo,
         thumbnailUrl: currentVideo.thumbnailUrl,
         subtitle: currentVideo.ownerName || 'Creator',
@@ -443,8 +445,15 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
 
   useEffect(() => {
     if (currentVideo?.id) {
-      const unsub = listenToVideoComments(currentVideo.id, (comments) => {
-        setCommentsList(comments);
+      const unsub = listenToVideoComments(currentVideo.id, (comments: any[]) => {
+        // VideoComment.timestamp is when it was posted; mediaTimestamp (optional) is the spot in the video.
+        setCommentsList(comments.map((c: any) => ({
+          ...c,
+          userName: c.userName || c.authorName || 'User',
+          userPhoto: c.userPhoto || c.authorPhoto,
+          timestamp: typeof c.mediaTimestamp === 'number' ? c.mediaTimestamp : null,
+          createdAt: c.createdAt ?? c.timestamp,
+        })));
       });
       return unsub;
     }
@@ -489,7 +498,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
 
     try {
       if (currentVideo?.id && currentUser) {
-        await postVideoComment(currentVideo.id, currentUser, bodyText);
+        await postVideoComment(currentVideo.id, commentInput.trim(), undefined, undefined, timeToAttach ?? undefined);
       } else {
         const assetId = currentFile?.name || activeTitle;
         const fakeOrgAsset: OrgAsset = {
@@ -773,17 +782,36 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
               <span className="text-[9px] font-bold">{commentsList.length}</span>
             </button>
 
-            <button
-              onClick={() => {
-                if (navigator.share) {
-                  navigator.share({ title: activeTitle, url: window.location.href }).catch(() => {});
-                }
-              }}
-              className="w-12 h-12 rounded-full bg-black/50 hover:bg-black/80 border border-white/10 backdrop-blur-md flex flex-col items-center justify-center gap-1 transition-all group"
-            >
-              <Share2 size={22} className="text-white/80 group-hover:text-cyan-400 group-hover:scale-110 transition-all" />
-              <span className="text-[9px] font-bold text-white/70">Share</span>
-            </button>
+            {/* Platform share (copy / social / Post to Plajah / Show Mode). Online videos only: local files are private. */}
+            {activeVideo && (activeContext === 'REELLO' || activeContext === 'TALEO') && (
+              <ShareButton
+                title={activeVideo.title || activeTitle}
+                text={`Check out ${activeVideo.title || activeTitle} on Plajah`}
+                url={buildShareUrl('video', activeVideo.id)}
+                imageUrl={activeVideo.thumbnailUrl || (activeVideo as any).coverImageUrl}
+                artist={(activeVideo as any).ownerName || (activeVideo as any).artist}
+                contentType={(activeVideo as any).isCinema || /cinema|film|movie/i.test((activeVideo as any).genre || '') ? 'movie' : 'video'}
+                ctaText={(activeVideo as any).isCinema || /cinema|film|movie/i.test((activeVideo as any).genre || '') ? '▶ STREAM FILM ON TALEO' : '▶ WATCH FULL CLIP ON PLAJAH'}
+                plajahLabel="Post to Plajah feed"
+                onPostToPlajah={currentUser ? async () => {
+                  await createPost({
+                    text: `🎬 ${activeVideo.title}`,
+                    media: [{
+                      type: 'VIDEO',
+                      url: activeVideo.url || '',
+                      id: activeVideo.id,
+                      title: activeVideo.title,
+                      thumbnail: activeVideo.thumbnailUrl || (activeVideo as any).coverImageUrl,
+                      muxPlaybackId: (activeVideo as any).muxPlaybackId,
+                    }],
+                  } as any);
+                } : undefined}
+                className="w-12 h-12 rounded-full bg-black/50 hover:bg-black/80 border border-white/10 backdrop-blur-md flex flex-col items-center justify-center gap-1 transition-all group"
+              >
+                <Share2 size={22} className="text-white/80 group-hover:text-cyan-400 group-hover:scale-110 transition-all" />
+                <span className="text-[9px] font-bold text-white/70">Share</span>
+              </ShareButton>
+            )}
 
             <button
               onClick={() => setIsPlaylistDrawerOpen(true)}
@@ -1286,7 +1314,8 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                     ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
                     : 'bg-white/5 border-white/10 text-white/50'
                 }`}
-                title="Attach current video timestamp"
+                title={includeTimestamp ? 'Timestamp on: this comment will jump to this moment. Click to turn off.' : 'Timestamp off. Click to pin this comment to the current moment.'}
+                aria-pressed={includeTimestamp}
               >
                 <Clock size={13} />
                 <span>{formatTime(currentTime)}</span>
@@ -1302,7 +1331,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                 placeholder={
                   activeContext === 'ASSET_HQ'
                     ? `Add review note at ${formatTime(currentTime)}...`
-                    : `Add a comment at ${formatTime(currentTime)}...`
+                    : (includeTimestamp ? `Add a comment at ${formatTime(currentTime)}...` : 'Add a comment...')
                 }
                 className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-white/40 focus:outline-none focus:border-amber-500/50"
               />
