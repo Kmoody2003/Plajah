@@ -1299,8 +1299,32 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
         </AnimatePresence>
       </div>
 
+      {/* Online comments: a full-height side drawer so the platform comment UI + composer always have room. */}
+      {showComments && activeVideo && (activeContext === 'REELLO' || activeContext === 'TALEO') && (
+        <div className="absolute top-0 right-0 bottom-0 w-[min(440px,100%)] z-50 bg-[#0B0E14]/95 border-l border-white/10 backdrop-blur-2xl flex flex-col">
+          <div className="px-4 py-3 border-b border-white/10 flex items-center justify-between shrink-0">
+            <div className="flex items-center gap-2">
+              <MessageCircle size={16} className="text-[var(--ua)]" />
+              <span className="text-xs font-semibold tracking-wide">Comments</span>
+            </div>
+            <button onClick={() => setShowComments(false)} aria-label="Close comments" className="text-white/50 hover:text-white p-1"><X size={16} /></button>
+          </div>
+          <div className="flex-1 min-h-0 p-3 [&>div]:h-full [&>div]:max-h-none">
+            <CommentSection
+              comments={commentsList}
+              onPostComment={(text, parentId, mediaTimestamp) => postVideoComment(activeVideo.id, text, parentId, undefined, mediaTimestamp)}
+              onPostGif={(gifUrl, parentId) => postVideoComment(activeVideo.id, '', parentId, gifUrl)}
+              currentUser={currentUser}
+              title=""
+              playbackTime={currentTime}
+              onSeek={handleSeek}
+            />
+          </div>
+        </div>
+      )}
+
       <AnimatePresence>
-        {showComments && (
+        {showComments && !(activeVideo && (activeContext === 'REELLO' || activeContext === 'TALEO')) && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: (activeVideo && (activeContext === 'REELLO' || activeContext === 'TALEO')) ? 380 : 260, opacity: 1 }}

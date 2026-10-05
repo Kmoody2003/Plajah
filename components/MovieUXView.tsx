@@ -1499,7 +1499,7 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
               </button>
 
               {/* ── HERO ─────────────────────────────────────────────────────── */}
-              <div className="relative flex flex-col lg:flex-row gap-10 items-start lg:items-end lg:min-h-[48vh]">
+              <div className="relative isolate flex flex-col lg:flex-row gap-10 items-start lg:items-end lg:min-h-[48vh]">
                 {/* Big cover backdrop: best available art, full-bleed behind the title block, with a scrim */}
                 {(filmArt(item) || coverImage) && (
                   <div aria-hidden className={`absolute -z-10 -top-28 h-[min(80vh,760px)] pointer-events-none overflow-hidden ${getPlatformInfo().isTV ? '-inset-x-16' : '-inset-x-5 lg:-inset-x-16'}`}>
