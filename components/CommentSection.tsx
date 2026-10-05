@@ -43,6 +43,8 @@ export interface PostComment {
   videoUrl?: string;
   audioUrl?: string;
   gifUrl?: string;
+  /** Optional spot in the media this comment is pinned to (seconds). */
+  mediaTimestamp?: number;
 }
 
 interface CommentSectionProps {
@@ -61,6 +63,10 @@ interface CommentSectionProps {
   onVisitUser?: (uid: string) => void;
   onClose?: () => void;
   layout?: 'inline' | 'panel';
+  /** Video/audio comments: current playback position (seconds). Presence turns on the optional "pin to this moment" toggle. */
+  playbackTime?: number;
+  /** Jump the media to a pinned comment's moment. */
+  onSeek?: (seconds: number) => void;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -102,10 +108,11 @@ interface BubbleProps {
   onVisitUser?: (uid: string) => void;
   depth: number;
   isDark: boolean;
+  onSeek?: (seconds: number) => void;
 }
 
 const CommentBubble: React.FC<BubbleProps> = ({
-  comment, allComments, postId, onReply, onDelete, onLikeToggle, onVisitUser, depth, isDark
+  comment, allComments, postId, onReply, onDelete, onLikeToggle, onVisitUser, depth, isDark, onSeek
 }) => {
   const [showReplies, setShowReplies] = useState(true);
   const [showEmoji, setShowEmoji] = useState(false);
@@ -197,6 +204,16 @@ const CommentBubble: React.FC<BubbleProps> = ({
             <span className={`${TYPE.labelSm} ${isDark ? 'text-white/20' : 'text-black/20'}`}>
               {formatDistanceToNow(comment.timestamp, { addSuffix: false })} ago
             </span>
+            {typeof comment.mediaTimestamp === 'number' && onSeek && (
+              <button
+                type="button"
+                onClick={() => onSeek(comment.mediaTimestamp!)}
+                title="Jump to this moment"
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-mono font-bold border border-[#D40055]/40 bg-[#D40055]/10 text-[#ff7fb0] hover:bg-[#D40055]/20 transition-colors"
+              >
+                <Clock size={9} /> {Math.floor(comment.mediaTimestamp / 60)}:{String(Math.floor(comment.mediaTimestamp % 60)).padStart(2, '0')}
+              </button>
+            )}
 
             {/* Like */}
             <button
@@ -317,6 +334,7 @@ const CommentBubble: React.FC<BubbleProps> = ({
                     onVisitUser={onVisitUser}
                     depth={depth + 1}
                     isDark={isDark}
+                    onSeek={onSeek}
                   />
                 ))}
               </motion.div>
@@ -812,6 +830,7 @@ const mapLegacyComment = (c: any): PostComment => ({
   likedBy: c.likedBy || [],
   likesCount: c.likesCount || 0,
   ...(c.gifUrl ? { gifUrl: c.gifUrl } : {}),
+  ...(typeof c.mediaTimestamp === 'number' ? { mediaTimestamp: c.mediaTimestamp } : {}),
 });
 
 const isMatchingComment = (pending: PostComment, real: PostComment): boolean => {
@@ -837,7 +856,9 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   themeColor: _themeColor,
   onVisitUser,
   onClose,
-  layout = 'inline'
+  layout = 'inline',
+  playbackTime,
+  onSeek,
 }) => {
   const isLegacy = externalComments !== undefined;
   const { theme } = useGlobalPlayerState();
@@ -851,6 +872,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
   const [showSignIn, setShowSignIn] = useState(false);
   const [polls, setPolls] = useState<PollData[]>([]);
   const [showPollComposer, setShowPollComposer] = useState(false);
+  const [pinTime, setPinTime] = useState(false);   // optional: pin the next comment to the current moment
   const [showGifPicker, setShowGifPicker] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -1043,6 +1065,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                 onVisitUser={onVisitUser}
                 depth={0}
                 isDark={isDark}
+                onSeek={onSeek}
               />
             ))}
           </AnimatePresence>
@@ -1136,7 +1159,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                 const parentId = replyTo?.id;
                 setReplyTo(null);
                 if (isLegacy && onPostComment) {
-                  await onPostComment(data.text.trim(), parentId);
+                  await onPostComment(data.text.trim(), parentId, pinTime && typeof playbackTime === 'number' ? Math.floor(playbackTime) : undefined);
                   if (gifUrl && onPostGif) await onPostGif(gifUrl, parentId);
                 } else {
                   await addPostComment(safePostId, data.text.trim(), parentId, videoUrl, audioUrl, gifUrl, imageUrl);
@@ -1144,6 +1167,18 @@ const CommentSection: React.FC<CommentSectionProps> = ({
               }}
             />
             <div className="flex items-center gap-4">
+              {isLegacy && typeof playbackTime === 'number' && (
+                <button
+                  type="button"
+                  onClick={() => setPinTime(v => !v)}
+                  aria-pressed={pinTime}
+                  title={pinTime ? 'This comment will jump to this moment. Click to turn off.' : 'Click to pin the next comment to the current moment.'}
+                  className={`flex items-center gap-1.5 text-[9px] font-black uppercase tracking-widest transition-all ${pinTime ? 'text-[#ff7fb0]' : isDark ? 'text-white/30 hover:text-white/60' : 'text-black/30 hover:text-black/60'}`}
+                >
+                  <Clock size={11} />
+                  {pinTime ? `Pinned at ${Math.floor(playbackTime / 60)}:${String(Math.floor(playbackTime % 60)).padStart(2, '0')}` : 'Pin to this moment'}
+                </button>
+              )}
               {postId && !isLegacy && (
                 <button
                   onClick={() => setShowPollComposer(p => !p)}

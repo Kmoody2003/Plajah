@@ -1562,6 +1562,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [showAchievements, setShowAchievements] = useState(false);
   const [is3DDepthEnabled, setIs3DDepthEnabled] = useState(false);
   // Universal Video Player Overlay (Reello, Taleo, Local Files, Asset HQ)
+  const [reelloUploadSeed, setReelloUploadSeed] = useState<File | null>(null);
   const [activeUniversalVideo, setActiveUniversalVideo] = useState<{
     file?: any;
     folderFiles?: any[];
@@ -2263,6 +2264,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     setActivatedNativeFile(null);
     setView(target);
   }), [setView]);
+
+  // A local video the user wants to share: sharing means uploading it to Reello, so open the upload flow
+  // with the file filled in (VideoManager shows the rights declaration before anything uploads).
+  const handleUploadLocalToReello = async (f: WindowsPickedFile) => {
+    if (!user) { loginWithGoogle(); return; }
+    try {
+      const blob = await (await fetch(f.url)).blob();
+      const file = new File([blob], f.name, { type: blob.type || 'video/mp4', lastModified: f.lastModified || Date.now() });
+      setActiveUniversalVideo(null);
+      setIsMediaPlajahMode(false);
+      setReelloUploadSeed(file);
+      setView('VIDEO_MANAGER');
+    } catch (e) {
+      console.error('[Reello upload] could not read the local file', e);
+      alert('Could not read that file. Try uploading it from Reello directly.');
+    }
+  };
 
   const handleGlobalNavigate = async (target: string, params?: any) => {
     if (target !== 'PLAYER') {
@@ -5971,6 +5989,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               <VideoManager 
                 user={user}
                 onBack={() => goBack('CREATOR')}
+                seedFile={reelloUploadSeed}
+                onSeedConsumed={() => setReelloUploadSeed(null)}
               />
             )}
 
@@ -7890,6 +7910,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             title={activeUniversalVideo.title}
             currentUser={user}
             onClose={() => setActiveUniversalVideo(null)}
+            onUploadToReello={handleUploadLocalToReello}
           />
         </div>
       )}

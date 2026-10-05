@@ -78,6 +78,8 @@ export interface ReelloUniversalVideoPlayerProps {
   queue?: Video[];
   /** A shared watch-party link: auto-join and follow that party. */
   partyId?: string;
+  /** Local files are private. Sharing one means uploading it to Reello first; this starts that flow. */
+  onUploadToReello?: (file: WindowsPickedFile) => void;
 }
 
 const LOOK_FILTERS: Record<PixelsLook, { label: string; filter: string; description: string }> = {
@@ -133,6 +135,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
   muxPlaybackId: initialMuxId,
   queue: initialQueue,
   partyId: initialPartyId,
+  onUploadToReello,
   title: initialTitle,
   context = initialFile ? 'LOCAL' : album ? 'TALEO' : 'REELLO',
   currentUser,
@@ -144,6 +147,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
   const [lensId, setLensId] = useState<LensId>('none');
   const [lensStatus, setLensStatus] = useState('');
   const [lensOpen, setLensOpen] = useState(false);
+  const [showLocalShare, setShowLocalShare] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<any>(null);
 
@@ -678,6 +682,28 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
         <div className="pointer-events-none absolute inset-0 z-20 opacity-20 mix-blend-overlay bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
       )}
 
+      {showLocalShare && (
+        <div className="absolute inset-0 z-[60] flex items-center justify-center p-6 bg-black/70 backdrop-blur-sm" onClick={() => setShowLocalShare(false)}>
+          <div role="dialog" aria-label="Share this video" onClick={e => e.stopPropagation()}
+            className="w-full max-w-md rounded-[2rem] border border-white/10 bg-[#0a0a0a] p-8 shadow-2xl">
+            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-white/40 mb-2">Share this video</p>
+            <h3 className="text-xl font-black mb-3">Upload it to Reello to share it?</h3>
+            <p className="text-sm text-white/65 leading-relaxed mb-6">
+              This video is on your device and stays private. To share it, it has to be uploaded to Reello first.
+              Before it uploads, you will be asked to confirm that you own it or have the rights to share it.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setShowLocalShare(false)}
+                className="flex-1 py-3 rounded-full border border-white/15 text-[11px] font-black uppercase tracking-widest text-white/60 hover:text-white">Not now</button>
+              <button
+                onClick={() => { const f = playlist[playlistIndex]?.file ?? currentFile; setShowLocalShare(false); if (f) onUploadToReello?.(f); }}
+                className="flex-1 py-3 rounded-full text-[11px] font-black uppercase tracking-widest text-white"
+                style={{ background: 'var(--pj-grad-brand, linear-gradient(135deg,#6B0099,#D40055))' }}>Yes, upload to Reello</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {activePartyId && (
         <div className="absolute top-3 left-3 right-3 z-40 flex items-center gap-3 px-4 py-2.5 rounded-2xl border border-[#D40055]/30 bg-gradient-to-r from-[#6B0099]/60 to-[#D40055]/60 backdrop-blur-md">
           <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
@@ -782,6 +808,17 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
               <span className="text-[9px] font-bold">{commentsList.length}</span>
             </button>
 
+            {/* Local file: private, so sharing means uploading to Reello first (with the rights declaration). */}
+            {activeContext === 'LOCAL' && (playlist[playlistIndex]?.file ?? currentFile) && onUploadToReello && (
+              <button
+                onClick={() => setShowLocalShare(true)}
+                aria-label="Share"
+                className="w-12 h-12 rounded-full bg-black/50 hover:bg-black/80 border border-white/10 backdrop-blur-md flex flex-col items-center justify-center gap-1 transition-all group"
+              >
+                <Share2 size={22} className="text-white/80 group-hover:text-cyan-400 group-hover:scale-110 transition-all" />
+                <span className="text-[9px] font-bold text-white/70">Share</span>
+              </button>
+            )}
             {/* Platform share (copy / social / Post to Plajah / Show Mode). Online videos only: local files are private. */}
             {activeVideo && (activeContext === 'REELLO' || activeContext === 'TALEO') && (
               <ShareButton

@@ -274,9 +274,11 @@ interface PersistentChatDrawerProps {
   currentView?: AppView;
   onNotificationNavigate?: (notif: AppNotification) => void;
   externalTrigger?: { tab: string; ts: number } | null;
+  /** The always-visible grip tab on the right edge. Off by default now; the drawer still opens from the notification bell / external triggers. */
+  showHandle?: boolean;
 }
 
-const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({ currentView, onNotificationNavigate, externalTrigger }) => {
+const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({ currentView, onNotificationNavigate, externalTrigger, showHandle = false }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<TabType>('LIVE');
   const prevTriggerTs = useRef<number | null>(null);
@@ -424,6 +426,7 @@ const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({ currentView
     <>
       {/* Toggle handle — a slim grip nub/tab on the right edge (not a big chevron button,
           which clashed with the UI underneath). Two short bars read as a draggable tab. */}
+      {(showHandle || isOpen) && (
       <button
         onClick={() => setIsOpen(v => !v)}
         aria-label={isOpen ? 'Close Plajah Comms' : 'Open Plajah Comms'}
@@ -437,6 +440,7 @@ const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({ currentView
           </span>
         )}
       </button>
+      )}
 
       {/* Main drawer */}
       <motion.aside
