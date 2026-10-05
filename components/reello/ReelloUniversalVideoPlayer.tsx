@@ -19,6 +19,7 @@ import { createParty, partyShareUrl, shouldResync } from '../../services/partySe
 import { useParty } from '../../hooks/useParty';
 import type { LensId } from '../../services/lenses/lensEngine';
 
+import UpNextOverlay, { type UpNextConfig } from '../taleo/UpNextOverlay';
 export type PlayerContext = 'REELLO' | 'TALEO' | 'LOCAL' | 'ASSET_HQ';
 
 export type PixelsLook =
@@ -81,6 +82,8 @@ export interface ReelloUniversalVideoPlayerProps {
   partyId?: string;
   /** Local files are private. Sharing one means uploading it to Reello first; this starts that flow. */
   onUploadToReello?: (file: WindowsPickedFile) => void;
+  /** Suggestions shown when the video ends, with a 20s do-nothing countdown that calls onTimeoutExit. */
+  upNext?: UpNextConfig;
 }
 
 const LOOK_FILTERS: Record<PixelsLook, { label: string; filter: string; description: string }> = {
@@ -142,7 +145,9 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
   currentUser,
   onClose,
   onNavigateToRelated,
+  upNext,
 }) => {
+  const [showUpNext, setShowUpNext] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   // Live lenses (viewer-local). Only for Mux sources: they send CORS headers, so the overlay can read pixels.
   const [lensId, setLensId] = useState<LensId>('none');
@@ -698,6 +703,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
       className={`relative w-full h-full min-h-screen bg-[#07090E] text-white flex flex-col select-none overflow-hidden ${isPlaying && !hudVisible ? 'cursor-none' : ''}`}
       style={{ ['--ua' as any]: activeContext === 'LOCAL' ? '#F5B301' : '#D40055', ['--ub' as any]: activeContext === 'LOCAL' ? '#F5B301' : '#A020F0' }}
     >
+      {showUpNext && upNext && <UpNextOverlay {...upNext} />}
       {activeLook === 'crt' && (
         <div className="pointer-events-none absolute inset-0 z-20 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.35)_50%)] bg-[length:100%_4px] opacity-60" />
       )}
@@ -755,7 +761,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
           crossOrigin="anonymous"
           playsInline
           style={{ filter: LOOK_FILTERS[activeLook].filter }}
-          onPlay={() => setIsPlaying(true)}
+          onPlay={() => { setIsPlaying(true); setShowUpNext(false); }}
           onPause={() => setIsPlaying(false)}
           onTimeUpdate={() => {
             if (videoRef.current) setCurrentTime(videoRef.current.currentTime);
@@ -771,6 +777,8 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                 videoRef.current.currentTime = 0;
                 videoRef.current.play().catch(() => {});
               }
+            } else if (upNext?.items.length && playlist.length <= 1) {
+              setShowUpNext(true);
             } else {
               handleNextTrack();
             }

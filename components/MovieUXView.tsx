@@ -43,6 +43,7 @@ import { getPlatformInfo } from '../hooks/usePlatform';
 import { BuyToOwn, useOwnership } from './BuyToOwn';
 import AriaMark from './aria/AriaMark';
 import { watchAnalysisJob, type TaleoAnalysisJob } from '../services/storyIntelService';
+import { MoreLikeThis, StoryBreakdown, useRelatedFilms, filmArt } from './taleo/FilmExtras';
 
 // Universal Video Player (Pixels & CrossOver DSP)
 const ReelloUniversalVideoPlayer = React.lazy(() => import('./reello/ReelloUniversalVideoPlayer'));
@@ -1013,6 +1014,9 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
     return watchAnalysisJob(item.id, setStoryIntelJob);
   }, [isOwner, item.id]);
 
+  // More-like-this films (shared by the page row and the end-of-film suggestions).
+  const relatedFilms = useRelatedFilms(item as any, 12);
+
   const handlePlay = () => {
     // Gate paid films: without a license (or being the creator), don't start playback —
     // the hero shows Buy/Rent instead. Belt-and-suspenders in case the CTA is reached.
@@ -1211,6 +1215,25 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
     };
   }, [activeVideo, exitPlayer]);
 
+  // End-of-film suggestions: next episode first (series), then more-like-this.
+  const upNextConfig = useMemo(() => {
+    const toItem = (v: any, subtitle: string, play: () => void) => ({
+      id: String(v.id), title: v.title, subtitle, thumbnailUrl: filmArt(v), onPlay: play,
+    });
+    const items: Array<ReturnType<typeof toItem>> = [];
+    const eps: Video[] = ((item as Album).seasons || []).flatMap(s => s.episodes || []);
+    const idx = activeVideo ? eps.findIndex(e => e.id === activeVideo.id) : -1;
+    if (idx >= 0 && idx + 1 < eps.length) {
+      const ne = eps[idx + 1];
+      items.push(toItem(ne, `Next episode${ne.episodeNumber ? ` · E${ne.episodeNumber}` : ''}`, () => setActiveVideo(ne)));
+    }
+    for (const r of relatedFilms) {
+      if (items.length >= 4) break;
+      items.push(toItem(r, 'More like this', () => { exitPlayer(); onOpenItem?.(r as any); }));
+    }
+    return items.length ? { items, onTimeoutExit: exitPlayer } : undefined;
+  }, [item, activeVideo, relatedFilms, exitPlayer, onOpenItem]);
+
   // ── Next-episode autoplay (TV series) ─────────────────────────────────────
   const [autoplayNextEp, setAutoplayNextEp] = useState(true);
   const [upNextEpIn, setUpNextEpIn] = useState<number | null>(null);
@@ -1354,6 +1377,7 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                 context="TALEO"
                 currentUser={currentUser}
                 onClose={exitPlayer}
+                upNext={upNextConfig}
               />
             </React.Suspense>
           ) : (
@@ -1475,7 +1499,15 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
               </button>
 
               {/* ── HERO ─────────────────────────────────────────────────────── */}
-              <div className="flex flex-col lg:flex-row gap-10 items-start">
+              <div className="relative flex flex-col lg:flex-row gap-10 items-start lg:items-end lg:min-h-[48vh]">
+                {/* Big cover backdrop: best available art, full-bleed behind the title block, with a scrim */}
+                {(filmArt(item) || coverImage) && (
+                  <div aria-hidden className={`absolute -z-10 -top-28 h-[min(80vh,760px)] pointer-events-none overflow-hidden ${getPlatformInfo().isTV ? '-inset-x-16' : '-inset-x-5 lg:-inset-x-16'}`}>
+                    <img src={filmArt(item) || coverImage} alt="" className="w-full h-full object-cover object-top" onError={e => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none'; }} />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-black/60 to-black/10" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-transparent to-transparent" />
+                  </div>
+                )}
                 {/* Left metadata */}
                 <div className="flex-1 space-y-5 min-w-0">
                   {/* Badges */}
@@ -1905,6 +1937,10 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                   )}
                 </section>
               )}
+
+              {/* ── STORY INTELLIGENCE / MORE LIKE THIS ───────────────────────── */}
+              <StoryBreakdown item={item as any} job={storyIntelJob} />
+              <MoreLikeThis related={relatedFilms as any} onOpenItem={onOpenItem as any} />
 
               {/* ── CAST & CREW (movieMetadata) ───────────────────────────────── */}
               {castMembers.length > 0 && (
