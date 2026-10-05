@@ -12,6 +12,7 @@ import { WindowsPickedFile } from '../../services/windowsBridgeService';
 import { listHqComments, addHqComment, type OrgAsset } from '../../services/hqCollaboration';
 import { listenToVideoComments, postVideoComment, createPost } from '../../services/backendService';
 import ShareButton from '../ShareButton';
+import CommentSection from '../CommentSection';
 import { buildShareUrl } from '../../services/deepLinkService';
 import { LensPicker, LensVideoOverlay } from '../LensVideoOverlay';
 import { createParty, partyShareUrl, shouldResync } from '../../services/partyService';
@@ -197,9 +198,15 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
         setShowAudioMenu(false);
         setShowSpeedMenu(false);
         setShowTrackMenu(false);
-      }, 3500);
+      }, 4000);
     }
   }, [isPlaying]);
+
+  // Start the hide timer as soon as playback starts; keep the controls up while paused.
+  useEffect(() => {
+    if (isPlaying) resetHudTimeout();
+    else { if (hudTimeoutRef.current) clearTimeout(hudTimeoutRef.current); setHudVisible(true); }
+  }, [isPlaying, resetHudTimeout]);
 
   const [playlist, setPlaylist] = useState<VideoPlaylistItem[]>([]);
   const [playlistIndex, setPlaylistIndex] = useState(0);
@@ -455,7 +462,6 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
           ...c,
           userName: c.userName || c.authorName || 'User',
           userPhoto: c.userPhoto || c.authorPhoto,
-          timestamp: typeof c.mediaTimestamp === 'number' ? c.mediaTimestamp : null,
           createdAt: c.createdAt ?? c.timestamp,
         })));
       });
@@ -594,6 +600,20 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
     setPlaylistIndex((playlistIndex - 1 + playlist.length) % playlist.length);
   };
 
+  // Keep the fullscreen flag honest (Esc, F11, the browser UI all change it).
+  useEffect(() => {
+    const onFs = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onFs);
+    return () => document.removeEventListener('fullscreenchange', onFs);
+  }, []);
+
+  // Taleo is a cinema experience: go full screen when it opens (needs the user gesture that opened it; ignore if refused).
+  useEffect(() => {
+    if (activeContext !== 'TALEO') return;
+    const el = containerRef.current;
+    if (el && !document.fullscreenElement && el.requestFullscreen) el.requestFullscreen().catch(() => {});
+  }, []);
+
   const toggleFullscreen = () => {
     const el = containerRef.current;
     if (!el) return;
@@ -672,8 +692,11 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
     <div
       ref={containerRef}
       onMouseMove={resetHudTimeout}
+      onTouchStart={resetHudTimeout}
+      onKeyDown={resetHudTimeout}
       onClick={resetHudTimeout}
-      className="relative w-full h-full min-h-screen bg-[#07090E] text-white flex flex-col select-none overflow-hidden"
+      className={`relative w-full h-full min-h-screen bg-[#07090E] text-white flex flex-col select-none overflow-hidden ${isPlaying && !hudVisible ? 'cursor-none' : ''}`}
+      style={{ ['--ua' as any]: activeContext === 'LOCAL' ? '#F5B301' : '#D40055', ['--ub' as any]: activeContext === 'LOCAL' ? '#F5B301' : '#A020F0' }}
     >
       {activeLook === 'crt' && (
         <div className="pointer-events-none absolute inset-0 z-20 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.35)_50%)] bg-[length:100%_4px] opacity-60" />
@@ -768,7 +791,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
 
         {isBuffering && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-30">
-            <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+            <div className="w-12 h-12 border-4 border-[color-mix(in_srgb,var(--ua)_20%,transparent)] border-t-amber-500 rounded-full animate-spin" />
           </div>
         )}
 
@@ -780,7 +803,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
             onClick={togglePlay}
             className="absolute z-30 w-20 h-20 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-md border border-white/20 flex items-center justify-center text-white transition-all shadow-2xl hover:scale-105"
           >
-            <Play size={36} className="ml-1 text-amber-400" />
+            <Play size={36} className="ml-1 text-[var(--ua)]" />
           </motion.button>
         )}
 
@@ -788,7 +811,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="absolute right-4 bottom-28 z-30 flex flex-col items-center gap-4 text-white"
+            className={`absolute right-4 bottom-28 z-30 flex flex-col items-center gap-4 text-white transition-opacity duration-300 ${hudVisible || !isPlaying ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
           >
             <button
               onClick={() => {}}
@@ -801,7 +824,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
             <button
               onClick={() => setShowComments(!showComments)}
               className={`w-12 h-12 rounded-full border backdrop-blur-md flex flex-col items-center justify-center gap-1 transition-all group ${
-                showComments ? 'bg-amber-500/20 border-amber-500/60 text-amber-400' : 'bg-black/50 hover:bg-black/80 border-white/10 text-white/80'
+                showComments ? 'bg-[color-mix(in_srgb,var(--ua)_20%,transparent)] border-[color-mix(in_srgb,var(--ua)_60%,transparent)] text-[var(--ua)]' : 'bg-black/50 hover:bg-black/80 border-white/10 text-white/80'
               }`}
             >
               <MessageCircle size={22} className="group-hover:scale-110 transition-all" />
@@ -815,7 +838,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                 aria-label="Share"
                 className="w-12 h-12 rounded-full bg-black/50 hover:bg-black/80 border border-white/10 backdrop-blur-md flex flex-col items-center justify-center gap-1 transition-all group"
               >
-                <Share2 size={22} className="text-white/80 group-hover:text-cyan-400 group-hover:scale-110 transition-all" />
+                <Share2 size={22} className="text-white/80 group-hover:text-[var(--ub)] group-hover:scale-110 transition-all" />
                 <span className="text-[9px] font-bold text-white/70">Share</span>
               </button>
             )}
@@ -845,7 +868,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                 } : undefined}
                 className="w-12 h-12 rounded-full bg-black/50 hover:bg-black/80 border border-white/10 backdrop-blur-md flex flex-col items-center justify-center gap-1 transition-all group"
               >
-                <Share2 size={22} className="text-white/80 group-hover:text-cyan-400 group-hover:scale-110 transition-all" />
+                <Share2 size={22} className="text-white/80 group-hover:text-[var(--ub)] group-hover:scale-110 transition-all" />
                 <span className="text-[9px] font-bold text-white/70">Share</span>
               </ShareButton>
             )}
@@ -854,7 +877,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
               onClick={() => setIsPlaylistDrawerOpen(true)}
               className="w-12 h-12 rounded-full bg-black/50 hover:bg-black/80 border border-white/10 backdrop-blur-md flex flex-col items-center justify-center gap-1 transition-all group"
             >
-              <List size={22} className="text-white/80 group-hover:text-amber-400 group-hover:scale-110 transition-all" />
+              <List size={22} className="text-white/80 group-hover:text-[var(--ua)] group-hover:scale-110 transition-all" />
               <span className="text-[9px] font-bold text-white/70">Queue</span>
             </button>
           </motion.div>
@@ -884,7 +907,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                     <h1 className="text-sm md:text-base font-semibold text-white tracking-wide truncate max-w-md">
                       {activeTitle}
                     </h1>
-                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40">
+                    <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--ua)_20%,transparent)] text-[var(--ua)] border border-[color-mix(in_srgb,var(--ua)_40%,transparent)]">
                       {activeContext === 'LOCAL' && 'Desktop File'}
                       {activeContext === 'REELLO' && 'Reello Universal'}
                       {activeContext === 'TALEO' && 'Taleo Cinema'}
@@ -908,7 +931,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                       onClick={() => setActiveContext(ctx)}
                       className={`px-2.5 py-1 rounded text-[10px] font-medium transition-all ${
                         activeContext === ctx
-                          ? 'bg-amber-500 text-black font-semibold shadow-sm'
+                          ? 'bg-[var(--ua)] text-black font-semibold shadow-sm'
                           : 'text-white/60 hover:text-white'
                       }`}
                     >
@@ -934,11 +957,11 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                     aria-label="Lenses" aria-pressed={lensOpen} title="Lenses"
                     className={`h-8 px-2.5 rounded-lg border text-xs flex items-center gap-1.5 transition-all ${
                       lensId !== 'none'
-                        ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                        ? 'bg-[color-mix(in_srgb,var(--ua)_20%,transparent)] border-[color-mix(in_srgb,var(--ua)_50%,transparent)] text-[var(--ua)]'
                         : 'bg-white/10 hover:bg-white/20 border-white/10 text-white/90'
                     }`}
                   >
-                    <Sparkles size={14} className="text-amber-400" />
+                    <Sparkles size={14} className="text-[var(--ua)]" />
                     <span className="hidden sm:inline font-medium">Lenses</span>
                   </button>
                 )}
@@ -952,11 +975,11 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                     }}
                     className={`h-8 px-2.5 rounded-lg border text-xs flex items-center gap-1.5 transition-all ${
                       activeLook !== 'none'
-                        ? 'bg-cyan-500/20 border-cyan-500/50 text-cyan-300'
+                        ? 'bg-[color-mix(in_srgb,var(--ub)_20%,transparent)] border-[color-mix(in_srgb,var(--ub)_50%,transparent)] text-[var(--ub)]'
                         : 'bg-white/10 hover:bg-white/20 border-white/10 text-white/90'
                     }`}
                   >
-                    <Sparkles size={14} className="text-cyan-400" />
+                    <Sparkles size={14} className="text-[var(--ub)]" />
                     <span className="hidden sm:inline font-medium">
                       {LOOK_FILTERS[activeLook].label}
                     </span>
@@ -977,7 +1000,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                             }}
                             className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between transition-all ${
                               activeLook === key
-                                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 font-medium'
+                                ? 'bg-[color-mix(in_srgb,var(--ub)_20%,transparent)] text-[var(--ub)] border border-[color-mix(in_srgb,var(--ub)_30%,transparent)] font-medium'
                                 : 'text-white/80 hover:bg-white/10'
                             }`}
                           >
@@ -985,7 +1008,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                               <div>{LOOK_FILTERS[key].label}</div>
                               <div className="text-[10px] text-white/40">{LOOK_FILTERS[key].description}</div>
                             </div>
-                            {activeLook === key && <Check size={14} className="text-cyan-400" />}
+                            {activeLook === key && <Check size={14} className="text-[var(--ub)]" />}
                           </button>
                         ))}
                       </div>
@@ -1003,11 +1026,11 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                     }}
                     className={`h-8 px-2.5 rounded-lg border text-xs flex items-center gap-1.5 transition-all ${
                       activeAudioPreset !== 'bypass'
-                        ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                        ? 'bg-[color-mix(in_srgb,var(--ua)_20%,transparent)] border-[color-mix(in_srgb,var(--ua)_50%,transparent)] text-[var(--ua)]'
                         : 'bg-white/10 hover:bg-white/20 border-white/10 text-white/90'
                     }`}
                   >
-                    <Sliders size={14} className="text-amber-400" />
+                    <Sliders size={14} className="text-[var(--ua)]" />
                     <span className="hidden sm:inline font-medium">
                       {AUDIO_PRESETS[activeAudioPreset].label}
                     </span>
@@ -1028,7 +1051,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                             }}
                             className={`w-full text-left px-2.5 py-2 rounded-lg text-xs flex items-center justify-between transition-all ${
                               activeAudioPreset === key
-                                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 font-medium'
+                                ? 'bg-[color-mix(in_srgb,var(--ua)_20%,transparent)] text-[var(--ua)] border border-[color-mix(in_srgb,var(--ua)_30%,transparent)] font-medium'
                                 : 'text-white/80 hover:bg-white/10'
                             }`}
                           >
@@ -1036,7 +1059,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                               <div className="font-medium">{AUDIO_PRESETS[key].label}</div>
                               <div className="text-[10px] text-white/40 leading-tight">{AUDIO_PRESETS[key].description}</div>
                             </div>
-                            {activeAudioPreset === key && <Check size={14} className="text-amber-400 shrink-0 ml-2" />}
+                            {activeAudioPreset === key && <Check size={14} className="text-[var(--ua)] shrink-0 ml-2" />}
                           </button>
                         ))}
                       </div>
@@ -1089,7 +1112,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                   onClick={() => setIsPlaylistDrawerOpen(!isPlaylistDrawerOpen)}
                   className={`h-8 px-2.5 rounded-lg border text-xs flex items-center gap-1.5 transition-all ${
                     isPlaylistDrawerOpen
-                      ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                      ? 'bg-[color-mix(in_srgb,var(--ua)_20%,transparent)] border-[color-mix(in_srgb,var(--ua)_50%,transparent)] text-[var(--ua)]'
                       : 'bg-white/10 hover:bg-white/20 border-white/10 text-white/90'
                   }`}
                   title="Video Queue & Playlist"
@@ -1123,7 +1146,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                     step={0.1}
                     value={currentTime}
                     onChange={(e) => handleSeek(parseFloat(e.target.value))}
-                    className="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-amber-500 hover:h-2 transition-all"
+                    className="w-full h-1.5 bg-white/20 rounded-lg appearance-none cursor-pointer accent-[var(--ua)] hover:h-2 transition-all"
                   />
                 </div>
 
@@ -1145,7 +1168,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
 
                   <button
                     onClick={togglePlay}
-                    className="w-10 h-10 rounded-full bg-amber-500 hover:bg-amber-400 text-black flex items-center justify-center transition-all shadow-lg hover:scale-105"
+                    className="w-10 h-10 rounded-full bg-[var(--ua)] hover:bg-[var(--ua)] text-black flex items-center justify-center transition-all shadow-lg hover:scale-105"
                     title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
                   >
                     {isPlaying ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
@@ -1206,7 +1229,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                           videoRef.current.muted = false;
                         }
                       }}
-                      className="w-16 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                      className="w-16 h-1 bg-white/20 rounded-lg appearance-none cursor-pointer accent-[var(--ua)]"
                     />
                   </div>
                 </div>
@@ -1230,7 +1253,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                               setShowSpeedMenu(false);
                             }}
                             className={`px-3 py-1 rounded text-xs text-left ${
-                              playbackSpeed === spd ? 'bg-amber-500 text-black font-bold' : 'text-white/80 hover:bg-white/10'
+                              playbackSpeed === spd ? 'bg-[var(--ua)] text-black font-bold' : 'text-white/80 hover:bg-white/10'
                             }`}
                           >
                             {spd}x
@@ -1244,7 +1267,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                     onClick={() => setShowComments(!showComments)}
                     className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-xs font-medium transition-all ${
                       showComments
-                        ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                        ? 'bg-[color-mix(in_srgb,var(--ua)_20%,transparent)] border-[color-mix(in_srgb,var(--ua)_50%,transparent)] text-[var(--ua)]'
                         : 'bg-white/10 hover:bg-white/20 border-white/10 text-white/80'
                     }`}
                   >
@@ -1272,16 +1295,16 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
         {showComments && (
           <motion.div
             initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 260, opacity: 1 }}
+            animate={{ height: (activeVideo && (activeContext === 'REELLO' || activeContext === 'TALEO')) ? 380 : 260, opacity: 1 }}
             exit={{ height: 0, opacity: 0 }}
             transition={{ duration: 0.25 }}
             className="w-full bg-[#0B0E14] border-t border-white/10 flex flex-col z-30 shrink-0"
           >
             <div className="px-4 py-2 border-b border-white/10 flex items-center justify-between bg-white/[0.02]">
               <div className="flex items-center gap-2">
-                <MessageCircle size={16} className="text-amber-400" />
+                <MessageCircle size={16} className="text-[var(--ua)]" />
                 <span className="text-xs font-semibold text-white tracking-wide">
-                  {activeContext === 'ASSET_HQ' ? 'Frame-Accurate Asset Notes & Feedback' : 'Timestamped Comments & Discussions'}
+                  {activeContext === 'ASSET_HQ' ? 'Frame-Accurate Asset Notes & Feedback' : 'Comments'}
                 </span>
                 <span className="text-[10px] text-white/40">({commentsList.length})</span>
               </div>
@@ -1296,10 +1319,25 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
               </div>
             </div>
 
+            {activeVideo && (activeContext === 'REELLO' || activeContext === 'TALEO') ? (
+              /* Platform comment system + universal composer. A comment can optionally be pinned to the current moment. */
+              <div className="flex-1 min-h-0 overflow-hidden">
+                <CommentSection
+                  comments={commentsList}
+                  onPostComment={(text, parentId, mediaTimestamp) => postVideoComment(activeVideo.id, text, parentId, undefined, mediaTimestamp)}
+                  onPostGif={(gifUrl, parentId) => postVideoComment(activeVideo.id, '', parentId, gifUrl)}
+                  currentUser={currentUser}
+                  title=""
+                  playbackTime={currentTime}
+                  onSeek={handleSeek}
+                />
+              </div>
+            ) : (
+              <>
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {commentsList.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center text-white/40 text-xs py-6">
-                  <Clock size={24} className="mb-2 opacity-50 text-amber-400" />
+                  <Clock size={24} className="mb-2 opacity-50 text-[var(--ua)]" />
                   <p>No comments or notes yet.</p>
                   <p className="text-[11px] text-white/30 mt-0.5">
                     Drop a timestamped note at {formatTime(currentTime)} to start review.
@@ -1308,7 +1346,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
               ) : (
                 commentsList.map((c) => (
                   <div key={c.id} className="flex items-start gap-2.5 text-xs group">
-                    <div className="w-7 h-7 rounded-full bg-white/10 border border-white/10 overflow-hidden shrink-0 flex items-center justify-center font-bold text-amber-400">
+                    <div className="w-7 h-7 rounded-full bg-white/10 border border-white/10 overflow-hidden shrink-0 flex items-center justify-center font-bold text-[var(--ua)]">
                       {c.userPhoto ? (
                         <img src={c.userPhoto} alt={c.userName} className="w-full h-full object-cover" />
                       ) : (
@@ -1321,7 +1359,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                         {c.timestamp !== null && c.timestamp !== undefined && (
                           <button
                             onClick={() => handleSeek(c.timestamp)}
-                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 hover:bg-amber-500/30 text-[10px] font-mono font-medium transition-all"
+                            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[color-mix(in_srgb,var(--ua)_20%,transparent)] text-[var(--ua)] hover:bg-[color-mix(in_srgb,var(--ua)_30%,transparent)] text-[10px] font-mono font-medium transition-all"
                             title={`Jump to ${formatTime(c.timestamp)}`}
                           >
                             <Clock size={10} />
@@ -1348,7 +1386,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                 onClick={() => setIncludeTimestamp(!includeTimestamp)}
                 className={`px-2 py-1.5 rounded-lg border text-xs font-mono flex items-center gap-1 transition-all ${
                   includeTimestamp
-                    ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                    ? 'bg-[color-mix(in_srgb,var(--ua)_20%,transparent)] border-[color-mix(in_srgb,var(--ua)_50%,transparent)] text-[var(--ua)]'
                     : 'bg-white/5 border-white/10 text-white/50'
                 }`}
                 title={includeTimestamp ? 'Timestamp on: this comment will jump to this moment. Click to turn off.' : 'Timestamp off. Click to pin this comment to the current moment.'}
@@ -1370,18 +1408,20 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                     ? `Add review note at ${formatTime(currentTime)}...`
                     : (includeTimestamp ? `Add a comment at ${formatTime(currentTime)}...` : 'Add a comment...')
                 }
-                className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-white/40 focus:outline-none focus:border-amber-500/50"
+                className="flex-1 bg-white/5 border border-white/10 rounded-lg px-3 py-1.5 text-xs text-white placeholder-white/40 focus:outline-none focus:border-[color-mix(in_srgb,var(--ua)_50%,transparent)]"
               />
 
               <button
                 onClick={handlePostComment}
                 disabled={isPostingComment || !commentInput.trim()}
-                className="px-3 py-1.5 rounded-lg bg-amber-500 hover:bg-amber-400 disabled:opacity-40 text-black text-xs font-semibold flex items-center gap-1 transition-all"
+                className="px-3 py-1.5 rounded-lg bg-[var(--ua)] hover:bg-[var(--ua)] disabled:opacity-40 text-black text-xs font-semibold flex items-center gap-1 transition-all"
               >
                 <Send size={13} />
                 <span>Post</span>
               </button>
             </div>
+              </>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -1397,7 +1437,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
           >
             <div className="p-4 border-b border-white/10 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <List size={18} className="text-amber-400" />
+                <List size={18} className="text-[var(--ua)]" />
                 <h3 className="font-semibold text-sm text-white">Video Queue & Playlist</h3>
                 <span className="text-xs text-white/40">({playlist.length})</span>
               </div>
@@ -1418,19 +1458,19 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                     onClick={() => setPlaylistIndex(idx)}
                     className={`w-full text-left p-2.5 rounded-xl flex items-center gap-3 transition-all ${
                       isSelected
-                        ? 'bg-amber-500/20 border border-amber-500/40 text-white'
+                        ? 'bg-[color-mix(in_srgb,var(--ua)_20%,transparent)] border border-[color-mix(in_srgb,var(--ua)_40%,transparent)] text-white'
                         : 'hover:bg-white/5 border border-transparent text-white/80'
                     }`}
                   >
                     <div className="w-8 h-8 rounded-lg bg-black/40 border border-white/10 flex items-center justify-center shrink-0">
                       {isSelected && isPlaying ? (
                         <div className="flex items-end gap-0.5 h-3">
-                          <span className="w-0.5 h-full bg-amber-400 animate-pulse" />
-                          <span className="w-0.5 h-2/3 bg-amber-400 animate-pulse delay-75" />
-                          <span className="w-0.5 h-full bg-amber-400 animate-pulse delay-150" />
+                          <span className="w-0.5 h-full bg-[var(--ua)] animate-pulse" />
+                          <span className="w-0.5 h-2/3 bg-[var(--ua)] animate-pulse delay-75" />
+                          <span className="w-0.5 h-full bg-[var(--ua)] animate-pulse delay-150" />
                         </div>
                       ) : (
-                        <FileVideo size={16} className={isSelected ? 'text-amber-400' : 'text-white/40'} />
+                        <FileVideo size={16} className={isSelected ? 'text-[var(--ua)]' : 'text-white/40'} />
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -1449,7 +1489,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                 <button
                   onClick={() => setIsShuffle(!isShuffle)}
                   className={`p-1.5 rounded-lg border ${
-                    isShuffle ? 'bg-amber-500/20 border-amber-500/50 text-amber-300' : 'bg-white/5 border-white/10 text-white/50'
+                    isShuffle ? 'bg-[color-mix(in_srgb,var(--ua)_20%,transparent)] border-[color-mix(in_srgb,var(--ua)_50%,transparent)] text-[var(--ua)]' : 'bg-white/5 border-white/10 text-white/50'
                   }`}
                   title="Shuffle queue"
                 >
@@ -1462,7 +1502,7 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                     setRepeatMode(next);
                   }}
                   className={`p-1.5 rounded-lg border flex items-center gap-1 ${
-                    repeatMode !== 'off' ? 'bg-amber-500/20 border-amber-500/50 text-amber-300' : 'bg-white/5 border-white/10 text-white/50'
+                    repeatMode !== 'off' ? 'bg-[color-mix(in_srgb,var(--ua)_20%,transparent)] border-[color-mix(in_srgb,var(--ua)_50%,transparent)] text-[var(--ua)]' : 'bg-white/5 border-white/10 text-white/50'
                   }`}
                   title={`Repeat: ${repeatMode}`}
                 >

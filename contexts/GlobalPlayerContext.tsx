@@ -29,6 +29,7 @@ import { peekTrackStream, prefetchTrackStreams, pickStreamUrl, getQuality as get
 import { attachPlaybackHealth, configurePlaybackHealth, getSummary as getHealthSummary, getEvents as getHealthEvents, reset as resetHealth } from '../services/playbackHealth';
 import { auth as fbAuth } from '../services/firebase';
 import { canPlayFull, PREVIEW_SECONDS, MUSIC_LOCKED_EVENT } from '../services/musicAccess';
+import { recordListen } from '../services/listenHistoryService';
 import { buildRadioQueue, type UpNextItem } from '../services/musicRecommender';
 import { FxChainHost, newInstance, type FxInstance } from '../services/melos/beats/fx/devices';
 
@@ -2086,6 +2087,16 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
       window.removeEventListener('tv:media-prev', handleTvPrev);
     };
   }, [next, prev, togglePlay]);
+
+  // Recent listens: count a play once a LIBRARY track has been audible ~20s (timer clears on pause/track change).
+  useEffect(() => {
+    if (!isPlaying || !currentTrack || audioSource !== 'LIBRARY' || currentAlbum?.subType === 'PODCAST' || currentTrack.podcastMetadata) return;
+    const t = window.setTimeout(() => {
+      if (!canPlayFull(currentTrack, currentAlbum, fbAuth.currentUser?.uid)) return;
+      recordListen(fbAuth.currentUser?.uid, currentTrack, currentAlbum);
+    }, 20000);
+    return () => window.clearTimeout(t);
+  }, [isPlaying, currentTrack?.id, audioSource]);
 
   useEffect(() => {
     const audio = audioRef.current;

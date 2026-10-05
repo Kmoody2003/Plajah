@@ -4313,7 +4313,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               nav chrome changes. pointer-events-none so it never blocks the logo/nav beneath it. */}
           {!isPublicView && !getPlatformInfo().isTV && (
             <div className="fixed z-[400] pointer-events-none select-none"
-                 style={{ top: 'calc(env(safe-area-inset-top) + 6px)', left: 'calc(env(safe-area-inset-left) + 6px)' }}>
+                 style={{ top: 'calc(env(safe-area-inset-top) + 68px)', left: 'calc(env(safe-area-inset-left) + 8px)' }}>
               <span className="inline-block bg-small-orange text-white text-[8px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full shadow-lg">
                 Early Access · Beta
               </span>

@@ -283,6 +283,7 @@ const WcAnthemPlaylist: React.FC<{ onOpenAlbum?: (album: Album) => void }> = ({ 
 
 const ChoraRadio = React.lazy(() => import('./RadioView'));
 import DailyMixCard from './DailyMixCard';
+import RecentRail from './chora/RecentRail';
 
 /** Which Chora tabs this device shows. */
 const CHORA_TABS = (): readonly TabType[] =>
@@ -2441,7 +2442,13 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                {tabWordmark('For You')}
 
                {/* ── Your Daily Mix — Chora curates a ≤40-min mix from your taste ── */}
+               {userProfile && <RecentRail kind="JUMP" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
                <DailyMixCard onSelectAlbum={onSelectAlbum} />
+               {userProfile && <RecentRail kind="SONGS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
+               {userProfile && <RecentRail kind="ARTISTS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
+               {userProfile && <RecentRail kind="ALBUMS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
+               {userProfile && <RecentRail kind="PLAYLISTS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
+               {userProfile && <RecentRail kind="MOST_PLAYED" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
 
                {/* ── Coming Soon ── */}
                {upcomingAlbums.length > 0 && (
@@ -2524,6 +2531,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 
                 {activeTab === 'PLAYLISTS' && (
                   <section className="animate-in fade-in duration-500 space-y-16">
+                    {userProfile && <RecentRail kind="PLAYLISTS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
                     {tabWordmark('Playlists', true)}
 
                     {/* ── World Cup 2026 National Anthems ── */}
@@ -2714,6 +2722,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
                 {activeTab === 'ARTISTS' && (
                   <section className="animate-in fade-in duration-500 space-y-16">
+                    {userProfile && <RecentRail kind="ARTISTS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
                     <div className="flex items-center justify-between">
                       {tabWordmark('Artists', true)}
                       <button onClick={() => setSortOrder(sortOrder === 'RECENT' ? 'ALPHA' : 'RECENT')} className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-all flex items-center gap-2">
@@ -2804,6 +2813,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
                 {activeTab === 'ALBUMS' && (
                   <section className="animate-in fade-in duration-500 space-y-16">
+                    {userProfile && <RecentRail kind="ALBUMS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
                     <div className="flex items-center justify-between">
                       {tabWordmark('Albums', true)}
                       <button onClick={() => setSortOrder(sortOrder === 'RECENT' ? 'ALPHA' : 'RECENT')} className="p-3 bg-white/5 rounded-2xl hover:bg-white/10 transition-all flex items-center gap-2">
@@ -2931,6 +2941,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
 
                 {activeTab === 'MIXES' && (
                   <section className="animate-in fade-in duration-500 space-y-10">
+                    {userProfile && <RecentRail kind="MIXES" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
                     <div className="flex items-center justify-between">
                       {tabWordmark('Mixes', true)}
                     </div>
@@ -3346,7 +3357,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                   );
                 })()}
 
-                {activeTab === 'MY_LIBRARY' && userProfile && <MyLibraryView profile={userProfile} onSelectAlbum={onSelectAlbum} />}
+                {activeTab === 'MY_LIBRARY' && userProfile && <><div className="px-4 sm:px-6 lg:px-12 pt-4">{userProfile && <RecentRail kind="LOCKER" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}</div><MyLibraryView profile={userProfile} onSelectAlbum={onSelectAlbum} /></>}
               </>
             )}
           </div>

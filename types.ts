@@ -1419,6 +1419,8 @@ export interface RadioPreset {
 
 export interface UserProfile {
   uid: string;
+  /** Chora recent-listens history synced across devices (see services/listenHistoryService). */
+  choraRecents?: any[];
   displayName: string;
   photoURL: string;
   email: string;

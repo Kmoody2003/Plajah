@@ -779,7 +779,8 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
   const [prerollFor, setPrerollFor] = useState<Video | null>(null);
   const [activeVideo, setActiveVideo] = useState<Video | null>(null);
   const [useUniversalPlayer, setUseUniversalPlayer] = useState(() => {
-    try { return localStorage.getItem('plajah_use_universal_player') === 'true'; } catch { return false; }
+    // Universal player is the default (versioned key so devices that had the old opt-in saved as off get it too).
+    try { return localStorage.getItem('plajah_use_universal_player_v2') !== 'false'; } catch { return true; }
   });
   // Alternate cuts (extended / director's / …). The primary payload is remembered so we
   // can switch back; selecting an alternate just swaps the playback URL (direct file).
@@ -1623,7 +1624,7 @@ const MovieUXView: React.FC<MovieUXViewProps> = ({ item, onBack, onVisitUser, on
                           onClick={() => {
                             const next = !useUniversalPlayer;
                             setUseUniversalPlayer(next);
-                            try { localStorage.setItem('plajah_use_universal_player', next ? 'true' : 'false'); } catch {}
+                            try { localStorage.setItem('plajah_use_universal_player_v2', next ? 'true' : 'false'); } catch {}
                           }}
                           className={`h-12 px-4 rounded-full border text-xs font-black uppercase tracking-wider flex items-center gap-2 transition-all ${
                             useUniversalPlayer

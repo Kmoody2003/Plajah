@@ -262,7 +262,9 @@ const HomeView: React.FC<{
 
   const hero = heroItems[heroIdx] || featuredItem;
   const heroImage = hero
-    ? ((hero as any).thumbnailUrl || (hero as any).coverImage || (hero as any).headerImage)
+    ? ((hero as any).thumbnailUrl || (hero as any).coverImage || (hero as any).coverImageUrl || (hero as any).headerImage
+        || (hero as any).promoKit?.tvBillboardUrl || (hero as any).promoKit?.keyArtUrl || (hero as any).posterUrl
+        || (hero as any)._original?.coverImage || (hero as any)._original?.thumbnailUrl || (hero as any)._original?.coverImageUrl)
     : null;
   const heroTitle = hero?.title || '';
   const heroDesc = ((hero as any)?.description || '').replace(/<[^>]*>?/gm, '').slice(0, 180);
@@ -544,7 +546,7 @@ const HomeView: React.FC<{
                   key={`ntw-${v.identifier || v.id}`}
                   title={v.title}
                   subtitle={v._original?.ownerName || v.ownerName}
-                  image={v.thumbnailUrl || v.coverImage}
+                  image={v.thumbnailUrl || v.coverImage || (v as any).coverImageUrl || (v as any).posterUrl || (v as any).promoKit?.keyArtUrl}
                   genre={v.genre}
                   rating={v._original?.contentRating || v.contentRating}
                   previewItem={v._original || v}
@@ -565,7 +567,7 @@ const HomeView: React.FC<{
                   key={v.identifier || v.id}
                   title={v.title}
                   subtitle={(v as any)._original?.ownerName || (v as any).ownerName}
-                  image={v.thumbnailUrl || v.coverImage}
+                  image={v.thumbnailUrl || v.coverImage || (v as any).coverImageUrl || (v as any).posterUrl || (v as any).promoKit?.keyArtUrl}
                   genre={v.genre}
                   rating={(v as any)._original?.contentRating || (v as any).contentRating}
                   previewItem={(v as any)._original || v}
@@ -903,7 +905,7 @@ const HomeView: React.FC<{
                   key={v.identifier || v.id}
                   title={v.title}
                   subtitle={(v as any).genre || 'Platform'}
-                  image={v.thumbnailUrl || v.coverImage}
+                  image={v.thumbnailUrl || v.coverImage || (v as any).coverImageUrl || (v as any).posterUrl || (v as any).promoKit?.keyArtUrl}
                   genre={v.genre}
                   previewItem={(v as any)._original || v}
                   onPlay={() => onSelectMovie((v as any)._original || v)}
