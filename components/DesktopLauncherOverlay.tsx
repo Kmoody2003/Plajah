@@ -21,6 +21,7 @@
  * - Dismisses directly to Front Row (DASHBOARD)
  */
 import React, { useState, useEffect, useMemo } from 'react';
+declare const __PJ_VERSION__: string | undefined; // injected by vite (vite.config.ts define)
 import { motion } from 'motion/react';
 import {
   Music2, Film, ScrollText, LayoutPanelTop, Sparkles,
@@ -346,7 +347,7 @@ export const DesktopLauncherOverlay: React.FC<DesktopLauncherOverlayProps> = ({
                 Plajah Launch Library
               </span>
               <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-white/10 text-white/70 border border-white/15">
-                v1.0.40
+                v{typeof __PJ_VERSION__ !== 'undefined' ? __PJ_VERSION__ : 'dev'}
               </span>
             </div>
 

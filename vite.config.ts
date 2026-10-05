@@ -151,6 +151,8 @@ export default defineConfig(({ mode }) => {
         })
       ],
       define: {
+        // App version for in-app display (launcher header). Same source as the boot splash.
+        __PJ_VERSION__: JSON.stringify(pjBootVersion()),
         // SECURITY: never inject real keys here — anything defined is baked into the
         // public bundle. A Gemini key shipped this way was reported leaked and revoked
         // by Google (2026-08-28). Browser code must call the server proxies instead.
