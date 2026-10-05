@@ -2052,17 +2052,23 @@ export const GlobalPlayerProvider: React.FC<{ children: React.ReactNode }> = ({ 
     const plajahNative = (window as any).Capacitor?.Plugins?.PlajahNativeAudio;
     let removeListener: (() => void) | undefined;
     if (plajahNative?.addListener) {
-      plajahNative.addListener('onRemoteCommand', (data: { command: string }) => {
-        if (data?.command === 'next') {
-          next();
-        } else if (data?.command === 'previous') {
-          prev();
-        } else if (data?.command === 'playPause') {
-          togglePlay();
-        }
-      }).then((handle: any) => {
-        if (handle?.remove) removeListener = () => handle.remove();
-      }).catch(() => {});
+      // The raw Capacitor.Plugins bridge does not always return a Promise from addListener (the legacy
+      // bridge returns a plain handle or nothing). Calling .then on it threw "addListener(...).then is
+      // not a function" and took the whole app to the System Interruption screen on Android.
+      try {
+        const pending = plajahNative.addListener('onRemoteCommand', (data: { command: string }) => {
+          if (data?.command === 'next') {
+            next();
+          } else if (data?.command === 'previous') {
+            prev();
+          } else if (data?.command === 'playPause') {
+            togglePlay();
+          }
+        });
+        Promise.resolve(pending).then((handle: any) => {
+          if (handle?.remove) removeListener = () => handle.remove();
+        }).catch(() => {});
+      } catch { /* plugin not available on this device */ }
     }
 
     const handleTvPlayPause = () => togglePlay();
