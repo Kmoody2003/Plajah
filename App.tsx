@@ -2223,7 +2223,17 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       const isVideo = mediaKind === 'VIDEO' || activeFile.kind === 'VIDEO' || activeFile.mediaKind === 'VIDEO' || /\.(mp4|mov|m4v|webm|mkv|avi|mpg|mpeg|wmv|flv|ts|m2ts|vob|ogv|3gp)$/i.test(ext);
       const isAudio = mediaKind === 'AUDIO' || activeFile.kind === 'AUDIO' || activeFile.kind === 'audio' || activeFile.mediaKind === 'AUDIO' || /\.(mp3|wav|flac|aac|m4a|ogg|wma|aiff|opus|alac)$/i.test(ext);
 
-      if (isVideo || isAudio) {
+      if (isVideo && !isAudio) {
+        // Local video plays in the same unified player as Reello / Taleo, so local and online feel identical.
+        setIsMediaPlajahMode(false);
+        setActivatedNativeFile(null);
+        setActiveUniversalVideo({
+          file: activeFile,
+          folderFiles: folderFiles && folderFiles.length > 0 ? folderFiles : [activeFile],
+          context: 'LOCAL',
+          title: activeFile.name,
+        } as any);
+      } else if (isVideo || isAudio) {
         setActiveUniversalVideo(null);
         setActivatedNativeFile(null);
         setActiveLocalMediaFile(activeFile);
@@ -7279,7 +7289,23 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onBack={() => setView('TEAM_DETAIL')}
               />
             )}
-            {view === 'PLAYER' && selectedVideo && (
+            {view === 'PLAYER' && selectedVideo && !partyIdForPlayer && !getPlatformInfo().isTV && (
+              <div className="fixed inset-0 z-[99999] bg-black">
+                <ReelloUniversalVideoPlayer
+                  key={selectedVideo.id}
+                  video={selectedVideo}
+                  context={(selectedVideo as any).category === 'MOVIE' ? 'TALEO' : 'REELLO'}
+                  currentUser={user}
+                  onClose={() => {
+                    setSelectedVideo(null);
+                    setVideoQueue([]);
+                    setPartyIdForPlayer(null);
+                    setView('VIDEOS');
+                  }}
+                />
+              </div>
+            )}
+            {view === 'PLAYER' && selectedVideo && (partyIdForPlayer || getPlatformInfo().isTV) && (
               <VideoPlayer
                 video={selectedVideo}
                 onBack={() => {

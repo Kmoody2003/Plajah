@@ -11,6 +11,8 @@ import { Video, Album } from '../../types';
 import { WindowsPickedFile } from '../../services/windowsBridgeService';
 import { listHqComments, addHqComment, type OrgAsset } from '../../services/hqCollaboration';
 import { listenToVideoComments, postVideoComment } from '../../services/backendService';
+import { LensPicker, LensVideoOverlay } from '../LensVideoOverlay';
+import type { LensId } from '../../services/lenses/lensEngine';
 
 export type PlayerContext = 'REELLO' | 'TALEO' | 'LOCAL' | 'ASSET_HQ';
 
@@ -128,6 +130,10 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
   onNavigateToRelated,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
+  // Live lenses (viewer-local). Only for Mux sources: they send CORS headers, so the overlay can read pixels.
+  const [lensId, setLensId] = useState<LensId>('none');
+  const [lensStatus, setLensStatus] = useState('');
+  const [lensOpen, setLensOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const hlsRef = useRef<any>(null);
 
@@ -567,6 +573,8 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
     }
   };
 
+  const canLens = !!currentVideo?.muxPlaybackId;
+
   return (
     <div
       ref={containerRef}
@@ -612,6 +620,14 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
             activeContext === 'TALEO' ? 'max-h-[92vh]' : 'max-h-full'
           }`}
         />
+        {canLens && lensId !== 'none' && (
+          <LensVideoOverlay videoRef={videoRef} lens={lensId} fit="contain" onStatus={setLensStatus} />
+        )}
+        {canLens && lensOpen && (
+          <div className="absolute right-3 bottom-24 z-40 w-72 max-w-[90%] rounded-xl bg-[#0F131C]/95 border border-white/15 p-2 shadow-2xl backdrop-blur-xl">
+            <LensPicker value={lensId} onChange={id => { setLensId(id); if (id === 'none') setLensStatus(''); }} status={lensStatus} />
+          </div>
+        )}
 
         {isBuffering && (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40 backdrop-blur-sm z-30">
@@ -733,6 +749,21 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                     </button>
                   ))}
                 </div>
+
+                {canLens && (
+                  <button
+                    onClick={() => setLensOpen(o => !o)}
+                    aria-label="Lenses" aria-pressed={lensOpen} title="Lenses"
+                    className={`h-8 px-2.5 rounded-lg border text-xs flex items-center gap-1.5 transition-all ${
+                      lensId !== 'none'
+                        ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
+                        : 'bg-white/10 hover:bg-white/20 border-white/10 text-white/90'
+                    }`}
+                  >
+                    <Sparkles size={14} className="text-amber-400" />
+                    <span className="hidden sm:inline font-medium">Lenses</span>
+                  </button>
+                )}
 
                 <div className="relative">
                   <button
