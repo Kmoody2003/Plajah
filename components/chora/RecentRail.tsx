@@ -17,6 +17,8 @@ interface Props {
   onSelectAlbum: (album: Album) => void;
   onVisitUser: (uid: string, tab?: any) => void;
   title?: string;
+  /** Show a short hint instead of nothing while there is no history yet (used on For You so the feature is discoverable). */
+  showEmpty?: boolean;
 }
 
 const TITLES: Record<RecentKind, string> = {
@@ -26,7 +28,7 @@ const TITLES: Record<RecentKind, string> = {
 
 type Card = { key: string; e: ListenEntry; round: boolean; label: string; sub: string; act: () => void };
 
-const RecentRail: React.FC<Props> = ({ kind, albums, uid, remote, onSelectAlbum, onVisitUser, title }) => {
+const RecentRail: React.FC<Props> = ({ kind, albums, uid, remote, onSelectAlbum, onVisitUser, title, showEmpty }) => {
   const history = useListenHistory(uid, remote);
   const { playTrack } = useGlobalPlayerState();
 
@@ -69,7 +71,15 @@ const RecentRail: React.FC<Props> = ({ kind, albums, uid, remote, onSelectAlbum,
     }
   }, [history, albums, kind, playTrack, onSelectAlbum, onVisitUser]);
 
-  if (!cards.length) return null;
+  if (!cards.length) {
+    if (!showEmpty) return null;
+    return (
+      <section aria-label={title || TITLES[kind]} className="space-y-2">
+        <h3 className="text-lg sm:text-xl font-bold text-white">{title || TITLES[kind]}</h3>
+        <p className="text-sm text-white/55">Songs, albums and artists you play will show up here, so you can jump straight back in. Listen to something for about 20 seconds to start.</p>
+      </section>
+    );
+  }
   const heading = title || TITLES[kind];
 
   return (

@@ -20,6 +20,7 @@ import SignInPrompt from './SignInPrompt';
 import ChipRail from './ui/ChipRail';
 import ChoraNextMasthead from './ChoraNextMasthead';
 import { useChoraNext } from '../hooks/useChoraNext';
+import { useFollowing } from '../hooks/useFollowing';
 import PlaylistPickerModal from './PlaylistPickerModal';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import MyLibraryView from './MyLibraryView';
@@ -304,6 +305,8 @@ interface MusicViewProps {
 }
 
 const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUser, userProfile, initialTab, onUploadMusic, onNavigate }) => {
+  // Source of truth for who the viewer follows is the `follows` collection (UserProfile.following was never written).
+  const musicFollowing = useFollowing(userProfile?.uid);
   const [albums, setAlbums] = useState<Album[]>([]);
   const [artists, setArtists] = useState<UserProfile[]>([]);
   const [curatedPlaylists, setCuratedPlaylists] = useState<Playlist[]>([]);
@@ -2442,7 +2445,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                {tabWordmark('For You')}
 
                {/* ── Your Daily Mix — Chora curates a ≤40-min mix from your taste ── */}
-               {userProfile && <RecentRail kind="JUMP" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
+               {userProfile && <RecentRail kind="JUMP" showEmpty albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
                <DailyMixCard onSelectAlbum={onSelectAlbum} />
                {userProfile && <RecentRail kind="SONGS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
                {userProfile && <RecentRail kind="ARTISTS" albums={albums} uid={userProfile.uid} remote={userProfile.choraRecents} onSelectAlbum={onSelectAlbum} onVisitUser={onVisitUser} />}
@@ -2485,7 +2488,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                <section>
                  <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-6">From Authors You Follow</h2>
                  <AdaptiveGrid phone={2} tablet={3} desktop={5} gap="1.5rem">
-                   {albums.filter(a => userProfile.following?.includes(a.ownerId || '')).map((album) => (
+                   {albums.filter(a => musicFollowing.ids.has(a.ownerId || '')).map((album) => (
                      <div key={album.id} onClick={() => onSelectAlbum(album)} className="group cursor-pointer">
                         <div className="aspect-square rounded-[2rem] overflow-hidden mb-3 border border-white/5 shadow-xl relative">
                           <ThreeDImage src={thumb(album.coverImage, THUMB.card)} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
@@ -2500,7 +2503,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                <section>
                  <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-6">Suggested Creators</h2>
                  <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 mask-fade-edges">
-                    {artists.filter(a => !userProfile.following?.includes(a.uid)).slice(0, 10).map(artist => (
+                    {artists.filter(a => !musicFollowing.ids.has(a.uid)).slice(0, 10).map(artist => (
                       <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="min-w-[140px] text-center group cursor-pointer flex-shrink-0">
                          <div className="aspect-square rounded-full overflow-hidden mb-4 border-2 border-white/5 p-1 relative">
                             <img src={thumb((artist as any).choraPhotoURL || artist.photoURL, THUMB.card) || undefined} onError={onThumbError(artist.photoURL)} className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />
