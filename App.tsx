@@ -7289,13 +7289,15 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 onBack={() => setView('TEAM_DETAIL')}
               />
             )}
-            {view === 'PLAYER' && selectedVideo && !partyIdForPlayer && !getPlatformInfo().isTV && (
+            {view === 'PLAYER' && selectedVideo && !getPlatformInfo().isTV && (
               <div className="fixed inset-0 z-[99999] bg-black">
                 <ReelloUniversalVideoPlayer
                   key={selectedVideo.id}
                   video={selectedVideo}
                   context={(selectedVideo as any).category === 'MOVIE' ? 'TALEO' : 'REELLO'}
                   currentUser={user}
+                  queue={videoQueue}
+                  partyId={partyIdForPlayer || undefined}
                   onClose={() => {
                     setSelectedVideo(null);
                     setVideoQueue([]);
@@ -7305,7 +7307,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 />
               </div>
             )}
-            {view === 'PLAYER' && selectedVideo && (partyIdForPlayer || getPlatformInfo().isTV) && (
+            {view === 'PLAYER' && selectedVideo && getPlatformInfo().isTV && (
               <VideoPlayer
                 video={selectedVideo}
                 onBack={() => {

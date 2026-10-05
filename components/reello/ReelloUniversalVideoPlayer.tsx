@@ -5,13 +5,15 @@ import {
   RotateCcw, RotateCw, Settings, Sliders, Layers, Sparkles, Film, MessageCircle,
   List, Check, X, ChevronDown, ChevronRight, Share2, Heart, Clock, Folder,
   FileVideo, ArrowLeft, Send, Pin, AlertCircle, Headphones, Repeat, Shuffle,
-  Download, Eye, Subtitles, Compass
+  Download, Eye, Subtitles, Compass, Users, Radio
 } from 'lucide-react';
 import { Video, Album } from '../../types';
 import { WindowsPickedFile } from '../../services/windowsBridgeService';
 import { listHqComments, addHqComment, type OrgAsset } from '../../services/hqCollaboration';
 import { listenToVideoComments, postVideoComment } from '../../services/backendService';
 import { LensPicker, LensVideoOverlay } from '../LensVideoOverlay';
+import { createParty, partyShareUrl, shouldResync } from '../../services/partyService';
+import { useParty } from '../../hooks/useParty';
 import type { LensId } from '../../services/lenses/lensEngine';
 
 export type PlayerContext = 'REELLO' | 'TALEO' | 'LOCAL' | 'ASSET_HQ';
@@ -70,6 +72,10 @@ export interface ReelloUniversalVideoPlayerProps {
   onClose?: () => void;
   /** Callback when navigating to an external link or related item */
   onNavigateToRelated?: (item: any) => void;
+  /** Videos to play after this one (autoplay next). */
+  queue?: Video[];
+  /** A shared watch-party link: auto-join and follow that party. */
+  partyId?: string;
 }
 
 const LOOK_FILTERS: Record<PixelsLook, { label: string; filter: string; description: string }> = {
@@ -123,6 +129,8 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
   album,
   src: initialSrc,
   muxPlaybackId: initialMuxId,
+  queue: initialQueue,
+  partyId: initialPartyId,
   title: initialTitle,
   context = initialFile ? 'LOCAL' : album ? 'TALEO' : 'REELLO',
   currentUser,
@@ -218,6 +226,18 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
           if (idx !== -1) setPlaylistIndex(idx);
         }
       }
+    } else if (currentVideo && initialQueue && initialQueue.length > 0) {
+      const toItem = (v: Video): VideoPlaylistItem => ({
+        id: v.id,
+        title: v.title || 'Reello Video',
+        url: v.url || (v.muxPlaybackId ? `https://stream.mux.com/${v.muxPlaybackId}.m3u8` : ''),
+        video: v,
+        thumbnailUrl: v.thumbnailUrl,
+        subtitle: v.ownerName || 'Creator',
+      });
+      const rest = initialQueue.filter(v => v.id !== currentVideo.id);
+      setPlaylist([toItem(currentVideo), ...rest.map(toItem)]);
+      setPlaylistIndex(0);
     } else if (currentVideo) {
       setPlaylist([{
         id: currentVideo.id,
@@ -573,7 +593,67 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
     }
   };
 
-  const canLens = !!currentVideo?.muxPlaybackId;
+  // The video actually on screen (the playlist can advance past the one we were opened with).
+  const activeVideo = playlist[playlistIndex]?.video ?? currentVideo;
+  const canLens = !!activeVideo?.muxPlaybackId;
+
+  // Watch party (synchronized viewing): the host broadcasts, followers are slaved to the host.
+  const [activePartyId, setActivePartyId] = useState<string | null>(initialPartyId ?? null);
+  useEffect(() => { setActivePartyId(initialPartyId ?? null); }, [initialPartyId]);
+  const party = useParty(activePartyId);
+
+  useEffect(() => {
+    if (!activePartyId || !party.isHost || !activeVideo) return;
+    const el = videoRef.current;
+    if (!el) return;
+    const push = () => party.broadcast({ isPlaying: !el.paused, positionSec: el.currentTime || 0, contentId: activeVideo.id });
+    el.addEventListener('play', push);
+    el.addEventListener('pause', push);
+    el.addEventListener('seeked', push);
+    push();
+    const hb = setInterval(() => { if (!el.paused) push(); }, 4000);
+    return () => {
+      el.removeEventListener('play', push);
+      el.removeEventListener('pause', push);
+      el.removeEventListener('seeked', push);
+      clearInterval(hb);
+    };
+  }, [activePartyId, party.isHost, activeVideo?.id, resolvedUrl]);
+
+  useEffect(() => {
+    if (!activePartyId || !party.isFollower) return;
+    const apply = () => {
+      const el = videoRef.current;
+      if (!el) return;
+      const { targetPositionSec, shouldPlay } = party.getTarget();
+      if (shouldResync(el.currentTime || 0, targetPositionSec)) { try { el.currentTime = targetPositionSec; } catch { /* */ } }
+      if (shouldPlay && el.paused) { el.play().catch(() => { el.muted = true; el.play().catch(() => {}); }); }
+      else if (!shouldPlay && !el.paused) { el.pause(); }
+    };
+    apply();
+    const iv = setInterval(apply, 1000);
+    return () => clearInterval(iv);
+  }, [activePartyId, party.isFollower, party.playback?.seq]);
+
+  const startWatchParty = async () => {
+    if (!activeVideo) return;
+    try {
+      const id = await createParty({
+        kind: 'WATCH',
+        content: { type: 'VIDEO', id: activeVideo.id, title: activeVideo.title, thumbnail: activeVideo.thumbnailUrl || (activeVideo as any).coverImageUrl, url: activeVideo.url, muxPlaybackId: activeVideo.muxPlaybackId },
+        initial: { positionSec: videoRef.current?.currentTime || 0, isPlaying: !videoRef.current?.paused },
+      });
+      setActivePartyId(id);
+      const url = partyShareUrl(id);
+      if (navigator.share) navigator.share({ title: `Watch "${activeVideo.title}" together on Plajah`, url }).catch(() => {});
+      else navigator.clipboard?.writeText(url).catch(() => {});
+    } catch (e) { console.error('start watch party failed', e); }
+  };
+  const leaveWatchParty = () => {
+    if (party.isHost) party.end();
+    setActivePartyId(null);
+  };
+
 
   return (
     <div
@@ -587,6 +667,28 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
       )}
       {activeLook === 'grain' && (
         <div className="pointer-events-none absolute inset-0 z-20 opacity-20 mix-blend-overlay bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
+      )}
+
+      {activePartyId && (
+        <div className="absolute top-3 left-3 right-3 z-40 flex items-center gap-3 px-4 py-2.5 rounded-2xl border border-[#D40055]/30 bg-gradient-to-r from-[#6B0099]/60 to-[#D40055]/60 backdrop-blur-md">
+          <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+          <Radio size={14} className="text-[#ff9cc4] shrink-0" />
+          <p className="text-[10px] font-black uppercase tracking-widest text-white flex-1 min-w-0 truncate">
+            {party.isHost ? 'Hosting watch party' : `Following ${party.party?.hostName || 'the host'}`}
+            <span className="text-white/50"> · </span>
+            <span className="inline-flex items-center gap-1 text-white/80"><Users size={11} /> {party.viewerCount} watching</span>
+            {party.isFollower && <span className="text-white/50 normal-case tracking-normal"> - synced to host</span>}
+          </p>
+          {party.isHost && (
+            <button
+              onClick={() => { const u = partyShareUrl(activePartyId); if (navigator.share) navigator.share({ title: `Watch "${activeVideo?.title || ''}" together on Plajah`, url: u }).catch(() => {}); else navigator.clipboard?.writeText(u).catch(() => {}); }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-[9px] font-black uppercase tracking-widest shrink-0"
+            ><Share2 size={12} /> Invite</button>
+          )}
+          <button onClick={leaveWatchParty} className="px-3 py-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white/80 hover:text-white text-[9px] font-black uppercase tracking-widest shrink-0">
+            {party.isHost ? 'End' : 'Leave'}
+          </button>
+        </div>
       )}
 
       <div className="relative flex-1 flex items-center justify-center bg-black overflow-hidden">
@@ -749,6 +851,17 @@ export const ReelloUniversalVideoPlayer: React.FC<ReelloUniversalVideoPlayerProp
                     </button>
                   ))}
                 </div>
+
+                {!activePartyId && activeVideo && (activeContext === 'REELLO' || activeContext === 'TALEO') && (
+                  <button
+                    onClick={() => currentUser ? startWatchParty() : alert('Sign in to host a watch party.')}
+                    title="Watch Party" aria-label="Watch Party"
+                    className="h-8 px-2.5 rounded-lg border text-xs flex items-center gap-1.5 transition-all bg-[#D40055]/15 hover:bg-[#D40055]/25 border-[#D40055]/40 text-[#ff9cc4]"
+                  >
+                    <Users size={14} />
+                    <span className="hidden sm:inline font-medium">Watch Party</span>
+                  </button>
+                )}
 
                 {canLens && (
                   <button
