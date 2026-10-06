@@ -1234,7 +1234,8 @@ public sealed partial class MainWindow : Window
                     }
 
                     // 4. Enumerate SRT Streams (Active Listeners / Callers)
-                    var srtStreams = _studioBridge.GetActiveSrtStreams();
+                    // Only advertised when a real transport backs them; otherwise they would be fake 1080p60 feeds.
+                    var srtStreams = PlajahStudioBridgeService.SrtTransportAvailable ? _studioBridge.GetActiveSrtStreams() : new List<PlajahStudioBridgeService.SrtStreamSession>();
                     foreach (var s in srtStreams)
                     {
                         sourceList.Add(new
@@ -1332,7 +1333,7 @@ public sealed partial class MainWindow : Window
                     int lat = argsObj.TryGetProperty("latencyMs", out var lt) && lt.TryGetInt32(out var lv) ? lv : 120;
                     string? pass = argsObj.TryGetProperty("passphrase", out var pp) ? pp.GetString() : null;
                     var session = _studioBridge.StartSrtListener(sId, sName, port, lat, pass);
-                    result = new { success = true, session };
+                    result = new { success = PlajahStudioBridgeService.SrtTransportAvailable, session, transportAvailable = PlajahStudioBridgeService.SrtTransportAvailable, reason = PlajahStudioBridgeService.SrtTransportAvailable ? null : PlajahStudioBridgeService.SrtTransportReason };
                 }
                 else if (cmd == "srt_connect_caller")
                 {
@@ -1343,13 +1344,17 @@ public sealed partial class MainWindow : Window
                     int lat = argsObj.TryGetProperty("latencyMs", out var lt) && lt.TryGetInt32(out var lv) ? lv : 120;
                     string? pass = argsObj.TryGetProperty("passphrase", out var pp) ? pp.GetString() : null;
                     var session = _studioBridge.ConnectSrtCaller(sId, sName, host, port, lat, pass);
-                    result = new { success = true, session };
+                    result = new { success = PlajahStudioBridgeService.SrtTransportAvailable, session, transportAvailable = PlajahStudioBridgeService.SrtTransportAvailable, reason = PlajahStudioBridgeService.SrtTransportAvailable ? null : PlajahStudioBridgeService.SrtTransportReason };
                 }
                 else if (cmd == "srt_stop")
                 {
                     string sId = argsObj.TryGetProperty("streamId", out var si) ? si.GetString() ?? "" : "";
                     bool stopped = _studioBridge.StopSrtStream(sId);
                     result = new { success = stopped };
+                }
+                else if (cmd == "srt_info")
+                {
+                    result = new { transportAvailable = PlajahStudioBridgeService.SrtTransportAvailable, reason = PlajahStudioBridgeService.SrtTransportAvailable ? null : PlajahStudioBridgeService.SrtTransportReason };
                 }
                 else if (cmd == "srt_stats")
                 {
@@ -1636,7 +1641,12 @@ public sealed partial class MainWindow : Window
 
                         var files = new List<object>();
                         var dir = new DirectoryInfo(targetDir);
-                        foreach (var fi in dir.EnumerateFiles("*", SearchOption.TopDirectoryOnly))
+                        // A user-added custom folder scans RECURSIVELY (capped); the built-in library shortcuts stay top-level.
+                        var isCustomScan = !string.IsNullOrEmpty(customPath);
+                        var scanFiles = isCustomScan
+                            ? dir.EnumerateFiles("*", SafeRecursiveScan)
+                            : dir.EnumerateFiles("*", SearchOption.TopDirectoryOnly);
+                        foreach (var fi in scanFiles)
                         {
                             if (mediaExts.Contains(fi.Extension))
                             {
@@ -1656,7 +1666,7 @@ public sealed partial class MainWindow : Window
                                     lastModified = new DateTimeOffset(fi.LastWriteTimeUtc).ToUnixTimeMilliseconds(),
                                     url = $"https://localmedia.plajah/{Uri.EscapeDataString(relPath).Replace("%2F", "/")}?path={Uri.EscapeDataString(fi.FullName)}"
                                 });
-                                if (files.Count >= 300) break;
+                                if (files.Count >= (isCustomScan ? 2000 : 300)) break;
                             }
                         }
 
@@ -2023,7 +2033,10 @@ public sealed partial class MainWindow : Window
                 // Strictly validate dimensions: Must be at least 960x600 and within visible screen space
                 if (width >= 960 && height >= 600 && posX > -2000 && posY > -2000 && posX < 40000 && posY < 40000)
                 {
-                    _appWindow.MoveAndResize(new Windows.Graphics.RectInt32(posX, posY, width, height));
+                    // A saved position from a monitor that is gone (or rearranged) can leave the title bar
+                    // above or beside every screen. Pull it fully inside the nearest display's work area.
+                    var fitted = FitIntoVisibleWorkArea(new Windows.Graphics.RectInt32(posX, posY, width, height));
+                    _appWindow.MoveAndResize(fitted);
                     restored = true;
                 }
                 else
@@ -2042,6 +2055,25 @@ public sealed partial class MainWindow : Window
         {
             CenterAndSizeDefaultWindow();
         }
+    }
+
+    /// <summary>
+    /// Clamp a window rect into the work area of the display it overlaps most (or the primary display),
+    /// so the title bar can never be stranded off-screen. Size is shrunk only if it exceeds the work area.
+    /// </summary>
+    private static Windows.Graphics.RectInt32 FitIntoVisibleWorkArea(Windows.Graphics.RectInt32 r)
+    {
+        try
+        {
+            var area = DisplayArea.GetFromRect(r, DisplayAreaFallback.Nearest) ?? DisplayArea.Primary;
+            var wa = area.WorkArea;
+            int w = Math.Min(r.Width, wa.Width);
+            int h = Math.Min(r.Height, wa.Height);
+            int x = Math.Min(Math.Max(r.X, wa.X), wa.X + wa.Width - w);
+            int y = Math.Min(Math.Max(r.Y, wa.Y), wa.Y + wa.Height - h);
+            return new Windows.Graphics.RectInt32(x, y, w, h);
+        }
+        catch { return r; }
     }
 
     private void CenterAndSizeDefaultWindow()

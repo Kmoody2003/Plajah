@@ -19,6 +19,7 @@ import type { LayerSource } from './layerSources';
 import type { SlideObj, SlideTheme } from './slideTemplates/types';
 import { buildSlideObjects, templateById, resolveTheme } from './slideTemplates/registry';
 import { disposeHost, type SlideHost } from './slideTemplates/live';
+import { FREEFORM_ID } from './slideTemplates/freeform';
 import {
   drawSlideObjects, drawFallbackCard, loadSlideFonts, onSlideImageLoad, prefersReducedMotion,
   slideTemplateTiming, invalidateSlideLayouts, type FrameClock,
@@ -100,6 +101,8 @@ export class TelaTemplateSource implements LayerSource {
     const words = JSON.stringify(content.fields || {}) !== JSON.stringify(prev.fields || {});
     this.content = content;
     if (!look && !words) return;
+    // Slide-editor scenes never replay an entrance: edits repaint in place.
+    if (content.templateId === FREEFORM_ID) { this.build(); return; }
     // Keep what is on screen and crossfade it out while the new words enter.
     try {
       const snap = makeCanvas(this.w, this.h);
@@ -121,7 +124,7 @@ export class TelaTemplateSource implements LayerSource {
   private clock(now: number): FrameClock {
     return {
       t: now - this.born,
-      enterT: now - this.enterStart,
+      enterT: this.content.templateId === FREEFORM_ID ? Infinity : now - this.enterStart,
       exitT: this.exitStart >= 0 ? now - this.exitStart : -1,
       reduced: this.reduced,
       enterFromGroup: this.enterFromGroup,

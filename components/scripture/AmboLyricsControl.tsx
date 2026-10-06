@@ -14,6 +14,11 @@ import {
   LYRIC_STYLES, SAMPLE_LYRICS, DEFAULT_LYRIC_STYLE, lyricStyleById, renderLyricFrame, type LyricStyle,
 } from '../../services/ambo/lyricStyles';
 import {
+  getLiveLyricsPrefs, getLiveLyricsState, subscribeLiveLyrics, setLiveLyricsPrefs, startLiveLyrics, stopLiveLyrics,
+  listLiveAudioStreams, type LiveLyricSource,
+} from '../../services/ambo/liveLyrics';
+import { listAudioInputs } from '../../services/ambo/liveTranscriber';
+import {
   nextLyricsContent, readFeed, subscribeLyricClocks, lyricClocksVersion, getLyricClock, type LyricSourceId,
 } from '../../services/ambo/lyricFeed';
 
@@ -73,7 +78,51 @@ const StyleThumb: React.FC<{ style: LyricStyle; selected: boolean; onPick: () =>
   );
 };
 
-export const AmboLyricsControl: React.FC<Props> = ({ live, onSet }) => {
+export const LiveSourcePanel: React.FC = () => {
+  const lp = useSyncExternalStore(subscribeLiveLyrics, getLiveLyricsPrefs);
+  const ls = useSyncExternalStore(subscribeLiveLyrics, getLiveLyricsState);
+  const [inputs, setInputs] = useState<Array<{ deviceId: string; label: string }>>([]);
+  useEffect(() => { void listAudioInputs().then(setInputs); }, [ls.running]);
+  const src = lp.source;
+  const streams = listLiveAudioStreams();
+  const choose = (v: string) => {
+    let next: LiveLyricSource = { kind: 'mic' };
+    if (v.startsWith('dev:')) next = { kind: 'device', deviceId: v.slice(4) };
+    else if (v.startsWith('str:')) next = { kind: 'stream', id: v.slice(4) };
+    else if (v === 'url') next = { kind: 'url', url: src.kind === 'url' ? src.url : '' };
+    setLiveLyricsPrefs({ source: next });
+  };
+  const value = src.kind === 'device' ? 'dev:' + src.deviceId : src.kind === 'stream' ? 'str:' + src.id : src.kind;
+  return (
+    <div className="rounded-lg border border-white/10 bg-black/25 p-2 flex flex-col gap-1.5">
+      <div className="flex items-center gap-2">
+        <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40 w-12">Listen</span>
+        <select value={value} onChange={e => choose(e.target.value)} disabled={ls.running}
+          className="flex-1 min-w-0 h-7 rounded-md bg-white/5 border border-white/10 text-[10.5px] text-white px-1.5">
+          <option value="mic" className="bg-[#14101e]">Default microphone</option>
+          {inputs.map(d => <option key={d.deviceId} value={'dev:' + d.deviceId} className="bg-[#14101e]">Input · {d.label}</option>)}
+          {streams.map(s => <option key={s.id} value={'str:' + s.id} className="bg-[#14101e]">Stream · {s.label}</option>)}
+          <option value="url" className="bg-[#14101e]">Stream URL (account / station)…</option>
+        </select>
+        <button onClick={() => (ls.running ? stopLiveLyrics() : void startLiveLyrics())} disabled={ls.starting}
+          className={`px-2.5 h-7 rounded-md text-[10px] font-black disabled:opacity-40 ${ls.running ? 'text-white bg-white/10 border border-white/15' : 'text-black bg-[#2BE0A8]'}`}>
+          {ls.starting ? 'Starting…' : ls.running ? 'Stop' : 'Start'}
+        </button>
+      </div>
+      {src.kind === 'url' && (
+        <input value={src.url} disabled={ls.running} onChange={e => setLiveLyricsPrefs({ source: { kind: 'url', url: e.target.value } })}
+          placeholder="https://…/stream.mp3" className="h-7 rounded-md bg-white/5 border border-white/10 text-[10.5px] text-white px-2" />
+      )}
+      <div className="text-[10px] text-white/60 min-h-[28px] leading-snug">
+        {ls.error ? <span className="text-[#F5C542]">{ls.error}</span>
+          : ls.running ? (ls.lines.length ? ls.lines.map(l => l.text).join(' / ') : 'Listening…')
+          : 'Words from this source appear on screen in the look below. Take to Program once it is listening.'}
+      </div>
+    </div>
+  );
+};
+
+const AmboLyricsControl: React.FC<Props> = ({ live, onSet }) => {
   useSyncExternalStore(subscribeLyricClocks, lyricClocksVersion);
   const [open, setOpen] = useState(false);
   const [prefs, setPrefs] = useState<{ source: LyricSourceId; styleId: string }>(() => {
@@ -160,8 +209,9 @@ export const AmboLyricsControl: React.FC<Props> = ({ live, onSet }) => {
   const clear = () => { setWantLive(false); onSet(null); };
 
   const reasonText = (r?: string) =>
-    r === 'no-player' ? (prefs.source === 'dj' ? 'Open a song in the DJ deck first.' : 'The audio playlist isn’t ready.')
+    r === 'no-player' ? (prefs.source === 'live' ? 'Start listening first.' : prefs.source === 'dj' ? 'Open a song in the DJ deck first.' : 'The audio playlist isn’t ready.')
       : r === 'no-track' ? 'Nothing is playing on this player yet.'
+      : r === 'no-lyrics' && prefs.source === 'live' ? 'Waiting for the first words…'
       : r === 'no-lyrics' ? 'This song has no synced lyrics — use “Sync Lyrics” on it in Chora, then come back.'
       : '';
 
@@ -185,13 +235,13 @@ export const AmboLyricsControl: React.FC<Props> = ({ live, onSet }) => {
       <div className="p-3 flex flex-col gap-2.5">
         <div className="flex items-center gap-2">
           <span className="text-[9px] font-extrabold uppercase tracking-wider text-white/40">Follow</span>
-          {(['bus', 'dj'] as LyricSourceId[]).map(s => (
+          {(['bus', 'dj', 'live'] as LyricSourceId[]).map(s => (
             <button
               key={s}
               onClick={() => setPrefs(p => ({ ...p, source: s }))}
               className={`px-2 py-1 rounded-md text-[10px] font-bold border transition-all ${prefs.source === s ? 'text-[#D0BCFF] bg-[#D0BCFF]/15 border-[#D0BCFF]/35' : 'text-white/60 border-white/10 hover:text-white hover:bg-white/5'}`}
             >
-              {s === 'bus' ? 'Audio playlist' : 'DJ deck'}{!getLyricClock(s) && <span className="ml-1 opacity-50">(off)</span>}
+              {s === 'bus' ? 'Audio playlist' : s === 'dj' ? 'DJ deck' : 'Live transcription'}{!getLyricClock(s) && <span className="ml-1 opacity-50">(off)</span>}
             </button>
           ))}
           <div className="flex-1 min-w-0 text-right text-[9.5px] truncate">
@@ -200,6 +250,8 @@ export const AmboLyricsControl: React.FC<Props> = ({ live, onSet }) => {
               : <span className="text-[#F5C542]"><AlertTriangle size={9} className="inline mr-1" />{reasonText(feed.reason)}</span>}
           </div>
         </div>
+
+        {prefs.source === 'live' && <LiveSourcePanel />}
 
         <div className="relative rounded-lg overflow-hidden border border-white/10">
           <canvas ref={prevRef} className="w-full aspect-video block" />

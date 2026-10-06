@@ -157,14 +157,49 @@ export function mediaItem(id: string, name: string, kind: MediaKind, src: string
   };
 }
 
-/** Guess the kind from a filename — the drop handler's job. */
-export function kindForFile(nameOrUrl: string): MediaKind | null {
-  const ext = (nameOrUrl.split('?')[0].split('.').pop() || '').toLowerCase();
-  if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp'].includes(ext)) return 'IMAGE';
-  if (['mp4', 'webm', 'mov', 'm4v', 'mkv'].includes(ext)) return 'VIDEO';
-  if (['mp3', 'wav', 'm4a', 'aac', 'ogg', 'flac'].includes(ext)) return 'AUDIO';
-  if (['lottie', 'json'].includes(ext)) return 'LOTTIE';
+/**
+ * The ONE extension -> kind table. Folder scans (services/ambo/mediaFolders.ts), the
+ * Media tab and every drop handler use it, so a file is never "media" in one place and
+ * ignored in another.
+ */
+export type MediaKindOrDoc = MediaKind | 'DOC';
+export const MEDIA_EXTENSIONS: Record<MediaKindOrDoc, readonly string[]> = {
+  IMAGE: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'avif', 'bmp', 'svg', 'tif', 'tiff'],
+  VIDEO: ['mp4', 'webm', 'mov', 'm4v', 'mkv', 'avi', 'mpg', 'mpeg', 'wmv'],
+  AUDIO: ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'oga', 'opus', 'flac', 'aiff', 'aif', 'wma'],
+  LOTTIE: ['lottie', 'json'],
+  DOC: ['pdf', 'ppt', 'pptx', 'key', 'odp'],
+};
+
+function extOf(nameOrUrl: string): string {
+  const base = nameOrUrl.split('?')[0].split('#')[0];
+  const dot = base.lastIndexOf('.');
+  return dot < 0 ? '' : base.slice(dot + 1).toLowerCase();
+}
+
+/**
+ * Classify by filename, falling back to the MIME type (OS drops often carry one).
+ * `.json` only counts as Lottie when `allowJson` (a drop on purpose); a folder scan
+ * passes false so config files do not flood the grid.
+ */
+export function classifyFile(nameOrUrl: string, mime = '', allowJson = true): MediaKindOrDoc | null {
+  const ext = extOf(nameOrUrl);
+  for (const kind of ['IMAGE', 'VIDEO', 'AUDIO', 'LOTTIE', 'DOC'] as MediaKindOrDoc[]) {
+    if (kind === 'LOTTIE' && ext === 'json' && !allowJson) continue;
+    if (ext && MEDIA_EXTENSIONS[kind].includes(ext)) return kind;
+  }
+  const m = mime.toLowerCase();
+  if (m.startsWith('image/')) return 'IMAGE';
+  if (m.startsWith('video/')) return 'VIDEO';
+  if (m.startsWith('audio/')) return 'AUDIO';
+  if (m === 'application/pdf') return 'DOC';
   return null;
+}
+
+/** Guess the kind from a filename — the drop handler's job. (DOC files are not layer media.) */
+export function kindForFile(nameOrUrl: string, mime = ''): MediaKind | null {
+  const k = classifyFile(nameOrUrl, mime);
+  return k && k !== 'DOC' ? k : null;
 }
 
 // ── Browsing ────────────────────────────────────────────────────────────────

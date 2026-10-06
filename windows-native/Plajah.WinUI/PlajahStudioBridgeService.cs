@@ -1270,6 +1270,11 @@ public sealed class PlajahStudioBridgeService
 
     private readonly Dictionary<string, SrtStreamSession> _activeSrtStreams = new();
 
+    /// <summary>No libsrt is linked into this build, so SRT sessions are bookkeeping only: no socket is opened and no media moves.
+    /// Flip to true only when a real SRT transport backs StartSrtListener/ConnectSrtCaller.</summary>
+    public const bool SrtTransportAvailable = false;
+    public const string SrtTransportReason = "SRT transport (libsrt) is not linked into this build; sessions are recorded but no socket is opened and no media flows.";
+
     public SrtStreamSession StartSrtListener(string streamId, string name, int port = 9000, int latencyMs = 120, string? passphrase = null)
     {
         int keyLen = string.IsNullOrEmpty(passphrase) ? 0 : 32;
@@ -1281,7 +1286,7 @@ public sealed class PlajahStudioBridgeService
             Port: port,
             LatencyMs: latencyMs,
             EncryptionKeyLen: keyLen,
-            Status: "Listening (ARQ Packet Recovery Active)",
+            Status: "Registered only - SRT transport not linked, not listening",
             BitrateMbps: 0.0,
             RttMs: 0.0,
             PacketLossRate: 0.0,
@@ -1303,10 +1308,10 @@ public sealed class PlajahStudioBridgeService
             Port: port,
             LatencyMs: latencyMs,
             EncryptionKeyLen: keyLen,
-            Status: "Connected (Low-Latency ARQ Stream)",
-            BitrateMbps: 18.5,
-            RttMs: 24.2,
-            PacketLossRate: 0.01,
+            Status: "Registered only - SRT transport not linked, not connected",
+            BitrateMbps: 0.0,
+            RttMs: 0.0,
+            PacketLossRate: 0.0,
             DroppedPackets: 0,
             TimestampMs: DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
         );
@@ -1328,11 +1333,9 @@ public sealed class PlajahStudioBridgeService
     {
         if (_activeSrtStreams.TryGetValue(streamId, out var session))
         {
-            // Update live simulated/active stats
+            // No transport: report zeros honestly (never synthesise bitrate/RTT).
             var updated = session with
             {
-                BitrateMbps = session.Mode == "caller" ? 18.2 + (Random.Shared.NextDouble() * 0.8) : 0.0,
-                RttMs = Math.Max(12.0, session.RttMs + (Random.Shared.NextDouble() * 2.0 - 1.0)),
                 TimestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()
             };
             _activeSrtStreams[streamId] = updated;

@@ -26,6 +26,12 @@ import { parseRef, formatRef, type ScriptureRef } from '../../services/scripture
 import { getChapter, DEFAULT_TRANSLATION } from '../../services/scriptureText';
 import { newId, type Slide, type Show } from '../../services/ambo/showModel';
 import { GENERATOR_ITEMS } from '../../services/ambo/mediaLibrary';
+import {
+  pickAndSaveBrowserFolder, loadFolderHandle, deleteFolderHandle, ensurePermission, scanBrowserFolder,
+  scanWindowsMediaFolder, pickWindowsMediaFolder, revokeFolderUrls, browserFolderAccessSupported,
+  getImportTarget, setImportTarget, importFilesIntoTarget, filesFromDataTransfer, createSubfolderIn,
+  UNSUPPORTED_MESSAGE, type FolderMediaItem,
+} from '../../services/ambo/mediaFolders';
 import { type NativeSourceInfo } from '../../services/mediaEngine/bridge';
 import { type AmboMediaSourceItem } from './AmboMediaBin';
 import { type ScriptureCue } from './AmboScriptureDock';
@@ -57,6 +63,7 @@ import { ScriptureQuickBar } from './AmboTemplateMenus';
 import { getAutoCueNext, subscribeAutoCueNext } from '../../services/ambo/scriptureAutoCue';
 import { rememberLyrics } from '../../services/ambo/lyricFeed';
 import { AmboSlideTemplateEntry } from './AmboSlideTemplateGallery';
+import AmboRoutinesPanel from './AmboRoutinesPanel';
 
 export type AmboLibraryTab =
   | 'shows'
@@ -67,7 +74,8 @@ export type AmboLibraryTab =
   | 'taleo'
   | 'visualizers'
   | 'assets'
-  | 'live';
+  | 'live'
+  | 'routines';
 
 interface PinnedFolder {
   id: string;
@@ -76,6 +84,14 @@ interface PinnedFolder {
   isSystem?: boolean;
   libraryType?: string;
   itemCount: number;
+  /** User-added folder: 'handle' = browser directory handle in IndexedDB (id is the key), 'windows' = path via the WinUI bridge. */
+  kind?: 'handle' | 'windows';
+}
+
+interface FolderStatus {
+  state: 'loading' | 'ok' | 'needs-permission' | 'error';
+  message?: string;
+  truncated?: boolean;
 }
 
 interface AmboTabbedLibraryProps {
@@ -640,20 +656,77 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   const [isLoadingFolderFiles, setIsLoadingFolderFiles] = useState<boolean>(false);
   const [platformPhotos, setPlatformPhotos] = useState<AmboMediaSourceItem[]>([]);
 
-  // Scan real local OS folder when activeFolderId changes or media tab is opened
+  const [folderStatus, setFolderStatus] = useState<Record<string, FolderStatus>>({});
+  const [folderNotice, setFolderNotice] = useState<string | null>(null);
+  const [scanTick, setScanTick] = useState(0);
+  const [importTargetId, setImportTargetId] = useState<string | null>(() => getImportTarget()?.folderId ?? null);
+  const setStatus = (id: string, st: FolderStatus) => setFolderStatus(prev => ({ ...prev, [id]: st }));
+  const savePinned = (list: PinnedFolder[]) => {
+    setPinnedFolders(list);
+    try { localStorage.setItem('ambo_pinned_folders', JSON.stringify(list)); } catch {}
+  };
+  const toSourceItem = (it: FolderMediaItem, folder: PinnedFolder): AmboMediaSourceItem => {
+    const kind = it.kind === 'DOC' ? 'IMAGE' : it.kind;
+    const where = it.relPath.includes('/') ? it.relPath.slice(0, it.relPath.lastIndexOf('/')) : '';
+    return {
+      id: `fm_${it.id}`,
+      name: it.name,
+      kind,
+      sub: `${(it.size / (1024 * 1024)).toFixed(1)} MB · ${folder.name}${where ? ` / ${where}` : ''}`,
+      src: it.url,
+      thumb: kind === 'IMAGE' ? it.url : undefined,
+      tags: ['local', folder.name.toLowerCase(), kind.toLowerCase()],
+    };
+  };
+
+  // Scan the active folder. Custom folders: browser handle (IndexedDB, recursive) or Windows path (bridge).
   useEffect(() => {
     let cancelled = false;
     const activeFolder = pinnedFolders.find(f => f.id === activeFolderId);
     if (!activeFolder) return;
+    const finish = (items: AmboMediaSourceItem[], truncated = false) => {
+      setIsLoadingFolderFiles(false);
+      setRealFolderFiles(items);
+      setStatus(activeFolder.id, { state: 'ok', truncated });
+      setPinnedFolders(prev => prev.map(pf => pf.id === activeFolder.id && pf.itemCount !== items.length ? { ...pf, itemCount: items.length } : pf));
+    };
+    const fail = (message: string, state: FolderStatus['state'] = 'error') => {
+      setIsLoadingFolderFiles(false);
+      setRealFolderFiles([]);
+      setStatus(activeFolder.id, { state, message });
+    };
 
-    if (isWindowsApp()) {
+    if (activeFolder.kind === 'handle') {
+      setIsLoadingFolderFiles(true);
+      (async () => {
+        const handle = await loadFolderHandle(activeFolder.id);
+        if (cancelled) return;
+        if (!handle) return fail('This folder is no longer linked in this browser. Remove it and add it again.');
+        const perm = await ensurePermission(handle, false);
+        if (cancelled) return;
+        if (perm !== 'granted') return fail('The browser needs your OK to open this folder again.', 'needs-permission');
+        const res = await scanBrowserFolder(activeFolder.id, handle);
+        if (cancelled) return;
+        finish(res.items.map(it => toSourceItem(it, activeFolder)), res.truncated);
+        if (res.errors.length) setStatus(activeFolder.id, { state: 'ok', truncated: res.truncated, message: `${res.errors.length} item(s) could not be read.` });
+      })().catch(e => { if (!cancelled) fail(e?.message || 'Could not read this folder.'); });
+    } else if (activeFolder.kind === 'windows') {
+      if (!isWindowsApp()) { fail('This folder lives on a Windows PC — open it in the Plajah Windows app.'); return; }
+      setIsLoadingFolderFiles(true);
+      scanWindowsMediaFolder(activeFolder.id, activeFolder.path)
+        .then(res => {
+          if (cancelled) return;
+          if (res.errors.length && res.items.length === 0) return fail(res.errors[0]);
+          finish(res.items.map(it => toSourceItem(it, activeFolder)), res.truncated);
+        })
+        .catch(e => { if (!cancelled) fail(e?.message || 'Could not read this folder.'); });
+    } else if (isWindowsApp()) {
       setIsLoadingFolderFiles(true);
       scanWindowsLibrary(activeFolder.libraryType || activeFolder.name.toLowerCase(), activeFolder.path)
         .then(res => {
           if (cancelled) return;
-          setIsLoadingFolderFiles(false);
           if (res && res.success && res.files) {
-            const mapped: AmboMediaSourceItem[] = res.files.map(f => {
+            finish(res.files.map(f => {
               const kind = f.kind || (/\.(mp4|mov|webm|mkv|avi|wmv)$/i.test(f.name) ? 'VIDEO' : /\.(mp3|wav|m4a|aac|flac|ogg)$/i.test(f.name) ? 'AUDIO' : 'IMAGE');
               const streamUrl = f.streamUrl || f.path;
               return {
@@ -665,19 +738,20 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                 thumb: kind === 'IMAGE' ? streamUrl : undefined,
                 tags: ['local', activeFolder.name.toLowerCase(), kind.toLowerCase()],
               };
-            });
-            setRealFolderFiles(mapped);
-            setPinnedFolders(prev => prev.map(pf => pf.id === activeFolderId ? { ...pf, itemCount: mapped.length } : pf));
+            }));
+          } else {
+            fail(res?.error || 'This folder is unavailable (moved, renamed, or offline).');
           }
         })
-        .catch(() => {
-          if (!cancelled) setIsLoadingFolderFiles(false);
-        });
+        .catch(() => { if (!cancelled) fail('Could not read this folder.'); });
+    } else {
+      // Plain browser, built-in shortcut folder (Videos / Music / ...): there is nothing to read.
+      setRealFolderFiles([]);
     }
     return () => {
       cancelled = true;
     };
-  }, [activeFolderId, activeTab]);
+  }, [activeFolderId, activeTab, scanTick]);
 
   // Load real Platform Photos and User Locker Photos
   useEffect(() => {
@@ -739,91 +813,100 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   }, []);
 
   const handleAddFolder = async () => {
+    setFolderNotice(null);
+    const id = `f_${Date.now()}`;
     try {
+      let folder: PinnedFolder | null = null;
       if (isWindowsApp()) {
-        const picked = await pickWindowsFolder();
-        if (picked && picked.path) {
-          const folderName = picked.name || picked.path.split('\\').filter(Boolean).pop() || 'Windows Folder';
-          const newFolder: PinnedFolder = {
-            id: `f_${Date.now()}`,
-            name: folderName,
-            path: picked.path,
-            isSystem: false,
-            itemCount: 0,
-          };
-          const updated = [...pinnedFolders, newFolder];
-          setPinnedFolders(updated);
-          setActiveFolderId(newFolder.id);
-          try { localStorage.setItem('ambo_pinned_folders', JSON.stringify(updated)); } catch {}
-        }
+        const picked = await pickWindowsMediaFolder();
+        if (picked) folder = { id, name: picked.name, path: picked.path, isSystem: false, itemCount: 0, kind: 'windows' };
+      } else if (browserFolderAccessSupported()) {
+        const picked = await pickAndSaveBrowserFolder(id);
+        if (picked) folder = { id, name: picked.name, path: `Local Folder: ${picked.name}`, isSystem: false, itemCount: 0, kind: 'handle' };
+      } else {
+        setFolderNotice(UNSUPPORTED_MESSAGE);
         return;
       }
-      if ('showDirectoryPicker' in window) {
-        const handle = await (window as any).showDirectoryPicker();
-        if (handle) {
-          const folderName = handle.name || 'Custom Folder';
-          const newFolder: PinnedFolder = {
-            id: `f_${Date.now()}`,
-            name: folderName,
-            path: `Local Folder: ${folderName}`,
-            isSystem: false,
-            itemCount: 0,
-          };
-
-          const updated = [...pinnedFolders, newFolder];
-          setPinnedFolders(updated);
-          setActiveFolderId(newFolder.id);
-          try { localStorage.setItem('ambo_pinned_folders', JSON.stringify(updated)); } catch {}
-
-          // Read entries from directory handle
-          const files: AmboMediaSourceItem[] = [];
-          for await (const entry of handle.values()) {
-            if (entry.kind === 'file') {
-              const fileObj = await entry.getFile();
-              const isVideo = fileObj.type.startsWith('video/') || /\.(mp4|mov|webm|mkv)$/i.test(fileObj.name);
-              const isAudio = fileObj.type.startsWith('audio/') || /\.(mp3|wav|m4a|flac)$/i.test(fileObj.name);
-              const isImage = fileObj.type.startsWith('image/') || /\.(jpg|jpeg|png|webp)$/i.test(fileObj.name);
-              files.push({
-                id: `loc_${fileObj.name}`,
-                name: fileObj.name,
-                kind: isVideo ? 'VIDEO' : isAudio ? 'AUDIO' : isImage ? 'IMAGE' : 'VIDEO',
-                sub: `${(fileObj.size / (1024 * 1024)).toFixed(1)} MB · ${folderName}`,
-                src: URL.createObjectURL(fileObj),
-                tags: ['local', folderName.toLowerCase()],
-              });
-            }
-          }
-          setCustomFolderFiles(files);
-        }
-      } else {
-        const folderName = prompt('Enter folder name or mount path:', 'My Media Collection');
-        if (folderName && folderName.trim()) {
-          const newFolder: PinnedFolder = {
-            id: `f_${Date.now()}`,
-            name: folderName.trim(),
-            path: `C:\\Media\\${folderName.trim()}`,
-            isSystem: false,
-            itemCount: 8,
-          };
-          const updated = [...pinnedFolders, newFolder];
-          setPinnedFolders(updated);
-          setActiveFolderId(newFolder.id);
-          try { localStorage.setItem('ambo_pinned_folders', JSON.stringify(updated)); } catch {}
-        }
-      }
-    } catch {
-      /* user cancelled picker */
+      if (!folder) return; // cancelled
+      savePinned([...pinnedFolders, folder]);
+      setSelectedSubcat('Pinned Folders');
+      setActiveFolderId(folder.id);
+      setScanTick(t => t + 1);
+    } catch (e: any) {
+      setFolderNotice(`Could not add the folder: ${e?.message || 'access was blocked'}`);
     }
   };
 
   const handleRemoveFolder = (folderId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    const gone = pinnedFolders.find(f => f.id === folderId);
     const updated = pinnedFolders.filter(f => f.id !== folderId);
-    setPinnedFolders(updated);
-    if (activeFolderId === folderId && updated.length > 0) {
-      setActiveFolderId(updated[0].id);
+    if (gone?.kind === 'handle') { revokeFolderUrls(folderId); void deleteFolderHandle(folderId); }
+    if (getImportTarget()?.folderId === folderId) { setImportTarget(null); setImportTargetId(null); }
+    if (activeFolderId === folderId) {
+      setRealFolderFiles([]);
+      if (updated.length > 0) setActiveFolderId(updated[0].id);
     }
-    try { localStorage.setItem('ambo_pinned_folders', JSON.stringify(updated)); } catch {}
+    savePinned(updated);
+  };
+
+  const handleRenameFolder = (folderId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const f = pinnedFolders.find(x => x.id === folderId);
+    const name = f && window.prompt('Rename folder (display name only — the folder on disk is not renamed):', f.name)?.trim();
+    if (!f || !name) return;
+    savePinned(pinnedFolders.map(x => (x.id === folderId ? { ...x, name } : x)));
+    const t = getImportTarget();
+    if (t?.folderId === folderId) setImportTarget({ ...t, name });
+  };
+
+  const handleRescanFolder = (folderId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (folderId !== activeFolderId) { setSelectedSubcat('Pinned Folders'); setActiveFolderId(folderId); }
+    setScanTick(t => t + 1);
+  };
+
+  /** Must run from a click: the browser only re-grants folder access on a user gesture. */
+  const handleReconnectFolder = async (folderId: string) => {
+    const handle = await loadFolderHandle(folderId);
+    if (!handle) { setStatus(folderId, { state: 'error', message: 'This folder is no longer linked in this browser. Remove it and add it again.' }); return; }
+    const perm = await ensurePermission(handle, true);
+    if (perm === 'granted') setScanTick(t => t + 1);
+    else setStatus(folderId, { state: 'needs-permission', message: 'Access was not granted. Choose Allow when the browser asks.' });
+  };
+
+  const handleToggleImportTarget = (folder: PinnedFolder, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!folder.kind) return;
+    if (importTargetId === folder.id) { setImportTarget(null); setImportTargetId(null); return; }
+    setImportTarget({ folderId: folder.id, kind: folder.kind, path: folder.kind === 'windows' ? folder.path : undefined, name: folder.name });
+    setImportTargetId(folder.id);
+  };
+
+  /** Copy OS files into a custom folder so they persist, then rescan. */
+  const handleImportIntoFolder = async (folder: PinnedFolder, files: File[]) => {
+    if (!folder.kind || files.length === 0) return;
+    if (folder.kind === 'windows' && !isWindowsApp()) { setFolderNotice('Writing to a Windows folder needs the Plajah Windows app.'); return; }
+    setFolderNotice(null);
+    const res = await importFilesIntoTarget(files, { folderId: folder.id, kind: folder.kind, path: folder.kind === 'windows' ? folder.path : undefined, name: folder.name });
+    const bad = res.filter(r => !r.persisted);
+    setFolderNotice(bad.length ? `${res.length - bad.length} of ${res.length} copied into "${folder.name}". ${bad[0].note || 'Some files could not be copied.'}` : `Copied ${res.length} file${res.length === 1 ? '' : 's'} into "${folder.name}".`);
+    setScanTick(t => t + 1);
+  };
+
+  const handleNewSubfolder = async (folder: PinnedFolder) => {
+    if (folder.kind !== 'handle') { setFolderNotice('Creating subfolders from Ambo works with browser-linked folders; use Explorer for Windows folders.'); return; }
+    const name = window.prompt('New subfolder name:')?.trim();
+    if (!name) return;
+    try {
+      const handle = await loadFolderHandle(folder.id);
+      if (!handle) throw new Error('folder is not linked');
+      if ((await ensurePermission(handle, true)) !== 'granted') throw new Error('permission was not granted');
+      const made = await createSubfolderIn(handle, name);
+      setFolderNotice(`Created "${made}" in ${folder.name}. Drop files in it from your computer, or import above.`);
+    } catch (e: any) {
+      setFolderNotice(`Could not create the subfolder: ${e?.message || 'failed'}`);
+    }
   };
 
   // ── Scripture (Lectio) Specific State ──
@@ -1238,8 +1321,9 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
         name: s.streamName || s.label || 'Live source',
         kind: 'LIVE' as const,
         inputId: s.id,
-        sub: s.machineName || (s.kind === 'ndi' ? 'NDI network stream' : String(s.kind || 'Capture input')),
+        sub: s.machineName || (s.kind === 'ndi' ? 'NDI network stream' : s.kind === 'srt' ? (s.status || 'SRT endpoint') : String(s.kind || 'Capture input')),
         tags: [String(s.kind || 'live')],
+        online: s.online,
       }));
     return [...core, ...native];
   }, [nativeSources]);
@@ -1251,8 +1335,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
 
     if (selectedSubcat === 'Pinned Folders' || selectedSubcat === 'All Folders') {
       const activeFolder = pinnedFolders.find(f => f.id === activeFolderId);
-      if (realFolderFiles.length > 0) {
-        items = realFolderFiles;
+      if (realFolderFiles.length > 0 || activeFolder?.kind) {
+        items = realFolderFiles; // a custom folder shows exactly what is on disk, even when empty
       } else if (activeFolder) {
         items = items.filter(it => it.tags?.some(t => t.toLowerCase().includes(activeFolder.name.toLowerCase())) || it.sub?.includes(activeFolder.name));
       }
@@ -1282,6 +1366,9 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     e.dataTransfer.effectAllowed = 'copyMove';
   };
 
+  const activeFolderCustom = selectedSubcat === 'Pinned Folders' ? pinnedFolders.find(f => f.id === activeFolderId && f.kind) : undefined;
+  const activeFolderStatus = selectedSubcat === 'Pinned Folders' ? folderStatus[activeFolderId] : undefined;
+
   // 8 Tabs configuration
   const tabs = [
     { id: 'shows', label: 'Shows', icon: <Layers size={13} />, count: shows.length || 3 },
@@ -1293,6 +1380,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     { id: 'visualizers', label: 'Visualizers', icon: <Sparkles size={13} />, count: visualizerItems.length },
     { id: 'assets', label: 'Assets', icon: <FileText size={13} />, count: FABULA_LOTTIE_PRESETS.length + FABULA_TRANSITIONS.length },
     { id: 'live', label: 'Live Feeds', icon: <Radio size={13} />, count: liveFeedItems.length },
+    { id: 'routines', label: 'Routines', icon: <Clock size={13} /> },
   ] as const;
 
   if (isCollapsed) {
@@ -1903,7 +1991,27 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                         <span className="truncate">{folder.name}</span>
                       </div>
                       <div className="flex items-center gap-1.5 flex-none">
-                        <span className="font-mono text-[9px] text-white/30">{folder.itemCount}</span>
+                        {folderStatus[folder.id]?.state === 'needs-permission' && (
+                          <span className="font-mono text-[8.5px] text-[#FF8C00]" title="Needs reconnecting">!</span>
+                        )}
+                        <span className="font-mono text-[9px] text-white/30">{folder.kind || folderStatus[folder.id]?.state === 'ok' ? folder.itemCount : '–'}</span>
+                        {folder.kind && (
+                          <>
+                            <button
+                              onClick={e => handleToggleImportTarget(folder, e)}
+                              className={`p-0.5 transition-opacity hover:text-[#E3C57E] ${importTargetId === folder.id ? 'opacity-100 text-[#E3C57E]' : 'opacity-0 group-hover:opacity-100'}`}
+                              title={importTargetId === folder.id ? 'Dropped files are copied into this folder (click to stop)' : 'Copy dropped files into this folder'}
+                            >
+                              <Pin size={10} />
+                            </button>
+                            <button onClick={e => handleRescanFolder(folder.id, e)} className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-[#00DAF3] transition-opacity" title="Rescan folder">
+                              <RefreshCw size={10} />
+                            </button>
+                            <button onClick={e => handleRenameFolder(folder.id, e)} className="opacity-0 group-hover:opacity-100 p-0.5 hover:text-white transition-opacity" title="Rename">
+                              <Type size={10} />
+                            </button>
+                          </>
+                        )}
                         {!folder.isSystem && (
                           <button
                             onClick={e => handleRemoveFolder(folder.id, e)}
@@ -1957,8 +2065,47 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
             </div>
 
             {/* Right Column: Media Grid with Drag & Double-click Take */}
-            <div className="flex-1 p-3 overflow-y-auto">
-              {isLoadingFolderFiles ? (
+            <div
+              className="flex-1 p-3 overflow-y-auto"
+              onDragOver={e => { if (activeFolderCustom && e.dataTransfer.types.includes('Files')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } }}
+              onDrop={async e => {
+                if (!activeFolderCustom || !e.dataTransfer.types.includes('Files')) return;
+                e.preventDefault();
+                const files = await filesFromDataTransfer(e.dataTransfer);
+                void handleImportIntoFolder(activeFolderCustom, files);
+              }}
+            >
+              {folderNotice && (
+                <div className="mb-2 px-3 py-2 rounded-lg text-[11px] flex items-start gap-2 border border-[#FF8C00]/30 bg-[#FF8C00]/10 text-[#FFD9A0]">
+                  <span className="flex-1">{folderNotice}</span>
+                  <button onClick={() => setFolderNotice(null)} className="text-white/50 hover:text-white" title="Dismiss"><X size={11} /></button>
+                </div>
+              )}
+              {activeFolderCustom && (
+                <div className="mb-2 flex items-center gap-1.5 flex-wrap text-[10px]">
+                  <span className="font-semibold text-white/70 truncate max-w-[40%]" title={activeFolderCustom.path}>{activeFolderCustom.name}</span>
+                  <span className="text-white/35">{activeFolderCustom.itemCount} item{activeFolderCustom.itemCount === 1 ? '' : 's'}{folderStatus[activeFolderCustom.id]?.truncated ? ' (first batch — folder is larger)' : ''}</span>
+                  <div className="flex-1" />
+                  <label className="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white/80 cursor-pointer" title="Copy files from your computer into this folder">
+                    Import files...
+                    <input type="file" multiple accept="image/*,video/*,audio/*,.lottie,.json" className="hidden"
+                      onChange={e => { const fl = Array.from(e.target.files || []); e.target.value = ''; void handleImportIntoFolder(activeFolderCustom, fl); }} />
+                  </label>
+                  {activeFolderCustom.kind === 'handle' && (
+                    <button onClick={() => handleNewSubfolder(activeFolderCustom)} className="px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-white/80">New subfolder</button>
+                  )}
+                </div>
+              )}
+              {activeFolderStatus && (activeFolderStatus.state === 'needs-permission' || activeFolderStatus.state === 'error') && !isLoadingFolderFiles ? (
+                <div className="h-full flex flex-col items-center justify-center text-white/50 gap-2 py-12 text-center px-6">
+                  <Folder size={32} className={activeFolderStatus.state === 'error' ? 'text-red-400/60' : 'text-[#FF8C00]/70'} />
+                  <span className="text-[12.5px] font-medium">{activeFolderStatus.state === 'needs-permission' ? 'Folder needs reconnecting' : 'Folder unavailable'}</span>
+                  <span className="text-[11px] text-white/40 max-w-sm">{activeFolderStatus.message}</span>
+                  {activeFolderStatus.state === 'needs-permission' && activeFolderCustom && (
+                    <button onClick={() => handleReconnectFolder(activeFolderCustom.id)} className="mt-1 px-3 py-1.5 rounded-lg text-[11px] font-bold bg-[#00DAF3]/20 text-[#00DAF3] border border-[#00DAF3]/40 hover:bg-[#00DAF3]/30">Reconnect</button>
+                  )}
+                </div>
+              ) : isLoadingFolderFiles ? (
                 <div className="h-full flex flex-col items-center justify-center text-white/40 gap-2 py-12">
                   <RefreshCw size={24} className="animate-spin text-[#00DAF3]" />
                   <span className="text-[12px]">Scanning disk folder...</span>
@@ -2642,6 +2789,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
         {/* LIVE FEEDS — switcher buses, SDI capture, NDI and native inputs           */}
         {/* Single-click: Preview · Double-click: Take to Program · drag onto a slide */}
         {/* ========================================================================= */}
+        {activeTab === 'routines' && <AmboRoutinesPanel shows={shows} />}
+
         {activeTab === 'live' && (
           <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
             <div className="flex items-center justify-between px-3 py-2 border-b border-white/10 bg-black/30">
@@ -2649,10 +2798,10 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
               <button
                 onClick={onScanNdi}
                 className="px-2.5 py-1 rounded-lg text-[10px] font-bold text-white/80 bg-white/5 hover:bg-white/15 border border-white/10 flex items-center gap-1"
-                title="Scan the network for NDI streams and refresh native inputs"
+                title="NDI and OMT sources appear automatically; click to force a rescan"
               >
                 <RefreshCw size={11} className={isScanningNdi ? 'animate-spin' : ''} />
-                <span>{isScanningNdi ? 'Scanning…' : 'Scan NDI'}</span>
+                <span>{isScanningNdi ? 'Scanning…' : 'Rescan'}</span>
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-3 grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-2 content-start">
@@ -2678,7 +2827,11 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                     <div className="aspect-video rounded-lg mb-2 grid place-items-center bg-gradient-to-br from-[#14202b] to-[#0a0f14] border border-white/5">
                       <Radio size={22} className={isLive ? 'text-[#FF8C00]' : isPrev ? 'text-[#00DAF3]' : 'text-white/25'} />
                     </div>
-                    <div className="text-[11px] font-semibold text-white truncate">{item.name}</div>
+                    <div className="text-[11px] font-semibold text-white truncate flex items-center gap-1.5">
+                      <span className="truncate">{item.name}</span>
+                      {item.online !== undefined && <span title={item.online ? 'Online' : 'Offline'} className="inline-block w-1.5 h-1.5 rounded-full flex-none" style={{ background: item.online ? '#34d399' : '#6b7280' }} />}
+                      {['ndi', 'omt', 'srt'].includes(item.tags?.[0] ?? '') && <span className="px-1 rounded text-[7px] font-black font-mono uppercase bg-white/10 text-white/60">{item.tags?.[0]}</span>}
+                    </div>
                     <div className="text-[9.5px] text-white/40 truncate">{item.sub}</div>
                     {isLive && <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[8px] font-black bg-[#FF8C00] text-black">LIVE</span>}
                     {isPrev && <span className="absolute top-2 right-2 px-1.5 py-0.5 rounded text-[8px] font-black bg-[#00DAF3] text-black">PREVIEW</span>}
@@ -2687,7 +2840,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
               })}
               {liveFeedItems.length <= 3 && (
                 <div className="col-span-full text-[10px] text-white/35 px-1 pt-1">
-                  No NDI or native inputs found yet — press Scan NDI, or connect a capture device. (Windows app: DeckLink/NDI appear automatically.)
+                  No NDI, OMT or SRT sources yet. They appear here automatically when they come online (Rescan forces a check). SRT is not announced: save an endpoint in the Router Receiver.
                 </div>
               )}
             </div>

@@ -9,6 +9,7 @@ import { PHOTO_TEMPLATES } from './templatesPhoto';
 import { VIDEO_TEMPLATES } from './templatesVideo';
 import { AUDIO_TEMPLATES } from './templatesAudio';
 import { DATA_TEMPLATES } from './templatesData';
+import { FREEFORM_ID, buildFreeformObjects } from './freeform';
 
 const F = (key: string, label: string, def: string, o: Partial<FieldDef> = {}): FieldDef => ({ key, label, default: def, ...o });
 
@@ -52,7 +53,13 @@ SLIDE_TEMPLATES.push(...PHOTO_TEMPLATES, ...VIDEO_TEMPLATES, ...AUDIO_TEMPLATES,
 
 export const TEMPLATE_CATEGORIES = ['Welcome', 'Sermon', 'Worship', 'Announcements', 'Giving', 'Moments', 'Media', 'Photo', 'Video', 'Audio', 'Data'] as const;
 
-export function templateById(id: string): SlideTemplateDef | undefined { return SLIDE_TEMPLATES.find(t => t.id === id); }
+/** The slide editor's blank-canvas design. Resolvable by id (saved "my design" templates, thumbnails) but not listed in the gallery. */
+const FREEFORM_DEF: SlideTemplateDef = {
+  id: FREEFORM_ID, name: 'My design', category: 'Moments', slot: 'slide', blurb: 'A slide you designed in the slide editor.',
+  fields: [{ key: 'scene', label: 'Design', default: '' }],
+  design: d => buildFreeformObjects(d.f, d.W, d.H),
+};
+export function templateById(id: string): SlideTemplateDef | undefined { return id === FREEFORM_ID ? FREEFORM_DEF : SLIDE_TEMPLATES.find(t => t.id === id); }
 
 export function defaultFields(t: SlideTemplateDef): Record<string, string> {
   return Object.fromEntries(t.fields.map(f => [f.key, f.default]));
@@ -143,6 +150,7 @@ function hash(s: string): number { let h = 7; for (let i = 0; i < s.length; i++)
  * so the caller can fall back to a labelled card.
  */
 export function buildSlideObjects(templateId: string, themeId: string | undefined, fields: Record<string, string> | undefined, W: number, H: number): SlideObj[] | null {
+  if (templateId === FREEFORM_ID) return W > 0 && H > 0 ? buildFreeformObjects(fields, W, H) : null;
   const t = templateById(templateId);
   if (!t || !(W > 0) || !(H > 0)) return null;
   const f: Record<string, string> = { ...defaultFields(t) };

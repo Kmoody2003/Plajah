@@ -13,6 +13,7 @@ import { prelude } from './parts';
 import { measureText } from '../../tela/telaText';
 import { pathPx, dPoly } from './motifKit';
 import './dataDrawers';
+import './liveCaptionDrawer';
 import type { FontSpec, TextSpec, BarMark, BarsProps, LineProps, LineSeries, DonutProps, KpiProps, GoalProps, DumbbellProps, TimelineProps, PictoProps, StackProps } from './dataDrawers';
 import { chartStyle, markColor, onPanel, blend, contrast } from './chartStyle';
 import { parseData, parseMilestones, parseRatio, formatValue, formatDelta, niceScale, stepDecimals, numberIn, pick, type DataSet, type DataRow, type NumFormat } from './dataParse';

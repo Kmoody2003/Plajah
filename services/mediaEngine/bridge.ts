@@ -26,6 +26,8 @@ export interface NativeSourceInfo {
   streamName?: string;
   status?: string;
   discoveryMethod?: string;
+  /** Set by the discovery manager: false once a source has stopped being announced. */
+  online?: boolean;
 }
 
 type Invoke = (cmd: string, args?: Record<string, unknown>) => Promise<any>;
@@ -309,6 +311,26 @@ export async function stopSrtStream(streamId: string): Promise<boolean> {
   const invoke = resolveInvoke();
   if (!invoke) return false;
   try { const res = await invoke('srt_stop', { streamId }); return !!res?.success; } catch { return false; }
+}
+
+export interface SrtTransportStatus {
+  /** The host answered the srt_info probe at all (older hosts have no such command). */
+  hostAnswered: boolean;
+  /** A real SRT transport (libsrt) is linked — when false, srt_* calls only register sessions and move no media. */
+  transportAvailable: boolean;
+  reason?: string;
+}
+/** Does the native host carry a real SRT transport? Null in the browser. */
+export async function getSrtTransportStatus(): Promise<SrtTransportStatus | null> {
+  const invoke = resolveInvoke();
+  if (!invoke) return null;
+  try {
+    const r = await invoke('srt_info');
+    if (!r) return { hostAnswered: false, transportAvailable: false, reason: 'This host does not answer srt_info (older build).' };
+    return { hostAnswered: true, transportAvailable: !!pick(r, 'transportAvailable', 'TransportAvailable'), reason: pick(r, 'reason', 'Reason') || undefined };
+  } catch (e: any) {
+    return { hostAnswered: false, transportAvailable: false, reason: 'This host has no SRT handlers (srt_info failed).' };
+  }
 }
 
 export async function getSrtStats(streamId: string): Promise<any> {

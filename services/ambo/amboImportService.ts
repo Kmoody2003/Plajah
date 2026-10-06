@@ -95,11 +95,7 @@ export function parseFreeShowJson(rawText: string): Show {
       {
         id: newId('sl'),
         label: 'Welcome',
-        layers: [{
-          id: newId('ly'),
-          slot: 'slide',
-          content: { kind: 'TEXT', blocks: [{ text: title, role: 'title' }] }
-        }]
+        layers: [],   // import placeholder: starts empty
       }
     ],
   };
@@ -206,11 +202,7 @@ export async function parsePowerPointBuffer(buf: ArrayBuffer, filename = 'Presen
     slides.push({
       id: newId('sl'),
       label: showTitle,
-      layers: [{
-        id: newId('ly'),
-        slot: 'slide',
-        content: { kind: 'TEXT', blocks: [{ text: showTitle, role: 'title' }] }
-      }]
+      layers: [],   // import placeholder: starts empty
     });
   }
 
@@ -288,11 +280,7 @@ export async function parsePdfBuffer(buf: ArrayBuffer, filename = 'Document.pdf'
     slides.push({
       id: newId('sl'),
       label: 'Page 1',
-      layers: [{
-        id: newId('ly'),
-        slot: 'slide',
-        content: { kind: 'TEXT', blocks: [{ text: `${showTitle}\n(PDF Document)`, role: 'title' }] }
-      }]
+      layers: [],   // import placeholder: starts empty
     });
   }
 
@@ -347,11 +335,7 @@ export async function parseKeynoteBuffer(buf: ArrayBuffer, filename = 'Presentat
     slides.push({
       id: newId('sl'),
       label: 'Slide 1',
-      layers: [{
-        id: newId('ly'),
-        slot: 'slide',
-        content: { kind: 'TEXT', blocks: [{ text: showTitle, role: 'title' }] }
-      }]
+      layers: [],   // import placeholder: starts empty
     });
   }
 

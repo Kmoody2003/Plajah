@@ -16,7 +16,7 @@ import type { LayerContent, LyricClock } from './showModel';
 import { lyricClockPos } from './showModel';
 import type { LyricLine } from './lyricStyles';
 
-export type LyricSourceId = 'bus' | 'dj';
+export type LyricSourceId = 'bus' | 'dj' | 'live';
 
 export interface LyricTrackMeta {
   id?: string;

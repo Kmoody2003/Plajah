@@ -45,26 +45,8 @@ export const AmboNewShowModal: React.FC<AmboNewShowModalProps> = ({
         label: i === 0 ? 'Title Slide' : `Slide ${i + 1}`,
         group: kind === 'SONG' ? (i === 0 ? 'Verse 1' : i === 1 ? 'Chorus' : 'Bridge') : 'Main Section',
         groupColor: selectedColor,
-        layers: [
-          {
-            id: newId('ly_bg'),
-            slot: 'background',
-            content: { kind: 'GENERATOR', mode: 'STUDIO_AURORA' },
-          },
-          {
-            id: newId('ly_txt'),
-            slot: 'slide',
-            content: {
-              kind: 'TEXT',
-              blocks: [
-                {
-                  text: i === 0 ? finalTitle : `Content for Slide ${i + 1}`,
-                  role: i === 0 ? 'title' : 'body',
-                },
-              ],
-            },
-          },
-        ],
+        // New slides start EMPTY (no text, no background) — the slide editor builds them.
+        layers: [],
       }));
 
       const newShow: Show = {
@@ -86,21 +68,7 @@ export const AmboNewShowModal: React.FC<AmboNewShowModalProps> = ({
             label: 'Service Opening',
             group: 'Call to Worship',
             groupColor: selectedColor,
-            layers: [
-              {
-                id: newId('ly_bg'),
-                slot: 'background',
-                content: { kind: 'GENERATOR', mode: 'STUDIO_AURORA' },
-              },
-              {
-                id: newId('ly_txt'),
-                slot: 'slide',
-                content: {
-                  kind: 'TEXT',
-                  blocks: [{ text: finalTitle, role: 'title' }],
-                },
-              },
-            ],
+            layers: [],   // starts empty — the slide editor builds it
           },
         ],
       };

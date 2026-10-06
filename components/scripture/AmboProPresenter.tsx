@@ -34,6 +34,9 @@ import {
   getNextLoopDeckSlide,
 } from '../../services/ambo/amboLoopDeckService';
 import { LayerRenderer } from '../../services/ambo/layerRenderer';
+import AmboRoutineHost from './AmboRoutineHost';
+import { GENERATOR_ITEMS as ROUTINE_GENERATOR_ITEMS } from '../../services/ambo/mediaLibrary';
+import { fetchPersonalPlaylists as fetchRoutinePlaylists } from '../../services/backendService';
 import { DEMO_LIBRARY, DEMO_PLAYLIST, slideText } from '../../services/ambo/servicePlanDemo';
 import {
   publishAmboLiveOutput, detectScreens, autoDetectOutputResolution,
@@ -42,8 +45,9 @@ import {
   generatePairingInfo, getActivePairing, flashAllDisplayIdentifiers
 } from '../../services/ambo/outputRouter';
 import {
-  listNativeSources, scanNetworkFeeds, getNdiStatus, type NativeSourceInfo,
+  listNativeSources, type NativeSourceInfo,
 } from '../../services/mediaEngine/bridge';
+import { useDiscoveredSources } from '../../services/mediaEngine/useDiscoveredSources';
 import { isWindowsApp, openStudioCleanFeed, closeStudioCleanFeed } from '../../services/windowsBridgeService';
 import {
   type AmboProject,
@@ -71,6 +75,8 @@ import { AmboImportModal } from './AmboImportModal';
 import AmboDJTrackPlayer, { type AmboDJTrack } from './AmboDJTrackPlayer';
 import AmboAudioBus, { useAudioBus } from './AmboAudioBus';
 import AmboLyricsControl from './AmboLyricsControl';
+import AmboAutoScriptureControl from './AmboAutoScriptureControl';
+import { setAutoScriptureSink } from '../../services/ambo/autoScripture';
 import AmboMixer from './AmboMixer';
 import { amboAudio } from '../../services/ambo/amboAudioEngine';
 import { stampScripture } from '../../services/ambo/scriptureLook';
@@ -99,6 +105,8 @@ import { nextVerseCue } from '../../services/ambo/scriptureNext';
 import { getAutoCueNext } from '../../services/ambo/scriptureAutoCue';
 import { applySavedLook } from '../../services/ambo/scriptureLook';
 import { noteTemplateUse, slideFieldsFor, type SavedTemplate } from '../../services/ambo/templateLibrary';
+import { importFilesIntoTarget, filesFromDataTransfer, moveBefore, insertionIndexFor } from '../../services/ambo/mediaFolders';
+import { applyMediaToSlide, slideFromMedia, sourceToDropMedia, playlistItemFromMedia, type DropMedia } from '../../services/ambo/mediaDrop';
 
 interface AmboProPresenterProps {
   onBack?: () => void;
@@ -146,19 +154,6 @@ const fmt = (s: number) => {
   const m = Math.floor(s / 60), ss = s % 60;
   return `${String(m).padStart(2, '0')}:${String(ss).padStart(2, '0')}`;
 };
-
-/** Replace a slide's primary text (its first TEXT layer) — the editor's save path. */
-function withText(slide: Slide, text: string): Slide {
-  let done = false;
-  const layers = slide.layers.map(ly => {
-    if (!done && ly.content.kind === 'TEXT') {
-      done = true;
-      return { ...ly, content: { ...ly.content, blocks: [{ text, role: 'body' as const }] } };
-    }
-    return ly;
-  });
-  return { ...slide, layers };
-}
 
 // Simple QR code-like pairing display (uses a text-based code + link)
 const PairingPanel = React.memo(({ info, onRefresh }: { info: any; onRefresh: () => void }) => {
@@ -627,6 +622,9 @@ useEffect(() => {
   const [isScanningNdi, setIsScanningNdi] = useState(false);
   /** Plain-language reason the last scan found no NDI senders (firewall, network, runtime), if any. */
   const [networkDiagnosis, setNetworkDiagnosis] = useState<string | null>(null);
+  /** Continuous NDI/OMT/SRT discovery (no scan button needed); `nativeSources` below is fed from it. */
+  const discovery = useDiscoveredSources();
+  const [newSourceNotice, setNewSourceNotice] = useState<string | null>(null);
 
   // Inspector & Router Receiver UI States
   const [inspectorOpen, setInspectorOpen] = useState(false);
@@ -717,26 +715,38 @@ useEffect(() => {
     } catch { }
   };
 
+  const NETWORK_KINDS = ['ndi', 'omt', 'srt'];
   const loadSources = async () => {
     try {
       const list = await listNativeSources();
-      setNativeSources(list);
+      // Network feeds come from the discovery manager (it tracks online/offline); keep everything else from the host.
+      setNativeSources([...list.filter(s => !NETWORK_KINDS.includes(String(s.kind))), ...discovery.manager.getSnapshot().sources]);
     } catch { }
   };
 
+  // Mirror discovered NDI / OMT / SRT sources into the lists the Inspector, Router, Live Feeds and Media Bin read.
+  useEffect(() => {
+    setNativeSources(prev => [...prev.filter(s => !NETWORK_KINDS.includes(String(s.kind))), ...discovery.sources]);
+    const ndi = discovery.status.ndi;
+    setNetworkDiagnosis(discovery.sources.some(s => s.kind === 'ndi' && s.online) || ndi.state === 'unknown' ? null : (ndi.detail ?? null));
+  }, [discovery.sources, discovery.status]);
+
+  // Announce sources the moment they appear (and when a listening SRT port gets an encoder).
+  useEffect(() => discovery.manager.onEvent(e => {
+    if (e.type !== 'added' && e.type !== 'online') return;
+    if (e.source.protocol === 'srt' && e.type === 'added' && !e.source.online) return;
+    setNewSourceNotice(`${e.source.protocol.toUpperCase()} source ${e.type === 'added' ? 'found' : 'online'}: ${e.source.streamName || e.source.label}`);
+  }), [discovery.manager]);
+  useEffect(() => {
+    if (!newSourceNotice) return;
+    const t = setTimeout(() => setNewSourceNotice(null), 4000);
+    return () => clearTimeout(t);
+  }, [newSourceNotice]);
+
+  /** Manual fallback: force a discovery pass now. */
   const handleScanNdi = async () => {
     setIsScanningNdi(true);
-    try {
-      // NDI + OMT senders. Merge into the list — capture cards and other kinds must stay.
-      const found = await scanNetworkFeeds();
-      setNativeSources(prev => [...prev.filter(s => s.kind !== 'ndi' && s.kind !== 'omt'), ...found]);
-      if (found.some(s => s.kind === 'ndi')) setNetworkDiagnosis(null);
-      else setNetworkDiagnosis((await getNdiStatus())?.diagnosis ?? null);
-    } catch {
-      await loadSources();
-    } finally {
-      setIsScanningNdi(false);
-    }
+    try { await discovery.rescan(); } finally { setIsScanningNdi(false); }
   };
 
   useEffect(() => {
@@ -932,24 +942,8 @@ useEffect(() => {
       label: template?.label ?? `Slide ${slides.length + 1}`,
       group: template?.group ?? (prevSlide?.group ?? 'Verse 1'),
       groupColor: template?.groupColor ?? (prevSlide?.groupColor ?? '#6B0099'),
-      layers: template?.layers ?? [
-        {
-          id: newId('ly_bg'),
-          slot: 'background',
-          content: { kind: 'GENERATOR', mode: 'STUDIO_AURORA' },
-        },
-        {
-          id: newId('ly_txt'),
-          slot: 'slide',
-          enabled: false,
-          visible: false,
-          content: {
-            kind: 'TEXT',
-            blocks: [{ text: template?.notes || 'New Slide Text', role: 'body' }],
-            style: { align: 'center', valign: 'middle' },
-          },
-        },
-      ],
+      // A new slide starts EMPTY: no text, no background. The slide editor builds it from there.
+      layers: template?.layers ?? [],
       notes: template?.notes,
     };
 
@@ -1016,7 +1010,7 @@ useEffect(() => {
     } else if (item.kind === 'VIDEO') {
       setPreviewBackgroundOverride({
         kind: 'VIDEO',
-        src: item.src || 'https://assets.mixkit.co/videos/preview/mixkit-clouds-and-blue-sky-2408-large.mp4',
+        src: item.src || '',
         loop: true,
         muted: false,
         volume: 1.0,
@@ -1122,7 +1116,16 @@ useEffect(() => {
   };
 
   const handleInsertMediaSlide = (item: AmboMediaSourceItem) => {
-    let bgContent: LayerContent;
+    let bgContent: LayerContent | null;
+    if (item.kind === 'AUDIO' || item.kind === 'LOTTIE') {
+      const dm = sourceToDropMedia(item);
+      const s = dm && slideFromMedia(dm);
+      if (s) {
+        setLibrary(libs => libs.map(sh => (sh.id !== activeShow.id ? sh : { ...sh, slides: [...sh.slides, s] })));
+        setSelected(slides.length);
+      }
+      return;
+    }
     if (item.kind === 'LIVE') {
       bgContent = { kind: 'LIVE', inputId: item.inputId || item.id, label: item.name };
     } else if (item.kind === 'GENERATOR') {
@@ -1143,21 +1146,22 @@ useEffect(() => {
         src: item.src || '',
       };
     } else {
-      bgContent = { kind: 'GENERATOR', mode: 'STUDIO_AURORA' };
+      bgContent = null;   // unknown source: an empty slide, not a made-up background
     }
+    if (bgContent && (bgContent.kind === 'VIDEO' || bgContent.kind === 'IMAGE') && !bgContent.src) bgContent = null;
 
     const newSlide: Slide = {
       id: newId('sl_media'),
       label: item.name,
       group: item.kind === 'VIDEO' ? 'Video Media' : item.kind === 'IMAGE' ? 'Photos' : 'Visualizers',
       groupColor: item.kind === 'VIDEO' ? '#00DAF3' : item.kind === 'IMAGE' ? '#10B981' : '#FF8C00',
-      layers: [
+      layers: bgContent ? [
         {
           id: newId('ly_bg'),
           slot: 'background',
           content: bgContent,
         },
-      ],
+      ] : [],
     };
 
     setLibrary(libs => libs.map(sh => {
@@ -1178,11 +1182,68 @@ useEffect(() => {
     setSelected(prev => (prev >= 0 ? prev + 1 : 0));
   };
 
+  /** Operator-visible note about dropped files (not persisted, unsupported, ...). Clears itself. */
+  const [dropNote, setDropNote] = useState<string | null>(null);
+  const dropNoteTimer = useRef<number | undefined>(undefined);
+  const showDropNote = (msg: string | null) => {
+    setDropNote(msg);
+    window.clearTimeout(dropNoteTimer.current);
+    if (msg) dropNoteTimer.current = window.setTimeout(() => setDropNote(null), 9000);
+  };
+
+  /**
+   * OS files -> playable media. Files are copied into the configured media folder when there is
+   * one (so the asset persists); otherwise they stay blob URLs and the operator is told.
+   * Dropped folders are expanded first.
+   */
+  const mediaFromFiles = async (files: File[]): Promise<DropMedia[]> => {
+    if (files.length === 0) return [];
+    const imported = await importFilesIntoTarget(files);
+    const unsupported = imported.filter(i => !i.kind || i.kind === 'DOC').map(i => i.name);
+    const memoryOnly = imported.filter(i => !i.persisted && i.kind && i.kind !== 'DOC');
+    const notes: string[] = [];
+    if (unsupported.length) notes.push(`Skipped unsupported file${unsupported.length > 1 ? 's' : ''}: ${unsupported.slice(0, 3).join(', ')}${unsupported.length > 3 ? '...' : ''}.`);
+    if (memoryOnly.length) notes.push(memoryOnly[0].note || 'Not saved to a folder — these files only last until you reload.');
+    showDropNote(notes.length ? notes.join(' ') : null);
+    return imported.map(i => ({ name: i.name, kind: i.kind, url: i.url }));
+  };
+
+  /** Reads an in-app drag payload (media library item / audio track) as DropMedia. */
+  const mediaFromPayload = (parsed: any): DropMedia[] => {
+    if (parsed?.type === 'ambo-audio' && parsed.track?.url) return [{ name: parsed.track.title || 'Audio', kind: 'AUDIO', url: parsed.track.url }];
+    if (parsed?.type === 'ambo-source' && parsed.source) { const m = sourceToDropMedia(parsed.source); return m ? [m] : []; }
+    return [];
+  };
+
+  const insertSlidesAfter = (afterIdx: number, news: Slide[]) => {
+    if (news.length === 0) return;
+    setLibrary(libs => libs.map(sh => {
+      if (sh.id !== activeShow.id) return sh;
+      const next = [...sh.slides];
+      next.splice(Math.max(0, Math.min(next.length, afterIdx + 1)), 0, ...news);
+      return { ...sh, slides: next };
+    }));
+  };
+
+  // Slide-card reorder (drag a card, drop in the gap). `insertAt` = index the dragged card will land BEFORE.
+  const [insertAt, setInsertAt] = useState<number | null>(null);
+  const draggingSlideRef = useRef<number | null>(null);
+  const reorderSlide = (from: number, insertBefore: number) => {
+    const selId = slides[selected]?.id;
+    const next = moveBefore(slides, from, insertBefore);
+    if (next.every((s, k) => s === slides[k])) return;
+    setLibrary(libs => libs.map(sh => (sh.id !== activeShow.id ? sh : { ...sh, slides: next })));
+    const at = selId ? next.findIndex(s => s.id === selId) : -1;
+    if (at >= 0) setSelected(at);
+  };
+
   const [isDraggingOverDeck, setIsDraggingOverDeck] = useState(false);
 
   const handleDropOnPresentationDeck = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDraggingOverDeck(false);
+    setInsertAt(null);
+    if (draggingSlideRef.current !== null) { const from = draggingSlideRef.current; draggingSlideRef.current = null; reorderSlide(from, slides.length); return; } // card dropped past the last one: move to end
     try {
       const dataStr = e.dataTransfer.getData('application/json');
       if (dataStr) {
@@ -1196,104 +1257,43 @@ useEffect(() => {
           return;
         }
       }
+    } catch { /* not an in-app payload — treat as OS files */ }
 
-      const files = Array.from(e.dataTransfer.files || []);
-      if (files.length > 0) {
-        const newSlides: Slide[] = [];
-
-        for (const file of files) {
-          const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm|mkv|m4v|avi|mpg|mpeg|wmv)$/i.test(file.name);
-          const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg|avif|bmp|tiff|tif)$/i.test(file.name);
-          const isAudio = file.type.startsWith('audio/') || /\.(mp3|wav|m4a|aac|flac|ogg|aiff|wma)$/i.test(file.name);
-          const blobUrl = URL.createObjectURL(file);
-          const cleanName = file.name.replace(/\.[^/.]+$/, '');
-
-          if (isAudio) {
-            newSlides.push({
-              id: newId('sl_audio'),
-              label: cleanName,
-              group: 'Audio Assets',
-              groupColor: '#D0BCFF',
-              layers: [
-                {
-                  id: newId('ly_bg'),
-                  slot: 'background',
-                  content: { kind: 'GENERATOR', mode: 'WAVEFORM' },
-                },
-                {
-                  id: newId('ly_txt'),
-                  slot: 'slide',
-                  content: {
-                    kind: 'TEXT',
-                    blocks: [
-                      { text: cleanName, role: 'title' },
-                      { text: 'Local Audio File • Playback', role: 'caption' },
-                    ],
-                    style: { align: 'center', valign: 'middle' },
-                  },
-                },
-                {
-                  id: newId('ly_audio'),
-                  slot: 'overlay',
-                  content: { kind: 'AUDIO', src: blobUrl, volume: 1.0, loop: false },
-                },
-              ],
-              onEnter: [{ kind: 'AUDIO_PLAY', src: blobUrl, volume: 1.0 }],
-            });
-          } else if (isVideo) {
-            newSlides.push({
-              id: newId('sl_video'),
-              label: cleanName,
-              group: 'Video Media',
-              groupColor: '#00DAF3',
-              layers: [
-                {
-                  id: newId('ly_bg'),
-                  slot: 'background',
-                  content: { kind: 'VIDEO', src: blobUrl, loop: true },
-                },
-              ],
-            });
-          } else if (isImage) {
-            newSlides.push({
-              id: newId('sl_image'),
-              label: cleanName,
-              group: 'Photos',
-              groupColor: '#10B981',
-              layers: [
-                {
-                  id: newId('ly_bg'),
-                  slot: 'background',
-                  content: { kind: 'IMAGE', src: blobUrl },
-                },
-              ],
-            });
-          }
-        }
-
+    // OS files / folders. filesFromDataTransfer captures the handles synchronously, then awaits.
+    const pending = filesFromDataTransfer(e.dataTransfer);
+    void (async () => {
+      try {
+        const media = await mediaFromFiles(await pending);
+        const newSlides = media.map(slideFromMedia).filter((s): s is Slide => !!s);
         if (newSlides.length > 0) {
-          setLibrary(libs => libs.map(sh => {
-            if (sh.id !== activeShow.id) return sh;
-            return { ...sh, slides: [...sh.slides, ...newSlides] };
-          }));
+          setLibrary(libs => libs.map(sh => (sh.id !== activeShow.id ? sh : { ...sh, slides: [...sh.slides, ...newSlides] })));
           setSelected(slides.length);
         }
-      }
-    } catch { /* ignore drop error */ }
+      } catch (err: any) { showDropNote(`Drop failed: ${err?.message || 'could not read the files'}`); }
+    })();
   };
 
   const handleDropOnSlide = (e: React.DragEvent, slideIndex: number) => {
     e.preventDefault();
     e.stopPropagation();
+    setInsertAt(null);
+    const targetSlide = slides[slideIndex];
     try {
+      // Reordering one of our own cards.
+      const from = draggingSlideRef.current;
+      if (from !== null) {
+        draggingSlideRef.current = null;
+        const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+        reorderSlide(from, insertionIndexFor(slideIndex, e.clientX - rect.left, rect.width));
+        return;
+      }
+      if (!targetSlide) return;
+
       const dataStr = e.dataTransfer.getData('application/json');
       if (dataStr) {
         const parsed = JSON.parse(dataStr);
         if (parsed.type === 'ambo-audio' && parsed.track) {
           const track: AmboDJTrack = parsed.track;
-          const targetSlide = slides[slideIndex];
-          if (!targetSlide) return;
-
           const audioLayer: SlideLayer = {
             id: newId('ly_audio'),
             slot: 'overlay',
@@ -1310,8 +1310,15 @@ useEffect(() => {
         }
         if (parsed.type === 'ambo-source' && parsed.source) {
           const item: AmboMediaSourceItem = parsed.source;
-          const targetSlide = slides[slideIndex];
-          if (!targetSlide) return;
+          // Audio / Lottie from the media library: apply to the slide (these used to be silently ignored).
+          if (item.kind === 'AUDIO' || item.kind === 'LOTTIE') {
+            const m = sourceToDropMedia(item);
+            if (!m) return;
+            const r = applyMediaToSlide(targetSlide, [m]);
+            handleUpdateSlide(r.slide);
+            if (item.kind === 'AUDIO') setActiveDjTrack({ id: `audio_${Date.now()}`, title: item.name, artist: 'Media Library', url: m.url, duration: 'Local' });
+            return;
+          }
 
           let bgContent: LayerContent;
           if (item.kind === 'LIVE') {
@@ -1340,52 +1347,43 @@ useEffect(() => {
           return;
         }
       }
+    } catch { /* not an in-app payload — fall through to OS files */ }
 
-      if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-        const file = e.dataTransfer.files[0];
-        const isVideo = file.type.startsWith('video/') || /\.(mp4|mov|webm|mkv|m4v|avi|mpg|mpeg|wmv)$/i.test(file.name);
-        const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|svg|avif|bmp|tiff|tif)$/i.test(file.name);
-        const isAudio = file.type.startsWith('audio/') || /\.(mp3|wav|m4a|aac|flac|ogg|aiff|wma)$/i.test(file.name);
-        const blobUrl = URL.createObjectURL(file);
-        const targetSlide = slides[slideIndex];
-        if (!targetSlide) return;
+    if (!targetSlide || !e.dataTransfer.types.includes('Files')) return;
+    // OS files: first image/video = this card's background, audio = its cue, the REST become new slides after it.
+    const pending = filesFromDataTransfer(e.dataTransfer);
+    void (async () => {
+      try {
+        const media = await mediaFromFiles(await pending);
+        const r = applyMediaToSlide(targetSlide, media);
+        handleUpdateSlide(r.slide);
+        insertSlidesAfter(slideIndex, r.extra);
+        const audio = media.find(m => m.kind === 'AUDIO');
+        if (audio) setActiveDjTrack({ id: `audio_${Date.now()}`, title: audio.name.replace(/\.[^/.]+$/, ''), artist: 'Local Audio File', url: audio.url, duration: 'Local' });
+      } catch (err: any) { showDropNote(`Drop failed: ${err?.message || 'could not read the files'}`); }
+    })();
+  };
 
-        if (isAudio) {
-          const track: AmboDJTrack = {
-            id: `audio_${Date.now()}`,
-            title: file.name.replace(/\.[^/.]+$/, ''),
-            artist: 'Local Audio File',
-            url: blobUrl,
-            duration: 'Local',
-          };
-          const audioLayer: SlideLayer = {
-            id: newId('ly_audio'),
-            slot: 'overlay',
-            content: { kind: 'AUDIO', src: blobUrl, volume: 1.0 },
-          };
-          const newLayers = [...targetSlide.layers.filter(l => l.content.kind !== 'AUDIO'), audioLayer];
-          const newActions = [
-            ...(targetSlide.onEnter || []).filter(a => a.kind !== 'AUDIO_PLAY'),
-            { kind: 'AUDIO_PLAY' as const, src: blobUrl, volume: 1.0 },
-          ];
-          handleUpdateSlide({ ...targetSlide, layers: newLayers, onEnter: newActions });
-          setActiveDjTrack(track);
-        } else if (isVideo || isImage) {
-          const bgContent: LayerContent = isVideo
-            ? { kind: 'VIDEO', src: blobUrl, loop: true }
-            : { kind: 'IMAGE', src: blobUrl };
-
-          const existingBg = targetSlide.layers.find(l => l.slot === 'background');
-          let newLayers: SlideLayer[];
-          if (existingBg) {
-            newLayers = targetSlide.layers.map(l => l.slot === 'background' ? { ...l, content: bgContent } : l);
-          } else {
-            newLayers = [{ id: newId('ly_bg'), slot: 'background', content: bgContent }, ...targetSlide.layers];
-          }
-          handleUpdateSlide({ ...targetSlide, layers: newLayers });
-        }
-      }
-    } catch { /* ignore parse error */ }
+  // Drop media on the service-plan list: each file / library item becomes a plan entry.
+  const handleDropOnPlaylist = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    let payload: DropMedia[] = [];
+    try {
+      const dataStr = e.dataTransfer.getData('application/json');
+      if (dataStr) payload = mediaFromPayload(JSON.parse(dataStr));
+    } catch { /* ignore */ }
+    const pending = payload.length === 0 && e.dataTransfer.types.includes('Files') ? filesFromDataTransfer(e.dataTransfer) : null;
+    void (async () => {
+      try {
+        const media = pending ? await mediaFromFiles(await pending) : payload;
+        const items = media.map(playlistItemFromMedia).filter((p): p is PlaylistItem => !!p);
+        if (items.length === 0) return;
+        setPlaylist(prev => [...prev, ...items]);
+        setLibrary(prev => [...items.map(i => i.show), ...prev]);
+        setActiveShowId(items[0].show.id);
+      } catch (err: any) { showDropNote(`Drop failed: ${err?.message || 'could not read the files'}`); }
+    })();
   };
 
   /** Send a slide immediately to the Preview monitor with full parity */
@@ -1970,6 +1968,82 @@ useEffect(() => {
     setLive(prev => applySlide(prev, scriptureSlide, Date.now()));
     autoCueNextAfter(cue);
   };
+
+  // ── Routines host: the real handlers the scheduler's steps run against ──
+  const routineStepSlide = (delta: 1 | -1) => {
+    const i = slides.findIndex(x => x.id === liveSlideId);
+    const target = slides[Math.min(slides.length - 1, Math.max(0, (i < 0 ? (delta > 0 ? -1 : slides.length) : i) + delta))];
+    if (target) take(target);
+  };
+  const routineHandlers = {
+    takeSlide: ({ showId, slideId, index }: { showId?: string; slideId?: string; index?: number }) => {
+      const show = showId ? library.find(x => x.id === showId) : undefined;
+      if (showId && !show) throw new Error(`Show not found: ${showId}`);
+      const pool = show ? show.slides : slides;
+      const slide = slideId
+        ? (pool.find(x => x.id === slideId) ?? library.flatMap(x => x.slides).find(x => x.id === slideId))
+        : pool[index ?? 0];
+      if (!slide) throw new Error('Slide not found');
+      if (show && show.id !== activeShowId) setActiveShowId(show.id);
+      take(slide);
+    },
+    cueFirstSong: ({ showId, take: goLive }: { showId?: string; take?: boolean }) => {
+      const show = showId ? library.find(x => x.id === showId) : library.find(x => x.kind === 'SONG');
+      if (!show || !show.slides.length) throw new Error('No song to queue');
+      setActiveShowId(show.id);
+      setSelected(0);
+      if (goLive) take(show.slides[0]);
+    },
+    startVisualizer: ({ sourceId }: { sourceId: string }) => {
+      const gen = ROUTINE_GENERATOR_ITEMS.find(g => g.id === sourceId || (g.content.kind === 'GENERATOR' && g.content.mode === sourceId));
+      if (gen && gen.content.kind === 'GENERATOR') handleProgramSource({ id: gen.id, name: gen.name, kind: 'GENERATOR', mode: gen.content.mode });
+      else handleProgramSource({ id: sourceId, name: sourceId, kind: 'SHADER', mode: sourceId, src: sourceId });
+    },
+    clearLayers: ({ slot }: { slot: string }) => {
+      if (slot === 'all') clearAll();
+      else if (slot === 'slide') clearSlide();
+      else setLive(prev => clearLayer(prev, slot as any));
+    },
+    startCountdown: ({ showId }: { showId?: string }) => { if (showId) routineHandlersRef.current?.takeSlide({ showId, index: 0 }); },
+    hideProp: () => clearProps(),
+    resolvePlaylist: async ({ playlistId, name }: { playlistId?: string; name?: string }) => {
+      const lists: any[] = (await (fetchRoutinePlaylists as any)().catch(() => [])) || [];
+      const want = (name || '').trim().toLowerCase();
+      const pl = lists.find(l => (playlistId && l.id === playlistId) || (want && (l.title || l.name || '').toLowerCase() === want));
+      return (pl?.tracks ?? []).filter((t: any) => t?.url).map((t: any) => ({ id: t.id, title: t.title, artist: t.artist, url: t.url, duration: t.duration, coverImage: t.coverImage || pl.coverImage, source: 'chora' as const }));
+    },
+  };
+  const routineHandlersRef = useRef(routineHandlers);
+  routineHandlersRef.current = routineHandlers;
+  // Keep the header on screen. Focus, drag-select and scrollIntoView can scroll an overflow:hidden
+  // ancestor (or the document) and strand the top bar above the window; nothing here should ever scroll.
+  const amboRootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const root = amboRootRef.current;
+    const reset = () => {
+      if (root && root.scrollTop) root.scrollTop = 0;
+      const se = document.scrollingElement;
+      if (se && se.scrollTop) se.scrollTop = 0;
+      if (window.scrollY) window.scrollTo(0, 0);
+    };
+    reset();
+    root?.addEventListener('scroll', reset, { passive: true });
+    window.addEventListener('scroll', reset, { passive: true });
+    window.addEventListener('resize', reset);
+    return () => { root?.removeEventListener('scroll', reset); window.removeEventListener('scroll', reset); window.removeEventListener('resize', reset); };
+  }, []);
+
+  // Auto scripture (speech → verse) delivers through the same paths as the operator's hands.
+  const autoScriptureActions = useRef({ fire: fireScripture, cue: cueScriptureToPreview, clear: clearScripture });
+  autoScriptureActions.current = { fire: fireScripture, cue: cueScriptureToPreview, clear: clearScripture };
+  useEffect(() => {
+    setAutoScriptureSink({
+      fire: c => autoScriptureActions.current.fire(c),
+      cue: c => autoScriptureActions.current.cue(c),
+      clear: () => autoScriptureActions.current.clear(),
+    });
+    return () => setAutoScriptureSink(null);
+  }, []);
   // TAKE on the Preview monitor: a cued scripture goes first (it sits over the slide); otherwise the previewed slide.
   const takeSelected = () => {
     if (previewScriptureOverride) { fireScripture(previewScriptureOverride); return; }
@@ -2212,19 +2286,6 @@ useEffect(() => {
     },
   ]);
 
-  const saveSlideText = (text: string) => {
-    if (!editorSlide) return;
-    const id = editorSlide.id;
-    setLibrary(libs => libs.map(sh => (sh.id !== activeShow.id ? sh : {
-      ...sh, slides: sh.slides.map(sl => (sl.id !== id ? sl : withText(sl, text))),
-    })));
-    if (id === liveSlideId) {
-      const patched = withText(editorSlide, text);
-      setLive(prev => applySlide(prev, patched, Date.now()));
-      setLiveSlideObj(patched);
-    }
-  };
-
   const liveIdx = slides.findIndex(s => s.id === liveSlideId);
   const nextSlide = liveIdx >= 0 && liveIdx + 1 < slides.length ? slides[liveIdx + 1] : previewSlide;
 
@@ -2324,7 +2385,7 @@ useEffect(() => {
   );
 
   return (
-    <div className="fixed inset-0 z-[120] flex flex-col" style={{ background: GROUND }}>
+    <div ref={amboRootRef} className="fixed inset-0 z-[120] flex flex-col overflow-hidden" style={{ background: GROUND }}>
       {/* toolbar — split into 2 rows so controls never collide with native window buttons */}
       <div className="flex-none border-b backdrop-blur-xl" style={{ borderColor: line, background: HEADER }}>
       {/* ── ROW 1: App Bar — identity, menus, project info ── */}
@@ -2790,6 +2851,13 @@ useEffect(() => {
             </div>
           )}
 
+          {newSourceNotice && (
+            <div className="flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[9px] font-bold bg-cyan-500/20 text-cyan-200 border border-cyan-400/40 animate-in fade-in duration-150" role="status">
+              <Radio size={10} className="text-cyan-300" />
+              <span>{newSourceNotice}</span>
+            </div>
+          )}
+
           {/* Quick Import Button */}
           <button
             onClick={() => setIsImportModalOpen(true)}
@@ -2982,6 +3050,23 @@ useEffect(() => {
             </div>
           )}
         </div>
+
+        {/* Routines: next scheduled routine + operator windows (scheduler lives in AmboRoutineHost) */}
+        <AmboRoutineHost
+          handlers={routineHandlers}
+          outputs={outputs}
+          setOutputs={setOutputs}
+          router={routerRef.current}
+          activeShow={activeShow}
+          slides={slides}
+          liveSlideId={liveSlideId}
+          liveLabel={liveSlideObj?.label}
+          scriptureRef={live.scripture?.content.kind === 'SCRIPTURE' ? live.scripture.content.reference : undefined}
+          blackout={isBlackout}
+          stepSlide={routineStepSlide}
+          fireScripture={fireScripture}
+          setBlackout={setIsBlackout}
+        />
 
         {/* Dedicated Physical Program Out Window Control */}
         <div className="relative">
@@ -3220,7 +3305,13 @@ useEffect(() => {
               <Plus size={12} />
             </button>
           </div>
-          <div className="px-2 pb-3 ml-3 border-l" style={{ borderColor: line }}>
+          <div
+            className="px-2 pb-3 ml-3 border-l min-h-[28px]"
+            style={{ borderColor: line }}
+            onDragOver={e => { if (e.dataTransfer.types.includes('Files') || e.dataTransfer.types.includes('application/json')) { e.preventDefault(); e.dataTransfer.dropEffect = 'copy'; } }}
+            onDrop={handleDropOnPlaylist}
+            title="Drop media here to add it to the plan"
+          >
             {playlist.map(pi => (
               <button key={pi.id} onClick={() => setActiveShowId(pi.show.id)}
                 className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-[12px] text-left transition-colors"
@@ -3399,10 +3490,11 @@ useEffect(() => {
             {...canvasMenu.bind()}
             onDragEnter={e => {
               e.preventDefault();
-              setIsDraggingOverDeck(true);
+              if (draggingSlideRef.current === null) setIsDraggingOverDeck(true);
             }}
             onDragOver={e => {
               e.preventDefault();
+              if (draggingSlideRef.current !== null) { e.dataTransfer.dropEffect = 'move'; setInsertAt(slides.length); return; }
               e.dataTransfer.dropEffect = 'copy';
               if (!isDraggingOverDeck) setIsDraggingOverDeck(true);
             }}
@@ -3414,6 +3506,12 @@ useEffect(() => {
             }}
             onDrop={handleDropOnPresentationDeck}
           >
+            {dropNote && (
+              <div className="sticky top-0 z-40 mb-2 px-3 py-2 rounded-lg text-[11px] flex items-start gap-2 border border-[#FF8C00]/30 bg-[#1a0f05]/95 text-[#FFD9A0]" role="status">
+                <span className="flex-1">{dropNote}</span>
+                <button type="button" onClick={() => showDropNote(null)} className="text-white/50 hover:text-white" aria-label="Dismiss">x</button>
+              </div>
+            )}
             {isDraggingOverDeck && (
               <div className="absolute inset-4 rounded-2xl border-2 border-dashed border-[#00DAF3] bg-black/70 backdrop-blur-md z-30 flex flex-col items-center justify-center pointer-events-none gap-2">
                 <Video size={36} className="text-[#00DAF3] animate-bounce" />
@@ -3459,12 +3557,26 @@ useEffect(() => {
                           selectSlide(i);
                         }
                       }}
-                      onDoubleClick={() => take(s)}
+                      onDoubleClick={() => openEditor(i)}
                       data-ambo-slide={i}
                       {...slideMenu.bind(i)}
+                      draggable
+                      onDragStart={e => {
+                        draggingSlideRef.current = i;
+                        e.dataTransfer.setData('application/x-ambo-slide', String(i));
+                        e.dataTransfer.effectAllowed = 'copyMove';
+                      }}
+                      onDragEnd={() => { draggingSlideRef.current = null; setInsertAt(null); setDragOverIndex(null); }}
                       onDragOver={e => {
                         e.preventDefault();
-                        setDragOverIndex(i);
+                        e.stopPropagation(); // the deck's own onDragOver would flash the "drop files" overlay for a card reorder
+                        if (draggingSlideRef.current !== null) {
+                          const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+                          e.dataTransfer.dropEffect = 'move';
+                          setInsertAt(insertionIndexFor(i, e.clientX - r.left, r.width));
+                        } else {
+                          setDragOverIndex(i);
+                        }
                       }}
                       onDragLeave={() => {
                         if (dragOverIndex === i) setDragOverIndex(null);
@@ -3487,6 +3599,8 @@ useEffect(() => {
                           : 'none',
                       }}
                     >
+                      {insertAt === i && <span className="absolute top-0 bottom-0 left-0 w-[4px] z-[8] pointer-events-none" style={{ background: CYAN, boxShadow: '0 0 10px rgba(0,218,243,0.9)' }} />}
+                      {insertAt === slides.length && i === slides.length - 1 && <span className="absolute top-0 bottom-0 right-0 w-[4px] z-[8] pointer-events-none" style={{ background: CYAN, boxShadow: '0 0 10px rgba(0,218,243,0.9)' }} />}
                       {!isLive && !isSel && s.groupColor && <span className="absolute top-0 left-0 right-0 h-[3px] z-[3]" style={{ background: s.groupColor }} />}
                       {isLive && (
                         <span className="absolute top-1 right-1.5 z-[3] text-[8px] font-extrabold px-1.5 rounded flex items-center gap-1" style={{ background: ORANGE, color: '#2a1400' }}>
@@ -3506,7 +3620,9 @@ useEffect(() => {
                           return nm ? <span className="absolute bottom-1 left-1.5 z-[3] max-w-[70%] truncate text-[8px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(208,188,255,0.18)', color: LILAC }} title={`Template: ${nm}`}>{nm}</span> : null;
                         })()}
                         <span className="text-[12px] font-semibold text-white leading-tight line-clamp-3" style={{ fontFamily: 'Palatino Linotype, Palatino, Georgia, serif', textShadow: '0 1px 8px rgba(0,0,0,0.6)' }}>
-                          {slideText(s)}
+                          {s.layers.length === 0
+                            ? <span className="flex flex-col items-center gap-1 text-white/35 font-sans" data-empty-slide><span className="w-8 h-5 rounded-[3px] border border-dashed border-white/30" /><span className="text-[9.5px] font-bold uppercase tracking-wider">Empty slide</span><span className="text-[9px] font-normal normal-case tracking-normal">Double-click to design</span></span>
+                            : slideText(s)}
                         </span>
                         {/* Hover Quick Action Buttons */}
                         <div className="absolute inset-0 bg-black/60 backdrop-blur-[2px] opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5 z-[5] p-1 pointer-events-none group-hover:pointer-events-auto">
@@ -3610,7 +3726,7 @@ useEffect(() => {
       <AmboAudioBus
         deckOpen={playerMode === 'expanded'}
         onToggleDeck={() => setPlayerMode(m => (m === 'expanded' ? 'compact' : 'expanded'))}
-        controlsSlot={<><AmboMixer /><AmboLyricsControl live={liveLyrics} onSet={setLyricsLayer} /></>} />
+        controlsSlot={<><AmboMixer /><AmboAutoScriptureControl /><AmboLyricsControl live={liveLyrics} onSet={setLyricsLayer} /></>} />
 
       {/* ── BROADCAST PER-TRACK DJ AUDIO PLAYER & HORIZONTAL WAVEFORM ── */}
       {activeDjTrack && (
@@ -3834,7 +3950,7 @@ useEffect(() => {
         <AmboSlideEditor
           slide={editorSlide}
           boundRef={boundRef}
-          onSave={saveSlideText}
+          onSave={handleUpdateSlide}
           onClose={() => setEditorIdx(null)}
         />
       )}

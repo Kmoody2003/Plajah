@@ -259,6 +259,14 @@ function drawTextObj(ctx: Ctx, o: SlideObj, override?: string) {
   const align = o.textAlign || 'left';
   ctx.font = fontShorthand(o);
   let lines = layoutTextLines(o, override);
+  // Shrink-to-fit (slide editor): step the size down until the wrapped text fits the box height.
+  if (o.autoFit && override === undefined && o.h > 0) {
+    let s = size;
+    for (let i = 0; i < 16 && s > 8 && lines.length * s * (o.lineHeight ?? 1.22) > o.h; i++) {
+      s *= .92; lines = layoutTextLines({ ...o, fontSize: s }, override);
+    }
+    if (s !== size) { size = s; ctx.font = fontShorthand({ ...o, fontSize: size }); }
+  }
   const ls = (o.letterSpacing || 0) * size;
   if (override !== undefined) { // live text: shrink to the box instead of wrapping
     const w = Math.max(...lines.map(l => ctx.measureText(l).width + ls * Math.max(0, l.length - 1)));
@@ -267,6 +275,8 @@ function drawTextObj(ctx: Ctx, o: SlideObj, override?: string) {
   }
   const lsPx = (o.letterSpacing || 0) * size;
   const leading = size * (o.lineHeight ?? 1.22);
+  const blockH = size + Math.max(0, lines.length - 1) * leading;
+  const dyV = o.vAlign === 'middle' ? Math.max(0, (o.h - blockH) / 2) : o.vAlign === 'bottom' ? Math.max(0, o.h - blockH) : 0;
   const ax = align === 'center' ? o.x + o.w / 2 : align === 'right' ? o.x + o.w : o.x;
   ctx.textBaseline = 'alphabetic';
   if (o.gradient && o.gradient.stops.length) ctx.fillStyle = linearFor(ctx, o, o); else ctx.fillStyle = o.fill && o.fill !== 'none' ? o.fill : '#000';
@@ -275,7 +285,16 @@ function drawTextObj(ctx: Ctx, o: SlideObj, override?: string) {
   const native = hasLetterSpacing(ctx);
   if (native) (ctx as any).letterSpacing = `${lsPx}px`;
   lines.forEach((ln, i) => {
-    const y = o.y + size + i * leading;
+    const y = o.y + dyV + size + i * leading;
+    if (o.underline || o.strike) {
+      const wLn = ctx.measureText(ln).width + lsPx * Math.max(0, Array.from(ln).length - 1);
+      const x0 = align === 'center' ? ax - wLn / 2 : align === 'right' ? ax - wLn : ax;
+      ctx.save(); ctx.strokeStyle = ctx.fillStyle as string; ctx.lineWidth = Math.max(1, size / 16); ctx.shadowColor = 'transparent';
+      ctx.beginPath();
+      if (o.underline) { ctx.moveTo(x0, y + size * .1); ctx.lineTo(x0 + wLn, y + size * .1); }
+      if (o.strike) { ctx.moveTo(x0, y - size * .3); ctx.lineTo(x0 + wLn, y - size * .3); }
+      ctx.stroke(); ctx.restore();
+    }
     if (native || !lsPx) {
       ctx.textAlign = align;
       // Canvas adds tracking after the last glyph too; recentre like SVG does.
@@ -302,7 +321,7 @@ function roundRectPath(ctx: Ctx, x: number, y: number, w: number, h: number, r: 
 
 export function drawObject(ctx: Ctx, o: SlideObj, a: Anim = IDLE, t = 0): void {
   const alpha = (o.opacity ?? 1) * a.alpha;
-  if (alpha <= .003) return;
+  if (alpha <= .003 || o.hidden) return;
   const b = objBox(o);
   ctx.save();
   ctx.globalAlpha *= clamp01(alpha);
@@ -368,8 +387,11 @@ export function drawObject(ctx: Ctx, o: SlideObj, a: Anim = IDLE, t = 0): void {
       const img = o.sourceImageSrc ? imageFor(o.sourceImageSrc) : null;
       if (!img) break;
       ctx.beginPath(); roundRectPath(ctx, o.x, o.y, o.w, o.h, o.rx || 0); ctx.clip();
-      const s = Math.max(o.w / img.naturalWidth, o.h / img.naturalHeight), dw = img.naturalWidth * s, dh = img.naturalHeight * s;
-      ctx.drawImage(img, o.x + (o.w - dw) / 2, o.y + (o.h - dh) / 2, dw, dh);
+      const cr = o.imageCrop, sw0 = cr ? img.naturalWidth * cr.w : img.naturalWidth, sh0 = cr ? img.naturalHeight * cr.h : img.naturalHeight;
+      const sx0 = cr ? img.naturalWidth * cr.x : 0, sy0 = cr ? img.naturalHeight * cr.y : 0;
+      if (o.imageFit === 'fill') { ctx.drawImage(img, sx0, sy0, sw0, sh0, o.x, o.y, o.w, o.h); break; }
+      const s = (o.imageFit === 'contain' ? Math.min : Math.max)(o.w / sw0, o.h / sh0), dw = sw0 * s, dh = sh0 * s;
+      ctx.drawImage(img, sx0, sy0, sw0, sh0, o.x + (o.w - dw) / 2, o.y + (o.h - dh) / 2, dw, dh);
       break;
     }
   }

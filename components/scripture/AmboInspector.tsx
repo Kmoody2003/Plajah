@@ -260,7 +260,7 @@ export const AmboInspector: React.FC<AmboInspectorProps> = ({
                         className="text-[8px] font-mono text-[#7c9ce8] hover:text-white flex items-center gap-1"
                       >
                         <RefreshCw size={8} className={isScanningNdi ? 'animate-spin' : ''} />
-                        Scan NDI
+                        Rescan
                       </button>
                     )}
                   </div>
@@ -283,12 +283,12 @@ export const AmboInspector: React.FC<AmboInspectorProps> = ({
                       <option value="switcher:aux1">Switcher AUX 1 (Camera Aux)</option>
                       <option value="switcher:aux2">Switcher AUX 2 (Confidence)</option>
                     </optgroup>
-                    <optgroup label="Discovered NDI / OMT Streams">
-                      {nativeSources.filter(s => s.kind === 'ndi' || s.kind === 'omt').map(s => (
-                        <option key={s.id} value={s.id}>{s.kind.toUpperCase()}: {s.streamName || s.label} ({s.machineName || 'LAN'})</option>
+                    <optgroup label="Auto-discovered NDI / OMT / SRT (● online, ○ offline)">
+                      {nativeSources.filter(s => s.kind === 'ndi' || s.kind === 'omt' || s.kind === 'srt').map(s => (
+                        <option key={s.id} value={s.id}>{s.online === false ? '○' : '●'} {s.kind.toUpperCase()}: {s.streamName || s.label} ({s.machineName || (s.kind === 'srt' ? 'saved endpoint' : 'LAN')})</option>
                       ))}
-                      {nativeSources.filter(s => s.kind === 'ndi' || s.kind === 'omt').length === 0 && (
-                        <option value="ndi_lan_discovery" disabled>No NDI or OMT feeds found — scan from the Router Receiver</option>
+                      {nativeSources.filter(s => s.kind === 'ndi' || s.kind === 'omt' || s.kind === 'srt').length === 0 && (
+                        <option value="ndi_lan_discovery" disabled>None yet — they appear here automatically (SRT: save an endpoint in the Router Receiver)</option>
                       )}
                     </optgroup>
                     <optgroup label="Hardware Capture / SDI">

@@ -297,6 +297,12 @@ export type LiveStack = Partial<Record<LayerSlot, LiveLayer>>;
  */
 export function applySlide(stack: LiveStack, slide: Slide, now: number): LiveStack {
   const next: LiveStack = { ...stack };
+  // An EMPTY slide (no layers at all) is a deliberate blank: it clears every visual slot
+  // (black on program) but leaves the audio bed and mask alone.
+  if (slide.layers.length === 0) {
+    for (const slot of LAYER_ORDER) if (slot !== 'audio' && slot !== 'mask') delete next[slot];
+    return next;
+  }
   for (const layer of slide.layers) {
     if (layer.enabled === false || layer.visible === false) continue;
     if (layer.content.kind === 'CLEAR') { delete next[layer.slot]; continue; }

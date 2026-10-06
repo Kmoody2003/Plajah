@@ -10,17 +10,21 @@ import {
 } from 'lucide-react';
 import { type NativeSourceInfo } from '../../services/mediaEngine/bridge';
 import { GENERATOR_ITEMS } from '../../services/ambo/mediaLibrary';
+import { OnlineDot } from './AmboDiscoveryBits';
 
 export interface AmboMediaSourceItem {
   id: string;
   name: string;
-  kind: 'LIVE' | 'GENERATOR' | 'SHADER' | 'VIDEO' | 'IMAGE';
+  kind: 'LIVE' | 'GENERATOR' | 'SHADER' | 'VIDEO' | 'IMAGE' | 'AUDIO' | 'LOTTIE';
   inputId?: string;
   mode?: string;
   src?: string;
+  thumb?: string;
   sub?: string;
   gradient?: string;
   tags?: string[];
+  /** Live network feeds only: false once the source stopped being announced. */
+  online?: boolean;
 }
 
 interface AmboMediaBinProps {
@@ -120,14 +124,16 @@ export const AmboMediaBin: React.FC<AmboMediaBinProps> = ({
   ];
 
   const ndiFeeds: AmboMediaSourceItem[] = nativeSources
-    .filter(s => s.kind === 'ndi')
+    .filter(s => s.kind === 'ndi' || s.kind === 'omt' || s.kind === 'srt')
     .map(s => ({
       id: s.id,
       name: s.streamName || s.label,
       kind: 'LIVE',
       inputId: s.id,
-      sub: s.machineName || 'LAN NDI Stream',
-      tags: ['ndi', s.format || '1080p'],
+      sub: s.machineName || (s.kind === 'srt' ? s.status || 'SRT endpoint' : `LAN ${String(s.kind).toUpperCase()} stream`),
+      // Only claim a format when the host reported one; SRT/OMT announce none.
+      tags: [String(s.kind), ...(s.formats?.[0] ? [`${s.formats[0].height}p`] : [])],
+      online: s.online,
     }));
 
   const liveItems = [...coreFeeds, ...ndiFeeds];
@@ -158,17 +164,17 @@ export const AmboMediaBin: React.FC<AmboMediaBinProps> = ({
                 onClick={onScanNdi}
                 disabled={isScanningNdi}
                 className="text-[8px] px-2 py-0.5 rounded bg-white/10 hover:bg-white/20 text-[#7c9ce8] flex items-center gap-1 font-mono transition-colors"
-                title="Scan LAN for active NDI streams"
+                title="NDI, OMT and SRT sources appear automatically; click to force a rescan"
               >
                 <RefreshCw size={8} className={isScanningNdi ? 'animate-spin' : ''} />
-                <span>{isScanningNdi ? 'Scanning...' : 'Scan NDI'}</span>
+                <span>{isScanningNdi ? 'Scanning...' : 'Rescan'}</span>
               </button>
             </div>
             <div className="grid grid-cols-2 gap-2">
               {liveItems.map(item => {
                 const isLive = currentLiveInputId === (item.inputId || item.id);
                 const isPreview = currentPreviewInputId === (item.inputId || item.id);
-                const isNdi = item.tags?.includes('ndi') || item.id.startsWith('ndi_');
+                const isNdi = !!item.tags?.some(t => t === 'ndi' || t === 'omt' || t === 'srt') || item.id.startsWith('ndi_');
 
                 return (
                   <div
@@ -189,6 +195,7 @@ export const AmboMediaBin: React.FC<AmboMediaBinProps> = ({
                       <div className="flex items-center gap-1 truncate">
                         {isNdi ? <Radio size={11} className="text-[#7c9ce8] shrink-0" /> : <Video size={11} className="text-[#00DAF3] shrink-0" />}
                         <span className="truncate">{item.name}</span>
+                        {isNdi && <OnlineDot online={item.online} />}
                       </div>
                       {isLive && (
                         <span className="text-[7px] font-black px-1 rounded bg-[#FF8C00] text-black">LIVE</span>

@@ -730,19 +730,19 @@ export const AmboHorizontalMultiview: React.FC<AmboHorizontalMultiviewProps> = (
                 <Radio size={11} />
                 STREAM BUS
               </span>
-              <span className="text-[8px] font-mono text-white/40">NDI 6</span>
+              <span className="text-[8px] font-mono text-white/40">Output</span>
             </div>
             <div className="w-full aspect-video bg-[#070c18] rounded-lg border border-white/10 relative overflow-hidden flex flex-col items-center justify-center p-2 text-center">
               <div className="absolute top-1 left-1 px-1 py-0.2 rounded bg-blue-500/20 text-blue-300 font-mono text-[7.5px]">
-                RTMP / NDI
+                STREAM
               </div>
               <Radio size={20} className="text-blue-400/40 mb-1" />
               <span className="text-[10px] font-medium text-white/80">Live Stream Output</span>
-              <span className="text-[8px] text-white/40 mt-0.5">5.8 Mbps · 60fps CBR</span>
+              <span className="text-[8px] text-white/40 mt-0.5">No live stats reported</span>
             </div>
             <div className="flex items-center justify-between mt-1 text-[9px] text-white/40">
               <span>Switcher Feed</span>
-              <span className="text-[#00DAF3] font-mono text-[8px]">{streamOut?.enabled !== false ? 'TRANSMITTING' : 'OFFLINE'}</span>
+              <span className="text-[#00DAF3] font-mono text-[8px]">{streamOut?.enabled !== false ? 'ENABLED' : 'OFFLINE'}</span>
             </div>
           </div>
 
