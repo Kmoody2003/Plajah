@@ -31,6 +31,15 @@ import {
 } from '../../services/scriptureText';
 import { crossRefsFor, CROSS_REF_COVERAGE } from '../../data/crossReferences';
 import { auth, loadBibleNotes, saveBibleNote } from '../../services/backendService';
+import CanonBookPicker from './CanonBookPicker';
+import { canonBooks, canonMark, type BibleCanon } from '../../services/bibleCanon';
+import { TRANSLATIONS } from '../../services/bibleService';
+import LectioConcordance from './LectioConcordance';
+import LectioHistory from './LectioHistory';
+import LectioLexicon from './LectioLexicon';
+import LectioOriginals from './LectioOriginals';
+import LectioComparativeSearch from './LectioComparativeSearch';
+import ResearchNotebook from '../faith/ResearchNotebook';
 
 // ── Reading surfaces ─────────────────────────────────────────────────────────
 // Only these four touch the page. Everything else is Plajah-dark.
@@ -49,7 +58,7 @@ const NOTES_KEY = 'plajah_bible_notes_v1';   // shared with the legacy reader
 
 const SERIF = '"Palatino Linotype", "Iowan Old Style", Palatino, "Book Antiqua", Georgia, serif';
 
-type RailTab = 'refs' | 'notes' | 'search';
+type RailTab = 'refs' | 'notes' | 'search' | 'study' | 'history' | 'words' | 'originals' | 'notebook' | 'compare';
 
 function loadMap(key: string): Record<string, string> {
   try { return JSON.parse(localStorage.getItem(key) || '{}'); } catch { return {}; }
@@ -64,14 +73,17 @@ const askAria = (prompt: string) =>
 interface Props { openAt?: ScriptureRef | null; }
 
 const LectioReader: React.FC<Props> = ({ openAt }) => {
+  const initialCatholic = !!openAt && (openAt.book>66 || (openAt.book===17 && openAt.chapter>10) || (openAt.book===27 && openAt.chapter>12));
   const [book, setBook] = useState<BibleBook>(
-    (openAt && BOOKS.find(b => b.num === openAt.book)) || BOOKS.find(b => b.name === 'John')!,
+    (openAt && canonBooks(initialCatholic?'catholic':'protestant').find(b => b.num === openAt.book)) || BOOKS.find(b => b.name === 'John')!,
   );
   const [chapter, setChapter] = useState(openAt?.chapter ?? 1);
   const [activeVerse, setActiveVerse] = useState<number | null>(openAt?.verse ?? null);
 
-  const avail = useMemo(() => translationsForBook(book.testament), [book]);
-  const [active, setActive] = useState<string[]>([DEFAULT_TRANSLATION]);
+  const [canon, setCanon] = useState<BibleCanon>(initialCatholic?'catholic':'protestant');
+  const visibleBooks = useMemo(()=>canonBooks(canon),[canon]);
+  const avail = useMemo(() => canon==='catholic' ? TRANSLATIONS.filter(t=>t.slug==='douayrheims') : canon==='orthodox' ? TRANSLATIONS.filter(t=>t.slug===(book.testament==='OT'?'lxx':'textusreceptus')) : translationsForBook(book.testament).filter(t=>t.slug!=='douayrheims'), [book,canon]);
+  const [active, setActive] = useState<string[]>([initialCatholic?'douayrheims':DEFAULT_TRANSLATION]);
   const [data, setData] = useState<Record<string, BibleVerse[]>>({});
   const [loading, setLoading] = useState(true);
 
@@ -82,7 +94,8 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
   const [notes, setNotes] = useState<Record<string, string>>(() => loadMap(NOTES_KEY));
   const [highlights, setHighlights] = useState<Record<string, string>>(() => loadMap(HL_KEY));
   const [rail, setRail] = useState<RailTab>('refs');
-  const [railOpen, setRailOpen] = useState(true);
+  const [wordLookup, setWordLookup] = useState<string | undefined>();
+  const [railOpen, setRailOpen] = useState(() => typeof window === 'undefined' || window.innerWidth >= 1024);
 
   const [query, setQuery] = useState('');
   const [hits, setHits] = useState<SearchHit[]>([]);
@@ -124,7 +137,7 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
   // Re-point when another chip is tapped while the reader is open.
   useEffect(() => {
     if (!openAt) return;
-    const target = BOOKS.find(b => b.num === openAt.book);
+    const target = visibleBooks.find(b => b.num === openAt.book);
     if (target) setBook(target);
     setChapter(openAt.chapter);
     setActiveVerse(openAt.verse ?? null);
@@ -148,7 +161,8 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
     (v?: number): ScriptureRef => ({ book: book.num, bookName: book.name, chapter, verse: v }),
     [book, chapter],
   );
-  const keyFor = (v: number) => `${book.num}:${chapter}:${v}`;
+  const notePrefix = canon==='protestant'?'':`${canon}.`;
+  const keyFor = (v: number) => `${notePrefix}${book.num}:${chapter}:${v}`;
 
   // ── actions ────────────────────────────────────────────────────────────────
   const setNote = (v: number, text: string) => {
@@ -176,7 +190,7 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
   };
 
   const goTo = (ref: ScriptureRef) => {
-    const target = BOOKS.find(b => b.num === ref.book);
+    const target = visibleBooks.find(b => b.num === ref.book);
     if (!target) return;
     setBook(target);
     setChapter(ref.chapter);
@@ -195,12 +209,12 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
 
   const prevCh = () => {
     if (chapter > 1) setChapter(chapter - 1);
-    else { const i = BOOKS.indexOf(book); if (i > 0) { setBook(BOOKS[i - 1]); setChapter(BOOKS[i - 1].chapters); } }
+    else { const i = visibleBooks.findIndex(b=>b.num===book.num); if (i > 0) { setBook(visibleBooks[i - 1]); setChapter(visibleBooks[i - 1].chapters); } }
     setActiveVerse(null);
   };
   const nextCh = () => {
     if (chapter < book.chapters) setChapter(chapter + 1);
-    else { const i = BOOKS.indexOf(book); if (i < BOOKS.length - 1) { setBook(BOOKS[i + 1]); setChapter(1); } }
+    else { const i = visibleBooks.findIndex(b=>b.num===book.num); if (i < visibleBooks.length - 1) { setBook(visibleBooks[i + 1]); setChapter(1); } }
     setActiveVerse(null);
   };
 
@@ -208,7 +222,7 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const el = e.target as HTMLElement;
-      if (el?.tagName === 'TEXTAREA' || el?.tagName === 'INPUT') return;
+      if (el?.tagName === 'TEXTAREA' || el?.tagName === 'INPUT' || el?.tagName === 'SELECT') return;
       if (e.key === 'ArrowRight') nextCh();
       if (e.key === 'ArrowLeft') prevCh();
     };
@@ -244,8 +258,8 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
     setCoverage(await localCoverage(slug));
   };
 
-  const refsForActive = activeVerse != null ? crossRefsFor(currentRef(activeVerse)) : [];
-  const noteEntries = Object.entries(notes).filter(([k]) => k.startsWith(`${book.num}:`));
+  const refsForActive = canon==='protestant' && activeVerse != null ? crossRefsFor(currentRef(activeVerse)) : [];
+  const noteEntries = Object.entries(notes).filter(([k]) => k.startsWith(`${notePrefix}${book.num}:`));
 
   // Generated service notes, grouped by day. Read once the rail is opened so a
   // reader who never looks at notes pays nothing for them.
@@ -271,7 +285,7 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
   // ── render ─────────────────────────────────────────────────────────────────
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-      className="flex h-[calc(100vh-49px)] overflow-hidden">
+      className="relative flex h-[calc(100vh-49px)] overflow-hidden">
 
       {/* ── Canon rail ─────────────────────────────────────────────── */}
       <aside className="hidden md:flex w-[172px] shrink-0 flex-col border-r border-white/8 bg-black/25">
@@ -282,13 +296,13 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
               <p className="px-2 py-1 text-[8px] font-black uppercase tracking-[0.16em] text-[#d4af37]/50">
                 {t === 'OT' ? 'Old Testament' : 'New Testament'}
               </p>
-              {BOOKS.filter(b => b.testament === t).map(b => (
+              {visibleBooks.filter(b => b.testament === t).map(b => (
                 <button key={b.num}
                   onClick={() => { setBook(b); setChapter(1); setActiveVerse(null); }}
                   className={`w-full text-left px-2 py-[5px] rounded-md text-[11px] font-bold transition-colors ${
                     b.num === book.num ? 'bg-[#d4af37]/20 text-[#d4af37]' : 'text-white/55 hover:bg-white/[0.07] hover:text-white'
                   }`}>
-                  {b.name}
+                  <span style={{color:canonMark(b).color}}>{b.name}</span>
                 </button>
               ))}
             </div>
@@ -313,6 +327,8 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
       <main className="flex-1 min-w-0 flex flex-col">
         {/* chrome above the page — stays Plajah-dark */}
         <div className="flex items-center gap-2 px-3 sm:px-5 py-2 border-b border-white/8 bg-black/25 flex-wrap">
+          <CanonBookPicker canon={canon} book={book} onBook={b=>{setBook(b);setChapter(1);setActiveVerse(null);}} onCanon={c=>{const list=canonBooks(c);setCanon(c);setBook(list.find(b=>b.num===book.num)??list[0]);setChapter(1);setActiveVerse(null);setActive([c==='catholic'?'douayrheims':c==='orthodox'?(book.testament==='NT'?'textusreceptus':'lxx'):'kjv']);}} />
+          <select aria-label="Chapter" value={chapter} onChange={e=>{setChapter(Number(e.target.value));setActiveVerse(null);}} className="bg-[#17141f] text-xs rounded px-1 py-1">{Array.from({length:book.chapters},(_,i)=><option key={i+1} value={i+1}>{i+1}</option>)}</select>
           <button onClick={prevCh} aria-label="Previous chapter"
             className="w-7 h-7 rounded-md bg-white/[0.06] border border-white/10 flex items-center justify-center hover:bg-white/[0.12]">
             <ChevronLeft size={13} />
@@ -327,6 +343,7 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
 
           <div className="w-px h-4 bg-white/10 mx-1" />
 
+          {canon!=='protestant' && <span className="text-[10px] text-white/60">{canon==='catholic'?'Douay–Rheims chapter and verse numbering; Psalms differ from KJV.':'Greek collection; book groupings and numbering vary. Appendices are labeled.'}</span>}
           {avail.map(t => (
             <button key={t.slug}
               onClick={() => setActive(prev =>
@@ -387,7 +404,8 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
                       style={isActive ? { background: skin.mark } : undefined}>
                       <div className={active.length > 1 ? 'grid sm:grid-cols-2 gap-x-7' : ''}>
                         {active.map(slug => {
-                          const t = avail.find(x => x.slug === slug)!;
+                          const t = avail.find(x => x.slug === slug);
+                          if (!t) return null;
                           const text = data[slug]?.find(x => x.verse === v)?.text || '';
                           const isHebrew = t.lang === 'he';
                           return (
@@ -445,9 +463,10 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
 
       {/* ── Study rail ─────────────────────────────────────────────── */}
       {railOpen && (
-        <aside className="hidden lg:flex w-[268px] shrink-0 flex-col border-l border-white/8 bg-black/25">
-          <div className="flex border-b border-white/8">
-            {([['refs', 'Refs'], ['notes', 'Notes'], ['search', 'Search']] as const).map(([id, label]) => (
+        <aside aria-label="Lectio study tools" className="absolute inset-y-0 right-0 z-20 flex w-[min(92vw,360px)] shrink-0 flex-col border-l border-white/10 bg-[#0d0a13] lg:static lg:w-[340px]">
+          <div className="flex justify-between border-b border-white/10 px-3 py-2"><span className="text-xs text-[#e3c57e]">Study workbench</span><button aria-label="Close study tools" onClick={() => setRailOpen(false)}><X size={15} /></button></div>
+          <div className="grid grid-cols-3 border-b border-white/8">
+            {([['refs', 'Refs'], ['notes', 'Notes'], ['search', 'Search'], ['study', 'Concordance'], ['words', 'Word study'], ['originals', 'Originals'], ['history', 'History'], ['compare', 'Compare'], ['notebook', 'Notebook']] as const).map(([id, label]) => (
               <button key={id} onClick={() => setRail(id)}
                 className={`flex-1 py-2 text-[8.5px] font-black uppercase tracking-[0.14em] border-b-2 transition-colors ${
                   rail === id ? 'text-[#d4af37] border-[#d4af37]' : 'text-white/35 border-transparent hover:text-white/70'
@@ -458,6 +477,19 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
           </div>
 
           <div className="flex-1 overflow-y-auto custom-scrollbar p-3">
+            {rail === 'history' && canon==='protestant' && <LectioHistory current={currentRef(activeVerse ?? undefined)} onNavigate={goTo} />}
+            {rail === 'compare' && <LectioComparativeSearch />}
+            {['words','history'].includes(rail) && canon!=='protestant' && <p className="p-3 text-xs text-white/60">Verse-linked study tools currently use KJV numbering. The concordance, comparison search and notebook support this edition.</p>}
+            {rail === 'words' && canon==='protestant' && <LectioLexicon current={currentRef(activeVerse ?? 1)} slug={active[0] || DEFAULT_TRANSLATION} onNavigate={goTo} initialStrong={wordLookup} />}
+            {rail === 'originals' && canon!=='protestant' && <p className="p-3 text-xs text-white/60">Original-language alignment currently follows the 66-book KJV references. Switch to the Protestant reader for those mappings.</p>}
+            {rail === 'originals' && canon==='protestant' && <LectioOriginals current={currentRef(activeVerse ?? 1)} slug={active[0] || DEFAULT_TRANSLATION}
+              translationText={!loading ? data[active[0]]?.find(v => v.verse === (activeVerse ?? 1))?.text : undefined}
+              onNavigate={goTo} onStrong={id => { setWordLookup(id); setRail('words'); }} />}
+            {rail === 'notebook' && <ResearchNotebook />}
+            {rail === 'study' && <LectioConcordance slug={active[0] || DEFAULT_TRANSLATION} corpusVersion={data}
+              selected={!loading && activeVerse != null && data[active[0]]?.find(v => v.verse === activeVerse) ? {
+                ref: currentRef(activeVerse), text: data[active[0]].find(v => v.verse === activeVerse)!.text,
+              } : undefined} onNavigate={goTo} />}
             {rail === 'refs' && (
               activeVerse == null ? (
                 <p className="text-[10px] text-white/30 leading-relaxed pt-2">

@@ -5,3 +5,6 @@
 *.png binary
 *.jpg binary
 *.webp binary
+
+# Sacred source snapshots retain exact bytes for integrity manifests
+public/sacred/** -text

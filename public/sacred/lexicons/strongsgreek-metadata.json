@@ -1,0 +1,46 @@
+{
+  "schema": "getbible-dictionary-metadata-v1",
+  "id": "strongsgreek",
+  "module": "StrongsGreek",
+  "name": "Strong's Greek Bible Dictionary",
+  "language": "en",
+  "version": "2.0",
+  "license": "Public Domain",
+  "driver": "zLD",
+  "source_type": "TEI",
+  "entry_count": 5742,
+  "unique_key_count": 5742,
+  "strong_prefix": "G",
+  "bytes": 2420033,
+  "index_url": "index.json",
+  "entry_url_template": "{entry}.json",
+  "source": "CrossWire SWORD",
+  "source_module_url": "https://www.crosswire.org/sword/modules/ModInfo.jsp?modName=StrongsGreek",
+  "text_source": "http://www.bf.org/",
+  "copyright": "",
+  "copyright_holder": "",
+  "copyright_contact": {
+    "name": "",
+    "email": "",
+    "address": ""
+  },
+  "distribution_notes": "",
+  "about": "Strong's Bible Dictionary\\par\\par Dictionaries of Hebrew and Greek Words taken from Strong's Exhaustive Concordance by James Strong, S.T.D., LL.D. 1890.",
+  "conversion_note": "Converted to GetBible static JSON; wording is supplied by the source module.",
+  "references": {
+    "api": "getbible-v2",
+    "versification": "KJV",
+    "translations": [
+      "kjv",
+      "kjva"
+    ],
+    "names": "kjv",
+    "language": "en",
+    "librarian": [
+      "kjv"
+    ],
+    "aliases": [
+      "en.json"
+    ]
+  }
+}

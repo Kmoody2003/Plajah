@@ -1,0 +1,4 @@
+{
+  "extends": "./tsconfig.lectio.json",
+  "include": ["components/scripture/LectioReader.tsx", "components/SacredLibraryHub.tsx"]
+}

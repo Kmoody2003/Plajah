@@ -9,6 +9,7 @@
 // Everything resolves to the getbible book numbers already used by bibleService
 // (1–66), so a parsed ref can be handed straight to fetchChapter().
 
+import { CATHOLIC_BOOKS, ORTHODOX_BOOKS } from './bibleCanon';
 import { BOOKS, type BibleBook } from './bibleService';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -71,6 +72,11 @@ interface AliasEntry {
 }
 
 const BASE_ALIASES: Record<string, AliasEntry> = {
+  tobit:{plain:69}, tobias:{plain:69}, tob:{plain:69}, judith:{plain:70}, jdt:{plain:70},
+  wisdom:{plain:73}, wis:{plain:73}, sirach:{plain:74}, ecclesiasticus:{plain:74}, sir:{plain:74},
+  baruch:{plain:75}, bar:{plain:75}, maccabees:{n:[80,81,82]}, macc:{n:[80,81,82]},
+  esdras:{n:[67]}, susanna:{plain:77}, 'bel and the dragon':{plain:78}, 'letter of jeremiah':{plain:84},
+
   // ── Pentateuch / history ──
   genesis: { plain: 1 }, gen: { plain: 1 }, ge: { plain: 1 }, gn: { plain: 1 },
   exodus: { plain: 2 }, exod: { plain: 2 }, exo: { plain: 2 }, ex: { plain: 2 },
@@ -149,7 +155,7 @@ const BASE_ALIASES: Record<string, AliasEntry> = {
 /** Books where a lone number means a verse, not a chapter ("Jude 5"). */
 const SINGLE_CHAPTER = new Set([31, 57, 63, 64, 65]);
 
-const BOOK_BY_NUM = new Map<number, BibleBook>(BOOKS.map(b => [b.num, b]));
+const BOOK_BY_NUM = new Map<number, BibleBook>([...ORTHODOX_BOOKS,...CATHOLIC_BOOKS].map(b => [b.num, b]));
 
 /** Longest-first so "song of solomon" beats "song", "chronicles" beats "chr". */
 const ALIAS_KEYS = Object.keys(BASE_ALIASES).sort((a, b) => b.length - a.length);

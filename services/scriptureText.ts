@@ -9,6 +9,8 @@
 import { get, keys, set } from 'idb-keyval';
 import { fetchChapter, BOOKS, TRANSLATIONS, type BibleVerse } from './bibleService';
 import { formatRef, type ScriptureRef } from './scriptureRef';
+import { editionBooks } from './bibleCanon';
+import { parseBundledCatholic, parseBundledKjv } from './bundledBibleCore';
 
 const KEY_PREFIX = 'pj.bible.v1.';
 /** Translations are fixed texts; the only reason to expire is a bad fetch. */
@@ -20,8 +22,32 @@ interface CachedChapter { verses: BibleVerse[]; at: number; }
 
 const memory = new Map<string, BibleVerse[]>();
 const inflight = new Map<string, Promise<BibleVerse[]>>();
+const BUNDLE_KEY = 'pj.bible.bundle.kjv.v1';
+let bundledKjv: Promise<boolean> | undefined;
+let bundledKjvLoaded = false;
 
 const keyOf = (slug: string, book: number, chapter: number) => `${slug}/${book}/${chapter}`;
+export function booksForTranslation(slug: string) {
+  return editionBooks(slug);
+}
+async function hydrateBundledKjv(): Promise<boolean> {
+  if (bundledKjvLoaded) return true;
+  bundledKjv ??= (async () => {
+    const hydrate = (raw: any) => {
+      for (const record of parseBundledKjv(raw)) memory.set(keyOf('kjv', record.book, record.chapter), record.verses);
+      bundledKjvLoaded = true;
+    };
+    try { const raw = await get(BUNDLE_KEY); if (raw) { hydrate(raw); return true; } } catch { /* try bundled file */ }
+    try {
+      const response = await fetch('/sacred/bible-kjv.json');
+      if (!response.ok) return false;
+      const raw = await response.json(); hydrate(raw);
+      try { await set(BUNDLE_KEY, raw); } catch { /* session memory and production runtime cache remain available */ }
+      return true;
+    } catch { return false; }
+  })().then(ok => { if (!ok) bundledKjv = undefined; return ok; });
+  return bundledKjv;
+}
 
 const JOHN_3_KJV: BibleVerse[] = [
   { verse: 1, text: "There was a man of the Pharisees, named Nicodemus, a ruler of the Jews:" },
@@ -73,6 +99,10 @@ export async function getChapter(
     chapter = typeof chapterOrSlug === 'number' ? chapterOrSlug : 1;
   }
 
+  const meta = booksForTranslation(slug).find(b => b.num === book);
+  if (!meta || !Number.isInteger(chapter) || chapter < 1 || chapter > meta.chapters) return [];
+  if (slug === 'kjv') await hydrateBundledKjv();
+  if (slug === 'douayrheims') await hydrateCatholic();
   const key = keyOf(slug, book, chapter);
 
   const hot = memory.get(key);
@@ -104,7 +134,7 @@ export async function getChapter(
     }
 
     // Offline built-in fallback for John 3
-    if (book === 43 && chapter === 3) {
+    if (slug === 'kjv' && book === 43 && chapter === 3) {
       memory.set(key, JOHN_3_KJV);
       return JOHN_3_KJV;
     }
@@ -199,7 +229,7 @@ export function prefetchRef(ref: ScriptureRef, slug: string = DEFAULT_TRANSLATIO
 
 /** The next chapter, fetched quietly so paging forward is instant. */
 export function prefetchAdjacent(slug: string, book: number, chapter: number): void {
-  const meta = BOOKS.find(b => b.num === book);
+  const meta = booksForTranslation(slug).find(b => b.num === book);
   if (!meta) return;
   if (chapter < meta.chapters) prefetchRef({ book, bookName: meta.name, chapter: chapter + 1 }, slug);
   if (chapter > 1) prefetchRef({ book, bookName: meta.name, chapter: chapter - 1 }, slug);
@@ -233,7 +263,7 @@ export async function preloadTranslation(
   signal?: { cancelled: boolean },
 ): Promise<number> {
   const jobs: Array<{ book: number; chapter: number; label: string }> = [];
-  for (const b of BOOKS) {
+  for (const b of booksForTranslation(slug)) {
     for (let c = 1; c <= b.chapters; c++) jobs.push({ book: b.num, chapter: c, label: b.name });
   }
 
@@ -267,23 +297,30 @@ export const TOTAL_CHAPTERS = BOOKS.reduce((n, b) => n + b.chapters, 0);
  * offline indicator that lies is worse than none.
  */
 export async function localCoverage(slug: string): Promise<number> {
+  if (slug === 'kjv' && await hydrateBundledKjv()) return 1;
+  if (slug === 'douayrheims' && await hydrateCatholic()) return 1;
   const prefix = `${KEY_PREFIX}${slug}/`;
+  const supported = booksForTranslation(slug);
+  const total = supported.reduce((n, book) => n + book.chapters, 0);
+  const valid = new Set(supported.flatMap(book => Array.from({ length: book.chapters }, (_, i) => `${prefix}${book.num}/${i + 1}`)));
   try {
     const all = await keys();
-    const held = all.filter(k => typeof k === 'string' && k.startsWith(prefix)).length;
-    return Math.min(1, held / TOTAL_CHAPTERS);
+    const held = all.filter(k => typeof k === 'string' && valid.has(k)).length;
+    return Math.min(1, held / total);
   } catch {
     // Storage blocked — fall back to what this session has in memory.
     let held = 0;
-    for (const b of BOOKS) {
+    for (const b of supported) {
       for (let c = 1; c <= b.chapters; c++) if (memory.has(keyOf(slug, b.num, c))) held++;
     }
-    return held / TOTAL_CHAPTERS;
+    return held / total;
   }
 }
 
 /** Load every cached chapter of a translation into memory so search can run. */
 export async function hydrateForSearch(slug: string): Promise<number> {
+  if (slug === 'kjv' && await hydrateBundledKjv()) return TOTAL_CHAPTERS;
+  if (slug === 'douayrheims' && await hydrateCatholic()) return editionBooks(slug).reduce((n,b)=>n+b.chapters,0);
   const prefix = `${KEY_PREFIX}${slug}/`;
   try {
     const all = await keys();
@@ -292,7 +329,7 @@ export async function hydrateForSearch(slug: string): Promise<number> {
       const short = k.slice(KEY_PREFIX.length);
       if (memory.has(short)) return 1;
       const stored = await get<CachedChapter>(k);
-      if (stored?.verses?.length) { memory.set(short, stored.verses); return 1; }
+      if (stored?.verses?.length && Date.now() - stored.at < TTL_MS) { memory.set(short, stored.verses); return 1; }
       return 0;
     }));
     return loaded.reduce((a: number, b: number) => a + b, 0);
@@ -307,6 +344,20 @@ export interface SearchHit {
   text: string;
 }
 
+/** Snapshot of the hydrated translation, including all verses rather than a capped search. */
+export function cachedConcordanceCorpus(slug: string): SearchHit[] {
+  const corpus: SearchHit[] = [];
+  for (const book of booksForTranslation(slug)) {
+    for (let chapter = 1; chapter <= book.chapters; chapter++) {
+      for (const verse of memory.get(keyOf(slug, book.num, chapter)) ?? []) {
+        const ref: ScriptureRef = { book: book.num, bookName: book.name, chapter, verse: verse.verse };
+        corpus.push({ ref, label: formatRef(ref, 'display'), text: verse.text });
+      }
+    }
+  }
+  return corpus;
+}
+
 /**
  * Lexical search across whatever is cached locally. Deliberately not a network
  * search: it is instant, works offline, and its coverage is exactly what the
@@ -318,7 +369,7 @@ export function searchCached(query: string, slug: string = DEFAULT_TRANSLATION, 
   if (q.length < 3) return [];
   const hits: SearchHit[] = [];
 
-  for (const b of BOOKS) {
+  for (const b of booksForTranslation(slug)) {
     for (let c = 1; c <= b.chapters; c++) {
       const verses = memory.get(keyOf(slug, b.num, c));
       if (!verses) continue;
@@ -331,4 +382,19 @@ export function searchCached(query: string, slug: string = DEFAULT_TRANSLATION, 
     }
   }
   return hits;
+}
+
+let catholicBundle: Promise<boolean> | undefined;
+async function hydrateCatholic(): Promise<boolean> {
+ catholicBundle ??= (async()=>{
+  const key='pj.bible.bundle.douayrheims.v1';
+  try {
+   let raw: any; try { raw=await get(key); } catch {}
+   if(!raw) {const response=await fetch('/sacred/bible-douayrheims.json');if(!response.ok)return false;raw=await response.json();}
+   for(const record of parseBundledCatholic(raw)) memory.set(keyOf('douayrheims',record.book,record.chapter),record.verses);
+   try {await set(key,raw);} catch {}
+   return true;
+  } catch {return false;}
+ })().then(ok=>{if(!ok)catholicBundle=undefined;return ok;});
+ return catholicBundle;
 }

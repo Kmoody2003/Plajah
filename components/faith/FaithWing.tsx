@@ -38,7 +38,7 @@ const FaithWing: React.FC<FaithWingProps> = ({ faith, onBack, onOpenReader }) =>
           <span className="text-xl" style={{ color: acc }}>{faith.symbol}</span>
           <span className="font-semibold tracking-tight" style={{ fontFamily: 'var(--font-serif, Georgia, serif)' }}>{faith.name}</span>
         </div>
-        <span className="ml-auto text-[11px] uppercase tracking-[0.16em] text-white/35">{isModel ? 'The reference build' : 'Modeled · free to deviate'}</span>
+        <span className="ml-auto text-[11px] uppercase tracking-[0.16em] text-white/35">{faith.reader === 'sacred' ? 'Sacred texts & research' : isModel ? 'The reference build' : 'Study the tradition'}</span>
       </header>
 
       <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-24">
@@ -91,7 +91,7 @@ const FaithWing: React.FC<FaithWingProps> = ({ faith, onBack, onOpenReader }) =>
         </motion.section>
 
         {/* deviation panel */}
-        {faith.deviations.length > 0 && (
+        {faith.reader !== 'sacred' && faith.deviations.length > 0 && (
           <section className="mt-5 rounded-3xl border p-5 sm:p-6" style={{ borderColor: 'rgba(255,255,255,0.1)', background: `linear-gradient(180deg, ${acc}10, transparent)` }}>
             <h2 className="text-[13px] font-extrabold uppercase tracking-wide mb-3" style={{ color: acc }}>
               Where this wing bends the model
@@ -121,6 +121,8 @@ const FaithWing: React.FC<FaithWingProps> = ({ faith, onBack, onOpenReader }) =>
                 transition={{ duration: 0.4, delay: Math.min(i * 0.03, 0.2) }}
                 onClick={g.opensReader && onOpenReader ? onOpenReader : undefined}
                 role={g.opensReader && onOpenReader ? 'button' : undefined}
+                tabIndex={g.opensReader && onOpenReader ? 0 : undefined}
+                onKeyDown={g.opensReader && onOpenReader ? e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onOpenReader(); } } : undefined}
                 className="rounded-3xl border overflow-hidden transition-transform hover:-translate-y-0.5"
                 style={{ borderColor: 'rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.035)', gridColumn: feature ? 'span 2' : undefined, cursor: g.opensReader && onOpenReader ? 'pointer' : 'default' }}
               >

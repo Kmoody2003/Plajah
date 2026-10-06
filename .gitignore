@@ -117,3 +117,5 @@ scratch_*.cjs
 patch_chora*.js
 .flux-math-preview/
 flux-math-preview.png
+/tmp/lectio-qa/
+/tmp/sacred-reader-build/

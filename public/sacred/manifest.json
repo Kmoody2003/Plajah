@@ -1,0 +1,174 @@
+{
+  "schema": "plajah-sacred-assets-v1",
+  "checked": "2026-10-06",
+  "assets": [
+    {
+      "file": "oshb/metadata.json",
+      "title": "oshb original-language corpus provenance",
+      "edition": "WLC 4.20 / OSHB pinned snapshot",
+      "source": "https://github.com/openscriptures/morphhb",
+      "rights": "WLC text public domain; lemma/morphology CC BY 4.0. Original OSHB attribution retained in metadata.",
+      "bytes": 9888,
+      "sha256": "17776ef071ac384a68c7eed30af325623fd531a7746c85d5b2a27c47dad3258b"
+    },
+    {
+      "file": "oshb/search-index.json",
+      "title": "oshb complete original lemma and morphology index",
+      "edition": "Main-text token index; source numbering preserved",
+      "source": "https://github.com/openscriptures/morphhb",
+      "rights": "CC BY 4.0; see corpus metadata.",
+      "bytes": 7602421,
+      "sha256": "419e0cc7418a5b64332841b18b7ff93899d609830a67546788bb257e7844cef8"
+    },
+    {
+      "file": "greek/metadata.json",
+      "title": "greek original-language corpus provenance",
+      "edition": "Derived UGNT 0.34 pinned snapshot",
+      "source": "https://git.door43.org/unfoldingWord/el-x-koine_ugnt",
+      "rights": "Derived corpus CC BY-SA 4.0. Original unfoldingWord attribution, license and unmodified USFM retained in source directory.",
+      "bytes": 7267,
+      "sha256": "71024c098f49afaa22ce73bcbc0cfadebc46cb31f55aef285c12117bc00d3f11"
+    },
+    {
+      "file": "greek/search-index.json",
+      "title": "greek complete original lemma and morphology index",
+      "edition": "Main-text token index; source numbering preserved",
+      "source": "https://git.door43.org/unfoldingWord/el-x-koine_ugnt",
+      "rights": "CC BY-SA 4.0; see corpus metadata.",
+      "bytes": 3615193,
+      "sha256": "c7064f1f99d213a08baea3ee9876a3ce13a9a9426a1f7b5d7b1da799cffc2ff7"
+    },
+    {
+      "file": "greek/source/parsingscheme_updated.pdf",
+      "title": "Publisher Greek parsing chart",
+      "edition": "UGG / CNTR nine-slot scheme",
+      "source": "https://git.door43.org/unfoldingWord/en_ugg",
+      "rights": "Retained publisher grammar reference; original work available at https://unfoldingword.org/ugg/. CC BY-SA 4.0.",
+      "bytes": 620705,
+      "sha256": "bc003e9453b68e1a1a74c366471d0a40e8c853aa08a1cb9ee481c6edaa4471c3"
+    },
+    {
+      "file": "greek/source/grammar-license.md",
+      "title": "Greek grammar source license",
+      "edition": "Publisher attribution and share-alike license",
+      "source": "https://git.door43.org/unfoldingWord/en_ugg",
+      "rights": "Original work available at https://unfoldingword.org/ugg/. CC BY-SA 4.0.",
+      "bytes": 1303,
+      "sha256": "8cf548aed58d773a5bb3c39b63e19f70fdd8f23a1ee197500b97ad5a671d4ad2"
+    },
+    {
+      "file": "greek/verse-map.json",
+      "title": "KJV / UGNT verse-division exceptions",
+      "edition": "Plajah source-checked editorial mappings · 2026-10-06",
+      "source": "https://git.door43.org/unfoldingWord/el-x-koine_ugnt",
+      "rights": "CC BY-SA 4.0. Editorial verse division, not word-level alignment or a claim of identical readings.",
+      "bytes": 1647,
+      "sha256": "ff9a9997964c0b47d79bb956da3f73d6f72dcffce5ccc683f9b0612e790b82a7"
+    },
+    {
+      "file": "alignment/metadata.json",
+      "title": "KJV word alignment provenance and book checksums",
+      "edition": "CrossWire KJV 3.1",
+      "source": "https://gitlab.com/crosswire-bible-society/kjv",
+      "rights": "CrossWire attribution and GPL distribution notice retained in metadata and original OSIS source.",
+      "bytes": 11892,
+      "sha256": "30dd5873e7c2cdbf32274f922898b5acd1cad7804774495077d15984061a5715"
+    },
+    {
+      "file": "alignment/kjv-strong-index.json",
+      "title": "Complete KJV Strong tagged-group index",
+      "edition": "Derived from retained CrossWire KJV 3.1 OSIS",
+      "source": "https://gitlab.com/crosswire-bible-society/kjv",
+      "rights": "CrossWire Bible Society; source distribution marked GPL and grants use for any purpose. See alignment metadata and retained OSIS source.",
+      "bytes": 3977361,
+      "sha256": "1a6e6a6004257a86c58d41763985d4cbe7aadc2ce9e1095edf06b292438a56e2"
+    },
+    {
+      "file": "bible-douayrheims.json",
+      "title": "Douay-Rheims Bible",
+      "edition": "Challoner revision, GetBible 2.0",
+      "coverage": "73 books; 1,334 chapters; 35,808 verses",
+      "source": "https://api.getbible.net/v2/douayrheims.json",
+      "rights": "Public Domain, verified against retained provider metadata. Vulgate numbering.",
+      "bytes": 6748087,
+      "sha256": "fe88bcb2ac15152da7459fe9c0ad62d52760495fef776f55556d11a8b8982213"
+    },
+    {
+      "file": "bible-kjv.json",
+      "title": "King James Bible",
+      "edition": "GetBible v2 · CrossWire SWORD KJV snapshot",
+      "coverage": "66 books; 1,189 chapters; 31,102 verses",
+      "source": "https://api.getbible.net/v2/kjv.json",
+      "rights": "KJV base text is public domain in the United States. CrossWire digital edition is marked GPL and grants use for any purpose in its retained distribution_about notice; full attribution and source metadata remain in this file.",
+      "sourceRepository": "https://gitlab.com/crosswire-bible-society/kjv",
+      "bytes": 5974945,
+      "sha256": "c2519f1f2d7fdc3e77ede3d017ece00d4d1ce0326471cb8a8e3cbac2e3951f20"
+    },
+    {
+      "file": "quran-pickthall.json",
+      "title": "Qur’an · Pickthall English translation",
+      "edition": "1930",
+      "coverage": "114 surahs; 6,236 ayahs",
+      "source": "https://api.alquran.cloud/v1/quran/en.pickthall",
+      "rights": "Public domain in the United States; translation provided by Al Quran Cloud.",
+      "bytes": 1577671,
+      "sha256": "e731d9bce22575faba22b1f3de21c18b647711c33de074b89fe8d6f8384b01c5"
+    },
+    {
+      "file": "bhagavad-gita-arnold.txt",
+      "title": "Bhagavad Gita · The Song Celestial",
+      "edition": "Edwin Arnold, 1885; digitized 1900 edition",
+      "coverage": "18 chapters; poetic paragraphs are not Sanskrit verse alignment",
+      "source": "https://www.gutenberg.org/ebooks/2388",
+      "rights": "Public domain in the United States; complete Project Gutenberg license retained in source file.",
+      "bytes": 147501,
+      "sha256": "85b22401a9d256179f9a2e407215eb516da9b8213f23c32e03d66709d839a9e0"
+    },
+    {
+      "file": "dhammapada-muller.txt",
+      "title": "Dhammapada",
+      "edition": "F. Max Müller, 1881",
+      "coverage": "26 chapters; 423 verses; paired verses remain grouped as in this edition",
+      "source": "https://www.gutenberg.org/ebooks/2017",
+      "rights": "Public domain in the United States; complete Project Gutenberg license retained in source file.",
+      "bytes": 88619,
+      "sha256": "f2d09ebf28af0bf87ae7be7635d485b142e6526cb2cc164ba01c74586ff547bb"
+    },
+    {
+      "file": "lexicons/strongsgreek.json",
+      "title": "strongsgreek",
+      "edition": "GetBible conversion of CrossWire SWORD · Strong’s 1890 dictionary",
+      "source": "https://dictionaries.getbible.net/v1/strongsgreek.json",
+      "rights": "Public Domain, verified against provider metadata.",
+      "bytes": 2420033,
+      "sha256": "406d0ba3c7fdd1f7f1476c03647eaf3e58e8e18a05963ae834c8738fb09e7fbf"
+    },
+    {
+      "file": "lexicons/strongsgreek-metadata.json",
+      "title": "strongsgreek provenance",
+      "edition": "GetBible metadata snapshot",
+      "source": "https://dictionaries.getbible.net/v1/strongsgreek/metadata.json",
+      "rights": "Provider attribution and source-module metadata.",
+      "bytes": 1267,
+      "sha256": "c2126fcc1c315d20968d7aaaf3fc6b0a09366279bd66a1d6f98e54f114882082"
+    },
+    {
+      "file": "lexicons/strongshebrew.json",
+      "title": "strongshebrew",
+      "edition": "GetBible conversion of CrossWire SWORD · Strong’s 1890 dictionary",
+      "source": "https://dictionaries.getbible.net/v1/strongshebrew.json",
+      "rights": "Public Domain, verified against provider metadata.",
+      "bytes": 3364327,
+      "sha256": "02d9b7de87616e75a258ffdc24922d8f8b05502de8b1350cc196c20e683770d8"
+    },
+    {
+      "file": "lexicons/strongshebrew-metadata.json",
+      "title": "strongshebrew provenance",
+      "edition": "GetBible metadata snapshot",
+      "source": "https://dictionaries.getbible.net/v1/strongshebrew/metadata.json",
+      "rights": "Provider attribution and source-module metadata.",
+      "bytes": 1345,
+      "sha256": "4386562ddb7c2992572b5b5ce8bc862eb2b2e3efb5ea455a65927ea85a04e55a"
+    }
+  ]
+}

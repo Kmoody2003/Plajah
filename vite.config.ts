@@ -109,6 +109,13 @@ export default defineConfig(({ mode }) => {
             ],
             runtimeCaching: [
               {
+                // Preserve bundled edition files after first access so all chapters
+                // remain readable offline, alongside the section-level IndexedDB cache.
+                urlPattern: ({ url }: { url: URL }) => url.pathname.startsWith('/sacred/'),
+                handler: 'StaleWhileRevalidate' as const,
+                options: { cacheName: 'plajah-sacred-editions', expiration: { maxEntries: 160, maxAgeSeconds: 60 * 60 * 24 * 365 } },
+              },
+              {
                 // Lazy ML/engraving assets (tfjs, Basic Pitch, Verovio, ONNX Runtime): cache on first use.
                 urlPattern: ({ url }: { url: URL }) =>
                   url.pathname.startsWith('/models/') ||
