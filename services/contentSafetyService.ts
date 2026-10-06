@@ -290,19 +290,42 @@ Return JSON only: { "suggestedLabels": ContentLabel[], "prohibited": [{"id": "po
 
 // ─── Reporting ───────────────────────────────────────────────────────────────
 
-export type ReportReason = 'likeness' | 'doxing' | 'pornography' | 'real_gore' | 'unlabeled_sensitive' | 'harassment' | 'spam' | 'other';
+export type ReportReason =
+  | 'likeness' | 'doxing' | 'pornography' | 'real_gore' | 'unlabeled_sensitive' | 'harassment' | 'spam' | 'other'
+  // Social reporting (components/safety/ReportDialog)
+  | 'hate' | 'sexual_minor_safety' | 'violence_self_harm' | 'scam_impersonation' | 'misinformation';
 
+/**
+ * File a report. Doc id is deterministic (reporter + type + content) so one person can
+ * only report a given target once — the rules deny overwriting (update is staff-only),
+ * which we surface as `{ duplicate: true }` instead of an error.
+ */
 export async function reportContent(input: {
   contentId: string;
-  contentType: 'post' | 'comment' | 'video' | 'image' | 'profile' | 'note';
+  contentType: 'post' | 'comment' | 'video' | 'image' | 'profile' | 'note' | 'live';
   reason: ReportReason;
   details?: string;
   authorId?: string;
-}): Promise<void> {
-  await addDoc(collection(db, 'content_reports'), {
-    ...input,
-    reporterId: auth.currentUser?.uid ?? 'anonymous',
-    status: 'OPEN',
-    createdAt: serverTimestamp(),
-  });
+  /** Short snapshot of the reported text so staff can act even if it is later edited/deleted. */
+  snapshot?: string;
+  /** Extra locator, e.g. the parent post id of a comment. */
+  parentId?: string;
+}): Promise<{ duplicate: boolean }> {
+  const reporterId = auth.currentUser?.uid;
+  if (!reporterId) throw new Error('Sign in to report content.');
+  const clean: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(input)) if (v !== undefined) clean[k] = v;
+  if (typeof clean.details === 'string') clean.details = (clean.details as string).slice(0, 1000);
+  if (typeof clean.snapshot === 'string') clean.snapshot = (clean.snapshot as string).slice(0, 500);
+  const idTail = input.contentId === 'pre-publish' ? `pre-publish-${Date.now()}` : input.contentId; // composer screening events are not deduped
+  const id = `${reporterId}_${input.contentType}_${idTail}`.replace(/[\/\s]/g, '-').slice(0, 200);
+  const ref = doc(db, 'content_reports', id);
+  try {
+    // A plain read of an existing report is denied (staff-only), so rely on the create-only rule.
+    await setDoc(ref, { ...clean, reporterId, status: 'OPEN', createdAt: serverTimestamp() });
+    return { duplicate: false };
+  } catch (e: any) {
+    if (e?.code === 'permission-denied') return { duplicate: true };
+    throw e;
+  }
 }

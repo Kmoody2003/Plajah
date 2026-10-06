@@ -48,6 +48,9 @@ import {
 } from 'firebase/auth';
 import { db, storage, auth as firebaseAuth } from './firebase';
 import { isWindowsApp } from './windowsBridgeService';
+import { followNeedsApproval, requestFollow } from './socialSafetyService';
+import { chunkArray, mergeByTimestamp, uniqueIds } from './followGraphUtils';
+import { tryConsume } from './socialRateLimit';
 import { saveResumable, updateResumableProgress, clearResumable } from './resumableUpload';
 import { registerTransfer, updateTransfer, removeTransfer } from './activeUpload';
 export const auth = firebaseAuth;
@@ -1518,9 +1521,11 @@ export const resolveEduRole = async (uid: string): Promise<Post['eduRole'] | nul
   return role;
 };
 
-export const createPost = async (post: Partial<Post>) => {
+export const createPost = async (post: Partial<Post>, opts?: { postId?: string }) => {
   if (!auth.currentUser) return;
-  const path = 'posts';
+  // Private accounts write to `private_posts` (followers-only, rules-enforced) — see services/privatePostsService.ts.
+  const path: 'posts' | 'private_posts' = await import('./privatePostsService')
+    .then(m => m.resolvePostCollectionForMe(post)).catch(() => 'posts' as const);
   const feedPath = 'feed';
   try {
     // "Operate as org": a caller may present the post as an organization the user
@@ -1548,10 +1553,31 @@ export const createPost = async (post: Partial<Post>) => {
       targetUserId: post.targetUserId || null,
       targetUserName: post.targetUserName || null
     });
-    const docRef = await addDoc(collection(db, path), postData);
+    // opts.postId = deterministic id (scheduled posts: `sched_<scheduledId>`, shared with the server publisher in
+    // routes/socialServer.ts) so a client+server double publish can never create two posts. If a post with that
+    // id already exists (in either collection) it was already published — return it untouched.
+    let docRef: { id: string };
+    if (opts?.postId) {
+      const sibling = path === 'posts' ? 'private_posts' : 'posts';
+      const [a, b] = await Promise.all([
+        getDoc(doc(db, path, opts.postId)).catch(() => null),
+        getDoc(doc(db, sibling, opts.postId)).catch(() => null),
+      ]);
+      if (a?.exists() || b?.exists()) return opts.postId;
+      const ref = doc(db, path, opts.postId);
+      await setDoc(ref, postData);
+      docRef = ref;
+    } else {
+      docRef = await addDoc(collection(db, path), postData);
+    }
 
     // Department-private posts never mirror to the global feed or notify followers.
     if (post.orgAudience === 'DEPARTMENT') return docRef.id;
+    // Followers-only posts never mirror to the world-readable `feed` collection.
+    if (path === 'private_posts') {
+      notifyFollowers(auth.currentUser.uid, 'CONTENT', 'New Post', `${auth.currentUser.displayName} shared a new post`, 'FEED', docRef.id);
+      return docRef.id;
+    }
 
     // Mirror to feed collection — fire-and-forget so a feed write failure can't kill the post
     addDoc(collection(db, feedPath), {
@@ -1616,25 +1642,26 @@ export const postFieldsForAssetEmbed = async (
   return fields;
 };
 
-export const updatePost = async (postId: string, updates: Partial<Post>) => {
+export const updatePost = async (postId: string, updates: Partial<Post>, col: 'posts' | 'private_posts' = 'posts') => {
   if (!auth.currentUser) return;
-  const path = `posts/${postId}`;
+  const path = `${col}/${postId}`;
   try {
     const updateData = removeUndefined({
       ...updates,
       modifiedAt: Date.now()
     });
-    await updateDoc(doc(db, 'posts', postId), updateData);
+    await updateDoc(doc(db, col, postId), updateData);
   } catch (e) {
     handleFirestoreError(e, OperationType.UPDATE, path);
   }
 };
 
-export const deletePost = async (postId: string) => {
+export const deletePost = async (postId: string, col: 'posts' | 'private_posts' = 'posts') => {
   if (!auth.currentUser) return;
-  const path = `posts/${postId}`;
+  const path = `${col}/${postId}`;
   try {
-    await deleteDoc(doc(db, 'posts', postId));
+    await deleteDoc(doc(db, col, postId));
+    if (col === 'private_posts') return; // no feed mirror for private posts
     // Cascade delete the corresponding feed mirror (created by createPost)
     const feedQuery = query(collection(db, 'feed'), where('originalPostId', '==', postId));
     const feedSnap = await getDocs(feedQuery);
@@ -1677,19 +1704,20 @@ export const togglePostLike = async (postId: string): Promise<{ liked: boolean; 
 };
 
 // --- POST COMMENTS (clean, dedicated functions) ---
-export const subscribeToPostComments = (postId: string, callback: (comments: any[]) => void) => {
+export const subscribeToPostComments = (postId: string, callback: (comments: any[]) => void, col: 'posts' | 'private_posts' = 'posts') => {
   const q = query(
-    collection(db, 'posts', postId, 'comments'),
+    collection(db, col, postId, 'comments'),
     orderBy('timestamp', 'asc')
   );
   return onSnapshot(q, snapshot => {
     callback(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
-  }, err => handleFirestoreError(err, OperationType.LIST, `posts/${postId}/comments`));
+  }, err => handleFirestoreError(err, OperationType.LIST, `${col}/${postId}/comments`));
 };
 
 export const addPostComment = async (
   postId: string, text: string, parentId?: string | null,
   videoUrl?: string, audioUrl?: string, gifUrl?: string, imageUrl?: string,
+  col: 'posts' | 'private_posts' = 'posts',
 ) => {
   if (!auth.currentUser) throw new Error('Not authenticated');
   const displayName = auth.currentUser.displayName || 'Anonymous';
@@ -1709,21 +1737,21 @@ export const addPostComment = async (
   if (videoUrl) commentData.videoUrl = videoUrl;
   if (audioUrl) commentData.audioUrl = audioUrl;
   if (gifUrl)   commentData.gifUrl   = gifUrl;
-  const docRef = await addDoc(collection(db, 'posts', postId, 'comments'), commentData);
-  updateDoc(doc(db, 'posts', postId), { commentsCount: increment(1) }).catch(() => {});
+  const docRef = await addDoc(collection(db, col, postId, 'comments'), commentData);
+  updateDoc(doc(db, col, postId), { commentsCount: increment(1) }).catch(() => {});
   return { id: docRef.id, ...commentData };
 };
 
-export const deletePostComment = async (postId: string, commentId: string) => {
+export const deletePostComment = async (postId: string, commentId: string, col: 'posts' | 'private_posts' = 'posts') => {
   if (!auth.currentUser) return;
-  await deleteDoc(doc(db, 'posts', postId, 'comments', commentId));
-  updateDoc(doc(db, 'posts', postId), { commentsCount: increment(-1) }).catch(() => {});
+  await deleteDoc(doc(db, col, postId, 'comments', commentId));
+  updateDoc(doc(db, col, postId), { commentsCount: increment(-1) }).catch(() => {});
 };
 
-export const toggleCommentLike = async (postId: string, commentId: string): Promise<boolean | undefined> => {
+export const toggleCommentLike = async (postId: string, commentId: string, col: 'posts' | 'private_posts' = 'posts'): Promise<boolean | undefined> => {
   if (!auth.currentUser) return;
   const uid = auth.currentUser.uid;
-  const ref = doc(db, 'posts', postId, 'comments', commentId);
+  const ref = doc(db, col, postId, 'comments', commentId);
   return runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists()) return false;
@@ -1973,34 +2001,63 @@ export const listenToLikedPosts = (uid: string, callback: (posts: Post[]) => voi
   return unsub;
 };
 
+/** Ids the user follows, read straight from the `follows` collection (source of truth —
+ *  UserProfile.following is legacy and never written). Capped at `max` (default 1000). */
+export const fetchFollowingIds = async (uid: string, max: number = 1000): Promise<string[]> => {
+  if (!uid) return [];
+  try {
+    const snap = await getDocs(query(collection(db, 'follows'), where('followerId', '==', uid), limit(max)));
+    return uniqueIds(snap.docs.map(d => d.data().followingId as string));
+  } catch (e) {
+    handleFirestoreError(e, OperationType.LIST, 'follows');
+    return [];
+  }
+};
+
+/**
+ * Run one onSnapshot per chunk of ids (Firestore `in` caps at 10), hold the latest result of
+ * each chunk, and emit the merged/deduped/newest-first/capped union whenever any chunk changes.
+ * First emission waits until every chunk has answered once (or errored) so the list doesn't flicker.
+ */
+function listenChunked<T extends { id: string; timestamp: number }>(
+  ids: string[],
+  buildQuery: (chunk: string[]) => any,
+  mapDoc: (d: any) => T,
+  cap: number,
+  callback: (items: T[]) => void,
+  onError: (e: unknown) => void,
+): () => void {
+  const chunks = chunkArray(uniqueIds(ids));
+  if (chunks.length === 0) { callback([]); return () => {}; }
+  const results: T[][] = chunks.map(() => []);
+  const ready: boolean[] = chunks.map(() => false);
+  const emit = () => { if (ready.every(Boolean)) callback(mergeByTimestamp(results, cap)); };
+  const unsubs = chunks.map((chunk, i) => onSnapshot(buildQuery(chunk), (snap: any) => {
+    results[i] = snap.docs.map(mapDoc);
+    ready[i] = true;
+    emit();
+  }, (err: unknown) => { ready[i] = true; emit(); onError(err); }));
+  return () => unsubs.forEach(u => u());
+}
+
 export const listenToFollowedPosts = async (uid: string, callback: (posts: Post[]) => void) => {
   const postsPath = 'posts';
   try {
-    const following = await fetchFollowedArtists(uid);
-    const followingIds = following.map(f => f.uid);
-    const targetIds = [uid, ...followingIds.slice(0, 9)];
-
-    const postsQuery = query(
-      collection(db, postsPath),
-      where('authorId', 'in', targetIds),
-      orderBy('timestamp', 'desc'),
-      limit(50)
+    const followingIds = await fetchFollowingIds(uid, 500);
+    const targetIds = uniqueIds([uid, ...followingIds]);
+    return listenChunked<Post>(
+      targetIds,
+      (chunk) => query(collection(db, postsPath), where('authorId', 'in', chunk), orderBy('timestamp', 'desc'), limit(50)),
+      (d) => ({
+        id: d.id,
+        ...d.data(),
+        sourceCollection: 'posts',
+        timestamp: safeToMillis(d.data().timestamp),
+      } as Post),
+      50,
+      (items) => callback(items.filter(p => p.timestamp > 0)),
+      (err) => handleFirestoreError(err, OperationType.LIST, postsPath),
     );
-
-    const unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
-      const items = snapshot.docs
-        .map(d => ({
-          id: d.id,
-          ...d.data(),
-          sourceCollection: 'posts',
-          timestamp: safeToMillis(d.data().timestamp)
-        } as Post))
-        .filter(p => p.timestamp > 0)
-        .sort((a, b) => b.timestamp - a.timestamp);
-      callback(items);
-    }, (err) => handleFirestoreError(err, OperationType.LIST, postsPath));
-
-    return unsubscribePosts;
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, postsPath);
     return () => {};
@@ -3054,42 +3111,36 @@ export const migratePostsToFeed = async () => {
 export const fetchFollowedFeed = async (uid: string, callback: (items: FeedItem[]) => void) => {
   const feedPath = 'feed';
   const postsPath = 'posts';
-  
+
   try {
-    const following = await fetchFollowedArtists(uid);
-    const followingIds = following.map(f => f.uid);
-    const targetIds = [uid, ...followingIds.slice(0, 9)];
-    
+    // Ids come from the follows collection and are CHUNKED (10 per `in` query) — no more
+    // 9-author truncation. Each of the two sources is merged across chunks, then the union is
+    // deduped, sorted newest-first and capped.
+    const followingIds = await fetchFollowingIds(uid, 500);
+    const targetIds = uniqueIds([uid, ...followingIds]);
+
     let feedItems: FeedItem[] = [];
     let postItems: FeedItem[] = [];
+    const updateItems = () => callback(mergeByTimestamp([feedItems, postItems], 50));
 
-    const updateItems = () => {
-      const combined = [...feedItems, ...postItems].sort((a, b) => b.timestamp - a.timestamp);
-      callback(combined.slice(0, 50));
-    };
-
-    const feedQuery = query(
-      collection(db, feedPath),
-      where('authorId', 'in', targetIds)
-    );
-
-    const postsQuery = query(
-      collection(db, postsPath),
-      where('authorId', 'in', targetIds)
-    );
-
-    const unsubscribeFeed = onSnapshot(feedQuery, (snapshot) => {
-      feedItems = snapshot.docs.map(d => ({
+    const unsubscribeFeed = listenChunked<FeedItem>(
+      targetIds,
+      (chunk) => query(collection(db, feedPath), where('authorId', 'in', chunk)),
+      (d) => ({
         id: d.id,
         ...d.data(),
         timestamp: safeToMillis(d.data().timestamp),
-        sourceCollection: 'feed'
-      } as FeedItem));
-      updateItems();
-    }, (err) => handleFirestoreError(err, OperationType.LIST, feedPath));
+        sourceCollection: 'feed',
+      } as FeedItem),
+      200,
+      (items) => { feedItems = items; updateItems(); },
+      (err) => handleFirestoreError(err, OperationType.LIST, feedPath),
+    );
 
-    const unsubscribePosts = onSnapshot(postsQuery, (snapshot) => {
-      postItems = snapshot.docs.map(d => {
+    const unsubscribePosts = listenChunked<FeedItem>(
+      targetIds,
+      (chunk) => query(collection(db, postsPath), where('authorId', 'in', chunk)),
+      (d) => {
         const data = d.data();
         return {
           id: d.id,
@@ -3104,11 +3155,13 @@ export const fetchFollowedFeed = async (uid: string, callback: (items: FeedItem[
           likesCount: data.likesCount || 0,
           commentCount: data.commentsCount || 0,
           shareCount: 0,
-          sourceCollection: 'posts'
+          sourceCollection: 'posts',
         } as FeedItem;
-      });
-      updateItems();
-    }, (err) => handleFirestoreError(err, OperationType.LIST, postsPath));
+      },
+      200,
+      (items) => { postItems = items; updateItems(); },
+      (err) => handleFirestoreError(err, OperationType.LIST, postsPath),
+    );
 
     return () => {
       unsubscribeFeed();
@@ -4815,53 +4868,81 @@ export const fetchUserStreamArchives = async (userId: string): Promise<StreamArc
 
 // --- Social Features ---
 
-export const followUser = async (targetUserId: string) => {
-  if (!auth.currentUser) return;
+export type FollowResult = 'followed' | 'requested' | 'already' | 'blocked' | 'rate' | 'none';
+
+/**
+ * Follow `targetUserId`. The follow doc and both counters are written in ONE transaction and the
+ * existing doc is checked first, so double-clicks / retries / two tabs can never double-count.
+ * Private accounts (SAFETY's followNeedsApproval) get a follow REQUEST instead of a follow.
+ * Rules: others may bump the target's followerCount by exactly 1; the follower owns followingCount.
+ */
+export const followUser = async (targetUserId: string, opts: { bypassRateLimit?: boolean } = {}): Promise<FollowResult> => {
+  const me = auth.currentUser;
+  if (!me || !targetUserId || me.uid === targetUserId) return 'none';
   const path = 'follows';
   try {
-    const followId = `${auth.currentUser.uid}_${targetUserId}`;
-    await setDoc(doc(db, path, followId), {
-      followerId: auth.currentUser.uid,
-      followingId: targetUserId,
-      timestamp: serverTimestamp()
+    // client-side anti-spam throttle (services/socialRateLimit); onboarding's small seed batch bypasses the per-click cooldown
+    if (!opts.bypassRateLimit) {
+      const created = Date.parse(me.metadata?.creationTime || '');
+      if (!tryConsume(me.uid, 'follow', Number.isNaN(created) ? null : created).ok) return 'rate';
+    }
+    if (await followNeedsApproval(targetUserId)) {
+      const status = await requestFollow(targetUserId);
+      if (status === 'blocked') return 'blocked';
+      if (status === 'rate_limited') return 'rate';
+      return 'requested';
+    }
+    const followRef = doc(db, path, `${me.uid}_${targetUserId}`);
+    const created = await runTransaction(db, async (tx) => {
+      const existing = await tx.get(followRef);
+      if (existing.exists()) return false;
+      tx.set(followRef, {
+        followerId: me.uid,
+        followingId: targetUserId,
+        timestamp: serverTimestamp(),
+      });
+      tx.update(doc(db, 'users', targetUserId), { followerCount: increment(1) });
+      tx.update(doc(db, 'users', me.uid), { followingCount: increment(1) });
+      return true;
     });
-    
-    // Update counts (simplified for now, ideally use cloud functions or transactions)
-    const targetUserRef = doc(db, 'users', targetUserId);
-    const currentUserRef = doc(db, 'users', auth.currentUser.uid);
-    
-    await updateDoc(targetUserRef, { followerCount: increment(1) });
-    await updateDoc(currentUserRef, { followingCount: increment(1) });
+    if (!created) return 'already';
 
     // Notify target user
     createNotification({
       userId: targetUserId,
-      senderId: auth.currentUser.uid,
-      senderName: auth.currentUser.displayName || 'Anonymous',
-      senderPhoto: auth.currentUser.photoURL || '',
+      senderId: me.uid,
+      senderName: me.displayName || 'Anonymous',
+      senderPhoto: me.photoURL || '',
       type: 'FOLLOW',
       title: 'New Follower',
-      message: `${auth.currentUser.displayName} is now following you`,
+      message: `${me.displayName || 'Someone'} is now following you`,
       link: 'USER_PROFILE',
-      targetId: auth.currentUser.uid
+      targetId: me.uid
     });
+    return 'followed';
   } catch (e) {
     handleFirestoreError(e, OperationType.WRITE, path);
+    return 'none';
   }
 };
 
-export const unfollowUser = async (targetUserId: string) => {
-  if (!auth.currentUser) return;
+/** Unfollow in one transaction; a no-op when the follow doc is already gone (no count drift). */
+export const unfollowUser = async (targetUserId: string): Promise<void> => {
+  if (!auth.currentUser || !targetUserId) return;
+  const meUid = auth.currentUser.uid;
   const path = 'follows';
   try {
-    const followId = `${auth.currentUser.uid}_${targetUserId}`;
-    await deleteDoc(doc(db, path, followId));
-    
-    const targetUserRef = doc(db, 'users', targetUserId);
-    const currentUserRef = doc(db, 'users', auth.currentUser.uid);
-    
-    await updateDoc(targetUserRef, { followerCount: increment(-1) });
-    await updateDoc(currentUserRef, { followingCount: increment(-1) });
+    const followRef = doc(db, path, `${meUid}_${targetUserId}`);
+    const targetRef = doc(db, 'users', targetUserId);
+    const meRef = doc(db, 'users', meUid);
+    await runTransaction(db, async (tx) => {
+      const [existing, targetSnap, meSnap] = await Promise.all([tx.get(followRef), tx.get(targetRef), tx.get(meRef)]);
+      if (!existing.exists()) return;
+      tx.delete(followRef);
+      // rules require the follower-count change to be exactly 1, so skip when already 0
+      if (targetSnap.exists() && (targetSnap.data().followerCount || 0) > 0) tx.update(targetRef, { followerCount: increment(-1) });
+      if (meSnap.exists() && (meSnap.data().followingCount || 0) > 0) tx.update(meRef, { followingCount: increment(-1) });
+    });
   } catch (e) {
     handleFirestoreError(e, OperationType.DELETE, path);
   }
@@ -4942,7 +5023,7 @@ export const saveFcmToken = async (uid: string, token: string): Promise<void> =>
 // Maps each notification type to a user-facing preference category + Android channel id.
 const PUSH_CATEGORY: Record<string, 'messages' | 'social' | 'content' | 'system'> = {
   MESSAGE: 'messages',
-  COMMENT: 'social', LIKE: 'social', FOLLOW: 'social',
+  COMMENT: 'social', LIKE: 'social', FOLLOW: 'social', HELLO: 'social',
   CONTENT: 'content',
   SYSTEM: 'system',
 };
@@ -5563,18 +5644,43 @@ export const fetchUserProfiles = async (uids: string[]): Promise<UserProfile[]> 
   }
 };
 
-export const searchUserProfiles = async (searchTerm: string): Promise<UserProfile[]> => {
-  if (!searchTerm.trim()) return [];
+/** Case variants of a search term. Firestore prefix ranges are case-sensitive and we have no
+ *  lowercase search field, so we query the original, lower, Capitalised and Title Case forms. */
+const nameSearchVariants = (term: string): string[] => {
+  const t = term.trim();
+  const cap = t.charAt(0).toUpperCase() + t.slice(1);
+  const title = t.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  return uniqueIds([t, t.toLowerCase(), cap, title]);
+};
+
+/**
+ * Prefix search over displayName AND handle (case-insensitive via variants). Pass
+ * `{ excludeRestricted: true }` from people-discovery UI to drop child + managed-employee profiles
+ * (default keeps them so existing DM/mention flows are unchanged). Accounts that opted out of
+ * suggestions stay findable by search. Results are deduped and capped at `max` (default 10).
+ */
+export const searchUserProfiles = async (searchTerm: string, max: number = 10, opts: { excludeRestricted?: boolean } = {}): Promise<UserProfile[]> => {
+  const term = searchTerm.replace(/^@/, '').trim();
+  if (!term) return [];
   const path = 'users';
   try {
-    const q = query(
-      collection(db, path),
-      where('displayName', '>=', searchTerm),
-      where('displayName', '<=', searchTerm + '\uf8ff'),
-      limit(10)
-    );
-    const snapshot = await getDocs(q);
-    return snapshot.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile));
+    const variants = nameSearchVariants(term);
+    const runs: Promise<{ docs: any[] }>[] = [];
+    for (const v of variants) {
+      runs.push(getDocs(query(collection(db, path), where('displayName', '>=', v), where('displayName', '<=', v + ''), limit(max))));
+      runs.push(getDocs(query(collection(db, path), where('handle', '>=', v.toLowerCase()), where('handle', '<=', v.toLowerCase() + ''), limit(max))).catch(() => ({ docs: [] })));
+    }
+    const snaps = await Promise.all(runs);
+    const byId = new Map<string, UserProfile>();
+    for (const snap of snaps) {
+      for (const d of snap.docs) {
+        if (byId.has(d.id)) continue;
+        const u = { uid: d.id, ...d.data() } as UserProfile;
+        if (opts.excludeRestricted && (u.isChild || u.isEmployee)) continue;
+        byId.set(d.id, u);
+      }
+    }
+    return [...byId.values()].slice(0, max);
   } catch (e) {
     handleFirestoreError(e, OperationType.LIST, path);
     return [];
@@ -5602,6 +5708,8 @@ export const searchLiveChannels = async (searchTerm: string): Promise<UserProfil
   }
 };
 
+/** @deprecated random-of-first-50 users. Use `suggestPeople` (services/discoveryService) for real
+ *  suggestions. Remaining callers: components/FeedView.tsx (~1566), components/LandingPage.tsx (~155). */
 export const fetchRandomActiveUser = async (): Promise<UserProfile | null> => {
   const path = 'users';
   try {
@@ -5965,9 +6073,7 @@ export const fetchPurchasedAlbums = async (uid: string): Promise<Album[]> => {
 
 export const fetchFollowedArtists = async (uid: string): Promise<UserProfile[]> => {
   try {
-    const q = query(collection(db, 'follows'), where("followerId", "==", uid), limit(100));
-    const snapshot = await getDocs(q);
-    const followingIds = snapshot.docs.map(d => d.data().followingId);
+    const followingIds = (await fetchFollowingIds(uid, 300)).slice(0, 100);   // profiles are fetched one by one; callers wanting ALL ids use fetchFollowingIds
     if (followingIds.length === 0) return [];
     const results = await Promise.all(followingIds.map(id => fetchUserProfile(id).catch(() => null)));
     return results.filter((p): p is UserProfile => p !== null);
@@ -10725,16 +10831,33 @@ export const createStory = async (ownerId: string, data: Omit<Story, 'id' | 'own
 };
 
 export const listenToFollowedStories = (followedUids: string[], callback: (stories: Story[]) => void) => {
-  if (followedUids.length === 0) { callback([]); return () => {}; }
+  const ids = uniqueIds(followedUids);
+  if (ids.length === 0) { callback([]); return () => {}; }
   const now = Date.now();
-  const q = query(
-    collection(db, 'stories'),
-    where('ownerId', 'in', followedUids.slice(0, 30)),
-    where('expiresAt', '>', now),
-    orderBy('expiresAt'),
-    orderBy('timestamp', 'desc'),
-  );
-  return onSnapshot(q, snap => callback(snap.docs.map(d => d.data() as Story)));
+  // chunked (10 owners per `in` query) and merged — no 30-owner truncation
+  const chunks = chunkArray(ids);
+  const results: Story[][] = chunks.map(() => []);
+  const ready: boolean[] = chunks.map(() => false);
+  const emit = () => {
+    if (!ready.every(Boolean)) return;
+    const seen = new Set<string>();
+    const merged: Story[] = [];
+    for (const list of results) for (const st of list) { if (!seen.has(st.id)) { seen.add(st.id); merged.push(st); } }
+    merged.sort((a, b) => b.timestamp - a.timestamp);
+    callback(merged);
+  };
+  const unsubs = chunks.map((chunk, i) => onSnapshot(
+    query(
+      collection(db, 'stories'),
+      where('ownerId', 'in', chunk),
+      where('expiresAt', '>', now),
+      orderBy('expiresAt'),
+      orderBy('timestamp', 'desc'),
+    ),
+    snap => { results[i] = snap.docs.map(d => d.data() as Story); ready[i] = true; emit(); },
+    () => { ready[i] = true; emit(); },
+  ));
+  return () => unsubs.forEach(u => u());
 };
 
 export const listenToUserStories = (uid: string, callback: (stories: Story[]) => void) => {

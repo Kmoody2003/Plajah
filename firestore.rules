@@ -601,7 +601,7 @@ service cloud.firestore {
     function isValidNotification(data) {
       return hasRequiredFields(['userId', 'senderId', 'senderName', 'type', 'title', 'message', 'isRead', 'timestamp']) &&
              data.userId is string && data.senderId is string &&
-             data.type in ["MESSAGE", "COMMENT", "CONTENT", "SYSTEM", "LIKE", "FOLLOW"] &&
+             data.type in ["MESSAGE", "COMMENT", "CONTENT", "SYSTEM", "LIKE", "FOLLOW", "HELLO"] &&
              data.title is string && data.title.size() < 200 &&
              data.message is string && data.message.size() < 1000 &&
              data.isRead is bool;
@@ -663,6 +663,15 @@ service cloud.firestore {
     }
     // For a 2-person PRIVATE room: allow iff not student-involving, or the one adult
     // is the student's teacher/guardian. Two students, or student↔stranger, are denied.
+    // True for a 1:1 PRIVATE room whose two participants have a block between them (either direction).
+    // Short-circuits on room type, so group/live rooms pay no extra reads.
+    function dmRoomBlocked(roomId) {
+      return get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.get('type', '') == 'PRIVATE'
+             && get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants.size() == 2
+             && isBlockedPair(get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants[0],
+                              get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants[1]);
+    }
+
     function dmPairAllowed(p) {
       return (!isStudentUid(p[0]) && !isStudentUid(p[1]))
         ? true
@@ -857,7 +866,9 @@ service cloud.firestore {
       allow read: if (!('isPublic' in resource.data) || resource.data.isPublic == true) || (isAuthenticated() && resource.data.authorId == request.auth.uid) || isAdmin() ||
                     // Elevate DEPARTMENT threads: private posts readable by that department (query must filter orgAudience=='DEPARTMENT').
                     (resource.data.get('orgAudience', '') == 'DEPARTMENT' && orgInDepartment(resource.data.authorOrgId, resource.data.get('orgDepartmentId', '')));
-      allow create: if isRegisteredUser() && isValidPost(request.resource.data) && request.resource.data.authorId == request.auth.uid;
+      // Private accounts' posts go to `private_posts` (services/privatePostsService.ts); only org DEPARTMENT threads stay here.
+      allow create: if isRegisteredUser() && isValidPost(request.resource.data) && request.resource.data.authorId == request.auth.uid
+                    && (request.resource.data.get('orgAudience', '') == 'DEPARTMENT' || !isPrivateAccount(request.auth.uid));
       allow update: if (isAuthenticated() && resource.data.authorId == request.auth.uid && isValidPost(request.resource.data)) ||
                       // Atomic +1/-1 like toggles bound to the user's UID
                       (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy', 'likesCount']) &&
@@ -873,6 +884,15 @@ service cloud.firestore {
                       (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'commentsCount']) &&
                         (request.resource.data.likesCount == resource.data.likesCount + 1 || request.resource.data.likesCount == resource.data.likesCount - 1 || request.resource.data.likesCount == resource.data.likesCount) &&
                         (request.resource.data.commentsCount == resource.data.commentsCount + 1 || request.resource.data.commentsCount == resource.data.commentsCount - 1 || request.resource.data.commentsCount == resource.data.commentsCount)) ||
+                      // Quote / repost counters (services/postingService) — bounded +/-1 per write, nothing else touched.
+                      (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['quoteCount']) &&
+                        request.resource.data.quoteCount is number &&
+                        request.resource.data.quoteCount >= 0 &&
+                        (request.resource.data.quoteCount - resource.data.get('quoteCount', 0) == 1 || request.resource.data.quoteCount - resource.data.get('quoteCount', 0) == -1)) ||
+                      (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['repostCount']) &&
+                        request.resource.data.repostCount is number &&
+                        request.resource.data.repostCount >= 0 &&
+                        (request.resource.data.repostCount - resource.data.get('repostCount', 0) == 1 || request.resource.data.repostCount - resource.data.get('repostCount', 0) == -1)) ||
                       // Exclusive post view tracking — any signed-in user can add themselves to viewedBy (grows by exactly 1, only their UID)
                       (isAuthenticated() &&
                        'isExclusive' in resource.data && resource.data.isExclusive == true &&
@@ -894,7 +914,9 @@ service cloud.firestore {
         allow update: if isAdmin() ||
                         (isAuthenticated() && resource.data.uid == request.auth.uid) ||
                         (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy', 'likesCount']));
-        allow delete: if isAdmin() || (isAuthenticated() && resource.data.uid == request.auth.uid);
+        // The post's author may also clear comments on their own post (used when a post moves to private_posts).
+        allow delete: if isAdmin() || (isAuthenticated() && resource.data.uid == request.auth.uid)
+                      || (isAuthenticated() && get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid);
       }
     }
 
@@ -1050,6 +1072,11 @@ service cloud.firestore {
       // Thesa stash — a person's saved cards + private notes. Owner-only, no admin escape hatch;
       // never read by ranking, ads or recommendations (services/thesa/stashService).
       match /thesa_stash/{cardId} { allow read, write: if isOwner(userId); }
+
+      // Feed preferences (feedPreferences region — agent CARDS): users/{uid}/prefs/feed holds
+      // muted topics / content types, "show less like this" weights and the default tab.
+      // Private to the owner; ranking reads it client-side only (services/feedPreferencesService).
+      match /prefs/{docId} { allow read, write: if isOwner(userId); }
 
       // The Post Man. `postman_prefs` is the only one the CLIENT touches — letter
       // skin and focus mode. `postman_accounts` holds OAuth refresh tokens and is
@@ -1449,19 +1476,201 @@ service cloud.firestore {
       }
     }
 
+    // ── Social safety helpers (blocks / private accounts) ──
+    function isPrivateAccount(uid) {
+      return exists(/databases/$(database)/documents/users/$(uid))
+             && get(/databases/$(database)/documents/users/$(uid)).data.get('isPrivate', false) == true;
+    }
+    function isBlockedPair(a, b) {
+      return exists(/databases/$(database)/documents/blocks/$(a + '_' + b))
+             || exists(/databases/$(database)/documents/blocks/$(b + '_' + a));
+    }
+
     match /follows/{followId} {
       // followId is followerId_followingId
       allow read: if true;
-      allow create: if isAuthenticated() && 
-                      request.resource.data.followerId == request.auth.uid &&
-                      followId == request.auth.uid + "_" + request.resource.data.followingId;
-      allow delete: if isAuthenticated() && 
-                      resource.data.followerId == request.auth.uid;
+      allow create: if isAuthenticated()
+                    && followId == request.resource.data.followerId + "_" + request.resource.data.followingId
+                    && !isBlockedPair(request.resource.data.followerId, request.resource.data.followingId)
+                    && (
+                      // Self-follow: denied for private accounts (they must approve a request).
+                      (request.resource.data.followerId == request.auth.uid
+                        && request.resource.data.followerId != request.resource.data.followingId
+                        && !isPrivateAccount(request.resource.data.followingId))
+                      ||
+                      // Approval: the followed (private) account creates the edge for the requester,
+                      // ONLY while that requester's pending request exists.
+                      (request.resource.data.followingId == request.auth.uid
+                        && exists(/databases/$(database)/documents/follow_requests/$(followId))
+                        && get(/databases/$(database)/documents/follow_requests/$(followId)).data.status == 'pending'
+                        && get(/databases/$(database)/documents/follow_requests/$(followId)).data.requesterId == request.resource.data.followerId
+                        && get(/databases/$(database)/documents/follow_requests/$(followId)).data.targetId == request.auth.uid)
+                    );
+      // Follower can change only their notification bell level.
+      allow update: if isAuthenticated()
+                    && resource.data.followerId == request.auth.uid
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notifyLevel']);
+      // Follower unfollows; the followed account may also remove a follower (used by block).
+      allow delete: if isAuthenticated()
+                    && (resource.data.followerId == request.auth.uid || resource.data.followingId == request.auth.uid);
+    }
+
+    // follow_requests/{requesterId_targetId} — request to follow a private account.
+    match /follow_requests/{reqId} {
+      allow get: if isAuthenticated()
+                 && (resource.data.requesterId == request.auth.uid || resource.data.targetId == request.auth.uid);
+      allow list: if isAuthenticated()
+                  && (resource.data.requesterId == request.auth.uid || resource.data.targetId == request.auth.uid);
+      allow create: if isAuthenticated()
+                    && request.resource.data.requesterId == request.auth.uid
+                    && request.resource.data.targetId is string
+                    && request.resource.data.targetId != request.auth.uid
+                    && reqId == request.auth.uid + '_' + request.resource.data.targetId
+                    && request.resource.data.status == 'pending'
+                    && !isBlockedPair(request.auth.uid, request.resource.data.targetId)
+                    // Rate limit: the SAME batch must bump rateLimits/{me} (see rateLimits rules below);
+                    // that doc's own rules force lastFollowRequestAt == request.time and cap 30/hour, 1 per 2s.
+                    && getAfter(/databases/$(database)/documents/rateLimits/$(request.auth.uid)).data.get('lastFollowRequestAt', null) == request.time;
+      // The target resolves a pending request (only status + resolvedAt may change).
+      allow update: if isAuthenticated()
+                    && resource.data.targetId == request.auth.uid
+                    && resource.data.status == 'pending'
+                    && request.resource.data.status in ['approved', 'declined']
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'resolvedAt']);
+      // Requester can cancel unless declined; a decline sticks for 7 days (then the requester may
+      // clear it and ask again). Target can clear anytime.
+      allow delete: if isAuthenticated()
+                    && ((resource.data.requesterId == request.auth.uid
+                         && (resource.data.status != 'declined'
+                             || ('resolvedAt' in resource.data && request.time > resource.data.resolvedAt + duration.value(7, 'd'))))
+                        || resource.data.targetId == request.auth.uid);
+    }
+
+    // blocks/{blocker_blocked} — readable by either party, written only by the blocker.
+    match /blocks/{blockId} {
+      allow get: if isAuthenticated()
+                 && (resource.data.blockerId == request.auth.uid || resource.data.blockedId == request.auth.uid);
+      allow list: if isAuthenticated()
+                  && (resource.data.blockerId == request.auth.uid || resource.data.blockedId == request.auth.uid);
+      allow create: if isAuthenticated()
+                    && request.resource.data.blockerId == request.auth.uid
+                    && request.resource.data.blockedId is string
+                    && request.resource.data.blockedId != request.auth.uid
+                    && blockId == request.auth.uid + '_' + request.resource.data.blockedId;
+      allow delete: if isAuthenticated() && resource.data.blockerId == request.auth.uid;
+    }
+
+    // users/{uid}/mutes/{target} — private to the owner.
+    match /users/{userId}/mutes/{targetId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // rateLimits/{uid} — owner-only counter doc. The follow-request fields (frCount, frWindowStart,
+    // lastFollowRequestAt) can ONLY advance through a valid transition at request.time (min 2s gap,
+    // max 30 per rolling hour window), so the owner cannot rewind them; follow_requests creates
+    // require this doc to be bumped in the same batch (getAfter). Never deletable (a delete would reset).
+    function rlFrTouched(keys) {
+      return keys.hasAny(['frCount', 'frWindowStart', 'lastFollowRequestAt']);
+    }
+    function rlFrAdvance(o, n) {
+      return n.lastFollowRequestAt == request.time
+          && o.get('lastFollowRequestAt', timestamp.date(1970, 1, 1)) + duration.value(2, 's') <= request.time
+          && (
+               (o.get('frWindowStart', timestamp.date(1970, 1, 1)) + duration.value(1, 'h') <= request.time
+                 && n.frCount == 1 && n.frWindowStart == request.time)
+               ||
+               (n.frWindowStart == o.get('frWindowStart', timestamp.date(1970, 1, 1))
+                 && n.frCount == o.get('frCount', 0) + 1 && n.frCount <= 30)
+             );
+    }
+    // Say-hi counter (hlCount, hlWindowStart, lastHelloAt): same shape as the follow-request one —
+    // min 3s gap, max 30 per rolling 24h window; hellos creates require the same-batch bump (getAfter).
+    function rlHlTouched(keys) {
+      return keys.hasAny(['hlCount', 'hlWindowStart', 'lastHelloAt']);
+    }
+    function rlHlAdvance(o, n) {
+      return n.lastHelloAt == request.time
+          && o.get('lastHelloAt', timestamp.date(1970, 1, 1)) + duration.value(3, 's') <= request.time
+          && (
+               (o.get('hlWindowStart', timestamp.date(1970, 1, 1)) + duration.value(24, 'h') <= request.time
+                 && n.hlCount == 1 && n.hlWindowStart == request.time)
+               ||
+               (n.hlWindowStart == o.get('hlWindowStart', timestamp.date(1970, 1, 1))
+                 && n.hlCount == o.get('hlCount', 0) + 1 && n.hlCount <= 30)
+             );
+    }
+    match /rateLimits/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && request.resource.data.keys().size() <= 20
+                    && (!rlFrTouched(request.resource.data.keys())
+                        || (request.resource.data.lastFollowRequestAt == request.time
+                            && request.resource.data.frWindowStart == request.time
+                            && request.resource.data.frCount == 1))
+                    && (!rlHlTouched(request.resource.data.keys())
+                        || (request.resource.data.lastHelloAt == request.time
+                            && request.resource.data.hlWindowStart == request.time
+                            && request.resource.data.hlCount == 1));
+      allow update: if isOwner(userId) && request.resource.data.keys().size() <= 20
+                    && (!rlFrTouched(request.resource.data.diff(resource.data).affectedKeys())
+                        || rlFrAdvance(resource.data, request.resource.data))
+                    && (!rlHlTouched(request.resource.data.diff(resource.data).affectedKeys())
+                        || rlHlAdvance(resource.data, request.resource.data));
+      allow delete: if false;
+    }
+
+    // user_sanctions/{uid} — written by admins from the ReportsQueue (warnings, suspension marker,
+    // reportBlocked = barred from filing reports). The subject can read their own record.
+    match /user_sanctions/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create, update: if isAdmin();
+      allow delete: if false;
+    }
+
+    // ── Private-account posts (services/privatePostsService.ts) ──
+    // Readable by the author or an approved follower (follows edge exists; edges to private
+    // accounts only come from approval). Provable ONLY for per-author equality queries
+    // (`where('authorId','==',X)`): that pins resource.data.authorId so the follows path is
+    // computable. Unfiltered / `in` / range queries are rejected by the engine (fail closed).
+    function canReadPrivateAuthor(authorId) {
+      return isAuthenticated()
+             && (request.auth.uid == authorId
+                 || exists(/databases/$(database)/documents/follows/$(request.auth.uid + '_' + authorId))
+                 || isAdmin());
+    }
+    match /private_posts/{postId} {
+      allow read: if canReadPrivateAuthor(resource.data.authorId);
+      allow create: if isRegisteredUser() && isValidPost(request.resource.data)
+                    && request.resource.data.authorId == request.auth.uid
+                    && isPrivateAccount(request.auth.uid);
+      allow update: if (isAuthenticated() && resource.data.authorId == request.auth.uid && isValidPost(request.resource.data))
+                    // like toggles by a viewer who can see the post
+                    || (canReadPrivateAuthor(resource.data.authorId)
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likedBy', 'likesCount'])
+                        && ((request.auth.uid in request.resource.data.likedBy && !(request.auth.uid in resource.data.likedBy)
+                             && request.resource.data.likesCount == resource.data.likesCount + 1)
+                            || (!(request.auth.uid in request.resource.data.likedBy) && request.auth.uid in resource.data.likedBy
+                             && request.resource.data.likesCount == resource.data.likesCount - 1)))
+                    // comment counter bumps by a viewer who can see the post
+                    || (canReadPrivateAuthor(resource.data.authorId)
+                        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['commentsCount'])
+                        && (request.resource.data.commentsCount == resource.data.commentsCount + 1
+                            || request.resource.data.commentsCount == resource.data.commentsCount - 1));
+      allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+
+      match /comments/{commentId} {
+        allow read: if canReadPrivateAuthor(get(/databases/$(database)/documents/private_posts/$(postId)).data.authorId);
+        allow create: if isRegisteredUser() && isValidPostComment(request.resource.data)
+                      && canReadPrivateAuthor(get(/databases/$(database)/documents/private_posts/$(postId)).data.authorId);
+        allow update, delete: if isAdmin() || (isAuthenticated() && resource.data.get('uid', '') == request.auth.uid)
+                      || (isAuthenticated() && get(/databases/$(database)/documents/private_posts/$(postId)).data.authorId == request.auth.uid);
+      }
     }
 
     match /feed/{postId} {
       allow read: if true;
-      allow create: if isAuthenticated() && isValidFeedItem(request.resource.data);
+      // The feed mirror is world-readable, so a private account must not mirror post text into it.
+      allow create: if isAuthenticated() && isValidFeedItem(request.resource.data)
+                    && (!('authorId' in request.resource.data) || !isPrivateAccount(request.resource.data.authorId));
       allow update: if (isAuthenticated() && resource.data.authorId == request.auth.uid && isValidFeedItem(request.resource.data)) ||
                       (isAuthenticated() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['likesCount', 'commentsCount']));
       allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
@@ -1753,7 +1962,9 @@ service cloud.firestore {
         (request.resource.data.get('workspaceType', '') != 'PRODUCTION' && (
           request.resource.data.type != 'PRIVATE' ||
           request.resource.data.participants.size() != 2 ||
-          dmPairAllowed(request.resource.data.participants)
+          (dmPairAllowed(request.resource.data.participants)
+           // Social safety: no NEW 1:1 DM between people where either has blocked the other.
+           && !isBlockedPair(request.resource.data.participants[0], request.resource.data.participants[1]))
         ))
       );
       allow update: if isAuthenticated() && (
@@ -1780,7 +1991,7 @@ service cloud.firestore {
           isAdmin()
         );
         allow create: if isAuthenticated() && isValidChatMessage(request.resource.data) &&
-          request.resource.data.senderId == request.auth.uid && (
+          request.resource.data.senderId == request.auth.uid && !dmRoomBlocked(roomId) && (
             get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.get('workspaceType', '') != 'PRODUCTION' ||
             canPostProductionChat(get(/databases/$(database)/documents/chat_rooms/$(roomId)).data)
           ) && (
@@ -2265,6 +2476,144 @@ service cloud.firestore {
       allow create: if isAdmin();
       allow update: if isAdmin();
       allow delete: if false;
+    }
+
+    // Opt-in public achievement showcase (services/publicAchievementsService.ts). One doc per
+    // (user, achievement), id = `${uid}_${achievementId}`. The private `userAchievements` stay owner-read;
+    // this is the owner's explicit, celebratory mirror that followers' feed cards read. Content is pinned
+    // to the admin-curated `achievements` catalog (title/description must match it, KITH_* embargoed ones
+    // are refused) so an owner cannot publish arbitrary text. Honest limit: ownership of the unlock itself
+    // is self-asserted (userAchievements ids are random so rules cannot cross-check them).
+    // Gated on users/{uid}.shareAchievements != false and on the account not being private.
+    function paValid(d, id) {
+      return d.keys().hasOnly(['userId', 'achievementId', 'title', 'description', 'icon', 'backgroundColor', 'category', 'pointsValue', 'earnedAt'])
+        && d.keys().hasAll(['userId', 'achievementId', 'title', 'earnedAt'])
+        && d.userId == request.auth.uid
+        && d.achievementId is string && d.achievementId.size() > 0 && d.achievementId.size() < 128
+        && id == d.userId + '_' + d.achievementId
+        && d.earnedAt is number && d.earnedAt <= request.time.toMillis() + 300000
+        && (!('pointsValue' in d) || d.pointsValue is number)
+        && (!('icon' in d) || (d.icon is string && d.icon.size() < 64))
+        && (!('backgroundColor' in d) || (d.backgroundColor is string && d.backgroundColor.size() < 32))
+        && exists(/databases/$(database)/documents/achievements/$(d.achievementId))
+        && get(/databases/$(database)/documents/achievements/$(d.achievementId)).data.title == d.title
+        && get(/databases/$(database)/documents/achievements/$(d.achievementId)).data.get('description', '') == d.get('description', '')
+        && !(get(/databases/$(database)/documents/achievements/$(d.achievementId)).data.get('triggerType', '').matches('KITH_.*'))
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('shareAchievements', true) != false
+        && !isPrivateAccount(request.auth.uid);
+    }
+    match /publicAchievements/{id} {
+      allow read: if true;
+      allow create: if isRegisteredUser() && paValid(request.resource.data, id);
+      allow update: if isRegisteredUser() && resource.data.userId == request.auth.uid && paValid(request.resource.data, id);
+      allow delete: if (isAuthenticated() && resource.data.userId == request.auth.uid) || isAdmin();
+    }
+
+    // ===============================================================
+    // DEBATES (services/debateService.ts) — public structured-discourse threads.
+    // This collection had NO match → every client read/write was default-denied, which broke the
+    // Pulse tab, debate challenges and the profile debate record. Reads are public (debates are public
+    // discourse). Writes are bounded to exactly the transitions debateService performs:
+    //   create  — the challenger, PENDING, zeroed counters
+    //   accept  — the defender, PENDING → ACTIVE (+acceptedAt/endsAt ≤ ~25h out); decline — PENDING → DECLINED
+    //   postCount +1 (ACTIVE only), self-disqualification log append (participants only)
+    //   side vote — a non-participant may add/remove ONLY their own uid in the two supporter arrays
+    //   judging — after endsAt: ACTIVE → ENDED → JUDGED(+verdict); verdict refinement within 15 min
+    // Residual risk: judging is client-triggered (verdict content is not server-verifiable) — move
+    // triggerAriaJudgment to a Cloud Function and drop the judging branches when that exists.
+    // ===============================================================
+    function dbtAff() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+    function dbtOnlyMine(oldL, newL) {
+      return newL is list && newL.size() <= oldL.size() + 1
+        && newL.toSet().difference(oldL.toSet()).hasOnly([request.auth.uid])
+        && oldL.toSet().difference(newL.toSet()).hasOnly([request.auth.uid]);
+    }
+    function dbtParent(debateId) {
+      return get(/databases/$(database)/documents/debates/$(debateId)).data;
+    }
+    function dbtVerdictOk(v) {
+      return v is map && v.winner in ['CHALLENGER', 'DEFENDER', 'DRAW'];
+    }
+
+    match /debates/{debateId} {
+      allow read: if true;
+      allow create: if isAdmin() || (isRegisteredUser()
+        && request.resource.data.keys().hasAll(['challengerId', 'defenderId', 'topic', 'createdAt', 'endsAt', 'status'])
+        && request.resource.data.challengerId == request.auth.uid
+        && request.resource.data.defenderId is string
+        && request.resource.data.defenderId != request.auth.uid
+        && request.resource.data.status == 'PENDING'
+        && request.resource.data.topic is string && request.resource.data.topic.size() <= 1000
+        && request.resource.data.createdAt is number
+        && request.resource.data.createdAt <= request.time.toMillis() + 300000
+        && request.resource.data.endsAt is number
+        && request.resource.data.get('postCount', 0) == 0
+        && request.resource.data.get('viewCount', 0) == 0
+        && request.resource.data.get('challengerSupporters', []) == []
+        && request.resource.data.get('defenderSupporters', []) == []
+        && request.resource.data.get('disqualified', []) == []
+        && !('verdict' in request.resource.data)
+        && request.resource.data.get('sourcePostText', '').size() <= 20000
+        && request.resource.data.get('sourceCommentText', '').size() <= 5000);
+      allow update: if isAdmin() || (isRegisteredUser() && (
+        // accept
+        (resource.data.defenderId == request.auth.uid && resource.data.status == 'PENDING'
+          && dbtAff().hasOnly(['status', 'acceptedAt', 'endsAt'])
+          && request.resource.data.status == 'ACTIVE'
+          && request.resource.data.acceptedAt is number
+          && request.resource.data.endsAt is number
+          && request.resource.data.endsAt <= request.time.toMillis() + 90000000)
+        // decline
+        || (resource.data.defenderId == request.auth.uid && resource.data.status == 'PENDING'
+          && dbtAff().hasOnly(['status']) && request.resource.data.status == 'DECLINED')
+        // post counter +1
+        || (resource.data.status == 'ACTIVE' && dbtAff().hasOnly(['postCount'])
+          && request.resource.data.postCount == resource.data.postCount + 1)
+        // a participant logs their own disqualification
+        || ((resource.data.challengerId == request.auth.uid || resource.data.defenderId == request.auth.uid)
+          && dbtAff().hasOnly(['disqualified'])
+          && request.resource.data.disqualified.size() == resource.data.get('disqualified', []).size() + 1
+          && request.resource.data.disqualified[request.resource.data.disqualified.size() - 1].uid == request.auth.uid)
+        // side vote: not a participant, only your own uid, never on both sides
+        || (resource.data.status == 'ACTIVE'
+          && resource.data.challengerId != request.auth.uid && resource.data.defenderId != request.auth.uid
+          && dbtAff().hasOnly(['challengerSupporters', 'defenderSupporters'])
+          && dbtOnlyMine(resource.data.get('challengerSupporters', []), request.resource.data.get('challengerSupporters', []))
+          && dbtOnlyMine(resource.data.get('defenderSupporters', []), request.resource.data.get('defenderSupporters', []))
+          && !(request.auth.uid in request.resource.data.get('challengerSupporters', []) && request.auth.uid in request.resource.data.get('defenderSupporters', [])))
+        // judging (client-triggered; see header)
+        || (resource.data.status == 'ACTIVE' && request.time.toMillis() > resource.data.endsAt
+          && dbtAff().hasOnly(['status']) && request.resource.data.status == 'ENDED')
+        || (resource.data.status in ['ACTIVE', 'ENDED'] && request.time.toMillis() > resource.data.endsAt
+          && dbtAff().hasOnly(['status', 'verdict']) && request.resource.data.status == 'JUDGED'
+          && dbtVerdictOk(request.resource.data.verdict))
+        || (resource.data.status == 'JUDGED' && dbtAff().hasOnly(['verdict'])
+          && dbtVerdictOk(request.resource.data.verdict)
+          && request.time.toMillis() < resource.data.get('verdict', {}).get('generatedAt', 0) + 900000)
+      ));
+      allow delete: if isAdmin();
+
+      match /posts/{postId} {
+        allow read: if true;
+        allow create: if isAdmin() || (isRegisteredUser()
+          && request.resource.data.keys().hasAll(['debateId', 'authorId', 'side', 'text', 'timestamp'])
+          && request.resource.data.keys().hasOnly(['debateId', 'authorId', 'authorName', 'authorPhoto', 'side', 'text', 'mediaUrl', 'mediaType',
+               'dataVizPresetId', 'timestamp', 'isDisqualified', 'disqualifyReason', 'flaggedForReview', 'reactions', 'replyToId'])
+          && request.resource.data.debateId == debateId
+          && request.resource.data.text is string && request.resource.data.text.size() <= 5000
+          && request.resource.data.timestamp is number
+          && request.resource.data.get('reactions', {}) == {}
+          && (
+            (request.resource.data.authorId == request.auth.uid && dbtParent(debateId).status == 'ACTIVE')
+            // the "accepted / declined" system line the defender's client writes
+            || (request.resource.data.authorId == 'PLAJAH_SYSTEM' && dbtParent(debateId).defenderId == request.auth.uid
+                && dbtParent(debateId).status in ['ACTIVE', 'DECLINED'])
+          ));
+        allow update: if isAdmin();
+        allow delete: if isAdmin() || (isAuthenticated() && resource.data.authorId == request.auth.uid);
+      }
     }
 
     // User Points Balance — read-only for owner; only admin can write
@@ -3506,9 +3855,14 @@ service cloud.firestore {
       allow read: if isAdmin();
       allow create: if isAuthenticated()
                     && request.resource.data.reporterId == request.auth.uid
+                    && !(exists(/databases/$(database)/documents/user_sanctions/$(request.auth.uid))
+                         && get(/databases/$(database)/documents/user_sanctions/$(request.auth.uid)).data.get('reportBlocked', false) == true)
                     && request.resource.data.reason is string
+                    && request.resource.data.reason.size() <= 40
                     && request.resource.data.contentId is string
-                    && (!('details' in request.resource.data) || request.resource.data.details.size() <= 2000);
+                    && request.resource.data.contentId.size() <= 300
+                    && (!('details' in request.resource.data) || request.resource.data.details.size() <= 2000)
+                    && (!('snapshot' in request.resource.data) || request.resource.data.snapshot.size() <= 600);
       allow update, delete: if isAdmin();
     }
 
@@ -4316,6 +4670,99 @@ service cloud.firestore {
     match /tela_docs/{docId} {
       allow read, update, delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
       allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+    }
+
+    // ── "Say hi" one-way greetings (services/sayHiService.ts) ──
+    // hellos/{from_to}: created ONLY by `from`, once per ordered pair (no update path for the
+    // sender, so a second create is an overwrite and is denied). Opt-OUT: recipient sets
+    // users/{to}.sayHiOptOut. Readable by either party; recipient may mark seen / dismiss.
+    // Block checks are enforced client-side in sayHiService (+ SAFETY's rules for follows).
+    match /hellos/{helloId} {
+      allow read: if isAuthenticated() &&
+                    (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow create: if isAuthenticated() &&
+                      request.resource.data.fromUid == request.auth.uid &&
+                      request.resource.data.toUid is string &&
+                      request.resource.data.toUid != request.auth.uid &&
+                      helloId == request.auth.uid + '_' + request.resource.data.toUid &&
+                      request.resource.data.keys().hasOnly(['fromUid', 'toUid', 'fromName', 'fromPhoto', 'message', 'timestamp']) &&
+                      (!('message' in request.resource.data) || (request.resource.data.message is string && request.resource.data.message.size() <= 140)) &&
+                      get(/databases/$(database)/documents/users/$(request.resource.data.toUid)).data.get('sayHiOptOut', false) != true &&
+                      // Rate limit: the SAME batch must bump rateLimits/{me} (hlCount/hlWindowStart/lastHelloAt rules above).
+                      getAfter(/databases/$(database)/documents/rateLimits/$(request.auth.uid)).data.get('lastHelloAt', null) == request.time;
+      allow update: if isAuthenticated() && resource.data.toUid == request.auth.uid &&
+                      request.resource.data.diff(resource.data).affectedKeys().hasOnly(['seenAt']);
+      allow delete: if isAuthenticated() && (resource.data.toUid == request.auth.uid || isAdmin());
+    }
+
+    // ── Posting power (services/bookmarkService, draftService, scheduledPostService,
+    //    hashtagService, postAnalyticsService, retentionService) ──
+    // Saved posts, collections, drafts and retention state are private to the owner.
+    match /users/{userId}/bookmarks/{postId} {
+      allow read, write: if isOwner(userId);
+    }
+    match /users/{userId}/bookmarkCollections/{collectionId} {
+      allow read, write: if isOwner(userId);
+    }
+    match /users/{userId}/drafts/{draftId} {
+      allow read, write: if isOwner(userId);
+    }
+    match /users/{userId}/retention/{docId} {
+      allow read, write: if isOwner(userId);
+    }
+
+    // Scheduled posts: only the author reads/creates/cancels. The payload is published by the
+    // author's client (or a future server job using the Admin SDK, which bypasses rules).
+    // Reply audience / canReply is UI-level only: comment rules are intentionally unchanged.
+    match /scheduled_posts/{id} {
+      allow read: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+      allow create: if isRegisteredUser() && request.resource.data.authorId == request.auth.uid
+                    && request.resource.data.post is map
+                    && request.resource.data.publishAt is number
+                    && request.resource.data.status == 'PENDING';
+      allow update: if isAuthenticated() && resource.data.authorId == request.auth.uid
+                    && request.resource.data.authorId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+    }
+
+    // Hashtag rollup: public read; any signed-in user may create a tag doc with count 1 or bump
+    // an existing one by exactly 1. Used for autocomplete + tag header totals only (trending is
+    // computed from posts), so a spoofed count is cosmetic.
+    match /hashtags/{tag} {
+      allow read: if true;
+      allow create: if isAuthenticated() && request.resource.data.tag == tag
+                    && request.resource.data.count == 1
+                    && request.resource.data.keys().hasOnly(['tag', 'count', 'lastUsed']);
+      allow update: if isAuthenticated()
+                    && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['count', 'lastUsed'])
+                    && request.resource.data.count == resource.data.count + 1;
+    }
+
+    // Post analytics: ONLY the post's author can read. Any signed-in viewer may write bounded,
+    // batched increments (the client de-dupes per viewer/post/day) and may only create the doc
+    // with the post's real authorId. No deletes. Numbers are approximate by design.
+    match /postStats/{postId} {
+      allow read: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+      allow create: if isAuthenticated()
+                    && request.resource.data.authorId == get(/databases/$(database)/documents/posts/$(postId)).data.authorId
+                    && request.resource.data.get('impressions', 0) <= 25
+                    && request.resource.data.get('uniqueViewers', 0) <= 25
+                    && request.resource.data.get('dwellMs', 0) <= 120000
+                    && request.resource.data.get('profileVisits', 0) <= 5
+                    && request.resource.data.get('followsFromPost', 0) <= 5;
+      allow update: if isAuthenticated()
+                    && request.resource.data.diff(resource.data).affectedKeys()
+                         .hasOnly(['impressions', 'uniqueViewers', 'dwellMs', 'profileVisits', 'followsFromPost', 'hourly', 'referrers', 'updatedAt'])
+                    && request.resource.data.get('impressions', 0) - resource.data.get('impressions', 0) >= 0
+                    && request.resource.data.get('impressions', 0) - resource.data.get('impressions', 0) <= 25
+                    && request.resource.data.get('uniqueViewers', 0) - resource.data.get('uniqueViewers', 0) >= 0
+                    && request.resource.data.get('uniqueViewers', 0) - resource.data.get('uniqueViewers', 0) <= 25
+                    && request.resource.data.get('dwellMs', 0) - resource.data.get('dwellMs', 0) >= 0
+                    && request.resource.data.get('dwellMs', 0) - resource.data.get('dwellMs', 0) <= 120000
+                    && request.resource.data.get('profileVisits', 0) - resource.data.get('profileVisits', 0) >= 0
+                    && request.resource.data.get('profileVisits', 0) - resource.data.get('profileVisits', 0) <= 5
+                    && request.resource.data.get('followsFromPost', 0) - resource.data.get('followsFromPost', 0) >= 0
+                    && request.resource.data.get('followsFromPost', 0) - resource.data.get('followsFromPost', 0) <= 5;
     }
 
     // ── Ambo projects (services/ambo/amboStorageService.ts) ──

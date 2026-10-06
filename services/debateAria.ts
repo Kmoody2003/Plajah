@@ -114,7 +114,7 @@ Please adjudicate this debate according to the academic debate rubric.`;
       generatedAt:         Date.now(),
     };
 
-    await updateDoc(doc(db, 'debates', debateId), { verdict: refined });
+    await updateDoc(doc(db, 'debates', debateId), { verdict: JSON.parse(JSON.stringify(refined)) /* drop undefined (winnerUid on a draw) — Firestore throws on it */ });
   } catch {
     // Preliminary verdict already stored — silent fail
   }
