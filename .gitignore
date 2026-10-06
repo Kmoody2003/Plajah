@@ -119,3 +119,6 @@ patch_chora*.js
 flux-math-preview.png
 /tmp/lectio-qa/
 /tmp/sacred-reader-build/
+
+# Dossier film render scratch
+.film-work/

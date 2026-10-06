@@ -6,6 +6,9 @@ import { commonsThumb } from '../../services/dossier/sourceAdapters';
 import { douglassDossier } from '../../data/dossier/douglass';
 import DossierEntrance from './DossierEntrance';
 
+const DossierFilmPlayer = React.lazy(() => import('./DossierFilmPlayer'));
+const loadDouglassFilm = (w: number, h: number) => import('../../data/dossier/douglassFilm').then(m => m.loadDouglassFilm(w, h));
+
 interface Props {
   dossier?: Dossier;
   onBack?: () => void;
@@ -132,6 +135,7 @@ export default function DossierHall({ dossier = douglassDossier, onBack }: Props
   const [age, setAge] = useState(30);
   const [intro, setIntro] = useState(true);
   const [reveal, setReveal] = useState(false);
+  const [film, setFilm] = useState(false);
   const finishIntro = () => { setIntro(false); setReveal(true); window.setTimeout(() => setReveal(false), 1400); };
 
   useEffect(() => {
@@ -163,6 +167,11 @@ export default function DossierHall({ dossier = douglassDossier, onBack }: Props
     <div className="dh">
       <style>{CSS}</style>
       {intro && <DossierEntrance dossier={dossier} onEnter={finishIntro} />}
+      {film && (
+        <React.Suspense fallback={null}>
+          <DossierFilmPlayer load={loadDouglassFilm} onClose={() => setFilm(false)} />
+        </React.Suspense>
+      )}
       {reveal && <div className="dh-reveal" aria-hidden><i /><i /></div>}
       <header className="dh-top">
         {onBack && (
@@ -170,6 +179,7 @@ export default function DossierHall({ dossier = douglassDossier, onBack }: Props
         )}
         <span className="dh-serif" style={{ fontSize: 18 }}>{dossier.subject}</span>
         {dossier.entrance && <button className="dh-replay" onClick={() => setIntro(true)}>Replay opening</button>}
+        {dossier.id === 'frederick-douglass' && <button className="dh-replay" onClick={() => setFilm(true)}>▶ Watch the film</button>}
         {dossier.id === 'frederick-douglass' && <button className="dh-replay" onClick={() => { openTimelineInTela().catch(() => {}); }}>Open timeline in Tela</button>}
         <div className="dh-lens" role="group" aria-label="Reading level">
           {DEPTH_LEVELS.map(d => (
