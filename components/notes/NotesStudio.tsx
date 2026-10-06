@@ -8,8 +8,11 @@ import type { NoteTool } from '../ink';
 import MediaFinder from '../media/MediaFinder';
 import {
   loadNotes, createPage, createNotebook, createSection, ensureSubjectNotebook, upgradeLegacy, loadPageDoc, savePage, updatePageMeta, deletePage, takeNotesIntent, generalKey, type LoadedNotes,
+  readReaderNotes, syncReaderNotes, subscribeReaderNotes,
 } from '../../services/notesService';
 import { searchPages, inkDeviceOf, notebookForSubject, TEMPLATES, PAGE_W, PAGE_H, PALETTE, UNFILED_NOTEBOOK, UNFILED_SECTION, type PageMeta, type PageTemplate } from '../../services/notesStructure';
+import { mergeReaderNotes, SCRIPTURE_NOTEBOOK } from '../../services/notesScripture';
+import ReaderNotesPage from './ReaderNotesPage';
 import { boundsOf, type InkStyle, type Box } from '../../services/inkMath';
 import { uploadTelaAsset } from '../../services/telaAssets';
 import { transcribeHandwritingCrop } from '../../services/handwritingTranscription';
@@ -60,8 +63,21 @@ const NotesStudio: React.FC<Props> = ({ user, profile, onNavigate, onBack }) => 
   // ── Load + open ─────────────────────────────────────────────────────────
   const reload = useCallback(async () => { const n = await loadNotes(uid); setNotes(n); return n; }, [uid]);
   useEffect(() => { void reload(); }, [reload]);
+  // Notes written in Lectio / the Sacred Library show up live; pull their account copies once on open.
+  useEffect(() => {
+    const refresh = () => setNotes(n => (n ? mergeReaderNotes(n, readReaderNotes()) : n));
+    const off = subscribeReaderNotes(refresh);
+    void syncReaderNotes().then(refresh);
+    return off;
+  }, [uid]);
 
   const openPage = useCallback(async (p: PageMeta, n?: LoadedNotes) => {
+    if (p.reader) {
+      if (status !== 'saved' && doc && page && !page.reader && notes) { const add = pendingInk.current; pendingInk.current = ''; void savePage(uid, page, doc, notes.bucketOf(page.id), add).catch(() => {}); }
+      setPage(p); setDoc(null); setPast([]); setFuture([]); setSelection(new Set()); setLassoBox(null); setStatus('saved'); setNbId(p.notebookId); setSecId(p.sectionId);
+      if (typeof window !== 'undefined' && window.innerWidth < 900) setPanel(false);
+      return;
+    }
     const bucket = (n || notes)?.bucketOf(p.id) || generalKey(uid);
     let meta = p; let d: TelaDoc | null = null;
     if (p.legacy || !p.telaDocId) { const up = await upgradeLegacy(uid, p, bucket); meta = up.page; d = up.doc; } else d = await loadPageDoc(p.telaDocId);
@@ -69,11 +85,13 @@ const NotesStudio: React.FC<Props> = ({ user, profile, onNavigate, onBack }) => 
     setPage(meta); setDoc(d); setPast([]); setFuture([]); setSelection(new Set()); setLassoBox(null); setStatus('saved'); setNbId(meta.notebookId); setSecId(meta.sectionId);
     if (typeof window !== 'undefined' && window.innerWidth < 900) setPanel(false);
     void reload();
-  }, [notes, uid, reload]);
+  }, [notes, uid, reload, status, doc, page]);
 
   const newPage = useCallback(async (opts: { notebookId?: string; sectionId?: string; title?: string; template?: PageTemplate; heading?: string; lines?: string[]; source?: PageMeta['source'] } = {}) => {
     const n = notes || await reload();
-    const nb = opts.notebookId || nbId; const sec = opts.sectionId || (n.sections.find(s => s.notebookId === nb)?.id) || UNFILED_SECTION;
+    // The Scripture & Sacred Texts notebook mirrors the readers; your own pages go to Quick notes.
+    const want = opts.notebookId || nbId; const nb = want === SCRIPTURE_NOTEBOOK ? UNFILED_NOTEBOOK : want;
+    const sec = (want === nb && opts.sectionId) || (n.sections.find(s => s.notebookId === nb)?.id) || UNFILED_SECTION;
     const { page: p, doc: d } = await createPage(uid, { notebookId: nb, sectionId: sec, title: opts.title || 'Untitled page', template: opts.template || 'lined', heading: opts.heading, lines: opts.lines, source: opts.source });
     const nn = await reload(); setPage(p); setDoc(d); setPast([]); setFuture([]); setNbId(p.notebookId); setSecId(p.sectionId); setStatus('saved');
     if (nn) setNotes(nn);
@@ -182,6 +200,7 @@ const NotesStudio: React.FC<Props> = ({ user, profile, onNavigate, onBack }) => 
   const sections = useMemo(() => (notes?.sections || []).filter(s => s.notebookId === nbId), [notes, nbId]);
   const pagesHere = useMemo(() => { if (!notes) return []; const all = query.trim() ? searchPages(notes.pages, query) : notes.pages.filter(p => p.sectionId === secId); return all; }, [notes, secId, query]);
   const nb = notes?.notebooks.find(n => n.id === nbId);
+  const livePage = page?.reader ? notes?.pages.find(p => p.id === page.id) : undefined;
 
   const toolBtn = (t: NoteTool, Icon: React.ElementType, label: string) => (
     <button key={t} type="button" aria-pressed={tool === t} aria-label={label} title={label} onClick={() => pickTool(t)} className={`w-9 h-9 rounded-xl grid place-items-center ${tool === t ? 'bg-white text-[#12091b]' : 'text-white/70 hover:bg-white/10'}`}><Icon size={17} /></button>
@@ -203,7 +222,7 @@ const NotesStudio: React.FC<Props> = ({ user, profile, onNavigate, onBack }) => 
             </div>
             {nb && <div className="flex gap-1 flex-wrap" role="tablist" aria-label="Sections">
               {sections.map(s => <button key={s.id} type="button" role="tab" aria-selected={secId === s.id} onClick={() => { setSecId(s.id); setQuery(''); }} className={`px-2.5 py-1 rounded-t-lg text-[11px] font-black ${secId === s.id ? 'text-black' : 'text-white/70 bg-white/5 hover:bg-white/10'}`} style={secId === s.id ? { background: s.color } : { borderBottom: `2px solid ${s.color}` }}>{s.title}</button>)}
-              {nbId !== UNFILED_NOTEBOOK && <button type="button" aria-label="New section" onClick={async () => { const t = window.prompt('Section name'); if (t?.trim()) { const id = await createSection(uid, nbId, t.trim(), PALETTE[sections.length % PALETTE.length]); await reload(); setSecId(id); } }} className="px-2 py-1 rounded-t-lg text-[11px] border border-dashed border-white/25 text-white/60"><Plus size={12} /></button>}
+              {nbId !== UNFILED_NOTEBOOK && nbId !== SCRIPTURE_NOTEBOOK && <button type="button" aria-label="New section" onClick={async () => { const t = window.prompt('Section name'); if (t?.trim()) { const id = await createSection(uid, nbId, t.trim(), PALETTE[sections.length % PALETTE.length]); await reload(); setSecId(id); } }} className="px-2 py-1 rounded-t-lg text-[11px] border border-dashed border-white/25 text-white/60"><Plus size={12} /></button>}
             </div>}
           </div>
           <div className="flex-1 overflow-y-auto p-2 grid gap-1 content-start">
@@ -213,7 +232,7 @@ const NotesStudio: React.FC<Props> = ({ user, profile, onNavigate, onBack }) => 
               <button key={p.id} type="button" onClick={() => void openPage(p)} className={`text-left rounded-xl px-3 py-2 ${page?.id === p.id ? 'bg-white/12' : 'hover:bg-white/[0.06]'}`}>
                 <p className="text-[13px] font-black truncate flex items-center gap-1.5">{p.pinned && <Pin size={11} className="text-amber-300 shrink-0" />}{p.title}</p>
                 <p className="text-[11px] text-white/45 truncate">{strip(p.text).slice(0, 70) || 'Empty page'}</p>
-                <p className="text-[10px] text-white/30">{new Date(p.updatedAt || p.createdAt).toLocaleDateString()}{p.legacy ? ' · older note' : ''}</p>
+                <p className="text-[10px] text-white/30">{p.reader ? `${p.reader.items.length} ${p.reader.kind === 'research' ? 'research entr' + (p.reader.items.length === 1 ? 'y' : 'ies') : 'note' + (p.reader.items.length === 1 ? '' : 's')} · ${p.reader.kind === 'verse' ? 'Lectio' : p.reader.kind === 'sacred' ? 'Sacred Library' : 'Research notebook'}` : <>{new Date(p.updatedAt || p.createdAt).toLocaleDateString()}{p.legacy ? ' · older note' : ''}</>}</p>
               </button>
             ))}
           </div>
@@ -223,7 +242,9 @@ const NotesStudio: React.FC<Props> = ({ user, profile, onNavigate, onBack }) => 
 
       {/* Main */}
       <main className="flex-1 min-w-0 flex flex-col">
-        {!doc || !page ? (
+        {page?.reader && livePage?.reader ? (
+          <ReaderNotesPage page={livePage} panel={panel} onShowPanel={() => setPanel(true)} zoom={zoom} />
+        ) : !doc || !page ? (
           <div className="flex-1 grid place-items-center p-8 text-center"><div><p className="text-xl font-black mb-1">Plajah Notes</p><p className="text-sm text-white/55 mb-4 max-w-sm">Write, draw and clip from your lessons. Pick a page, or start a new one.</p><div className="flex gap-2 justify-center">{!panel && <button type="button" onClick={() => setPanel(true)} className="rounded-full border border-white/20 px-4 py-2 text-[12px] font-black">Show pages</button>}<button type="button" onClick={() => void newPage()} className="rounded-full bg-[#00DAF3] text-black px-5 py-2 text-[12px] font-black">New page</button></div></div></div>
         ) : (
           <>

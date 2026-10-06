@@ -35,7 +35,29 @@ export interface PageMeta {
   createdAt: number; updatedAt: number; order: number;
   /** Where it came from, e.g. a lesson: shown as a link on the page. */
   source?: { label: string; courseId?: string; lessonId?: string };
+  /**
+   * Set on read-through pages that mirror notes written in a reader (Lectio verse notes, Sacred
+   * Library passage notes, the research notebook). They have no Tela body: the reader's store stays
+   * the single source of truth, and edits are written back to it (see services/notesScripture).
+   */
+  reader?: ReaderPage;
 }
+
+/** One note shown on a reader page, e.g. the note on Romans 8:28. */
+export interface ReaderItem {
+  /** Key in the reader's store (verse / passage notes) or the research entry id. */
+  key: string;
+  /** Readable heading, e.g. "8:28" or "Al-Fatiha 3". */
+  label: string;
+  text: string;
+  /** Extra lines shown under the text (research sources and comparisons). */
+  details?: string[];
+  /** Scripture ref id (services/scriptureRef refId) to open Lectio at, when there is one. */
+  refId?: string;
+  /** False for research entries, which are edited in the research notebook itself. */
+  editable: boolean;
+}
+export interface ReaderPage { kind: 'verse' | 'sacred' | 'research'; items: ReaderItem[] }
 
 export const UNFILED_NOTEBOOK = 'nb_unfiled';
 export const UNFILED_SECTION = 'sec_unfiled';

@@ -18,7 +18,7 @@
     "sports:agent": "tsx scripts/localSportsAgent.ts",
     "sports:archive": "tsx scripts/localArchiveAgent.ts",
     "test:cora": "npx tsx --test tests/coraAnalysis.test.ts",
-    "test:notebook": "npx tsx --test tests/sharedNotebook.test.ts tests/notes.test.ts tests/serviceNotes.test.ts",
+    "test:notebook": "npx tsx --test tests/sharedNotebook.test.ts tests/notes.test.ts tests/notesScripture.test.ts tests/serviceNotes.test.ts",
     "test:posting": "npx tsx --test tests/posting.test.ts",
     "test:linkpreview": "npx tsx --test tests/linkPreview.test.ts",
     "test:socialserver": "npx tsx --test tests/socialServer.test.ts",

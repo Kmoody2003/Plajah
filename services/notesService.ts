@@ -10,6 +10,9 @@ import {
   type PageMeta, type PageTemplate, type Structure,
 } from './notesStructure';
 import type { TelaDoc } from '../types';
+import { verseNotes, sacredReaderNotes } from './readerNotes';
+import { readNotebook, syncResearchNotebook, RESEARCH_CHANGED, type ResearchNotebook } from './sacredResearch';
+import { readerNotesStructure, mergeReaderNotes } from './notesScripture';
 
 export const generalKey = (uid?: string) => `plajahNotebook_${uid || 'guest'}`;
 export const labsKey = (uid?: string) => `labsNotebook_${uid || 'guest'}`;
@@ -41,7 +44,30 @@ export async function loadNotes(uid?: string): Promise<LoadedNotes> {
     s.sections.push({ id: 'sec_labs', notebookId: 'nb_labs', title: 'Experiments & observations', color: '#00DAF3', order: 0 });
     s.pages.forEach(p => { if (p.legacy && bucket.get(p.id) === lk) { p.notebookId = 'nb_labs'; p.sectionId = 'sec_labs'; } });
   }
-  return { ...s, bucketOf: id => bucket.get(id) || gk };
+  return mergeReaderNotes({ ...s, bucketOf: (id: string) => bucket.get(id) || gk }, readReaderNotes());
+}
+
+// ── Reader notes (Lectio verse notes, Sacred Library notes, research notebook) ────────────────────
+/** Build the Scripture & Sacred Texts notebook from the readers' local caches (synchronous). */
+export function readReaderNotes(): Structure {
+  let research: ResearchNotebook | null = null;
+  try { research = readNotebook(); } catch { /* unreadable research data stays untouched */ }
+  return readerNotesStructure({ verse: safeRead(() => verseNotes.read()), sacred: safeRead(() => sacredReaderNotes.read()), research });
+}
+const safeRead = (f: () => Record<string, string>) => { try { return f(); } catch { return {}; } };
+/** Pull the readers' account copies into the cache. Change events fire when they land. */
+export function syncReaderNotes(): Promise<unknown> {
+  return Promise.allSettled([verseNotes.sync(), sacredReaderNotes.sync(), syncResearchNotebook()]);
+}
+/** Call `fn` whenever any reader store changes (in this tab or another). Returns an unsubscribe. */
+export function subscribeReaderNotes(fn: () => void): () => void {
+  const offs = [verseNotes.subscribe(fn), sacredReaderNotes.subscribe(fn)];
+  window.addEventListener(RESEARCH_CHANGED, fn);
+  return () => { offs.forEach(off => off()); window.removeEventListener(RESEARCH_CHANGED, fn); };
+}
+/** Edit a verse / passage note from Notes: written back to the reader's own store, never copied. */
+export function writeReaderNote(kind: 'verse' | 'sacred', key: string, text: string) {
+  (kind === 'verse' ? verseNotes : sacredReaderNotes).write(key, text);
 }
 
 async function save(uid: string | undefined, entry: Entry, key = generalKey(uid)) { upsertLocal(key, entry); await putEntry(key, entry); }
