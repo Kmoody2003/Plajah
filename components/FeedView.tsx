@@ -33,6 +33,7 @@ import { isFeedLive } from '../services/liveFeedLiveness';
 import { useFediverse } from '../contexts/FediverseContext';
 import MiniMusicPlayer from './MiniMusicPlayer';
 import UniversalPostComposer from './UniversalPostComposer';
+import type { ComposerPostData } from './UniversalPostComposer';
 import { useActiveIdentity, IdentitySwitcher } from '../contexts/ActiveIdentityContext';
 import OrgAudienceToggle, { type OrgPostAudience } from './elevate/OrgAudienceToggle';
 import StoriesBar from './StoriesBar';
@@ -48,8 +49,36 @@ import Portal from './Portal';
 // Blueprint 1B.4 ("Today" — 24h ephemeral posts) + Part 2B student walls.
 import { TODAY_TTL_MS, withoutExpiredTodays } from '../services/todayPosts';
 import { StudentWallRow } from './StudentWall';
-import RichText from '../src/lib/richText';
+import RichText, { HashtagClickProvider } from '../src/lib/richText';
 import '../styles/plajah-social-signal.css';
+// ── Social supercharge: follow graph, safety, For You ranking, pagination, discovery, posting power ──
+import { Bookmark as PjBookmarkIcon, SlidersHorizontal as PjSlidersIcon, Users as PjPeopleIcon } from 'lucide-react';
+import { useFollowing } from '../hooks/useFollowing';
+import { useSocialSafety } from '../hooks/useSocialSafety';
+import { useMyClubIds } from '../hooks/useMyClubIds';
+import { searchUserProfilesSafe } from '../services/searchUsersSafe';
+import { useFeedPages, useScrollRestoration } from '../services/feedPagination';
+import { NewPostsPill, FeedSkeleton, InfiniteSentinel } from './feed/controls/FeedPagingUI';
+import FeedControlsSheet from './feed/controls/FeedControlsSheet';
+import WhyThisPostPopover from './feed/controls/WhyThisPostPopover';
+import { rankForYou } from '../services/forYouRanker';
+import type { ForYouViewerContext } from '../services/forYouRanker';
+import { useFeedPreferences, applyFeedPreferences } from '../services/feedPreferencesService';
+import { useFeedCards, interleaveCards } from '../services/feedCardsService';
+import type { FeedCardItem, FeedEntry } from '../services/feedCardsService';
+import FeedCardView from './feed/cards/FeedCards';
+import DiscoveryModuleSlot from './feed/cards/DiscoveryModuleSlot';
+import MeetNewPeopleRow from './discovery/MeetNewPeopleRow';
+import PeopleDiscoveryPage from './discovery/PeopleDiscoveryPage';
+import HashtagFeedHeader from './feed/posting/HashtagFeedHeader';
+import SavedPostsView from './feed/posting/SavedPostsView';
+import TrendingTopicsCard from './feed/posting/TrendingTopicsCard';
+import WeeklyRecapCard from './feed/retention/WeeklyRecapCard';
+import MilestoneCard from './feed/retention/MilestoneCard';
+import StreakChip from './feed/retention/StreakChip';
+import { fetchPendingMilestones } from '../services/retentionService';
+import { withAltText, linkPreviewMedia } from '../services/postingLogic';
+import { publishComposerPost } from '../services/postingService';
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 const LiveTalkView = lazy(() => import('./LiveTalkView'));
 
@@ -1374,7 +1403,6 @@ const RecommendedClubsEmptyState: React.FC = () => {
 
 const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, onMessage, onSelectGame, viewerProfile }) => {
   const [feedItems, setFeedItems] = useState<FeedItem[]>([]);
-  const [globalPosts, setGlobalPosts] = useState<Post[]>([]);
   const [signInAction, setSignInAction] = useState<string | null>(null);
   const [simplePostText, setSimplePostText] = useState('');
   const [isSimplePosting, setIsSimplePosting] = useState(false);
@@ -1408,7 +1436,15 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [composeSignal, setComposeSignal] = useState(0);
   const { activeOrg } = useActiveIdentity();
   const [orgPostAudience, setOrgPostAudience] = useState<OrgPostAudience>('PUBLIC');
-  const [plajahFilter, setPlajahFilter] = useState<'ALL' | 'FOLLOWING' | 'LIKED'>('ALL');
+  // 'ALL' = For You (ranked global), 'FOLLOWING' = people you follow, 'LIKED'. null = not chosen yet -> the
+  // viewer's saved default tab (feedPreferences.defaultTab), else For You. See `plajahFilter` below.
+  const [plajahFilterChoice, setPlajahFilter] = useState<'ALL' | 'FOLLOWING' | 'LIKED' | null>(null);
+  const [hashtagView, setHashtagView] = useState<string | null>(null);
+  const [showPeoplePage, setShowPeoplePage] = useState<null | 'new' | 'default'>(null);
+  const [showSavedPosts, setShowSavedPosts] = useState(false);
+  const [showFeedControls, setShowFeedControls] = useState(false);
+  const [quoteTarget, setQuoteTarget] = useState<Post | null>(null);
+  const [hasPendingMilestone, setHasPendingMilestone] = useState(false);
   const [showNowOnboarding, setShowNowOnboarding] = useState(false);
   const [showNowBanner, setShowNowBanner] = useState(() => {
     try { return !localStorage.getItem(NOW_STORAGE_KEY); } catch { return false; }
@@ -1475,7 +1511,6 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   const [favoriteStocks, setFavoriteStocks] = useState<string[]>(['AAPL', 'TSLA', 'NVDA']);
   const [hoveredUserId, setHoveredUserId] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
-  const [suggestedArtist, setSuggestedArtist] = useState<UserProfile | null>(null);
   const { playTrack, theme } = useGlobalPlayerState();
   const { feed: fediverseFeed, accounts: fediverseAccounts, isLoadingFeed: fediverseLoading, refreshFeed: refreshFediverse, toggleLike: fediverseToggleLike, toggleRepost: fediverseToggleRepost } = useFediverse();
   const [socialSubTab, setSocialSubTab] = useState<'FEDIVERSE' | 'MY_POSTS'>('FEDIVERSE');
@@ -1493,7 +1528,165 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   // native TTL policy deletes lazily, so this client guard is what users actually
   // experience. `withoutExpiredTodays` returns the same array when nothing is filtered,
   // so ordinary feeds keep referential equality.
-  const displayedPosts = withoutExpiredTodays(plajahFilter === 'LIKED' ? likedPosts : globalPosts);
+
+  // ═══ Social supercharge: follow graph · safety · prefs · paginated For You / Following / #hashtag feed ═══
+  const viewerUid = currentUser?.uid;
+  const following = useFollowing(viewerUid);                    // source of truth = `follows` collection (NOT userProfile.following)
+  const { hidden: hiddenUids } = useSocialSafety();             // blocked ∪ blockedBy ∪ muted
+  const feedPrefs = useFeedPreferences();
+  const feedViewer = viewerProfile ?? userProfile;
+  const defaultsReady = !feedPrefs.loading && !following.loading;
+  // Default tab = saved preference; a viewer who follows nobody always starts on For You.
+  const plajahFilter: 'ALL' | 'FOLLOWING' | 'LIKED' =
+    plajahFilterChoice ?? (feedPrefs.prefs.defaultTab === 'FOLLOWING' && following.ids.size > 0 ? 'FOLLOWING' : 'ALL');
+  const feedKind: 'global' | 'following' | 'hashtag' = hashtagView ? 'hashtag' : plajahFilter === 'FOLLOWING' ? 'following' : 'global';
+  const feedReady = plajahFilterChoice !== null || defaultsReady;
+  const feed = useFeedPages({
+    kind: feedKind,
+    followingIds: following.list,
+    hashtag: hashtagView ?? undefined,
+    hiddenUids,
+    viewerId: viewerUid,
+    viewerProfile: feedViewer,
+    enabled: activeTab === 'GLOBAL' && (!!hashtagView || plajahFilter !== 'LIKED') && feedReady,
+  });
+
+  // For You ordering. rankForYou is applied ONCE per post: the first page is ranked as a batch, later pages are
+  // ranked on their own and APPENDED, live-new posts are ranked and PREPENDED — so what is already on screen never
+  // reshuffles under the reader's thumb. The ref resets whenever the feed restarts (items go empty).
+  const forYouRank = useRef({ order: [] as string[], seen: new Set<string>(), why: new Map<string, string>(), newestTs: 0 });
+  const forYouPosts = React.useMemo<Post[]>(() => {
+    if (feedKind !== 'global') return [];
+    const items = feed.items;
+    const st = forYouRank.current;
+    if (!items.length) { st.order = []; st.seen.clear(); st.why.clear(); st.newestTs = 0; return []; }
+    if (!defaultsReady) return items;                           // chronological until follows/prefs are known
+    const fresh = items.filter(p => !st.seen.has(p.id));
+    if (fresh.length) {
+      const ctx: ForYouViewerContext = { viewerId: viewerUid, followedAuthorIds: following.ids, hiddenUids, prefs: feedPrefs.prefs };
+      const first = st.order.length === 0;
+      const newer = first ? [] : fresh.filter(p => p.timestamp > st.newestTs);
+      const older = first ? fresh : fresh.filter(p => p.timestamp <= st.newestTs);
+      const now = Date.now();
+      // Post structurally satisfies RankableItem; the cast keeps the ranker's optional-field typing out of this file.
+      const rn = rankForYou(newer as any[], ctx, now);
+      const ro = rankForYou(older as any[], ctx, now);
+      [...rn, ...ro].forEach(r => st.why.set(r.item.id, r.why));
+      fresh.forEach(p => st.seen.add(p.id));
+      st.order = [...rn.map(r => r.item.id), ...st.order, ...ro.map(r => r.item.id)];
+      st.newestTs = Math.max(st.newestTs, ...fresh.map(p => p.timestamp));
+    }
+    const byId = new Map(items.map(p => [p.id, p] as const));
+    const ordered = st.order.map(id => byId.get(id)).filter((p): p is Post => !!p);
+    return applyFeedPreferences(ordered as any[], feedPrefs.prefs, { viewerId: viewerUid }) as Post[];
+  }, [feedKind, feed.items, defaultsReady, following.ids, hiddenUids, feedPrefs.prefs, viewerUid]);
+
+  // Liked tab: still a plain listener, but honour blocks/mutes and the child-safety filter.
+  const likedVisible = React.useMemo(
+    () => filterPostsForViewer(likedPosts.filter(p => !hiddenUids.has(p.authorId)), viewerProfile),
+    [likedPosts, hiddenUids, viewerProfile],
+  );
+  const listPosts: Post[] = hashtagView ? feed.items : plajahFilter === 'LIKED' ? likedVisible : feedKind === 'following' ? feed.items : forYouPosts;
+  const displayedPosts = withoutExpiredTodays(listPosts);
+  const pagedFeed = !!hashtagView || plajahFilter !== 'LIKED';
+  const feedLoading = pagedFeed && (feed.loadingInitial || !feedReady);
+
+  // Native cards + discovery modules woven into the For You timeline.
+  const forYouActive = activeTab === 'GLOBAL' && !hashtagView && plajahFilter === 'ALL';
+  const myClubIds = useMyClubIds(viewerUid);
+  const { cards: feedCards } = useFeedCards(viewerUid ? { uid: viewerUid } : null, following.list, myClubIds, {
+    hiddenUids, mutedKinds: feedPrefs.prefs.mutedCardKinds, viewerProfile: feedViewer, enabled: forYouActive && !!viewerUid,
+  });
+  const feedEntries = React.useMemo<FeedEntry<Post>[]>(() => forYouActive
+    ? interleaveCards(displayedPosts, feedCards, {
+        modules: viewerUid ? [
+          { id: 'trending', firstAfter: 6, every: 40, max: 1 },
+          { id: 'people', firstAfter: 11, every: 16, max: 2 },
+        ] : [],
+      })
+    : displayedPosts.map(post => ({ type: 'post' as const, key: `post:${post.id}`, post })),
+  [forYouActive, displayedPosts, feedCards, viewerUid]);
+
+  const followingVisible = React.useMemo(() => following.list.filter(u => !hiddenUids.has(u)), [following.list, hiddenUids]);
+
+  const openHashtag = useCallback((tag: string) => {
+    setHashtagView(tag.replace(/^#+/, '').toLowerCase());
+    setActiveTab('GLOBAL');
+    requestAnimationFrame(() => { try { feedScrollRef.current?.scrollTo({ top: 0 }); } catch { /* */ } });
+  }, []);
+  const openChatWith = useCallback((_roomId: string, otherUid: string) => {
+    setShowPeoplePage(null);
+    if (onMessage) onMessage(otherUid);
+    else window.dispatchEvent(new CustomEvent('START_CHAT', { detail: { userId: otherUid } }));
+  }, [onMessage]);
+  const openFeedCard = useCallback((item: FeedCardItem) => {
+    const nav = (target: string, params?: any) => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target, params } }));
+    switch (item.kind) {
+      case 'LIVE_NOW':
+        window.dispatchEvent(new CustomEvent('PLAY_LIVE_FEED', { detail: { feed: {
+          id: item.data.feedId, streamId: item.data.streamId || item.data.feedId, url: item.data.url, title: item.data.title,
+          ownerId: item.data.ownerId, ownerName: item.data.ownerName, status: 'LIVE', isPublic: true, timestamp: Date.now(),
+        } } }));
+        break;
+      case 'NEW_RELEASE':
+        fetchAlbumsByIds([item.data.albumId]).then(a => { if (a[0]) window.dispatchEvent(new CustomEvent('SELECT_ALBUM', { detail: { album: a[0] } })); }).catch(() => {});
+        break;
+      case 'NEW_VIDEO': nav('RELLO', { videoId: item.data.videoId }); break;
+      case 'CLUB_HIGHLIGHT': nav('CLUBS'); break;
+      case 'LABS_DATAVIZ': onVisitUser(item.data.authorId); break;
+      case 'EVENT_SOON': nav('EVENT_DETAIL', { eventId: item.data.eventId }); break;
+      case 'HISTORY_MOMENT': nav('CHORA_HISTORY'); break;
+    }
+  }, [onVisitUser]);
+
+  // Restore the reader's place after opening a post/profile and coming back.
+  useScrollRestoration(`feed:${activeTab}:${hashtagView ? `#${hashtagView}` : plajahFilter}`, {
+    scrollRef: feedScrollRef,
+    ready: activeTab === 'GLOBAL' && !feedLoading,
+  });
+
+  // One celebratory card at a time above the feed: a pending milestone wins, otherwise the weekly recap.
+  useEffect(() => {
+    if (!viewerUid) { setHasPendingMilestone(false); return; }
+    let alive = true;
+    fetchPendingMilestones(viewerUid).then(m => { if (alive) setHasPendingMilestone(m.length > 0); }).catch(() => {});
+    return () => { alive = false; };
+  }, [viewerUid]);
+
+  // Spam pre-check input for the composers: the viewer's own recent texts (this session + what is on screen).
+  const sessionPostTexts = useRef<string[]>([]);
+  const recentOwnTexts = (): string[] => [
+    ...sessionPostTexts.current,
+    ...displayedPosts.filter(p => p.authorId === viewerUid && p.text).slice(0, 10).map(p => p.text),
+  ];
+
+  // Shared composer -> post pipeline for BOTH composers (quote posts, alt text, link cards, reply audience, hashtags).
+  // Private accounts: createPost routes to `private_posts` itself (privatePostsService.resolvePostCollectionForMe);
+  // authorIsPrivate is stamped so PostCard can soft-gate.
+  const publishFromComposer = async (data: ComposerPostData) => {
+    if (!currentUser) return;
+    const resolved = withAltText(await resolveComposerMedia(data.attachments, currentUser.uid), data.attachments);
+    const media = data.linkPreview ? [...resolved, linkPreviewMedia(data.linkPreview)] : resolved;
+    const embedFields = await postFieldsForAssetEmbed(data.assetEmbed);
+    await publishComposerPost(
+      { text: data.text, quoteOf: data.quoteOf, replyAudience: data.replyAudience },
+      {
+        isPublic: true,
+        ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
+        ...(media.length > 0 ? { media } : {}),
+        ...(data.contentLabels?.length ? { contentLabels: data.contentLabels } : {}),
+        ...(data.sanctuaryGate ? { sanctuaryGate: data.sanctuaryGate } : {}),
+        ...(data.poll ? { poll: { ...data.poll, createdAt: Date.now() } } : {}),
+        ...(data.dataViz ? { dataViz: data.dataViz } : {}),
+        ...embedFields,
+        ...(activeOrg ? { authorName: activeOrg.name, authorPhoto: activeOrg.logoUrl || '', authorOrgId: activeOrg.id, orgAudience: orgPostAudience } : {}),
+        ...(userProfile?.isPrivate ? { authorIsPrivate: true } : {}),
+        ...todayFields(),
+      } as any,
+    );
+    sessionPostTexts.current = [data.text, ...sessionPostTexts.current].slice(0, 10);
+    setPostToToday(false);
+  };
 
   const getThemeStyles = () => {
     switch (theme) {
@@ -1561,35 +1754,13 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   }, []);
 
   useEffect(() => {
-    const loadSuggested = async () => {
-      try {
-        const { fetchRandomActiveUser } = await import('../services/backendService');
-        const user = await fetchRandomActiveUser();
-        setSuggestedArtist(user);
-      } catch (e) {
-        console.error("Failed to load suggested artist", e);
-      }
-    };
-    if (userProfile?.isFan) {
-      loadSuggested();
-    }
-  }, [userProfile?.isFan]);
-
-  useEffect(() => {
     let unsubscribe: () => void = () => {};
 
-    if (activeTab === 'GLOBAL' || activeTab === 'SOCIAL') {
-      if (activeTab === 'GLOBAL' && plajahFilter === 'FOLLOWING' && currentUser) {
-        fetchFollowedFeed(currentUser.uid, (items) => {
-          setFeedItems(items);
-        }).then(unsub => {
-          unsubscribe = unsub;
-        });
-      } else {
-        unsubscribe = fetchFeed((items) => {
-          setFeedItems(items);
-        });
-      }
+    // GLOBAL (Plajah Social) no longer reads the `feed` mirror: it is paginated via useFeedPages above.
+    if (activeTab === 'SOCIAL') {
+      unsubscribe = fetchFeed((items) => {
+        setFeedItems(items);
+      });
     } else if (activeTab === 'NEWS') {
       fetchGlobalNews();
       fetchSportsScores();
@@ -1613,19 +1784,13 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
     return () => unsubscribe();
   }, [activeTab, currentUser]);
 
-  // Dedicated real-time subscription for Plajah Social (GLOBAL) tab
+  // Liked tab subscription. For You / Following / #hashtag come from useFeedPages (see the social block above).
   useEffect(() => {
-    if (activeTab !== 'GLOBAL') { setGlobalPosts([]); setLikedPosts([]); return; }
-    let unsub: (() => void) | undefined;
-    if (plajahFilter === 'LIKED' && currentUser) {
-      unsub = listenToLikedPosts(currentUser.uid, setLikedPosts);
-    } else if (plajahFilter === 'FOLLOWING' && currentUser) {
-      listenToFollowedPosts(currentUser.uid, setGlobalPosts).then(fn => { unsub = fn; });
-    } else {
-      unsub = listenToGlobalPosts(setGlobalPosts);
-    }
+    setLikedPosts([]);
+    if (activeTab !== 'GLOBAL' || plajahFilter !== 'LIKED' || hashtagView || !currentUser) return;
+    const unsub = listenToLikedPosts(currentUser.uid, setLikedPosts);
     return () => unsub?.();
-  }, [activeTab, plajahFilter, currentUser?.uid]);
+  }, [activeTab, plajahFilter, hashtagView, currentUser?.uid]);
 
   // Live clock — ticks every second
   useEffect(() => {
@@ -1707,7 +1872,7 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
   }, [scrubToPosition]);
 
   const getTimelineLabel = useCallback((pct: number): string => {
-    const posts = plajahFilter === 'LIKED' ? likedPosts : globalPosts;
+    const posts = displayedPosts;
     if (posts.length === 0) return '';
     const idx = Math.round((pct / 100) * (posts.length - 1));
     const post = posts[Math.min(idx, posts.length - 1)];
@@ -1719,7 +1884,7 @@ const FeedView: React.FC<FeedViewProps> = ({ onBack, currentUser, onVisitUser, o
     const hrs = Math.floor(mins / 60);
     if (hrs < 24) return `${hrs}h`;
     return `${Math.floor(hrs / 24)}d`;
-  }, [globalPosts, likedPosts, plajahFilter]);
+  }, [displayedPosts]);
 
   const handleSimplePost = async () => {
     if (!currentUser || (!simplePostText.trim() && composerMedia.length === 0 && !composerAlbumEmbed)) return;
@@ -2071,7 +2236,7 @@ const toggleFavoriteTeam = async (team: string) => {
   useEffect(() => {
     const handleMentionSearch = async () => {
       if (mentionSearch.length > 0) {
-        const users = await searchUserProfiles(mentionSearch);
+        const users = await searchUserProfilesSafe(mentionSearch);
         setSuggestedUsers(users);
         setShowMentionDropdown(users.length > 0);
       } else if (mentionTriggerIndex !== -1) {
@@ -2181,6 +2346,7 @@ const toggleFavoriteTeam = async (team: string) => {
 
 
   return (
+    <HashtagClickProvider onHashtagClick={openHashtag}>
     <>
     {/* Frosted backdrop — FIXED to the viewport, not the content box. Painting it on the
         flex-1 container gave the dark layer and the blur a hard rectangular edge wherever the
@@ -2269,28 +2435,55 @@ const toggleFavoriteTeam = async (team: string) => {
             <div className="flex flex-wrap items-center gap-4 px-0.5 mt-1">
               <div className="flex p-1 bg-white/5 rounded-full border border-white/10">
                 <button
-                  onClick={() => setPlajahFilter('ALL')}
-                  className={`px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${plajahFilter === 'ALL' ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}
+                  onClick={() => { setHashtagView(null); setPlajahFilter('ALL'); }}
+                  className={`px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${plajahFilter === 'ALL' && !hashtagView ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}
                 >
-                  Global
+                  For You
                 </button>
                 <button
-                  onClick={() => setPlajahFilter('FOLLOWING')}
-                  className={`px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${plajahFilter === 'FOLLOWING' ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}
+                  onClick={() => { setHashtagView(null); setPlajahFilter('FOLLOWING'); }}
+                  className={`px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all ${plajahFilter === 'FOLLOWING' && !hashtagView ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}
                 >
                   Following
                 </button>
                 {currentUser && (
                   <button
-                    onClick={() => setPlajahFilter('LIKED')}
+                    onClick={() => { setHashtagView(null); setPlajahFilter('LIKED'); }}
                     className={`px-5 py-2 rounded-full text-[9px] font-black uppercase tracking-widest transition-all flex items-center gap-1.5
-                      ${plajahFilter === 'LIKED' ? 'bg-red-400/90 text-white' : 'text-white/40 hover:text-red-400'}`}
+                      ${plajahFilter === 'LIKED' && !hashtagView ? 'bg-red-400/90 text-white' : 'text-white/40 hover:text-red-400'}`}
                   >
-                    <Heart size={10} fill={plajahFilter === 'LIKED' ? 'currentColor' : 'none'} strokeWidth={2} />
+                    <Heart size={10} fill={plajahFilter === 'LIKED' && !hashtagView ? 'currentColor' : 'none'} strokeWidth={2} />
                     Liked
                   </button>
                 )}
               </div>
+              {currentUser && (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => setShowPeoplePage('default')}
+                    className="inline-flex items-center gap-1.5 h-9 px-3.5 rounded-full bg-white/5 border border-white/10 text-white/60 text-[9px] font-black uppercase tracking-widest hover:text-white hover:bg-white/10 transition-all"
+                  >
+                    <PjPeopleIcon size={12} /> People
+                  </button>
+                  <button
+                    onClick={() => setShowSavedPosts(true)}
+                    aria-label="Saved posts"
+                    title="Saved posts"
+                    className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all"
+                  >
+                    <PjBookmarkIcon size={14} />
+                  </button>
+                  <button
+                    onClick={() => setShowFeedControls(true)}
+                    aria-label="Feed controls"
+                    title="Feed controls"
+                    className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 transition-all"
+                  >
+                    <PjSlidersIcon size={14} />
+                  </button>
+                  <StreakChip uid={viewerUid} />
+                </div>
+              )}
             </div>
           )}
         </header>
@@ -2320,7 +2513,7 @@ const toggleFavoriteTeam = async (team: string) => {
           {currentUser ? (
             <DebatePulseFeed
               uid={currentUser.uid}
-              followingIds={userProfile?.following ?? []}
+              followingIds={followingVisible}
               onOpenDebate={(id) => {
                 window.dispatchEvent(new CustomEvent('OPEN_DEBATE', { detail: { debateId: id } }));
               }}
@@ -2336,7 +2529,7 @@ const toggleFavoriteTeam = async (team: string) => {
         <div className="flex-1 overflow-y-auto">
           <RightNowFeed
             currentUser={userProfile}
-            followingUids={userProfile?.following ?? []}
+            followingUids={followingVisible}
             onVisitUser={onVisitUser}
           />
         </div>
@@ -2748,29 +2941,7 @@ const toggleFavoriteTeam = async (team: string) => {
       ) : (
         <div className={`${activeTab === 'GLOBAL' ? 'flex-1 overflow-hidden' : 'pt-4 pb-20'} max-w-[1700px] mx-auto w-full px-0 sm:px-4 lg:px-8 flex flex-col xl:flex-row gap-8 lg:gap-16`}>
           <div className={`flex-1 min-w-0 ${activeTab === 'GLOBAL' ? 'flex flex-col overflow-hidden' : ''}`}>
-          {userProfile?.isFan && suggestedArtist && (
-        <div className="mb-12 p-8 bg-gradient-to-br from-[#6B0099]/20 to-[#FF8C00]/20 border border-white/10 rounded-[3rem] shadow-2xl">
-          <div className="flex items-center gap-4 mb-6">
-            <Sparkles size={24} className="text-small-orange" />
-            <h2 className="text-xl font-black uppercase tracking-widest">Discover This User</h2>
-          </div>
-          <div className="flex items-center gap-6">
-            <div className="w-16 h-16 rounded-full overflow-hidden bg-white/10">
-              <img loading="lazy" decoding="async" src={thumb(suggestedArtist.photoURL, THUMB.micro) || `https://picsum.photos/seed/${suggestedArtist.uid}/100/100`} onError={onThumbError(suggestedArtist.photoURL)} alt={suggestedArtist.displayName} className="w-full h-full object-cover" />
-            </div>
-            <div>
-              <h3 className="font-bold text-lg">{suggestedArtist.displayName}</h3>
-              <p className="text-sm text-white/50">Suggested Artist</p>
-            </div>
-            <button 
-              onClick={() => onVisitUser(suggestedArtist.uid)}
-              className="ml-auto px-6 py-3 bg-white text-black rounded-full font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-transform"
-            >
-              View Profile
-            </button>
-          </div>
-        </div>
-      )}
+          {/* (the old random 'Discover This User' block was replaced by <MeetNewPeopleRow/> at the top of the Plajah Social feed) */}
 
       {currentUser && activeTab === 'SOCIAL' && (
         <div className="mb-6 max-w-2xl mx-auto w-full">
@@ -2798,24 +2969,9 @@ const toggleFavoriteTeam = async (team: string) => {
             avatarUrl={currentUser.photoURL || undefined}
             userAlbums={userAlbums}
             userSanctuaryId={currentUser.uid}
-            onPost={async (data) => {
-              const resolvedMedia = await resolveComposerMedia(data.attachments, currentUser.uid);
-              const embedFields = await postFieldsForAssetEmbed(data.assetEmbed);
-              await createPost({
-                text: data.text,
-                isPublic: true,
-                ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
-                ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
-                ...(data.contentLabels?.length ? { contentLabels: data.contentLabels } : {}),
-                ...(data.sanctuaryGate ? { sanctuaryGate: data.sanctuaryGate } : {}),
-                ...(data.poll ? { poll: data.poll } : {}),
-                ...(data.dataViz ? { dataViz: data.dataViz } : {}),
-                ...embedFields,
-                ...(activeOrg ? { authorName: activeOrg.name, authorPhoto: activeOrg.logoUrl || '', authorOrgId: activeOrg.id, orgAudience: orgPostAudience } : {}),
-                ...todayFields(),
-              } as any);
-              setPostToToday(false);
-            }}
+            postingPower
+            recentOwnTexts={recentOwnTexts()}
+            onPost={publishFromComposer}
             onMakeStory={() => setShowStoryCreator(true)}
           />
         </div>
@@ -3082,7 +3238,7 @@ const toggleFavoriteTeam = async (team: string) => {
                 currentUserId={currentUser.uid}
                 currentUserName={currentUser.displayName || 'Me'}
                 currentUserPhoto={currentUser.photoURL || undefined}
-                followedUids={userProfile?.following ?? []}
+                followedUids={followingVisible}
                 onVisitUser={onVisitUser}
               />
             </div>
@@ -3262,26 +3418,16 @@ const toggleFavoriteTeam = async (team: string) => {
             </div>
             {activeOrg && <OrgAudienceToggle value={orgPostAudience} onChange={setOrgPostAudience} className="px-1 pb-2" />}
             <UniversalPostComposer
+              key={quoteTarget ? `quote-${quoteTarget.id}` : 'main'}
               currentUser={currentUser}
               placeholder={postToToday ? 'Share a Today — gone in 24 hours…' : "What's on your mind?"}
               avatarUrl={currentUser.photoURL || undefined}
               userAlbums={userAlbums}
-              onPost={async (data) => {
-                const resolvedMedia = await resolveComposerMedia(data.attachments, currentUser.uid);
-                const embedFields = await postFieldsForAssetEmbed(data.assetEmbed);
-                await createPost({
-                  text: data.text,
-                  isPublic: true,
-                  ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
-                  ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
-                  ...(data.poll ? { poll: data.poll } : {}),
-                  ...(data.dataViz ? { dataViz: data.dataViz } : {}),
-                  ...embedFields,
-                  ...(activeOrg ? { authorName: activeOrg.name, authorPhoto: activeOrg.logoUrl || '', authorOrgId: activeOrg.id, orgAudience: orgPostAudience } : {}),
-                  ...todayFields(),
-                } as any);
-                setPostToToday(false);
-              }}
+              postingPower
+              recentOwnTexts={recentOwnTexts()}
+              quoteOf={quoteTarget}
+              onClearQuote={() => setQuoteTarget(null)}
+              onPost={publishFromComposer}
               onMakeStory={() => setShowStoryCreator(true)}
             />
             </>
@@ -3292,7 +3438,38 @@ const toggleFavoriteTeam = async (team: string) => {
 
           {/* ── Posts: independently scrollable ── */}
           <div ref={feedScrollRef} className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar">
+          {pagedFeed && (
+            <NewPostsPill
+              count={feed.newCount}
+              onClick={() => { feed.flushNew(); try { feedScrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' }); } catch { /* */ } }}
+            />
+          )}
           <div className="pb-8">
+
+          {/* #hashtag view header, or the discovery row + one retention card at the top of the feed */}
+          {hashtagView ? (
+            <HashtagFeedHeader tag={hashtagView} onBack={() => setHashtagView(null)} />
+          ) : currentUser && plajahFilter !== 'LIKED' ? (
+            <div className="px-3 sm:px-4 pt-3 space-y-3">
+              {userProfile && (
+                <MeetNewPeopleRow
+                  viewer={userProfile}
+                  onOpenProfile={onVisitUser}
+                  onSeeAll={() => setShowPeoplePage('default')}
+                  onOpenChat={openChatWith}
+                />
+              )}
+              {hasPendingMilestone
+                ? <MilestoneCard uid={viewerUid} />
+                : <WeeklyRecapCard
+                    uid={viewerUid}
+                    displayName={userProfile?.displayName || currentUser.displayName || ''}
+                    photo={userProfile?.photoURL || currentUser.photoURL || ''}
+                    hidden={hiddenUids}
+                    onVisitUser={onVisitUser}
+                  />}
+            </div>
+          ) : null}
 
           {/* Panel mode toggle */}
           <div className="flex items-center gap-2 mb-4 px-4 pt-3">
@@ -3316,7 +3493,7 @@ const toggleFavoriteTeam = async (team: string) => {
               <div className="overflow-y-auto overflow-x-hidden pr-2 scrollbar-hide space-y-4 min-w-0 [&_iframe]:max-w-full [&_img]:max-w-full [&_video]:max-w-full">
                 <p className="text-[8px] font-black uppercase tracking-widest text-white/30 mb-3">Posts</p>
                 {displayedPosts.map((post) => (
-                  <PostCard key={post.id} post={post} onVisitUser={onVisitUser} presentation="signal" />
+                  <PostCard key={post.id} post={post} onVisitUser={onVisitUser} presentation="signal" onShowLess={feedPrefs.showLessLikeThis} onQuote={setQuoteTarget} />
                 ))}
               </div>
               <div className="overflow-y-auto pr-2 scrollbar-hide">
@@ -3356,7 +3533,7 @@ const toggleFavoriteTeam = async (team: string) => {
               <div className="flex-1 h-px bg-white/5" />
               <span className="text-[8px] font-black uppercase tracking-[0.4em] text-white/15 flex items-center gap-1.5">
                 <Clock size={9} />
-                {plajahFilter === 'LIKED' ? 'Liked' : 'Latest'}
+                {hashtagView ? `#${hashtagView}` : plajahFilter === 'LIKED' ? 'Liked' : plajahFilter === 'FOLLOWING' ? 'Following' : 'For you'}
               </span>
               <div className="flex-1 h-px bg-white/5" />
             </div>
@@ -3364,46 +3541,92 @@ const toggleFavoriteTeam = async (team: string) => {
 
           {/* Post feed */}
           <div className="space-y-3 w-full min-w-0 [&_iframe]:max-w-full [&_img]:max-w-full [&_video]:max-w-full">
-          <AnimatePresence mode="popLayout" initial={false}>
-            {displayedPosts.length === 0 ? (
-              <motion.div
-                key="empty"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="py-24 text-center"
-              >
+            {feedLoading ? (
+              <FeedSkeleton count={3} className="px-3 sm:px-0" />
+            ) : displayedPosts.length === 0 && pagedFeed && feed.error ? (
+              <div className="py-20 text-center">
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">Couldn't load the feed</p>
+                <button onClick={feed.refresh} className="mt-4 px-5 py-2 rounded-full bg-white text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform">Try again</button>
+              </div>
+            ) : displayedPosts.length === 0 && (!pagedFeed || (!feed.hasMore && !feed.loadingMore)) ? (
+              <div className="py-24 text-center px-6">
                 <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/5 flex items-center justify-center mx-auto mb-6">
-                  {plajahFilter === 'LIKED'
+                  {plajahFilter === 'LIKED' && !hashtagView
                     ? <Heart size={28} className="text-red-400/30" />
                     : <Cloud size={28} className="text-white/20" />
                   }
                 </div>
-                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/20">
-                  {plajahFilter === 'LIKED' ? 'Nothing liked yet' : 'The signal is quiet'}
+                <p className="text-[10px] font-black uppercase tracking-[0.4em] text-white/30">
+                  {hashtagView ? `Nothing tagged #${hashtagView} yet` : plajahFilter === 'LIKED' ? 'Nothing liked yet' : plajahFilter === 'FOLLOWING' ? 'Nothing from people you follow yet' : 'The signal is quiet'}
                 </p>
-                <p className="text-[9px] font-bold text-white/10 uppercase tracking-widest mt-2">
-                  {plajahFilter === 'LIKED' ? 'Heart posts to see them here' : 'Be the first to post'}
+                <p className="text-[9px] font-bold text-white/20 uppercase tracking-widest mt-2">
+                  {hashtagView ? 'Be the first to use it' : plajahFilter === 'LIKED' ? 'Heart posts to see them here' : plajahFilter === 'FOLLOWING' ? 'Follow a few people to fill this feed' : 'Be the first to post'}
                 </p>
-              </motion.div>
-            ) : (
-              displayedPosts.flatMap((post, idx) => {
+                {currentUser && plajahFilter !== 'LIKED' && !hashtagView && (
+                  <button
+                    onClick={() => setShowPeoplePage('default')}
+                    className="mt-6 inline-flex items-center gap-2 px-6 py-3 rounded-full bg-white text-black text-[10px] font-black uppercase tracking-widest hover:scale-105 transition-transform"
+                  >
+                    <PjPeopleIcon size={13} /> Find people to follow
+                  </button>
+                )}
+              </div>
+            ) : (() => {
+              let postIdx = -1;
+              return feedEntries.flatMap((entry): React.ReactNode[] => {
+                if (entry.type === 'module') {
+                  return [
+                    <DiscoveryModuleSlot
+                      key={entry.key}
+                      module={entry.module}
+                      occurrence={entry.occurrence}
+                      render={(id) => id === 'people' && userProfile
+                        ? <MeetNewPeopleRow viewer={userProfile} mode="existing" onOpenProfile={onVisitUser} onSeeAll={() => setShowPeoplePage('default')} onOpenChat={openChatWith} />
+                        : id === 'trending'
+                          ? <TrendingTopicsCard onPick={openHashtag} max={5} />
+                          : null}
+                    />,
+                  ];
+                }
+                if (entry.type === 'card') {
+                  return [
+                    <div key={entry.key} className="px-3 sm:px-0">
+                      <FeedCardView item={entry.card} onOpen={openFeedCard} onDismiss={(c) => feedPrefs.toggleCardKind(c.kind)} />
+                    </div>,
+                  ];
+                }
+                const post = entry.post;
+                postIdx++;
+                const idx = postIdx;
+                const why = forYouActive && post.authorId !== viewerUid ? forYouRank.current.why.get(post.id) : undefined;
                 const nodes: React.ReactNode[] = [
                   <motion.div
-                    key={post.id}
+                    key={entry.key}
                     data-post-index={idx}
-                    layout
-                    initial={{ opacity: 0, y: -12, scale: 0.99 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.97 }}
+                    data-feed-item-id={post.id}
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
                     transition={{ type: 'spring', stiffness: 340, damping: 32 }}
                   >
-                    <PostCard post={post} onVisitUser={onVisitUser} presentation="signal" />
+                    <PostCard
+                      post={post}
+                      onVisitUser={onVisitUser}
+                      presentation="signal"
+                      onShowLess={feedPrefs.showLessLikeThis}
+                      onQuote={setQuoteTarget}
+                      referrer={hashtagView ? 'HASHTAG' : 'FEED'}
+                    />
+                    {why && (
+                      <div className="flex justify-end px-3 -mt-1">
+                        <WhyThisPostPopover why={why} onShowLess={() => feedPrefs.showLessLikeThis(post)} onShowMore={() => feedPrefs.showMoreLikeThis(post)} />
+                      </div>
+                    )}
                   </motion.div>,
                 ];
-                if ((idx + 1) % 5 === 0) {
+                // Non-For-You lists keep the old "history moment every 5 posts" pulse (For You gets it as a card).
+                if (!forYouActive && (idx + 1) % 5 === 0) {
                   nodes.push(
-                    <motion.div key={`signal-history-${idx}`} layout className="pj-signal-history-pulse">
+                    <div key={`signal-history-${idx}`} className="pj-signal-history-pulse">
                       <HistoryMomentPulseCard
                         uid={currentUser?.uid}
                         category="MIX"
@@ -3411,13 +3634,22 @@ const toggleFavoriteTeam = async (team: string) => {
                         startOffset={Math.floor(idx / 5)}
                         onNavigate={(target) => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target } }))}
                       />
-                    </motion.div>,
+                    </div>,
                   );
                 }
                 return nodes;
-              })
+              });
+            })()}
+
+            {pagedFeed && !feedLoading && (
+              <>
+                <InfiniteSentinel onVisible={feed.loadMore} disabled={!feed.hasMore || feed.loadingMore} root={feedScrollRef.current} />
+                {feed.loadingMore && <FeedSkeleton count={1} className="px-3 sm:px-0" />}
+                {!feed.hasMore && !feed.loadingMore && displayedPosts.length > 0 && (
+                  <p className="py-6 text-center text-[9px] font-black uppercase tracking-[0.4em] text-white/20">You're all caught up</p>
+                )}
+              </>
             )}
-          </AnimatePresence>
           </div>{/* end post feed */}
             </>
           )}{/* end SINGLE mode */}
@@ -3558,6 +3790,35 @@ const toggleFavoriteTeam = async (team: string) => {
     </div>
    </div>
 
+   {/* People discovery, saved posts and feed controls (overlays) */}
+   {showPeoplePage && (
+     <Portal>
+       <div className="fixed inset-0 z-[260] overflow-y-auto bg-[#0a0a0a]">
+         <PeopleDiscoveryPage
+           viewer={userProfile}
+           initialTab={showPeoplePage === 'new' ? 'new' : undefined}
+           onBack={() => setShowPeoplePage(null)}
+           onOpenProfile={(uid) => { setShowPeoplePage(null); onVisitUser(uid); }}
+           onOpenChat={openChatWith}
+         />
+       </div>
+     </Portal>
+   )}
+   {showSavedPosts && (
+     <Portal>
+       <div className="fixed inset-0 z-[260] overflow-y-auto bg-[#0a0a0a]">
+         <div className="max-w-[760px] mx-auto">
+           <SavedPostsView
+             onBack={() => setShowSavedPosts(false)}
+             onVisitUser={(uid) => { setShowSavedPosts(false); onVisitUser(uid); }}
+             renderPost={(p) => <PostCard post={p} onVisitUser={(uid) => { setShowSavedPosts(false); onVisitUser(uid); }} presentation="signal" onQuote={(q) => { setShowSavedPosts(false); setQuoteTarget(q); }} />}
+           />
+         </div>
+       </div>
+     </Portal>
+   )}
+   <FeedControlsSheet open={showFeedControls} onClose={() => setShowFeedControls(false)} fp={feedPrefs} />
+
    {/* Global Story Creator modal */}
    <AnimatePresence>
      {showStoryCreator && currentUser && (
@@ -3632,6 +3893,7 @@ const toggleFavoriteTeam = async (team: string) => {
      </Portal>
    )}
    </>
+   </HashtagClickProvider>
   );
 };
 

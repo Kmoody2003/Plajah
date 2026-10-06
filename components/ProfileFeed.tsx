@@ -12,9 +12,10 @@ import {
   auth,
   fetchUserContent,
   fetchUserVideos,
-  searchUserProfiles,
-  linkXAccount
+  linkXAccount,
+  isFollowing
 } from '../services/backendService';
+import { searchUserProfilesSafe as searchUserProfiles } from '../services/searchUsersSafe';
 import PostCard from './PostCard';
 import UniversalPostComposer from './UniversalPostComposer';
 import { motion, AnimatePresence } from 'motion/react';
@@ -320,18 +321,31 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
 
   useEffect(() => {
     let unsubscribe: () => void;
+    let unsubPrivate: (() => void) | undefined;
+    let cancelled = false;
 
     if (feedType === 'PERSONAL') {
-      unsubscribe = listenToUserPosts(uid, (items) => {
-        setPosts(items);
-      });
+      // Public posts + (owner, or approved follower of a private account) private_posts, merged newest-first.
+      let pub: Post[] = [];
+      let priv: Post[] = [];
+      const emit = () => setPosts([...pub, ...priv].sort((a, b) => b.timestamp - a.timestamp));
+      unsubscribe = listenToUserPosts(uid, (items) => { pub = items; emit(); });
+      if (auth.currentUser) {
+        (async () => {
+          const allowed = isOwnProfile || await isFollowing(uid).catch(() => false);
+          if (cancelled || !allowed) return;
+          const m = await import('../services/privatePostsService');
+          if (cancelled) return;
+          unsubPrivate = m.listenPrivatePostsForAuthors([uid], [uid], (items) => { priv = items; emit(); });
+        })().catch(() => {});
+      }
     } else {
       unsubscribe = listenToGlobalPosts((items) => {
         setPosts(items);
       });
     }
 
-    return () => unsubscribe?.();
+    return () => { cancelled = true; unsubscribe?.(); unsubPrivate?.(); };
   }, [uid, feedType]);
 
   useEffect(() => {
@@ -1189,7 +1203,7 @@ const ProfileFeed: React.FC<ProfileFeedProps> = ({
                 isPublic: true,
                 ...(data.theme !== 'STANDARD' ? { theme: data.theme } : {}),
                 ...(resolvedMedia.length > 0 ? { media: resolvedMedia } : {}),
-                ...(data.poll ? { poll: data.poll } : {}),
+                ...(data.poll ? { poll: { ...data.poll, createdAt: Date.now() } } : {}),
                 ...(data.dataViz ? { dataViz: data.dataViz } : {}),
                 ...embedFields,
                 targetUserId: isOwnProfile ? undefined : uid,

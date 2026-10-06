@@ -18,8 +18,9 @@ const AudioVisualizer = React.lazy(() => import('./plajahPixels/components/Audio
 const StudioStage = React.lazy(() => import('./plajahPixels/components/StudioStage'));
 const FluxStage = React.lazy(() => import('./plajahPixels/components/FluxStage'));
 const TypoStage = React.lazy(() => import('./ChoraTypoVisualizer'));
+const KaijuStage = React.lazy(() => import('./kaiju/KaijuFxStage'));
 
-export type FxEngine = 'MILKDROP' | 'SHADER' | 'GENERATOR' | 'FLUX' | 'TYPO';
+export type FxEngine = 'MILKDROP' | 'SHADER' | 'GENERATOR' | 'FLUX' | 'TYPO' | 'KAIJU';
 
 /**
  * Frames per second the Pixels engines should target on this device. 0 = uncapped.
@@ -134,6 +135,9 @@ const TYPO_MODES: { name: string; preset: import('./ChoraTypoVisualizer').TypoVo
   { name: 'Letter Maze', preset: 'MAZE' },
 ];
 
+// ── Kaiju dance party — Lorik & Lumi (names mirror KAIJU_PRESETS in kaiju/KaijuFxStage) ──
+const KAIJU_MODES = ['Kaiju Party (Auto)', 'Meditation Float', 'EDM Rave', 'Rock Headbang', 'Ballet & Cinema', 'Kaiju Music Video (Clips)'];
+
 // Preset-list metadata the selector uses to label. MilkDrops is loaded async (above).
 export const FX_ENGINE_PRESETS: Record<FxEngine, string[]> = {
   MILKDROP: [], // filled at runtime via loadMilkdropNames()
@@ -141,6 +145,7 @@ export const FX_ENGINE_PRESETS: Record<FxEngine, string[]> = {
   GENERATOR: GEN_MODES.map(g => g.name),
   FLUX: FLUX_MODES.map(f => f.name),
   TYPO: TYPO_MODES.map(t => t.name),
+  KAIJU: KAIJU_MODES,
 };
 
 /** `names` supplies the runtime list for the async engines (MilkDrops, Shaders); the
@@ -261,6 +266,9 @@ export default function FxStageVisualizers({
           preset={TYPO_MODES[((presetIndex % TYPO_MODES.length) + TYPO_MODES.length) % TYPO_MODES.length].preset}
           analyser={analyser} isPlaying={isPlaying} fpsCap={fps} renderScale={renderScale}
         />
+      )}
+      {engine === 'KAIJU' && (
+        <KaijuStage preset={presetIndex} analyser={analyser} isPlaying={isPlaying} fpsCap={fps} />
       )}
     </Suspense>
   );

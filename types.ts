@@ -1421,6 +1421,8 @@ export interface UserProfile {
   uid: string;
   /** Chora recent-listens history synced across devices (see services/listenHistoryService). */
   choraRecents?: any[];
+  /** Private account: following requires approval (follow_requests). See services/socialSafetyService. */
+  isPrivate?: boolean;
   displayName: string;
   photoURL: string;
   email: string;
@@ -1449,7 +1451,22 @@ export interface UserProfile {
   };
   followerCount: number;
   followingCount: number;
+  /** @deprecated LEGACY + never written. The source of truth is the `follows` collection:
+   *  use `useFollowing(uid)` (hooks/useFollowing.ts) or `fetchFollowingIds(uid)`. */
   following?: string[];
+  // ─── People discovery (services/discoveryService, components/discovery/DiscoverySettings) ───
+  /** Opt OUT of being suggested to other people. Default false (suggestable). */
+  hideFromSuggestions?: boolean;
+  /** Opt IN (default false) to region matching. Used only when BOTH people opted in. */
+  discoverByRegion?: boolean;
+  /** Coarse, user-typed region such as 'Detroit, MI'. Never derived from weather/GPS. */
+  discoveryRegion?: string;
+  /** Normalised discoveryRegion (lowercase, no punctuation) — query key for 'Near me'. */
+  discoveryRegionKey?: string;
+  /** Recipient opt-OUT of "Say hi" greetings (default: allowed). */
+  sayHiOptOut?: boolean;
+  /** Volunteer "welcome committee" member: greets brand-new accounts. */
+  isWelcomeAmbassador?: boolean;
   friendsCount?: number;
   joinedAt?: number;
   // Weather location shown on the profile card — captured from the owner's device on their own
@@ -2056,6 +2073,8 @@ export interface Post {
     height?: number;
     aspectRatio?: number;
     originalUrl?: string;
+    /** Accessibility description (alt text) authored in the composer. */
+    alt?: string;
     /** Mux playback id — Plajah videos store an empty url + only this; the feed plays via HLS. */
     muxPlaybackId?: string;
     linkPreview?: {
@@ -2070,7 +2089,9 @@ export interface Post {
   commentsCount: number;
   timestamp: number;
   isPublic: boolean;
-  sourceCollection?: 'feed' | 'posts';
+  sourceCollection?: 'feed' | 'posts' | 'private_posts';
+  /** Stamped by the composer for private accounts so PostCard can soft-gate. */
+  authorIsPrivate?: boolean;
   albumEmbed?: Album; // For the mini player
   autoPlayEmbed?: boolean;
   modifiedAt?: number;
@@ -2094,6 +2115,21 @@ export interface Post {
   poll?: import('./components/PollCard').PollData;
   /** Embedded live data visualization */
   dataViz?: any;
+  // ── Posting power (services/postingLogic.ts) ──
+  /** Quote post: id + immutable snapshot of the source (survives source deletion). */
+  quotedPostId?: string;
+  quotedPost?: { id: string; authorId: string; authorName: string; authorPhoto: string; text: string; mediaThumb?: string; mediaType?: string; timestamp: number };
+  /** Count of quote posts of this post (bounded +/-1 client increments). */
+  quoteCount?: number;
+  /** Plain repost: this doc (id repost_{uid}_{origId}) re-shares `repostOf`. */
+  repostOf?: string;
+  repostCount?: number;
+  /** Who may reply. UI-enforced (see canReply); absent === 'everyone'. */
+  replyAudience?: 'everyone' | 'following' | 'mentioned' | 'none';
+  /** Normalised lowercase tags parsed from text at create time. */
+  hashtags?: string[];
+  /** Previous text revisions, newest last, capped at 5. */
+  editHistory?: { text: string; editedAt: number }[];
 }
 
 export interface FeedPage {
@@ -3605,6 +3641,8 @@ export type AppView = 'LANDING' | 'DASHBOARD' | 'CREATOR' | 'PLAYER' | 'PREVIEW'
   | 'TELA'
   // Tela reference-embed demo (P2b — live/follow-latest/pinned side by side)
   | 'TELA_EMBED_DEMO'
+  // Dossier — museum/biography/documentary experiences (Douglass first)
+  | 'DOSSIER'
   // Chora Mixes — the dedicated long-form DJ-set player (waveform + Pixels auto-show)
   | 'MIX_PLAYER'
   | 'CELL_ATLAS'
@@ -3976,9 +4014,11 @@ export interface AppNotification {
   senderId: string;
   senderName: string;
   senderPhoto: string;
-  type: 'MESSAGE' | 'COMMENT' | 'CONTENT' | 'SYSTEM' | 'LIKE' | 'FOLLOW';
+  type: 'MESSAGE' | 'COMMENT' | 'CONTENT' | 'SYSTEM' | 'LIKE' | 'FOLLOW' | 'HELLO';
   title: string;
   message: string;
+  /** Optional quick-action ids the notification UI may render, e.g. ['WAVE_BACK','FOLLOW_BACK']. */
+  actions?: string[];
   link?: string;
   targetId?: string;
   isRead: boolean;
@@ -7266,6 +7306,23 @@ export interface TelaVectorObject {
   sourceImageSrc?: string;
   sourceCrop?: { x: number; y: number; width: number; height: number; sourceWidth: number; sourceHeight: number };
   objectLabel?: string;
+  // ── Slide-editor (Ambo) extras — all optional, ignored by other Tela surfaces ──
+  /** Image fit inside the box (default cover). */
+  imageFit?: 'cover' | 'contain' | 'fill';
+  /** Normalised 0-1 crop of the source image shown in the box. */
+  imageCrop?: { x: number; y: number; w: number; h: number };
+  /** TEXT: underline / strike-through, vertical alignment and shrink-to-fit. */
+  underline?: boolean;
+  strike?: boolean;
+  vAlign?: 'top' | 'middle' | 'bottom';
+  autoFit?: boolean;
+  /** Editor state: hidden objects are not drawn; locked objects cannot be moved. */
+  hidden?: boolean;
+  locked?: boolean;
+  /** Objects sharing a groupId select and move together. */
+  groupId?: string;
+  /** Raw passthrough of an Ambo layer this object stands for (kept verbatim; see services/ambo/telaSlide.ts). */
+  amboLayer?: unknown;
   /** Exact SVG outline fallback when no compatible open font can reproduce the glyphs. */
   svgPathData?: string;
   /** Nodes make traced outlines editable instead of leaving them as opaque SVG. */

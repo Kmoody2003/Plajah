@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Music2, Radio as RadioIcon, Library, Users, Disc3, Sparkles, Archive, Mic2, BookOpen, ListMusic, GraduationCap, Crown, Play, ArrowLeft, Waves } from 'lucide-react';
 import type { Album, UserProfile } from '../../types';
-import { fetchAllPublicAlbums, fetchUpcomingAlbums, searchUsers } from '../../services/backendService';
+import { fetchAllPublicAlbums, fetchUpcomingAlbums, searchUsers, fetchFollowingIds } from '../../services/backendService';
 import { thumb, THUMB } from '../../src/lib/imageThumb';
 import { useTvGrid, isFocused } from '../../hooks/useTvGrid';
 import { useGlobalPlayerState } from '../../contexts/GlobalPlayerContext';
@@ -65,6 +65,7 @@ const ChoraTvView: React.FC<{
   const [albums, setAlbums] = useState<Album[]>([]);
   const [upcoming, setUpcoming] = useState<Album[]>([]);
   const [artists, setArtists] = useState<UserProfile[]>([]);
+  const [followingIds, setFollowingIds] = useState<string[]>([]);
   const [section, setSection] = useState<SectionId>('NEW');
   const [loading, setLoading] = useState(true);
   const [sectionLoading, setSectionLoading] = useState(false);
@@ -97,9 +98,16 @@ const ChoraTvView: React.FC<{
     return () => { alive = false; };
   }, []);
 
+  useEffect(() => {
+    if (!userProfile?.uid) { setFollowingIds([]); return; }
+    let alive = true;
+    fetchFollowingIds(userProfile.uid).then(ids => { if (alive) setFollowingIds(ids); }).catch(() => {});
+    return () => { alive = false; };
+  }, [userProfile?.uid]);
+
   const base: BaseData = useMemo(
-    () => ({ albums: albums.filter(a => a.type === 'MUSIC'), upcoming, artists, userProfile }),
-    [albums, upcoming, artists, userProfile],
+    () => ({ albums: albums.filter(a => a.type === 'MUSIC'), upcoming, artists, userProfile, followingIds }),
+    [albums, upcoming, artists, userProfile, followingIds],
   );
 
   // Sections that need the network fetch once and are then cached, so walking the rail up and

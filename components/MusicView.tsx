@@ -5,6 +5,8 @@ import { Album, Track, UserProfile, Playlist } from '../types';
 import { getPlatformInfo } from '../hooks/usePlatform';
 import { canUpload } from '../services/tvCapabilities';
 import PageHeader from './PageHeader';
+import { KaijuLogoDuo } from './kaiju/KaijuMascots';
+import { KaijuGlobalSignal } from './kaiju/KaijuGlobalSignal';
 const AlbumArt3DViewer = lazy(() => import('./AlbumArt3DViewer'));
 import {
   Play, Pause, SkipForward, SkipBack, Heart, Share2,
@@ -284,6 +286,7 @@ const WcAnthemPlaylist: React.FC<{ onOpenAlbum?: (album: Album) => void }> = ({ 
 const ChoraRadio = React.lazy(() => import('./RadioView'));
 import DailyMixCard from './DailyMixCard';
 import RecentRail from './chora/RecentRail';
+import { useFollowing } from '../hooks/useFollowing';
 
 /** Which Chora tabs this device shows. */
 const CHORA_TABS = (): readonly TabType[] =>
@@ -305,6 +308,8 @@ interface MusicViewProps {
 
 const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUser, userProfile, initialTab, onUploadMusic, onNavigate }) => {
   const [albums, setAlbums] = useState<Album[]>([]);
+  // Source of truth for who the viewer follows is the `follows` collection (UserProfile.following was never written).
+  const musicFollowing = useFollowing(userProfile?.uid);
   const [artists, setArtists] = useState<UserProfile[]>([]);
   const [curatedPlaylists, setCuratedPlaylists] = useState<Playlist[]>([]);
   const [vaultTracks, setVaultTracks] = useState<ArchiveTrack[]>([]);
@@ -1677,6 +1682,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
       <div className="flex flex-col h-full relative z-[1]">
         <div className="flex-1 min-w-0">
           <div className="px-4 sm:px-6 lg:px-12 pt-8 mb-2 relative z-10" style={{ opacity: choraNextOn ? 1 : 0.82 }}>
+            <KaijuGlobalSignal>
             {choraNextOn ? (
               <ChoraNextMasthead
                 albums={albums}
@@ -1687,10 +1693,12 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                 onExit={() => choraNext.setEnabled(false)}
                 onFeedback={() => window.dispatchEvent(new CustomEvent('OPEN_BUG_REPORT', { detail: { context: 'chora-next' } }))}
                 onSelectAlbum={onSelectAlbum}
+                mascots={<KaijuLogoDuo className="h-14 sm:h-16 lg:h-20" />}
               />
             ) : (
-              <PageHeader>Plajah Chora</PageHeader>
+              <PageHeader mark={<KaijuLogoDuo />}>Plajah Chora</PageHeader>
             )}
+            </KaijuGlobalSignal>
             {/* Both banners are off on TV. The Plajah+ promo belongs in the side panel, not
                 stacked above the content a viewer came for; and the World Cup anthems banner is
                 for a tournament that has finished — the playlist still lives in Playlists, which
@@ -2485,7 +2493,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                <section>
                  <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-6">From Authors You Follow</h2>
                  <AdaptiveGrid phone={2} tablet={3} desktop={5} gap="1.5rem">
-                   {albums.filter(a => userProfile.following?.includes(a.ownerId || '')).map((album) => (
+                   {albums.filter(a => musicFollowing.ids.has(a.ownerId || '')).map((album) => (
                      <div key={album.id} onClick={() => onSelectAlbum(album)} className="group cursor-pointer">
                         <div className="aspect-square rounded-[2rem] overflow-hidden mb-3 border border-white/5 shadow-xl relative">
                           <ThreeDImage src={thumb(album.coverImage, THUMB.card)} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
@@ -2500,7 +2508,7 @@ const MusicView: React.FC<MusicViewProps> = ({ onBack, onSelectAlbum, onVisitUse
                <section>
                  <h2 className="text-[10px] font-black uppercase tracking-[0.4em] text-white/40 mb-6">Suggested Creators</h2>
                  <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 mask-fade-edges">
-                    {artists.filter(a => !userProfile.following?.includes(a.uid)).slice(0, 10).map(artist => (
+                    {artists.filter(a => !musicFollowing.ids.has(a.uid)).slice(0, 10).map(artist => (
                       <div key={artist.uid} onClick={() => onVisitUser(artist.uid, 'CONTENT')} className="min-w-[140px] text-center group cursor-pointer flex-shrink-0">
                          <div className="aspect-square rounded-full overflow-hidden mb-4 border-2 border-white/5 p-1 relative">
                             <img src={thumb((artist as any).choraPhotoURL || artist.photoURL, THUMB.card) || undefined} onError={onThumbError(artist.photoURL)} className="w-full h-full object-cover rounded-full group-hover:scale-110 transition-transform" loading="lazy" decoding="async" />

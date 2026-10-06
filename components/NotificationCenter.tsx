@@ -5,6 +5,46 @@ import { useNotifications } from '../contexts/NotificationContext';
 import { formatDistanceToNow } from 'date-fns';
 import { AppNotification } from '../types';
 import NotificationSettings from './NotificationSettings';
+import FollowRequestsInbox from './safety/FollowRequestsInbox';
+import { waveBack, followBack, openDmForMutualHello, FAILURE_COPY } from '../services/sayHiService';
+
+/** Quick actions on a HELLO notification (WAVE_BACK / FOLLOW_BACK / OPEN_DM), rendered under the row. */
+export const HelloActions: React.FC<{ n: AppNotification; onOpenChat?: () => void; className?: string }> = ({ n, onOpenChat, className = 'px-6 pb-4 -mt-3' }) => {
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
+  const run = async (action: string) => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      if (action === 'WAVE_BACK') {
+        const r = await waveBack(n.senderId);
+        setNote(r.ok ? (r.mutual ? 'You both said hi' : 'Waved back') : FAILURE_COPY[r.reason]);
+      } else if (action === 'FOLLOW_BACK') {
+        const r = await followBack(n.senderId);
+        setNote(r === 'followed' ? 'Following' : r === 'requested' ? 'Request sent' : r === 'already' ? 'Already following' : "Couldn't follow right now");
+      } else if (action === 'OPEN_DM') {
+        const room = await openDmForMutualHello(n.senderId);
+        if (room) { window.dispatchEvent(new CustomEvent('START_CHAT', { detail: { userId: n.senderId } })); onOpenChat?.(); }
+        else setNote("Couldn't open the chat");
+      }
+    } catch { setNote("That didn't go through. Try again."); }
+    finally { setBusy(false); }
+  };
+  const LABEL: Record<string, string> = { WAVE_BACK: 'Wave back', FOLLOW_BACK: 'Follow back', OPEN_DM: 'Start a chat' };
+  const actions = (n.actions || []).filter(a => LABEL[a]);
+  if (!actions.length) return null;
+  return (
+    <div className={`${className} flex items-center gap-2 flex-wrap`} onClick={e => e.stopPropagation()}>
+      {actions.map(a => (
+        <button key={a} disabled={busy} onClick={() => run(a)}
+          className="px-3 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-[9px] font-black uppercase tracking-widest text-white disabled:opacity-40 transition-colors">
+          {LABEL[a]}
+        </button>
+      ))}
+      {note && <span className="text-[9px] text-white/50" aria-live="polite">{note}</span>}
+    </div>
+  );
+};
 
 interface NotificationCenterProps {
   onNavigate?: (notification: AppNotification) => void;
@@ -79,9 +119,10 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigate, onO
                   </div>
                 ) : notifications.length > 0 ? (
                   <div className="divide-y divide-white/5">
+                    <FollowRequestsInbox />
                     {notifications.map((n) => (
+                      <React.Fragment key={n.id}>
                       <button
-                        key={n.id}
                         onClick={() => handleClick(n)}
                         className={`w-full p-6 hover:bg-white/[0.05] transition-colors text-left group relative ${!n.isRead ? 'bg-small-orange/[0.02]' : ''} ${n.link ? 'cursor-pointer' : 'cursor-default'}`}
                       >
@@ -116,6 +157,8 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ onNavigate, onO
                           )}
                         </div>
                       </button>
+                      {n.type === 'HELLO' && <HelloActions n={n} onOpenChat={() => setIsOpen(false)} />}
+                      </React.Fragment>
                     ))}
                   </div>
                 ) : (

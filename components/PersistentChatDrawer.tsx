@@ -23,6 +23,8 @@ import { useNotifications } from '../contexts/NotificationContext';
 import { useFollowedLive } from '../hooks/useFollowedLive';
 import LiveTalkView from './LiveTalkView';
 import { formatDistanceToNow } from 'date-fns';
+import { HelloActions } from './NotificationCenter';
+import FollowRequestsInbox from './safety/FollowRequestsInbox';
 
 // Friendly label for the page the user was on when they posted
 const PAGE_LABELS: Partial<Record<AppView, string>> = {
@@ -258,6 +260,7 @@ const NotifRow: React.FC<NotifRowProps> = ({ notif, onRead, onNavigate }) => {
           </span>
         </div>
         <p className="text-[11px] text-white/45 leading-snug">{notif.message}</p>
+        {notif.type === 'HELLO' && <HelloActions n={notif} className="mt-2" />}
         {clickable && (
           <p className="text-[9px] font-black uppercase tracking-widest text-orange-400/50 mt-1">
             View →
@@ -867,6 +870,7 @@ const PersistentChatDrawer: React.FC<PersistentChatDrawerProps> = ({ currentView
                       </div>
                     ) : (
                       <div>
+                        <div className="px-3 pt-3"><FollowRequestsInbox /></div>
                         {notifications.map(n => (
                           <NotifRow
                             key={n.id}

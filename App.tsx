@@ -202,6 +202,7 @@ const CreatorHub = retryLazy(() => import('./components/CreatorHub'));
 const DesktopLauncherOverlay = retryLazy(() => import('./components/DesktopLauncherOverlay'));
 // Tela reference-embed demo (P2b — live/follow-latest/pinned, lock→propagate)
 const TelaEmbedDemo = retryLazy(() => import('./components/tela/TelaEmbedDemo'));
+const DossierHall = retryLazy(() => import('./components/dossier/DossierHall'));
 const EventPhotoPoolView = retryLazy(() => import('./components/EventPhotoPoolView'));
 import LandingPage from './components/LandingPage';
 import { isEducationAccount } from './services/intimateGating';
@@ -357,6 +358,7 @@ const ChmsCheckinCard = retryLazy(() => import('./components/elevate/chms/People
 const PlatformChangelog = retryLazy(() => import('./components/PlatformChangelog'));
 const WelcomePackage = retryLazy(() => import('./components/WelcomePackage'));
 const Onboarding = retryLazy(() => import('./components/Onboarding'));
+const PeopleDiscoveryPage = retryLazy(() => import('./components/discovery/PeopleDiscoveryPage'));
 // Existing-user "Welcome Package is ready" nudge runs only until this date (~2 months from
 // the 2026-09-07 launch). After it, returning users are no longer notified.
 const WELCOME_PACKAGE_CAMPAIGN_END = Date.UTC(2026, 10, 7); // 2026-11-07 (month index 10 = Nov)
@@ -441,6 +443,7 @@ const AmboPresenter = retryLazy(() => import('./components/scripture/AmboPresent
 const AmboProPresenter = retryLazy(() => import('./components/scripture/AmboProPresenter'));
 const FollowAlongView = retryLazy(() => import('./components/scripture/FollowAlongView'));
 const AmboOutputWindow = retryLazy(() => import('./components/scripture/AmboOutputWindow'));
+const AmboOperatorWindow = retryLazy(() => import('./components/scripture/AmboOperatorWindow'));
 const TelehealthJoinPage = retryLazy(() => import('./components/clinic/TelehealthJoinPage'));
 const AmboPartyEventReceiver = retryLazy(() => import('./components/scripture/AmboPartyEventReceiver'));
 import { registerEventDevice } from './services/ambo/amboPartyEventService';
@@ -648,6 +651,14 @@ const App: React.FC = () => {
   // Dedicated physical output window for secondary displays, video walls, and switcher feeds.
   // When ?amboOut is present, bypass the main application shell entirely and render the output window borderless.
   const amboOutId = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('amboOut') : null;
+  // Extra operator console for the same Ambo project (?amboOp=1&role=lyrics|scripture|media|all).
+  if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('amboOp')) {
+    return (
+      <Suspense fallback={<div className="fixed inset-0 bg-black" />}>
+        <AmboOperatorWindow />
+      </Suspense>
+    );
+  }
   if (amboOutId) {
     return (
       <Suspense fallback={<div className="fixed inset-0 bg-black flex items-center justify-center text-white/40 font-mono text-sm">Initializing Output Window...</div>}>
@@ -927,6 +938,13 @@ const App: React.FC = () => {
     };
     window.addEventListener('plajah:openDesignHistory', h as EventListener);
     return () => window.removeEventListener('plajah:openDesignHistory', h as EventListener);
+  }, [setView]);
+
+  // Open a Dossier (museum/biography experience) from anywhere.
+  useEffect(() => {
+    const h = () => setView('DOSSIER');
+    window.addEventListener('plajah:openDossier', h as EventListener);
+    return () => window.removeEventListener('plajah:openDossier', h as EventListener);
   }, [setView]);
 
   // Open the Tela reference-embed demo (P2b) from anywhere.
@@ -1557,6 +1575,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   // First-login sequence: the Welcome Package letter → the 2-page Onboarding → the app.
   // (Named distinctly from the legacy `showOnboarding` OnboardingTour state, now retired.)
   const [showFirstRunOnboarding, setShowFirstRunOnboarding] = useState(false);
+  const [showNewMembersPage, setShowNewMembersPage] = useState(false); // Welcome Package -> 'Say hi to people who just joined'
   const [welcomeFirstRun, setWelcomeFirstRun] = useState(false);
   const [selectedDebateId, setSelectedDebateId] = useState<string | null>(null);
   const [showAchievements, setShowAchievements] = useState(false);
@@ -1639,6 +1658,16 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
 
   // Persist transcribed scores exported from the Breakdown into Lorea.
   useEffect(() => initLoreaScoreListener(), []);
+
+  // Publish any of this user's scheduled posts that came due while the app was closed (once per sign-in).
+  useEffect(() => {
+    const uid = user?.uid;
+    if (!uid) return;
+    import('./services/scheduledPostService').then(m => m.publishDueScheduledPosts(uid)).catch(() => {});
+    // Finish an interrupted public<->private post migration, and sync public achievements (opt-out aware).
+    import('./services/privatePostsService').then(m => m.resumePendingMigration()).catch(() => {});
+    import('./services/publicAchievementsService').then(m => m.maybeSyncPublicAchievements(uid)).catch(() => {});
+  }, [user?.uid]);
 
   useEffect(() => {
     if (user) {
@@ -5867,6 +5896,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                   onBack={() => handleBackToDashboard()}
                   onNavigate={(v) => handleGlobalNavigate(v)}
                   onContinue={welcomeFirstRun ? () => { setWelcomeFirstRun(false); setShowFirstRunOnboarding(true); } : undefined}
+                  onSayHiToNewMembers={user ? () => setShowNewMembersPage(true) : undefined}
                 />
               </Suspense>
             )}
@@ -7074,6 +7104,11 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
                 <MachineAtlasView onBack={() => goBack('DASHBOARD')} />
               </Suspense>
             )}
+            {view === 'DOSSIER' && (
+              <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Opening exhibit…</div>}>
+                <DossierHall onBack={() => setView('LEARN')} />
+              </Suspense>
+            )}
             {view === 'TELA_EMBED_DEMO' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Opening embed demo…</div>}>
                 <TelaEmbedDemo onBack={() => setView('TELA')} />
@@ -7437,7 +7472,22 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
               then lands the user on their chosen home. */}
           {showFirstRunOnboarding && (
             <Suspense fallback={null}>
-              <Onboarding onDone={(home) => { setShowFirstRunOnboarding(false); handleGlobalNavigate(home); }} />
+              <Onboarding viewer={userProfile} onDone={(home) => { setShowFirstRunOnboarding(false); handleGlobalNavigate(home); }} />
+            </Suspense>
+          )}
+
+          {/* People discovery opened from the Welcome Package (tab 'New this week'). */}
+          {showNewMembersPage && user && (
+            <Suspense fallback={null}>
+              <div className="fixed inset-0 z-[600] overflow-y-auto bg-[#0a0a0a]">
+                <PeopleDiscoveryPage
+                  viewer={userProfile}
+                  initialTab="new"
+                  onBack={() => setShowNewMembersPage(false)}
+                  onOpenProfile={(uid) => { setShowNewMembersPage(false); handleVisitUser(uid); }}
+                  onOpenChat={(_roomId, otherUid) => { setShowNewMembersPage(false); window.dispatchEvent(new CustomEvent('START_CHAT', { detail: { userId: otherUid } })); }}
+                />
+              </div>
             </Suspense>
           )}
 

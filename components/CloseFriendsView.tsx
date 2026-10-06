@@ -5,7 +5,7 @@ import { CloseFriend } from '../types';
 import { collection, doc, setDoc, deleteDoc, query, orderBy, getDocs, where } from 'firebase/firestore';
 import { onSnapshot } from '../services/safeSnapshot';
 import { db, auth } from '../services/backendService';
-import { searchUsers } from '../services/backendService';
+import { searchUsersSafe as searchUsers } from '../services/searchUsersSafe';
 import { formatDistanceToNow } from 'date-fns';
 
 // ── Service ────────────────────────────────────────────────────────────────────

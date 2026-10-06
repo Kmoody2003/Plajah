@@ -16,9 +16,10 @@ import {
   addPostComment,
   deletePostComment,
   toggleCommentLike,
-  searchUserProfiles,
   uploadFile,
 } from '../services/backendService';
+import { searchUserProfilesSafe as searchUserProfiles } from '../services/searchUsersSafe';
+import { useVisibleComments } from './safety/HiddenCommentGate';
 import { useGlobalPlayerState } from '../contexts/GlobalPlayerContext';
 import { UserProfile } from '../types';
 import { formatDistanceToNow } from 'date-fns';
@@ -51,6 +52,8 @@ interface CommentSectionProps {
   // Self-contained mode (for posts)
   postId?: string;
   postAuthorId?: string;
+  /** Collection holding the post + its comments subcollection. Defaults to 'posts'. */
+  postCollection?: 'posts' | 'private_posts';
   initialCount?: number;
   // Legacy pass-through mode (albums, articles, videos)
   comments?: any[];
@@ -847,6 +850,7 @@ const isMatchingComment = (pending: PostComment, real: PostComment): boolean => 
 const CommentSection: React.FC<CommentSectionProps> = ({
   postId,
   postAuthorId,
+  postCollection = 'posts',
   initialCount = 0,
   comments: externalComments,
   onPostComment,
@@ -898,9 +902,9 @@ const CommentSection: React.FC<CommentSectionProps> = ({
       });
       setPendingIds(new Set());
       setIsLoading(false);
-    });
+    }, postCollection);
     return unsub;
-  }, [postId, isLegacy]);
+  }, [postId, isLegacy, postCollection]);
 
   // In legacy mode the real comment arrives via externalComments (the parent's
   // subscription). Dedupe the optimistic against it by author+text so we never
@@ -943,11 +947,11 @@ const CommentSection: React.FC<CommentSectionProps> = ({
     if (isLegacy) return;
     setInternalComments(prev => prev.filter(c => c.id !== commentId));
     try {
-      await deletePostComment(postId!, commentId);
+      await deletePostComment(postId!, commentId, postCollection);
     } catch {
       // If delete fails, snapshot will restore it
     }
-  }, [postId]);
+  }, [postId, postCollection]);
 
   const handleLikeToggle = useCallback(async (commentId: string) => {
     if (isLegacy || !postId) return;
@@ -964,14 +968,16 @@ const CommentSection: React.FC<CommentSectionProps> = ({
       };
     }));
     try {
-      await toggleCommentLike(postId, commentId);
+      await toggleCommentLike(postId, commentId, postCollection);
     } catch {
       // snapshot will correct
     }
-  }, [postId, isLegacy]);
+  }, [postId, isLegacy, postCollection]);
 
-  const rootComments = comments.filter(c => !c.parentId);
-  const count = comments.filter(c => !c.isPending).length;
+  // Blocked / blocked-by / muted authors' comments are dropped (their replies go with them).
+  const visibleComments = useVisibleComments(comments);
+  const rootComments = visibleComments.filter(c => !c.parentId);
+  const count = visibleComments.filter(c => !c.isPending).length;
   const safePostId = postId || '';
 
   // ── Theme tokens ───────────────────────────────────────────────────────────
@@ -1057,7 +1063,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
               <CommentBubble
                 key={comment.id}
                 comment={comment}
-                allComments={comments}
+                allComments={visibleComments}
                 postId={safePostId}
                 onReply={(id, name) => setReplyTo({ id, name })}
                 onDelete={handleDelete}
@@ -1162,7 +1168,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                   await onPostComment(data.text.trim(), parentId, pinTime && typeof playbackTime === 'number' ? Math.floor(playbackTime) : undefined);
                   if (gifUrl && onPostGif) await onPostGif(gifUrl, parentId);
                 } else {
-                  await addPostComment(safePostId, data.text.trim(), parentId, videoUrl, audioUrl, gifUrl, imageUrl);
+                  await addPostComment(safePostId, data.text.trim(), parentId, videoUrl, audioUrl, gifUrl, imageUrl, postCollection);
                 }
               }}
             />
@@ -1229,7 +1235,7 @@ const CommentSection: React.FC<CommentSectionProps> = ({
                           if (isLegacy) {
                             if (onPostGif) await onPostGif(url, parentId);
                           } else {
-                            await addPostComment(safePostId, '', parentId, undefined, undefined, url);
+                            await addPostComment(safePostId, '', parentId, undefined, undefined, url, undefined, postCollection);
                           }
                         }}
                       />

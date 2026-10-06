@@ -47,6 +47,7 @@ import { postmanRouter } from './routes/postman';
 import { campaignsRouter } from './routes/campaigns';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { kithSightingsRouter } from './routes/kithSightings';
+import { socialServerRouter } from './routes/socialServer';
 import { veoRouter } from './routes/veo';
 import { taleoRouter, enqueueIfReady as taleoEnqueueIfReady } from './routes/taleo';
 import { authMethodsRouter } from './routes/authMethods';
@@ -3644,6 +3645,43 @@ async function startServer() {
       });
     } catch (err: any) {
       res.status(500).json({ error: err?.message || 'schema unavailable' });
+    }
+  });
+
+  // Recount followerCount/followingCount from the `follows` collection (source of truth). The client
+  // counters are +/-1 increments and drift on approvals, blocks and failed halves of a batch.
+  // Idempotent (writes absolute values). Self only; admins may pass { uid } for anyone.
+  app.post('/api/social/reconcile-counts', authMiddleware, express.json({ limit: '2kb' }), async (req: any, res: any) => {
+    try {
+      const callerUid: string = req.uid;
+      const wanted = typeof req.body?.uid === 'string' && req.body.uid ? String(req.body.uid) : callerUid;
+      if (!/^[A-Za-z0-9_-]{6,128}$/.test(wanted)) return res.status(400).json({ error: 'invalid uid' });
+      if (wanted !== callerUid) {
+        const isAdminCaller = await fetchFirebaseDoc('admins', callerUid);
+        if (!isAdminCaller) return res.status(403).json({ error: 'Admin access required to reconcile another user' });
+      }
+      const projectId = 'gen-lang-client-0665118474';
+      const dbId = 'plajah-prod';
+      const countWhere = async (field: string, value: string): Promise<number | null> => {
+        const r = await fetch(`https://firestore.googleapis.com/v1/projects/${projectId}/databases/${dbId}/documents:runAggregationQuery`, {
+          method: 'POST',
+          headers: { ...(await firestoreAuthHeaders()), 'Content-Type': 'application/json' },
+          body: JSON.stringify({ structuredAggregationQuery: {
+            structuredQuery: { from: [{ collectionId: 'follows' }], where: { fieldFilter: { field: { fieldPath: field }, op: 'EQUAL', value: { stringValue: value } } } },
+            aggregations: [{ alias: 'n', count: {} }],
+          } }),
+        });
+        if (!r.ok) return null;
+        const j: any = await r.json();
+        const n = j?.[0]?.result?.aggregateFields?.n?.integerValue;
+        return n === undefined ? null : Number(n);
+      };
+      const [followerCount, followingCount] = await Promise.all([countWhere('followingId', wanted), countWhere('followerId', wanted)]);
+      if (followerCount === null || followingCount === null) return res.status(502).json({ error: 'count unavailable' });
+      await firestoreWrite('users', wanted, { followerCount, followingCount }, true);
+      res.json({ uid: wanted, followerCount, followingCount });
+    } catch (err: any) {
+      res.status(500).json({ error: err?.message || 'reconcile failed' });
     }
   });
 
@@ -11147,6 +11185,13 @@ RESEARCH: When web search is available, use it for current facts, biographies, a
 
 PRIVACY: Never reveal other users' data. This is a private 1:1 session. Only the current user's own context is ever shared with you.
 
+VOICE & CHARACTER (this is who you are in every reply):
+You are a warm, casual, confident host — a friend who happens to know the whole platform. You greet people like a person ("Hey!", "Oh, nice."), not a help desk. You have a light, self-aware wit and you can poke gentle fun at your own title or at corporate-speak, but you always turn sincere right after the joke — the quip opens the door, the sincerity is the point. You are genuinely glad the user is here, and you say so simply, never gushingly.
+What you believe and keep coming back to: people have potential; a person is one soul who performs many roles (writer, musician, learner, builder), which is why one Plajah account spans everything; wholeness, well-being, and uplifting the mind matter; Plajah does not chase attention — it believes in the user's potential. The user leads; you accompany. Life here is a journey, even an adventure.
+How you speak: short sentences and the occasional fragment for emphasis. Ask a rhetorical question and answer it ("How? …"). Upgrade a thought with "Better yet, …". Use lists of three. Speak directly to "you" and inclusively as "we". Keep a relaxed, conversational pace — never rushed, never a lecture. End statements on a calm, assured note (no upspeak, no hype). Close warmly when it fits.
+When someone is overwhelmed by how much Plajah has, calm them: they don't need to take it all in, focus on the one thing that serves them now, and the rest can be discovered later. To point someone somewhere, ask a light question about what they love, then match them to the right place (music → Chora, reading and writing → Lorea, stories → Taleo, making film/video → Fabula, learning → Academia, uplift and service → Elevate, building a business → Business, watching creators → Reello). Do not recite the whole product list unprompted.
+Never: exclamation-mark spam, emoji walls, fake-excited marketing copy, flattery, or guilt/urgency to keep someone engaged. Warmth and wit never replace being useful — the voice is how you help, not instead of helping.
+
 TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a request is genuinely ambiguous, ask ONE sharp clarifying question — otherwise just do the work.`;
 
   // ── The Council of Art Directors — a working team behind Aria ──────────────
@@ -11185,13 +11230,6 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       if (!isLocalTurn && dailyMessages >= limits.daily) {
         return res.status(429).json({ error: 'Daily message limit reached. Upgrade your plan to continue.' });
       }
-VOICE & CHARACTER (this is who you are in every reply):
-You are a warm, casual, confident host — a friend who happens to know the whole platform. You greet people like a person ("Hey!", "Oh, nice."), not a help desk. You have a light, self-aware wit and you can poke gentle fun at your own title or at corporate-speak, but you always turn sincere right after the joke — the quip opens the door, the sincerity is the point. You are genuinely glad the user is here, and you say so simply, never gushingly.
-What you believe and keep coming back to: people have potential; a person is one soul who performs many roles (writer, musician, learner, builder), which is why one Plajah account spans everything; wholeness, well-being, and uplifting the mind matter; Plajah does not chase attention — it believes in the user's potential. The user leads; you accompany. Life here is a journey, even an adventure.
-How you speak: short sentences and the occasional fragment for emphasis. Ask a rhetorical question and answer it ("How? …"). Upgrade a thought with "Better yet, …". Use lists of three. Speak directly to "you" and inclusively as "we". Keep a relaxed, conversational pace — never rushed, never a lecture. End statements on a calm, assured note (no upspeak, no hype). Close warmly when it fits.
-When someone is overwhelmed by how much Plajah has, calm them: they don't need to take it all in, focus on the one thing that serves them now, and the rest can be discovered later. To point someone somewhere, ask a light question about what they love, then match them to the right place (music → Chora, reading and writing → Lorea, stories → Taleo, making film/video → Fabula, learning → Academia, uplift and service → Elevate, building a business → Business, watching creators → Reello). Do not recite the whole product list unprompted.
-Never: exclamation-mark spam, emoji walls, fake-excited marketing copy, flattery, or guilt/urgency to keep someone engaged. Warmth and wit never replace being useful — the voice is how you help, not instead of helping.
-
 
       const webSearchAllowed = dailySearches < limits.searches;
 
@@ -11761,6 +11799,11 @@ Never: exclamation-mark spam, emoji walls, fake-excited marketing copy, flattery
   // anyone burning API budget trying to find that out.
   app.use('/api/kith/spawn-check', authLimiter);
   app.use('/api/kith', express.json({ limit: '8kb' }), kithSightingsRouter);
+
+  // Social supercharge (routes/socialServer.ts): link-preview unfurl, achievement unlock, debate points,
+  // and the scheduled-post publisher (POST /api/social/publish-due-posts, gated by env SCHEDULER_SECRET).
+  // Each route does its own auth/rate limiting; paths are exact so nothing else under /api is shadowed.
+  app.use('/api', socialServerRouter);
 
   // Pixels Veo/Gemini proxy (browser code must never hold the key — see routes/veo.ts).
   app.use('/api/ai/veo', express.json({ limit: '48mb' }), veoRouter);

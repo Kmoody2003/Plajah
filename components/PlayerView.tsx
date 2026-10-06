@@ -684,10 +684,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const [milkdropNames, setMilkdropNames] = useState<string[]>([]);
   const [shaderNames, setShaderNames] = useState<string[]>([]);
   const [fxSearch, setFxSearch] = useState('');
-  const isPixelsEngine = fxEngine === 'MILKDROP' || fxEngine === 'SHADER' || fxEngine === 'GENERATOR' || fxEngine === 'FLUX' || fxEngine === 'TYPO';
+  const isPixelsEngine = fxEngine === 'MILKDROP' || fxEngine === 'SHADER' || fxEngine === 'GENERATOR' || fxEngine === 'FLUX' || fxEngine === 'TYPO' || fxEngine === 'KAIJU';
   const FX_OPTIONS = [
     { id: 'FLOW' as const, label: 'Flow' }, { id: 'PAINT' as const, label: 'Paint' },
-    { id: 'FLUX' as const, label: 'Flux 3D' }, { id: 'TYPO' as const, label: 'Typo' },
+    { id: 'FLUX' as const, label: 'Flux 3D' }, { id: 'TYPO' as const, label: 'Typo' }, { id: 'KAIJU' as const, label: 'Kaiju' },
     { id: 'SHADER' as const, label: 'Shaders' }, { id: 'GENERATOR' as const, label: 'Generators' }, { id: 'MILKDROP' as const, label: 'MilkDrops' },
   ];
   // Lazily fetch each async engine's full preset name list the first time it's used —
@@ -746,7 +746,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
               <div className="fixed inset-0 z-40" onClick={() => setFxMenuOpen(false)} />
               <div className="absolute top-full right-0 mt-2 w-64 max-h-80 overflow-hidden flex flex-col rounded-2xl bg-[#141418] border border-white/15 shadow-2xl z-50 p-2">
                 <div className="px-2 pt-1 pb-2 flex items-center justify-between text-[9px] font-black uppercase tracking-[0.15em] text-white/40 border-b border-white/5">
-                  <span>{fxEngine === 'MILKDROP' ? 'MilkDrops' : fxEngine === 'SHADER' ? 'Shaders' : fxEngine === 'FLUX' ? 'Flux 3D' : fxEngine === 'TYPO' ? 'Typography' : 'Generators'}</span>
+                  <span>{fxEngine === 'MILKDROP' ? 'MilkDrops' : fxEngine === 'SHADER' ? 'Shaders' : fxEngine === 'FLUX' ? 'Flux 3D' : fxEngine === 'TYPO' ? 'Typography' : fxEngine === 'KAIJU' ? 'Kaiju Dance Party' : 'Generators'}</span>
                   <span>{fxPresetList.length || 0}</span>
                 </div>
                 {fxPresetList.length > 8 && (

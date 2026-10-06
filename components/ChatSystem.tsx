@@ -10,9 +10,10 @@ import { motion, AnimatePresence } from 'motion/react';
 import { ChatRoom, UserProfile } from '../types';
 import {
   listenToChatRooms, auth, createChatRoom,
-  fetchUserProfiles, renameChatRoom, searchUserProfiles, deleteChatRoom,
+  fetchUserProfiles, renameChatRoom, deleteChatRoom,
   updateRoomIntimate,
 } from '../services/backendService';
+import { searchUserProfilesSafe as searchUserProfiles } from '../services/searchUsersSafe';
 import {
   isPrivateDM, isBlockedMinor, isIntimateEligible, ineligibilityReason,
   beginIntimate, pauseIntimate, reconcileStalePartner, type IntimateProfile,

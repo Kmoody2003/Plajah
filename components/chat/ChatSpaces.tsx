@@ -6,7 +6,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { ChatRoom, Organization, OrgMembership, UserProfile } from '../../types';
-import { auth, searchUserProfiles } from '../../services/backendService';
+import { auth } from '../../services/backendService';
+import { searchUserProfilesSafe as searchUserProfiles } from '../../services/searchUsersSafe';
 import { useCall } from '../../contexts/CallContext';
 import type { IntimateProfile } from '../../services/intimateGating';
 import { fetchOrgMembers, fetchUserOrganizations } from '../../services/organizationService';

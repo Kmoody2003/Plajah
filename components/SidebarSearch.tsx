@@ -7,8 +7,9 @@ import {
 import {
   fetchAllPublicAlbums, fetchAllVideos, fetchGames, fetchAllPublicWorlds,
   fetchGlobalApps, fetchGlobalPhotos, listenToGlobalArticles, fetchAllLiveFeeds,
-  searchUsers, fetchDiscussionPosts, listenToGlobalPosts,
+  fetchDiscussionPosts, listenToGlobalPosts,
 } from '../services/backendService';
+import { searchUsersSafe as searchUsers } from '../services/searchUsersSafe';
 import { semanticSearch, AzureSearchResult } from '../services/microsoftAIService';
 import { Album, Video, Article, UserProfile, Post } from '../types';
 import { diversifyPublicSearchResults, maxPublicSearchScore, normalizePublicSearchQuery } from '../services/platformSearchService';

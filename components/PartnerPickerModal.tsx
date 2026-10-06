@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { X, Search, Loader2, Check } from 'lucide-react';
-import { searchUsers } from '../services/backendService';
+import { searchUsersSafe as searchUsers } from '../services/searchUsersSafe';
 import type { UserProfile } from '../types';
 
 // Reusable user picker — search Plajah members and select one (e.g. your partner).

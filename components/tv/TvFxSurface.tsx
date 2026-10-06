@@ -23,8 +23,8 @@ import { useViewport } from '../../hooks/useViewport';
  * sweet spot while still looking clean at ten feet. SHADER (lightest) is the default engine.
  */
 
-const TV_ENGINES: FxEngine[] = ['SHADER', 'GENERATOR', 'FLUX', 'MILKDROP', 'TYPO'];
-const ENGINE_LABEL: Record<FxEngine, string> = { SHADER: 'Shader', GENERATOR: 'Generator', FLUX: 'Flux 3D', MILKDROP: 'MilkDrop', TYPO: 'Typography' };
+const TV_ENGINES: FxEngine[] = ['SHADER', 'GENERATOR', 'FLUX', 'MILKDROP', 'TYPO', 'KAIJU'];
+const ENGINE_LABEL: Record<FxEngine, string> = { SHADER: 'Shader', GENERATOR: 'Generator', FLUX: 'Flux 3D', MILKDROP: 'MilkDrop', TYPO: 'Typography', KAIJU: 'Kaiju' };
 const getSurfaceRenderScale = () => {
   if (typeof window === 'undefined') return 1;
   const isTV = getPlatformInfo().isTV;
