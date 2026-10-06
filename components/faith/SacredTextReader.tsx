@@ -5,6 +5,7 @@ import { loadSacredSection, cachedSacredSections, fetchSacredJson } from '../../
 import type { SacredSection, SacredSegment } from '../../services/sacredReaderCore';
 import { occurrenceCount } from '../../services/lectioConcordance';
 import { pinResearchSource, researchSourceId } from '../../services/sacredResearch';
+import { sacredReaderNotes } from '../../services/readerNotes';
 import ResearchNotebook from './ResearchNotebook';
 import { SUTRA_GLOSSARY } from '../../data/sacredLibrary/sutras';
 const field = 'rounded-lg border border-white/15 bg-[#100c18] px-3 py-2 text-sm text-white';
@@ -27,9 +28,14 @@ export default function SacredTextReader({ faith, name, accent, onBack }: Props)
   const [query, setQuery] = useState(''), [hits, setHits] = useState<Hit[]>([]), [searching, setSearching] = useState(false);
   const [searchPage, setSearchPage] = useState(0), [reload, setReload] = useState(0);
   const [surface, setSurface] = useState<keyof typeof surfaces>('paper');
-  const [notes, setNotes] = useState<Record<string, string>>(() => {
-    try { const value = JSON.parse(localStorage.getItem('plajah_sacred_reader_notes_v1') || '{}'); return value && typeof value === 'object' && !Array.isArray(value) ? value : {}; } catch { return {}; }
-  });
+  // Passage notes live in the shared notebook (services/readerNotes).
+  const [notes, setNotes] = useState<Record<string, string>>(() => sacredReaderNotes.read());
+  useEffect(() => {
+    let dead = false;
+    const unsubscribe = sacredReaderNotes.subscribe(() => { if (!dead) setNotes(sacredReaderNotes.read()); });
+    void sacredReaderNotes.sync().then(n => { if (!dead) setNotes(n); });
+    return () => { dead = true; unsubscribe(); };
+  }, []);
   const [originals, setOriginals] = useState<Record<string, string>>({}), [showOriginal, setShowOriginal] = useState(true);
   const [progress, setProgress] = useState<{ done: number; total: number; failed: number } | null>(null);
   const cancel = useRef(false), searchGeneration = useRef(0), originalGeneration = useRef(0);
@@ -51,7 +57,7 @@ export default function SacredTextReader({ faith, name, accent, onBack }: Props)
   const noteKey = data && selected ? `${data.workId}/${data.title}/${data.edition}/${selected.id}` : '';
   const updateNote = (text: string) => {
     const next = { ...notes, [noteKey]: text }; setNotes(next);
-    try { localStorage.setItem('plajah_sacred_reader_notes_v1', JSON.stringify(next)); setStatus('Note saved on this device.'); }
+    try { sacredReaderNotes.write(noteKey, text); setStatus('Note saved to your notebook.'); }
     catch { setStatus('The note could not be saved. Copy it before leaving.'); }
   };
   const pin = () => {

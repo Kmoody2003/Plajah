@@ -19,6 +19,7 @@ import { onSnapshot } from './safeSnapshot';
 import { formatRef, parseRefId, refId, type ScriptureRef } from './scriptureRef';
 import { markersFor, type ScriptureSession } from './kairosService';
 import { generateArticleDraft, transcribeAudioUrl } from './ministryRepurpose';
+import { verseNotes } from './readerNotes';
 import {
   migrateLegacyReceipts, serviceNotesForSession, verseKeyOf, type ServiceNote,
 } from './serviceNotes';
@@ -131,7 +132,6 @@ export interface PersonalRecap {
 }
 
 const HL_KEY = 'plajah_lectio_highlights_v1';
-const NOTES_KEY = 'plajah_bible_notes_v1';
 
 const readMap = (k: string): Record<string, string> => {
   try { return JSON.parse(localStorage.getItem(k) || '{}'); } catch { return {}; }
@@ -139,13 +139,13 @@ const readMap = (k: string): Record<string, string> => {
 
 /**
  * Fold the member's own highlights and notes into the shared recap, and gather
- * the service's generated notes alongside them. Runs locally: nothing about
- * what a person marked or wrote leaves their device here.
+ * the service's generated notes alongside them. Reads the local cache of the
+ * shared notebook; nothing about what a person marked or wrote is sent here.
  */
 export function personalize(recap: ServiceRecap): PersonalRecap {
   migrateLegacyReceipts();
 
-  const notes = readMap(NOTES_KEY);
+  const notes = verseNotes.read();
   const highlights = readMap(HL_KEY);
 
   const passages: PersonalPassage[] = recap.passages.map(p => {

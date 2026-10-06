@@ -30,7 +30,8 @@ import {
   prefetchAdjacent, searchCached, type PreloadProgress, type SearchHit,
 } from '../../services/scriptureText';
 import { crossRefsFor, CROSS_REF_COVERAGE } from '../../data/crossReferences';
-import { auth, loadBibleNotes, saveBibleNote } from '../../services/backendService';
+import { auth } from '../../services/backendService';
+import { verseNotes } from '../../services/readerNotes';
 import CanonBookPicker from './CanonBookPicker';
 import { canonBooks, canonMark, type BibleCanon } from '../../services/bibleCanon';
 import { TRANSLATIONS } from '../../services/bibleService';
@@ -54,7 +55,7 @@ const SKINS: Skin[] = [
 
 const SKIN_KEY = 'plajah_lectio_skin_v1';
 const HL_KEY = 'plajah_lectio_highlights_v1';
-const NOTES_KEY = 'plajah_bible_notes_v1';   // shared with the legacy reader
+// Verse notes live in the shared notebook (services/readerNotes → verseNotes).
 
 const SERIF = '"Palatino Linotype", "Iowan Old Style", Palatino, "Book Antiqua", Georgia, serif';
 
@@ -91,7 +92,7 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
   const skin = SKINS.find(s => s.id === skinId) ?? SKINS[0];
   const [size, setSize] = useState(17);
 
-  const [notes, setNotes] = useState<Record<string, string>>(() => loadMap(NOTES_KEY));
+  const [notes, setNotes] = useState<Record<string, string>>(() => verseNotes.read());
   const [highlights, setHighlights] = useState<Record<string, string>>(() => loadMap(HL_KEY));
   const [rail, setRail] = useState<RailTab>('refs');
   const [wordLookup, setWordLookup] = useState<string | undefined>();
@@ -103,7 +104,6 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
   const [coverage, setCoverage] = useState(0);
   const [copied, setCopied] = useState(false);
 
-  const saveTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   const cancelRef = useRef<{ cancelled: boolean }>({ cancelled: false });
   const verseRefs = useRef<Record<number, HTMLDivElement | null>>({});
 
@@ -127,11 +127,10 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
   }, [avail]);
 
   useEffect(() => {
-    const uid = auth.currentUser?.uid;
-    if (!uid) return;
-    loadBibleNotes(uid).then(cloud => {
-      if (Object.keys(cloud).length) setNotes(prev => ({ ...prev, ...cloud }));
-    });
+    let dead = false;
+    const unsubscribe = verseNotes.subscribe(() => { if (!dead) setNotes(verseNotes.read()); });
+    void verseNotes.sync().then(n => { if (!dead) setNotes(n); });
+    return () => { dead = true; unsubscribe(); };
   }, []);
 
   // Re-point when another chip is tapped while the reader is open.
@@ -170,14 +169,9 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
     setNotes(prev => {
       const n = { ...prev };
       if (text.trim()) n[k] = text; else delete n[k];
-      saveMap(NOTES_KEY, n);
       return n;
     });
-    const uid = auth.currentUser?.uid;
-    if (uid) {
-      clearTimeout(saveTimers.current[k]);
-      saveTimers.current[k] = setTimeout(() => saveBibleNote(uid, k, text), 800);
-    }
+    verseNotes.write(k, text);
   };
 
   const toggleHighlight = (v: number) => {

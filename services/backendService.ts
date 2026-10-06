@@ -87,7 +87,10 @@ export const ensureGuestAuth = async (): Promise<User | null> => {
   }
 };
 
-// ── Sacred Library: cloud-synced Bible notes (per user, per verse ref) ────────
+// ── Sacred Library: legacy `bibleNotes` collection (read-only) ────────────────
+// Verse notes now live in the shared notebook (services/readerNotes →
+// users/{uid}/notebook). This is only used to import notes written by older
+// builds, once per account. Nothing writes here any more.
 export const loadBibleNotes = async (uid: string): Promise<Record<string, string>> => {
   try {
     const snap = await getDocs(query(collection(db, 'bibleNotes'), where('uid', '==', uid)));
@@ -95,13 +98,6 @@ export const loadBibleNotes = async (uid: string): Promise<Record<string, string
     snap.forEach(d => { const x = d.data() as any; if (x.ref) out[x.ref] = x.text || ''; });
     return out;
   } catch { return {}; }
-};
-export const saveBibleNote = async (uid: string, ref: string, text: string): Promise<void> => {
-  const id = `${uid}__${ref}`;
-  try {
-    if (text.trim()) await setDoc(doc(db, 'bibleNotes', id), { uid, ref, text: text.slice(0, 5000), updatedAt: Date.now() });
-    else await deleteDoc(doc(db, 'bibleNotes', id)).catch(() => {});
-  } catch (e) { console.warn('[backendService] saveBibleNote failed:', (e as Error)?.message); }
 };
 import { allTakenNumbers, canClaim, isAllocatableMajor, legacyMajors, numberFor, type NumberRegistry } from './fast/channelNumbers';
 import { guideAccounts, type GuideAccount } from './fast/guideLineup';

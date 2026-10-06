@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { RELATIONS, RESEARCH_CHANGED, readNotebook, writeNotebook, emptyNotebook, mergeNotebooks, validateNotebook,
-  researchMarkdown, downloadResearchFile, type ResearchNotebook as Notebook, type ResearchRelation } from '../../services/sacredResearch';
+  researchMarkdown, downloadResearchFile, syncResearchNotebook, researchSyncsToAccount,
+  type ResearchNotebook as Notebook, type ResearchRelation } from '../../services/sacredResearch';
 
 const field = 'w-full rounded-lg border border-white/15 bg-[#100c18] p-2 text-sm text-white';
 export default function ResearchNotebook() {
@@ -12,7 +13,8 @@ export default function ResearchNotebook() {
   const [editingId, setEditingId] = useState('');
   useEffect(() => {
     const refresh = () => { try { setNotebook(readNotebook()); setError(''); } catch { setError('The saved notebook could not be read. Existing data has been preserved.'); } };
-    refresh(); window.addEventListener(RESEARCH_CHANGED, refresh); window.addEventListener('storage', refresh);
+    refresh(); void syncResearchNotebook().catch(() => {});
+    window.addEventListener(RESEARCH_CHANGED, refresh); window.addEventListener('storage', refresh);
     return () => { window.removeEventListener(RESEARCH_CHANGED, refresh); window.removeEventListener('storage', refresh); };
   }, []);
   const save = () => {
@@ -34,7 +36,7 @@ export default function ResearchNotebook() {
   return <section className="space-y-3 text-sm text-white/75">
     <h3 className="font-semibold text-[#e3c57e]">Research notebook</h3>
     <p>Sources saved in any faith reader or Lectio appear here. Your comparisons retain both passages, editions, and source links.</p>
-    <p className="text-white/45">{notebook.sources.length} saved sources · {notebook.comparisons.length} comparisons · stored on this device</p>
+    <p className="text-white/45">{notebook.sources.length} saved sources · {notebook.comparisons.length} comparisons · {researchSyncsToAccount() ? 'synced to your account' : 'stored on this device (sign in to sync)'}</p>
     <div className="flex flex-wrap gap-3 text-xs">
       <button onClick={() => downloadResearchFile('sacred-research.json', JSON.stringify(notebook, null, 2), 'application/json')}>Export notebook</button>
       <button onClick={() => downloadResearchFile('sacred-research.md', researchMarkdown(notebook), 'text/markdown')}>Export cited notes</button>

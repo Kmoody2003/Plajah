@@ -1,4 +1,5 @@
 import type { FaithId } from '../data/sacredLibrary/readerCatalog';
+import { loadNotebook, notebookKey, readCachedNotebook, saveEntry, removeEntry, putEntry, type SyncableEntry } from './notebookService';
 export interface ResearchSource {
   id: string; faith: FaithId; kind: 'passage' | 'artifact'; title: string; locator: string;
   edition: string; text: string; sourceUrl: string; rights?: string; original?: string;
@@ -9,7 +10,10 @@ export interface ResearchComparison {
   similarities: string; differences: string; context: string; status: 'personal interpretation';
 }
 export interface ResearchNotebook { schema: 'plajah-sacred-research-v1'; sources: ResearchSource[]; comparisons: ResearchComparison[]; }
+/** The device-only store this notebook used before it joined the shared notebook. Read once, for import. */
 const KEY = 'plajah_sacred_research_v1';
+/** Bucket in the shared notebook (services/notebookService → users/{uid}/notebook). */
+const BUCKET = 'sacredResearch';
 export const RESEARCH_CHANGED = 'PLAJAH_SACRED_RESEARCH_CHANGED';
 export function researchSourceId(faith: string, work: string, locator: string, edition: string): string {
   let hash = 2166136261;
@@ -43,12 +47,73 @@ export function validateNotebook(raw: any): ResearchNotebook {
   return { schema: 'plajah-sacred-research-v1', sources, comparisons };
 }
 export const emptyNotebook = (): ResearchNotebook => ({ schema: 'plajah-sacred-research-v1', sources: [], comparisons: [] });
+// ── Storage: one entry per source / comparison in the shared notebook ─────────
+// Sources and comparisons are stored as individual notebook entries, so the
+// research notebook syncs across devices exactly like every other notebook and
+// two devices editing different comparisons never overwrite each other.
+const researchKey = () => notebookKey(BUCKET);
+const SOURCE = 'RESEARCH_SOURCE', COMPARISON = 'RESEARCH_COMPARISON';
+const sourceEntryId = (id: string) => `src:${id}`, comparisonEntryId = (id: string) => `cmp:${id}`;
+const byCreated = (a: SyncableEntry, b: SyncableEntry) => (a.createdAt ?? 0) - (b.createdAt ?? 0);
+
+function fromEntries(entries: SyncableEntry[]): ResearchNotebook {
+  const ordered = [...entries].sort(byCreated);
+  const sources = ordered.filter(e => e.type === SOURCE && e.source).map(e => e.source as ResearchSource);
+  const ids = new Set(sources.map(s => s.id));
+  // A comparison can arrive from another device before its sources do; hold it back until they're here.
+  const comparisons = ordered.filter(e => e.type === COMPARISON && e.comparison && ids.has(e.comparison.left) && ids.has(e.comparison.right)).map(e => e.comparison as ResearchComparison);
+  return { schema: 'plajah-sacred-research-v1', sources, comparisons };
+}
+
+function persist(storageKey: string, next: ResearchNotebook, cloud = true): void {
+  const existing = new Map(readCachedNotebook(storageKey).filter(e => e.type === SOURCE || e.type === COMPARISON).map(e => [e.id, e]));
+  const keep = new Set<string>();
+  const upsert = (id: string, entry: SyncableEntry, field: 'source' | 'comparison') => {
+    keep.add(id);
+    const prev = existing.get(id);
+    if (!prev || JSON.stringify(prev[field]) !== JSON.stringify(entry[field])) saveEntry(storageKey, entry, { cloud });
+  };
+  next.sources.forEach(s => upsert(sourceEntryId(s.id), { id: sourceEntryId(s.id), type: SOURCE, source: s }, 'source'));
+  next.comparisons.forEach(c => upsert(comparisonEntryId(c.id), { id: comparisonEntryId(c.id), type: COMPARISON, comparison: c }, 'comparison'));
+  for (const id of existing.keys()) if (!keep.has(id)) removeEntry(storageKey, id);
+}
+
+/** Bring the old device-only notebook into this account's shared notebook, once. */
+function importLegacy(storageKey: string): void {
+  const flag = `${storageKey}__legacyImported`;
+  try {
+    if (localStorage.getItem(flag)) return;
+    const stored = localStorage.getItem(KEY);
+    if (stored) persist(storageKey, mergeNotebooks(fromEntries(readCachedNotebook(storageKey)), validateNotebook(JSON.parse(stored))), false);
+    localStorage.setItem(flag, '1');
+  } catch { /* unreadable legacy data stays where it is, untouched */ }
+}
+
+/** True when the research notebook is syncing to an account (vs. guest, this device only). */
+export const researchSyncsToAccount = () => !researchKey().endsWith('_guest');
+
 export function readNotebook(): ResearchNotebook {
-  const stored = localStorage.getItem(KEY);
-  return stored ? validateNotebook(JSON.parse(stored)) : emptyNotebook();
+  const storageKey = researchKey();
+  importLegacy(storageKey);
+  return validateNotebook(fromEntries(readCachedNotebook(storageKey)));
 }
 export function writeNotebook(value: ResearchNotebook): void {
-  localStorage.setItem(KEY, JSON.stringify(validateNotebook(value)));
+  const storageKey = researchKey();
+  importLegacy(storageKey);
+  persist(storageKey, validateNotebook(value));
+  window.dispatchEvent(new Event(RESEARCH_CHANGED));
+}
+/** Pull the account copy into the local cache and notify readers. Safe to call often. */
+export async function syncResearchNotebook(): Promise<void> {
+  const storageKey = researchKey();
+  importLegacy(storageKey);
+  if (!researchSyncsToAccount()) return;
+  const merged = await loadNotebook(storageKey);
+  const pushFlag = `${storageKey}__legacyPushed`;
+  if (!localStorage.getItem(pushFlag)) {
+    await Promise.all(merged.filter(e => e.type === SOURCE || e.type === COMPARISON).map(e => putEntry(storageKey, e)));
+    try { localStorage.setItem(pushFlag, '1'); } catch { /* */ }
+  }
   window.dispatchEvent(new Event(RESEARCH_CHANGED));
 }
 export function pinResearchSource(source: ResearchSource): void {
