@@ -1,0 +1,273 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, BookOpen, ShieldCheck, AlertTriangle, ScrollText } from 'lucide-react';
+import { DEPTH_LEVELS, DEPTH_LABEL, type Claim, type DepthLevel, type Dossier, type DossierAsset } from '../../services/dossier/dossierTypes';
+import { pickVariant } from '../../services/dossier/characterGateway';
+import { commonsThumb } from '../../services/dossier/sourceAdapters';
+import { douglassDossier } from '../../data/dossier/douglass';
+import DossierEntrance from './DossierEntrance';
+
+interface Props {
+  dossier?: Dossier;
+  onBack?: () => void;
+}
+
+/** Saves the generated timeline as a real Tela document and opens it in Tela. */
+async function openTimelineInTela(): Promise<void> {
+  const [{ default: raw }, { saveTelaDoc }, { auth }] = await Promise.all([
+    import('../../data/dossier/douglassTimeline.tela.json'),
+    import('../../services/telaStore'),
+    import('../../services/backendService'),
+  ]);
+  const now = Date.now();
+  const doc = { ...(raw as any), ownerId: auth.currentUser?.uid || 'local', createdAt: now, updatedAt: now };
+  await saveTelaDoc(doc);
+  window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { docId: doc.id } }));
+}
+
+const DEPTH_KEY = 'plajah:dossier:depth';
+const readDepth = (): DepthLevel => {
+  try {
+    const v = localStorage.getItem(DEPTH_KEY) as DepthLevel | null;
+    if (v && DEPTH_LEVELS.includes(v)) return v;
+  } catch { /* storage may be blocked */ }
+  return 'middle';
+};
+
+
+const CONF_LABEL: Record<Claim['confidence'], string> = {
+  established: 'Established',
+  probable: 'Probable',
+  contested: 'Contested',
+  tradition: 'Tradition',
+};
+
+const CSS = `
+.dh{--dh-bg:#0d0b10;--dh-panel:#16121b;--dh-line:rgba(255,255,255,.1);--dh-ink:#f2ecf6;--dh-mute:rgba(242,236,246,.62);
+  min-height:100%;background:radial-gradient(1200px 600px at 20% -10%,rgba(107,0,153,.28),transparent 60%),var(--dh-bg);color:var(--dh-ink);
+  font-family:'Inter',system-ui,sans-serif}
+.dh *{box-sizing:border-box}
+.dh-serif{font-family:'Fraunces',Georgia,'Times New Roman',serif}
+.dh-top{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--dh-line);position:sticky;top:0;z-index:5;background:rgba(13,11,16,.92);backdrop-filter:blur(10px)}
+.dh-back{display:inline-flex;align-items:center;gap:6px;color:var(--dh-mute);background:none;border:0;cursor:pointer;font-size:13px}
+.dh-back:hover{color:var(--dh-ink)}
+.dh-lens{margin-left:auto;display:flex;gap:4px;padding:3px;border:1px solid var(--dh-line);border-radius:999px;background:rgba(255,255,255,.04)}
+.dh-lens button{border:0;background:none;color:var(--dh-mute);font-size:12px;padding:6px 11px;border-radius:999px;cursor:pointer;white-space:nowrap}
+.dh-lens button[aria-pressed=true]{background:var(--pj-grad-brand,linear-gradient(135deg,#6B0099,#D40055));color:#fff}
+.dh-wrap{display:grid;grid-template-columns:260px minmax(0,1fr);gap:0;max-width:1240px;margin:0 auto}
+.dh-rail{padding:24px 16px 24px 20px;border-right:1px solid var(--dh-line);position:sticky;top:57px;align-self:start;height:calc(100vh - 57px);overflow:auto}
+.dh-room{display:block;width:100%;text-align:left;background:none;border:0;border-left:2px solid var(--dh-line);color:var(--dh-mute);padding:10px 12px;cursor:pointer;margin-left:6px}
+.dh-room small{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.7}
+.dh-room span{font-size:14px}
+.dh-room[aria-current=true]{border-left-color:var(--pj-orange,#FF8C00);color:var(--dh-ink)}
+.dh-main{padding:28px clamp(16px,4vw,48px) 80px;min-width:0}
+.dh-banner{position:relative;height:clamp(300px,52vh,560px);margin:-28px calc(-1 * clamp(16px,4vw,48px)) 0;overflow:hidden;background:#000;animation:dhBanner .9s ease both}
+.dh-banner-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;animation:dhPush 22s ease-out both}
+.dh-banner-img.portrait{object-position:50% 20%;filter:sepia(.5) contrast(1.1) brightness(.7)}
+.dh-banner-scrim{position:absolute;inset:0;background:linear-gradient(0deg,#0d0b10 2%,rgba(13,11,16,.55) 38%,rgba(13,11,16,.15) 70%,rgba(13,11,16,.5) 100%),radial-gradient(ellipse at 50% 40%,transparent 40%,rgba(13,11,16,.6) 100%)}
+.dh-banner-text{position:absolute;left:clamp(16px,4vw,48px);bottom:clamp(18px,4vh,40px);max-width:min(760px,78%)}
+.dh-numeral{font-size:clamp(70px,13vw,190px);line-height:.8;font-weight:300;color:rgba(255,140,0,.22);letter-spacing:-.02em;margin-bottom:-.18em;animation:dhRise 1s ease .15s both}
+.dh-banner-text .dh-years,.dh-banner-text .dh-h1{animation:dhRise 1s ease .3s both}
+.dh-banner-text .dh-h1{text-shadow:0 6px 40px rgba(0,0,0,.8)}
+.dh-medal{position:absolute;right:clamp(16px,4vw,48px);bottom:clamp(18px,4vh,40px);display:flex;gap:12px;align-items:center;padding:8px 14px 8px 8px;border:1px solid var(--dh-line);border-radius:999px;background:rgba(13,11,16,.62);backdrop-filter:blur(10px)}
+.dh-medal img{width:54px;height:54px;border-radius:50%;object-fit:cover;object-position:50% 15%;filter:sepia(.2)}
+.dh-medal label{display:grid;gap:4px;font-size:11px;color:var(--dh-mute)}
+.dh-medal b{color:var(--dh-ink)}
+.dh-medal input{width:140px;accent-color:var(--pj-orange,#FF8C00)}
+.dh-banner-cap{font-size:12px;color:var(--dh-mute);margin:10px 0 26px;line-height:1.5}
+.dh-reveal{position:fixed;inset:0;z-index:70;pointer-events:none;overflow:hidden}
+.dh-reveal i{position:absolute;top:0;bottom:0;width:50.4%;background:linear-gradient(90deg,#14101a,#0b0910);box-shadow:0 0 80px #000}
+.dh-reveal i:first-child{left:0;border-right:1px solid rgba(240,201,135,.35);animation:dhOpenL 1.25s cubic-bezier(.7,0,.2,1) both}
+.dh-reveal i:last-child{right:0;border-left:1px solid rgba(240,201,135,.35);animation:dhOpenR 1.25s cubic-bezier(.7,0,.2,1) both}
+@keyframes dhOpenL{from{transform:none}to{transform:translateX(-102%)}}
+@keyframes dhOpenR{from{transform:none}to{transform:translateX(102%)}}
+@keyframes dhPush{from{transform:scale(1.02)}to{transform:scale(1.14)}}
+@keyframes dhRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes dhBanner{from{opacity:0}to{opacity:1}}
+.dh-replay{border:0;background:none;color:var(--dh-mute);font-size:12px;cursor:pointer;text-decoration:underline;text-underline-offset:3px}
+.dh-frame{margin:0;background:var(--dh-panel);border:1px solid var(--dh-line);padding:10px 10px 8px;border-radius:4px;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+.dh-frame img{display:block;width:100%;aspect-ratio:4/5;object-fit:cover;object-position:50% 20%;background:#000;filter:sepia(.18) contrast(1.03)}
+.dh-frame figcaption{font-size:11px;color:var(--dh-mute);line-height:1.45;margin-top:8px}
+.dh-years{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--pj-orange,#FF8C00)}
+.dh-h1{font-size:clamp(30px,5vw,54px);line-height:1.04;margin:6px 0 10px;font-weight:600}
+.dh-age{display:flex;align-items:center;gap:10px;margin-top:14px;font-size:12px;color:var(--dh-mute)}
+.dh-age input{flex:1;accent-color:var(--pj-orange,#FF8C00)}
+.dh-node{background:var(--dh-panel);border:1px solid var(--dh-line);border-radius:10px;padding:clamp(18px,3vw,30px);margin-bottom:22px}
+.dh-node h3{font-size:clamp(20px,2.6vw,28px);margin:0 0 4px;font-weight:600}
+.dh-kind{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--dh-mute)}
+.dh-body{font-size:clamp(16px,1.6vw,18px);line-height:1.75;margin:14px 0 18px;max-width:68ch}
+.dh-body.early,.dh-body.elementary{font-size:clamp(18px,2vw,21px);line-height:1.8}
+.dh-ev-btn{display:inline-flex;align-items:center;gap:8px;background:var(--pj-cyan-soft,rgba(0,218,243,.14));color:var(--pj-cyan,#00DAF3);border:1px solid rgba(0,218,243,.3);border-radius:999px;padding:7px 14px;font-size:12px;cursor:pointer}
+.dh-claims{margin:14px 0 0;padding:0;list-style:none;display:grid;gap:10px}
+.dh-claim{border-left:3px solid var(--pj-success,#06D6A0);padding:6px 0 6px 12px;font-size:14px;line-height:1.55}
+.dh-claim.contested,.dh-claim.tradition{border-left-color:var(--pj-warning,#F59E0B);background:var(--pj-warning-soft,rgba(245,158,11,.14))}
+.dh-claim.probable{border-left-color:var(--pj-info,#3B82F6)}
+.dh-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-right:8px;color:var(--dh-mute)}
+.dh-note{display:block;margin-top:4px;color:var(--dh-mute);font-size:13px}
+.dh-src{font-size:12px;color:var(--dh-mute);margin-top:4px}
+.dh-recon{position:relative;margin:0 0 18px;border:1px solid var(--dh-line);border-radius:8px;overflow:hidden;background:#000}
+.dh-recon img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
+.dh-recon figcaption{font-size:12px;color:var(--dh-mute);padding:8px 12px;line-height:1.45}
+.dh-recon-tag{position:absolute;top:10px;left:10px;z-index:1;background:rgba(0,0,0,.72);color:var(--pj-orange,#FF8C00);border:1px solid rgba(255,140,0,.5);border-radius:999px;padding:3px 10px;font-size:10px;letter-spacing:.12em;text-transform:uppercase}
+.dh-credits{margin-top:40px;border-top:1px solid var(--dh-line);padding-top:18px;font-size:12px;color:var(--dh-mute);line-height:1.6}
+.dh-credits h4{margin:0 0 8px;font-size:12px;letter-spacing:.12em;text-transform:uppercase}
+.dh-credits a{color:inherit}
+@media(max-width:860px){
+ .dh-wrap{grid-template-columns:1fr}
+ .dh-rail{position:static;height:auto;display:flex;gap:6px;overflow-x:auto;border-right:0;border-bottom:1px solid var(--dh-line);padding:10px 12px}
+ .dh-room{border-left:0;border-bottom:2px solid var(--dh-line);margin:0;min-width:150px}
+ .dh-room[aria-current=true]{border-bottom-color:var(--pj-orange,#FF8C00)}
+ .dh-medal{position:relative;right:auto;bottom:auto;margin:-64px 16px 0;width:max-content}
+ .dh-banner-text{max-width:92%}
+ .dh-lens{margin-left:0;overflow-x:auto;max-width:100%}
+ .dh-top{flex-wrap:wrap}
+}
+@media(prefers-reduced-motion:reduce){.dh-banner-img{animation:none}.dh-reveal{display:none}}
+@media(prefers-reduced-motion:no-preference){.dh-node{animation:dhIn .35s ease both}@keyframes dhIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}}
+`;
+
+export default function DossierHall({ dossier = douglassDossier, onBack }: Props) {
+  const [depth, setDepth] = useState<DepthLevel>(readDepth);
+  const [roomId, setRoomId] = useState(dossier.rooms[0].id);
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const [age, setAge] = useState(30);
+  const [intro, setIntro] = useState(true);
+  const [reveal, setReveal] = useState(false);
+  const finishIntro = () => { setIntro(false); setReveal(true); window.setTimeout(() => setReveal(false), 1400); };
+
+  useEffect(() => {
+    try { localStorage.setItem(DEPTH_KEY, depth); } catch { /* ignore */ }
+  }, [depth]);
+
+  const claimById = useMemo(() => new Map(dossier.ledger.claims.map(c => [c.id, c])), [dossier]);
+  const sourceById = useMemo(() => new Map(dossier.ledger.sources.map(s => [s.id, s])), [dossier]);
+  const assetById = useMemo(() => new Map(dossier.assets.map(a => [a.id, a])), [dossier]);
+  const room = dossier.rooms.find(r => r.id === roomId) ?? dossier.rooms[0];
+
+  const figure = dossier.characters[0];
+  const variant = figure ? pickVariant(figure, age) : undefined;
+  const portrait: DossierAsset | undefined = variant ? assetById.get(variant.referenceAssetIds[0]) : undefined;
+  const ageBounds: [number, number] = figure
+    ? [Math.min(...figure.variants.map(v => v.ageRange[0])), Math.max(...figure.variants.map(v => v.ageRange[1]))]
+    : [0, 0];
+
+  const roomNumber = dossier.rooms.findIndex(r => r.id === room.id) + 1;
+  const bannerAsset = room.nodes.flatMap(n => n.assetIds).map(id => assetById.get(id)).find(a => a?.kind === 'recreation');
+
+  const usedAssets = useMemo(() => {
+    const ids = new Set<string>(room.nodes.flatMap(n => n.assetIds));
+    if (portrait) ids.add(portrait.id);
+    return [...ids].map(id => assetById.get(id)).filter(Boolean) as DossierAsset[];
+  }, [room, portrait, assetById]);
+
+  return (
+    <div className="dh">
+      <style>{CSS}</style>
+      {intro && <DossierEntrance dossier={dossier} onEnter={finishIntro} />}
+      {reveal && <div className="dh-reveal" aria-hidden><i /><i /></div>}
+      <header className="dh-top">
+        {onBack && (
+          <button className="dh-back" onClick={onBack} aria-label="Back"><ArrowLeft size={16} /> Back</button>
+        )}
+        <span className="dh-serif" style={{ fontSize: 18 }}>{dossier.subject}</span>
+        {dossier.entrance && <button className="dh-replay" onClick={() => setIntro(true)}>Replay opening</button>}
+        {dossier.id === 'frederick-douglass' && <button className="dh-replay" onClick={() => { openTimelineInTela().catch(() => {}); }}>Open timeline in Tela</button>}
+        <div className="dh-lens" role="group" aria-label="Reading level">
+          {DEPTH_LEVELS.map(d => (
+            <button key={d} aria-pressed={d === depth} onClick={() => setDepth(d)}>{DEPTH_LABEL[d]}</button>
+          ))}
+        </div>
+      </header>
+
+      <div className="dh-wrap">
+        <nav className="dh-rail" aria-label="Rooms">
+          {dossier.rooms.map((r, i) => (
+            <button key={r.id} className="dh-room" aria-current={r.id === room.id} onClick={() => setRoomId(r.id)}>
+              <small>Room {i + 1}{r.years ? ` · ${r.years}` : ''}</small>
+              <span className="dh-serif">{r.title}</span>
+            </button>
+          ))}
+        </nav>
+
+        <main className="dh-main">
+          <section className="dh-banner" key={room.id}>
+            {bannerAsset ? (
+              <img className="dh-banner-img" src={bannerAsset.url} alt={bannerAsset.title} />
+            ) : portrait ? (
+              <img className="dh-banner-img portrait" src={commonsThumb(portrait.url, 1280)} alt={portrait.title} />
+            ) : null}
+            <div className="dh-banner-scrim" />
+            {bannerAsset && <span className="dh-recon-tag">Reconstruction</span>}
+            <div className="dh-banner-text">
+              <div className="dh-numeral dh-serif" aria-hidden>{String(roomNumber).padStart(2, '0')}</div>
+              <div className="dh-years">{room.years}</div>
+              <h1 className="dh-h1 dh-serif">{room.title}</h1>
+            </div>
+            {figure && variant && portrait && (
+              <aside className="dh-medal">
+                <img src={commonsThumb(portrait.url, 330)} alt={portrait.title} />
+                <label>
+                  <span>Face at age <b>{age}</b></span>
+                  <input type="range" min={ageBounds[0]} max={ageBounds[1]} value={age} onChange={e => setAge(Number(e.target.value))} aria-label="Age" />
+                </label>
+              </aside>
+            )}
+          </section>
+          {bannerAsset && <p className="dh-banner-cap">{bannerAsset.title}. Imagined from: {bannerAsset.reconstruction?.basis}. {bannerAsset.rights.credit}.</p>}
+
+          {room.nodes.map(n => {
+            const claims = n.claimIds.map(c => claimById.get(c)).filter(Boolean) as Claim[];
+            const isOpen = !!open[n.id];
+            return (
+              <article key={n.id} className="dh-node">
+                <div className="dh-kind">{n.kind === 'source-reading' ? 'Primary source' : 'Story'}</div>
+                <h3 className="dh-serif">{n.title}</h3>
+                <p className={`dh-body ${depth}`}>{n.text[depth]}</p>
+                {n.assetIds.map(id => assetById.get(id)).filter((a): a is DossierAsset => !!a && a.kind === 'recreation' && a.id !== bannerAsset?.id).map(a => (
+                  <figure key={a.id} className="dh-recon">
+                    <span className="dh-recon-tag">Reconstruction</span>
+                    <img src={a.url} alt={a.title} loading="lazy" />
+                    <figcaption>{a.title}. Imagined from: {a.reconstruction?.basis}. {a.rights.credit}.</figcaption>
+                  </figure>
+                ))}
+                <button className="dh-ev-btn" aria-expanded={isOpen} onClick={() => setOpen(o => ({ ...o, [n.id]: !o[n.id] }))}>
+                  <ShieldCheck size={14} /> Evidence ({claims.length})
+                </button>
+                {isOpen && (
+                  <ul className="dh-claims">
+                    {claims.map(c => (
+                      <li key={c.id} className={`dh-claim ${c.confidence}`}>
+                        <span className="dh-badge">
+                          {c.confidence === 'contested' || c.confidence === 'tradition' ? <AlertTriangle size={11} /> : <BookOpen size={11} />}
+                          {CONF_LABEL[c.confidence]}
+                        </span>
+                        {c.text}
+                        {c.note && <span className="dh-note">{c.note}</span>}
+                        <div className="dh-src">
+                          <ScrollText size={11} style={{ display: 'inline', marginRight: 4 }} />
+                          {c.sourceIds.map(s => sourceById.get(s)?.citation).filter(Boolean).join(' · ')}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </article>
+            );
+          })}
+
+          <footer className="dh-credits">
+            <h4>Images in this room</h4>
+            <ul style={{ margin: 0, paddingLeft: 18 }}>
+              {usedAssets.map(a => (
+                <li key={a.id}>
+                  {a.title} — {a.rights.credit}; {a.rights.status.replace('-', ' ')}.
+                  {a.rights.verifiedAt && <> <a href={a.rights.verifiedAt} target="_blank" rel="noreferrer noopener">Record</a></>}
+                  {a.reconstruction && <strong> Reconstruction: {a.reconstruction.basis}.</strong>}
+                </li>
+              ))}
+            </ul>
+          </footer>
+        </main>
+      </div>
+    </div>
+  );
+}

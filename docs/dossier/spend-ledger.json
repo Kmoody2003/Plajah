@@ -1,0 +1,138 @@
+[
+  {
+    "at": "2026-10-06T16:27:09.792Z",
+    "scene": "recon-printing-office",
+    "model": "flux-2-klein",
+    "taskId": "616c7d87-f430-4b3f-bd49-fb45d93165e0",
+    "refs": 1,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:27:47.592Z",
+    "scene": "recon-printing-office",
+    "model": "flux-2-klein",
+    "taskId": "c0a8478d-5446-49b1-bac7-4cc8609f1859",
+    "refs": 2,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:28:10.292Z",
+    "scene": "recon-shipyard",
+    "model": "seedream-v4-5",
+    "taskId": "7403bfa6-474e-4d88-b451-d683aff935cb",
+    "refs": 0,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:28:26.962Z",
+    "scene": "recon-covey-field",
+    "model": "seedream-v4-5",
+    "taskId": "c91b717e-3d84-4902-bcc2-cc6c1f1bb018",
+    "refs": 0,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:28:44.233Z",
+    "scene": "recon-escape",
+    "model": "seedream-v4-5",
+    "taskId": "0eebfed5-a76d-45eb-be5a-0fb2730baa9d",
+    "refs": 0,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:29:03.500Z",
+    "scene": "recon-nantucket",
+    "model": "seedream-v4-5",
+    "taskId": "d3c1bec4-cc18-4e93-ad43-3092ee30e208",
+    "refs": 0,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:29:38.469Z",
+    "scene": "recon-shipyard",
+    "model": "seedream-v4-5",
+    "taskId": "d3ebabb1-9340-4bb6-9f34-936ff13c2cca",
+    "refs": 0,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:29:52.855Z",
+    "scene": "recon-escape",
+    "model": "seedream-v4-5",
+    "taskId": "85dd7466-ce1e-48a9-ad25-5fbd7777b8dc",
+    "refs": 0,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:30:10.923Z",
+    "scene": "recon-fourth",
+    "model": "flux-2-klein",
+    "taskId": "52572ff2-7d71-4c7b-9328-ce3e11fb0334",
+    "refs": 2,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:30:21.349Z",
+    "scene": "recon-anteroom",
+    "model": "flux-2-klein",
+    "taskId": "7f113038-921e-4467-8883-d3350e33dfee",
+    "refs": 3,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:30:33.909Z",
+    "scene": "recon-cedarhill",
+    "model": "flux-2-klein",
+    "taskId": "87913f08-9508-4637-86f7-22c87351f5cb",
+    "refs": 2,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:31:18.568Z",
+    "scene": "recon-escape",
+    "model": "seedream-v4-5",
+    "taskId": "4d51b566-ce8d-4806-ac65-f217ea1a6002",
+    "refs": 0,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:31:42.147Z",
+    "scene": "recon-anteroom",
+    "model": "flux-2-klein",
+    "taskId": "e810b7bc-c3d7-4187-94d9-e2c9b918035f",
+    "refs": 3,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:31:55.015Z",
+    "scene": "recon-fourth",
+    "model": "flux-2-klein",
+    "taskId": "246d1c9d-fad2-454a-bbe5-e12a49549334",
+    "refs": 2,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:32:05.833Z",
+    "scene": "recon-printing-office",
+    "model": "flux-2-klein",
+    "taskId": "28ddd2db-d079-4059-a9e8-faadd06551d3",
+    "refs": 2,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:32:38.673Z",
+    "scene": "recon-anteroom",
+    "model": "flux-2-klein",
+    "taskId": "d9b34d10-bd22-4ecf-bd51-6e40a05e5468",
+    "refs": 3,
+    "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T16:33:15.655Z",
+    "scene": "recon-anteroom",
+    "model": "flux-2-klein",
+    "taskId": "7003f1f6-3345-4e9e-8159-5191e75cf812",
+    "refs": 3,
+    "resolution": "1k"
+  }
+]
