@@ -47,6 +47,7 @@ import { postmanRouter } from './routes/postman';
 import { campaignsRouter } from './routes/campaigns';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { kithSightingsRouter } from './routes/kithSightings';
+import { createAriaSpeakRouter } from './routes/ariaSpeak';
 import { socialServerRouter } from './routes/socialServer';
 import { veoRouter } from './routes/veo';
 import { taleoRouter, enqueueIfReady as taleoEnqueueIfReady } from './routes/taleo';
@@ -11198,6 +11199,9 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   // ── The Council of Art Directors — a working team behind Aria ──────────────
   const council = createCouncil({ authMiddleware, apiLimiter, firestoreAuthHeaders, libraries: { packs: FABULA_BROADCAST_PACKS.map(p => ({ id: p.id, name: p.name, councilStyle: p.councilStyle })) } });
   council.register(app);
+
+  // Aria's spoken voice (ElevenLabs proxy) — see routes/ariaSpeak.ts. Dark until ELEVENLABS_API_KEY + ELEVENLABS_ARIA_VOICE_ID are set.
+  app.use('/api/aria/speak', createAriaSpeakRouter({ authMiddleware, requireRegisteredUser, limiter: aiLimiter }));
 
   app.post('/api/agent/chat', authMiddleware, express.json({ limit: '10mb' }), async (req: any, res) => {
     try {

@@ -24,6 +24,7 @@ import {
   Film, GraduationCap, Search, Image as ImageIcon, FileText,
   Zap, Star, Check, AlertTriangle, Trash2, MessageSquare,
   Settings, ChevronLeft, ExternalLink, Maximize2, Minimize2, Cpu, Pin, PinOff,
+  Volume2, Square,
 } from 'lucide-react';
 import { usePersistentFloating } from '../hooks/usePersistentFloating';
 import {
@@ -38,6 +39,7 @@ import {
   getActiveAriaContext, serializeAriaContextForWire, runAriaAction,
 } from '../services/aria/ariaContext';
 import { ariaLocalModel, AriaLocalModel } from '../services/aria/ariaLocalModel';
+import { ariaVoice, useAriaVoice } from '../services/aria/ariaVoice';
 import { buildLocalChatMessages } from '../services/aria/ariaLocalPrompt';
 import CouncilRoom from './council/CouncilRoom';
 
@@ -151,6 +153,7 @@ const BuildCard: React.FC<{ build: AgentBuildOutput; onApply?: () => void }> = (
 // ── Message bubble ─────────────────────────────────────────────────────────────
 const MessageBubble: React.FC<{ msg: AgentMessage; onApplyBuild?: (b: AgentBuildOutput) => void }> = ({ msg, onApplyBuild }) => {
   const isUser = msg.role === 'user';
+  const voice = useAriaVoice();
 
   return (
     <motion.div
@@ -220,9 +223,25 @@ const MessageBubble: React.FC<{ msg: AgentMessage; onApplyBuild?: (b: AgentBuild
           );
         })()}
 
-        <span className="text-[7px] text-white/20 px-1">
-          {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        </span>
+        <div className="flex items-center gap-1.5 px-1">
+          <span className="text-[7px] text-white/20">
+            {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          </span>
+          {/* Hear Aria say it — only when the server has a voice configured */}
+          {!isUser && !msg.error && msg.content && voice.available === true && (
+            <button
+              onClick={() => ariaVoice.speak(msg.id, msg.content)}
+              title={voice.playingId === msg.id || voice.loadingId === msg.id ? 'Stop' : 'Hear Aria say this'}
+              aria-label={voice.playingId === msg.id || voice.loadingId === msg.id ? 'Stop speaking' : 'Read this reply aloud'}
+              className={`w-5 h-5 rounded-full flex items-center justify-center transition-all ${
+                voice.playingId === msg.id ? 'bg-violet-500/30 text-violet-200'
+                  : voice.loadingId === msg.id ? 'bg-white/10 text-white/50 animate-pulse'
+                  : 'text-white/25 hover:text-white/60 hover:bg-white/10'}`}
+            >
+              {voice.playingId === msg.id || voice.loadingId === msg.id ? <Square size={8} /> : <Volume2 size={10} />}
+            </button>
+          )}
+        </div>
       </div>
     </motion.div>
   );
@@ -315,6 +334,13 @@ const PlajahAgent: React.FC<Props> = ({
   });
   const [localStatus, setLocalStatus] = useState<string>('');
   const localSupported = AriaLocalModel.isSupported();
+  // Spoken replies — opt-in, remembered per browser; only offered when the server has a voice.
+  const voice = useAriaVoice();
+  const [autoRead, setAutoRead] = useState<boolean>(() => {
+    try { return localStorage.getItem('aria_voice_auto') === '1'; } catch { return false; }
+  });
+  const autoReadRef = useRef(autoRead);
+  autoReadRef.current = autoRead && voice.available === true;
 
   // Warm the on-device model when the user turns the lane on.
   useEffect(() => {
@@ -345,11 +371,28 @@ const PlajahAgent: React.FC<Props> = ({
   // Subscribe to messages for current session
   useEffect(() => {
     if (!uid || !sessionId) return;
+    // Auto-read: the first snapshot is history and is never spoken; only replies that
+    // arrive afterwards are, and only if the user turned the voice on.
+    let first = true;
+    const seen = new Set<string>();
     const unsub = listenToMessages(uid, sessionId, msgs => {
       setMessages(msgs);
+      for (const m of msgs) {
+        if (seen.has(m.id)) continue;
+        seen.add(m.id);
+        if (!first && autoReadRef.current && m.role === 'muse' && m.content && !m.error) {
+          ariaVoice.speak(m.id, m.content);
+        }
+      }
+      first = false;
     });
-    return unsub;
+    return () => { unsub(); ariaVoice.stop(); };
   }, [uid, sessionId]);
+
+  // Probe whether a voice is configured; silence Aria when the panel closes.
+  useEffect(() => {
+    if (isOpen) ariaVoice.probe(); else ariaVoice.stop();
+  }, [isOpen]);
 
   // Auto-scroll
   useEffect(() => {
@@ -619,6 +662,25 @@ const PlajahAgent: React.FC<Props> = ({
                   }`}
                 >
                   <Cpu size={9} />{onDevice ? (ariaLocalModel.ready ? 'On-device' : 'Loading') : 'Local'}
+                </button>
+              )}
+
+              {/* Spoken replies — auto-read toggle (only when a voice is configured) */}
+              {voice.available === true && (
+                <button
+                  onClick={() => {
+                    setAutoRead(v => {
+                      const next = !v;
+                      try { localStorage.setItem('aria_voice_auto', next ? '1' : '0'); } catch {}
+                      if (!next) ariaVoice.stop();
+                      return next;
+                    });
+                  }}
+                  title={autoRead ? 'Aria reads her replies aloud — click to mute' : 'Have Aria read her replies aloud'}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-widest border transition-all ${
+                    autoRead ? 'bg-violet-600/20 border-violet-500/40 text-violet-200' : 'bg-white/5 border-white/10 text-white/30'}`}
+                >
+                  <Volume2 size={9} />{autoRead ? 'Voice on' : 'Voice'}
                 </button>
               )}
 
