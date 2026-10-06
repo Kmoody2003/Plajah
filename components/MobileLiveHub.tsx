@@ -10,8 +10,9 @@ import { useViewport } from '../hooks/useViewport';
 import { useBroadcastDirectory, FastChannelListing } from '../hooks/useBroadcastDirectory';
 import {
   auth, listenToMessages, sendMessage, ensureLiveChatRoom,
-  fetchFastChannelVideos, fetchFastChannelSchedule,
+  fetchFastChannelVideos, fetchFastChannelSchedule, fetchAllLiveFeeds, fetchAllFastChannels,
 } from '../services/backendService';
+const LiveTvPlus = React.lazy(() => import('./LiveTvPlus'));
 import { resolveSlotMedia, slotIsPlayable, slotsFromVideos, activeDaySlots, dayAnchoredPosition } from '../services/fastChannelTimeline';
 import { hlsTuning, capLevelsToPanel } from '../services/hlsTuning';
 
@@ -396,13 +397,62 @@ const MobileFastViewer: React.FC<{ listing: FastChannelListing; onClose: () => v
 interface MobileLiveHubProps {
   onBack: () => void;
   uid: string | null | undefined;
+  /** A shared channel link (or a tune from the Social hub) — opens TV+ on exactly that channel. */
+  initialChannelFocus?: { ownerId?: string; plajahId?: string; number?: string; sourceId?: string } | null;
+  onChannelFocusConsumed?: () => void;
 }
 
-const MobileLiveHub: React.FC<MobileLiveHubProps> = ({ onBack, uid }) => {
-  const [tab, setTab] = useState<'LIVE' | 'CHANNELS'>('LIVE');
+const MobileLiveHub: React.FC<MobileLiveHubProps> = ({ onBack, uid, initialChannelFocus, onChannelFocusConsumed }) => {
+  // TV+ is the front door: the numbered channel guide with the picture on top. The two list views
+  // (everyone who's live, FAST channel grid) are one tap away on the tabs below.
+  const [tab, setTab] = useState<'TV' | 'LIVE' | 'CHANNELS'>('TV');
   const [viewFeed, setViewFeed] = useState<LiveFeed | null>(null);
   const [viewChannel, setViewChannel] = useState<FastChannelListing | null>(null);
   const { liveStreams, fastChannels, followingIds, loading } = useBroadcastDirectory(uid);
+
+  // TV+ builds its own lineup from the RAW feeds + FAST listings (permanent external channels have
+  // no heartbeat, so the directory's "live now" list would drop them) — same inputs LiveHubView gives it.
+  const [tvFeeds, setTvFeeds] = useState<LiveFeed[]>([]);
+  const [tvFast, setTvFast] = useState<Awaited<ReturnType<typeof fetchAllFastChannels>>>([]);
+  useEffect(() => {
+    const off = fetchAllLiveFeeds(setTvFeeds);
+    fetchAllFastChannels(300).then(setTvFast).catch(() => {});
+    return () => off();
+  }, []);
+
+  // Held locally so the app can clear its copy right away without un-tuning us.
+  const [focus, setFocus] = useState<NonNullable<MobileLiveHubProps['initialChannelFocus']> | null>(initialChannelFocus ?? null);
+  useEffect(() => {
+    if (!initialChannelFocus) return;
+    setFocus(initialChannelFocus);
+    setTab('TV');
+    onChannelFocusConsumed?.();
+  }, [initialChannelFocus, onChannelFocusConsumed]);
+
+  if (tab === 'TV') {
+    return (
+      <>
+        <React.Suspense fallback={<div className="fixed inset-0 z-[60] grid place-items-center bg-[#04050a]"><div className="w-10 h-10 border-2 border-white/10 border-t-white rounded-full animate-spin" /></div>}>
+          <LiveTvPlus
+            onBack={onBack}
+            feeds={tvFeeds}
+            liveArtists={[]}
+            fastChannels={tvFast}
+            focusOwnerId={focus?.ownerId}
+            focusPlajahId={focus?.plajahId}
+            focusNumber={focus?.number}
+            focusSourceId={focus?.sourceId}
+            currentUser={auth.currentUser}
+            onOpenClassic={() => setTab('LIVE')}
+            onWatchWebrtc={(f) => { if (f) setViewFeed(f); }}
+          />
+        </React.Suspense>
+        <AnimatePresence>
+          {viewFeed && <motion.div className="relative z-[70]" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}><MobileLiveViewer feed={viewFeed} onClose={() => setViewFeed(null)} /></motion.div>}
+        </AnimatePresence>
+      </>
+    );
+  }
 
   const followedLive = liveStreams.filter(f => followingIds.has(f.ownerId));
   const otherLive = liveStreams.filter(f => !followingIds.has(f.ownerId));
@@ -423,9 +473,9 @@ const MobileLiveHub: React.FC<MobileLiveHubProps> = ({ onBack, uid }) => {
 
       {/* Segmented tabs */}
       <div className="shrink-0 flex items-center gap-2 px-4 pb-3">
-        {(['LIVE', 'CHANNELS'] as const).map(t => (
-          <button key={t} onClick={() => setTab(t)} className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-full text-[11px] font-black uppercase tracking-widest transition-all ${tab === t ? 'text-white' : 'bg-white/5 text-white/40'}`} style={tab === t ? { background: GRAD } : {}}>
-            {t === 'LIVE' ? <Radio size={14} /> : <Tv size={14} />}{t === 'LIVE' ? 'Live Streams' : 'Channels'}
+        {(['TV', 'LIVE', 'CHANNELS'] as const).map(t => (
+          <button key={t} onClick={() => setTab(t)} className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${tab === t ? 'text-white' : 'bg-white/5 text-white/40'}`} style={tab === t ? { background: GRAD } : {}}>
+            {t === 'LIVE' ? <Radio size={14} /> : <Tv size={14} />}{t === 'TV' ? 'TV+' : t === 'LIVE' ? 'Streams' : 'Channels'}
           </button>
         ))}
       </div>

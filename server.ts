@@ -809,6 +809,16 @@ const injectMetaTags = async (html: string, query: any, host: string) => {
          const ff: any = dd?.fields || {};
          const p = (keys: string[]): string => { for (const k of keys) { const v = ff?.[k]?.stringValue; if (v) return v; } return ''; };
          name = p(['artistName', 'displayName', 'name', 'username', 'handle']) || 'A live channel';
+         // The specific channel being shared beats the account name: an owner with several channels
+         // (N.1, N.2) names each one, and the link must say which one it opens.
+         const sharedSource = String((query as any).source || '');
+         if (sharedSource) {
+           const fc = await fetchFirebaseDoc('fast_channels', ownerId).catch(() => null);
+           const ffc: any = fc?.fields || {};
+           const subName = ffc?.subNames?.mapValue?.fields?.[sharedSource]?.stringValue;
+           const fastName = sharedSource === `fast_${ownerId}` ? ffc?.name?.stringValue : '';
+           name = subName || fastName || name;
+         }
          desc = `${name} is live on Plajah${num ? ` — channel ${num}` : ''}. Tune in now.`;
        } else {
          const key = rawId.replace(/^plajah:/, '');

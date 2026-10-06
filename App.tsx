@@ -5955,7 +5955,12 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
             {view === 'LIVE_HUB' && ((isMobile || theme === 'PHONE') ? (
               // Phones get the chat-first / vertical-FAST hub; rotate to landscape → full-screen video.
-              <MobileLiveHub onBack={() => setView('DASHBOARD')} uid={user?.uid} />
+              <MobileLiveHub
+                onBack={() => setView('DASHBOARD')}
+                uid={user?.uid}
+                initialChannelFocus={liveChannelFocus}
+                onChannelFocusConsumed={() => setLiveChannelFocus(null)}
+              />
             ) : (
               <LiveHubView
                 onBack={() => setView('DASHBOARD')}

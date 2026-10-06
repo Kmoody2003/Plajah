@@ -8650,6 +8650,7 @@ export const saveFastChannelMeta = async (channel: Partial<FastChannel> & { owne
       id: channel.ownerId,
       ownerId: channel.ownerId,
       name: channel.name ?? existing?.name ?? 'My Channel',
+      subNames: channel.subNames ?? existing?.subNames,
       number: channel.number ?? existing?.number,
       category: channel.category ?? existing?.category,
       logoUrl: channel.logoUrl ?? existing?.logoUrl,
@@ -8925,6 +8926,17 @@ export const setChannelName = async (uid: string, name: string): Promise<void> =
   // Let permission/network failures reach the caller so an inline editor never claims an update
   // succeeded when Firestore rejected it. Firestore rules enforce that uid is the signed-in owner.
   await saveFastChannelMeta({ ownerId: uid, name: (name || '').trim().slice(0, 60) });
+};
+
+/** Name ONE of an account's sub-channels (N.1, N.2…) without touching the others or the account name.
+ *  Reads the current map first so a second rename adds to it rather than replacing it. */
+export const setChannelSubName = async (uid: string, subId: string, name: string): Promise<void> => {
+  if (!uid || !subId) return;
+  const existing = await fetchFastChannelMeta(uid).catch(() => null);
+  const subNames = { ...(existing?.subNames || {}) };
+  const clean = (name || '').trim().slice(0, 60);
+  if (clean) subNames[subId] = clean; else delete subNames[subId];
+  await saveFastChannelMeta({ ownerId: uid, subNames });
 };
 
 export const scheduleLiveInterrupt = async (uid: string, scheduledAt: number, maxDurationSeconds: number, membersOnly = false): Promise<void> => {
@@ -9500,6 +9512,8 @@ export interface FastChannelListing {
   number?: number;
   category?: string;
   logoUrl?: string;
+  /** Owner-chosen names for individual sub-channels, keyed by sub-channel id. */
+  subNames?: Record<string, string>;
   /** When the channel was created. The guide allocates unclaimed numbers oldest-first, so this
    *  is what keeps a channel on the number it already has — see fast/channelNumbers.ts. */
   createdAt?: number;
@@ -9529,6 +9543,7 @@ export const fetchAllFastChannels = async (max = 300): Promise<FastChannelListin
         name: m?.name || ((p as any).displayName ? `${(p as any).displayName}'s Channel` : 'Channel'),
         number: m?.number,
         category: m?.category,
+        subNames: m?.subNames,
         logoUrl: m?.logoUrl || (p as any).photoURL || (p as any).headerImage,
         // Fall back to the account's own creation time: a channel doc written before createdAt
         // was recorded is still older than one written today, and the account age says so.

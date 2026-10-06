@@ -4254,6 +4254,9 @@ export interface FastChannel {
   id: string;            // === ownerId
   ownerId: string;
   name: string;
+  /** Per-sub-channel names the owner chose in the guide, keyed by the guide's sub-channel id
+   *  (`fast_<ownerId>`, `live_<feedId>`). Independent of `name`, so renaming N.1 never renames N.2. */
+  subNames?: Record<string, string>;
   number?: number;       // LCN — the channel number in a guide
   category?: FastChannelCategory;
   logoUrl?: string;

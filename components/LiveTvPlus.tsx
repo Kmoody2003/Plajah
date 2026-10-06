@@ -11,7 +11,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, ChevronDown, LayoutGrid, Maximize2, Minimize2, Pencil, Check, X } from 'lucide-react';
 import type { LiveFeed, UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { ACTIVE_SCIENCE_STREAMS } from './scienceStreams';
-import { fetchChannelNumberRegistry, fetchFastChannelSchedule, fetchFastChannelVideos, setChannelName, type FastChannelListing } from '../services/backendService';
+import { fetchChannelNumberRegistry, fetchFastChannelSchedule, fetchFastChannelVideos, setChannelSubName, type FastChannelListing } from '../services/backendService';
 import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, backfillScheduleDurations, backfillScheduleDurationsByUrl, unresolvedDurationUrls, FM_FILL_THRESHOLD_SEC, hasPlayableProgramme, sanitizeScheduleForPlayout, nextPlayableSlotIndex, isPlayableProgrammeSlot } from '../services/fastChannelTimeline';
 import { exactDurationSec } from '../services/mediaTimebase';
 import { probeDurations } from '../services/mediaProbe';
@@ -59,10 +59,12 @@ const BRAND = '#FF8C00';
 // ── Per-program EPG from a FAST channel's looping schedule ──────────────────────
 export interface EpgProgram { title: string; thumb?: string; startMs: number; endMs: number; isNow: boolean; }
 const slotTitle = (s: FastChannelSlot): string =>
-  s.videoTitle || (s as any).bumperTitle || (s.type === 'AD_BREAK' ? 'Ad break' : s.type === 'FM_BLOCK' ? 'Plajah FM' : s.type === 'LIVE_INTERRUPT' ? 'Live' : 'Program');
+  s?.videoTitle || (s as any)?.bumperTitle || (s?.type === 'AD_BREAK' ? 'Ad break' : s?.type === 'FM_BLOCK' ? 'Plajah FM' : s?.type === 'LIVE_INTERRUPT' ? 'Live' : 'Program');
 /** Walk the looping schedule from `now` to produce the current + upcoming programs with real times. */
 function computeEpg(schedule: FastChannelSchedule | null, now: number, count = 6): EpgProgram[] {
-  const slots = activeDaySlots(schedule, now);
+  // A schedule is user data: a null/non-object slot (or a non-array slots field) must never take
+  // the whole guide down with it, so drop anything that isn't a slot before walking the loop.
+  const slots = (activeDaySlots(schedule, now) || []).filter((s): s is FastChannelSlot => !!s && typeof s === 'object');
   if (!slots.length) return [];
   // Same time-of-day anchor as playout so the guide's "now" matches what's actually on screen.
   const { index, offsetSec } = dayAnchoredPosition(slots, now);
@@ -345,8 +347,10 @@ const LiveTvPlus: React.FC<{
   // web, playAudible() falls back to muted rather than losing the picture.
   const [muted, setMuted] = useState(false);
   const [loadedIndex, setLoadedIndex] = useState(0); // player follows the dial once it settles
-  const [renamedChannels, setRenamedChannels] = useState<Record<string, string>>({});
-  const [editingOwnerId, setEditingOwnerId] = useState<string | null>(null);
+  // Locally-saved sub-channel names, keyed by the guide's sub-channel id (not the account), so
+  // renaming one of an account's channels never renames its siblings.
+  const [renamedSubs, setRenamedSubs] = useState<Record<string, string>>({});
+  const [editingSubId, setEditingSubId] = useState<string | null>(null);
   const [channelNameDraft, setChannelNameDraft] = useState('');
   const [savingName, setSavingName] = useState(false);
   const [renameError, setRenameError] = useState('');
@@ -372,6 +376,8 @@ const LiveTvPlus: React.FC<{
     type Sub = Omit<TvChannel, 'number'>;
     interface Owner { ownerId: string; name: string; bound?: number; subs: Sub[]; }
     const owners = new Map<string, Owner>();
+    const subNamesByOwner = new Map<string, Record<string, string>>();
+    (fastChannels || []).forEach(fc => { if (fc.subNames) subNamesByOwner.set(fc.ownerId, fc.subNames); });
     const ensure = (ownerId: string, name: string): Owner => {
       let o = owners.get(ownerId);
       if (!o) { o = { ownerId, name, subs: [] }; owners.set(ownerId, o); }
@@ -386,7 +392,7 @@ const LiveTvPlus: React.FC<{
       .forEach(f => {
         const url = (f as any).url as string;
         const ownerId = ((f as any).ownerId as string) || f.id;
-        const o = ensure(ownerId, renamedChannels[ownerId] || f.ownerName || f.title);
+        const o = ensure(ownerId, f.ownerName || f.title);
         if (typeof (f as any).channelNumber === 'number') o.bound = (f as any).channelNumber; // account's bound guide number
         o.subs.push({
           id: `live_${f.id}`, name: f.title, sub: 'Live', accent: BRAND, badge: 'LIVE',
@@ -397,9 +403,8 @@ const LiveTvPlus: React.FC<{
 
     // FAST channels → a sub-channel for the account (carries the custom channel name + bound number).
     (fastChannels || []).forEach(fc => {
-      const o = ensure(fc.ownerId, renamedChannels[fc.ownerId] || fc.name || 'Channel');
-      if (renamedChannels[fc.ownerId]) o.name = renamedChannels[fc.ownerId];
-      else if (fc.name) o.name = fc.name;            // custom channel name wins for the account
+      const o = ensure(fc.ownerId, fc.name || 'Channel');
+      if (fc.name) o.name = fc.name;            // account-level channel name
       if (typeof fc.number === 'number') o.bound = fc.number;
       o.subs.push({
         id: `fast_${fc.ownerId}`, name: fc.name || `${o.name} (FAST)`, sub: 'FAST Channel', accent: '#36c5f0', badge: 'FAST',
@@ -431,7 +436,9 @@ const LiveTvPlus: React.FC<{
         const number = major == null
           ? UNNUMBERED
           : o.subs.length > 1 ? `${major}.${j + 1}` : `${major}`;
-        out.push({ ...s, number, name: o.subs.length > 1 ? `${o.name} · ${s.badge === 'FAST' ? 'FAST' : s.name}` : o.name });
+        // A name the owner gave THIS sub-channel wins, and only for it — siblings keep their own.
+        const custom = renamedSubs[s.id] ?? subNamesByOwner.get(o.ownerId)?.[s.id];
+        out.push({ ...s, number, name: custom || (o.subs.length > 1 ? `${o.name} · ${s.badge === 'FAST' ? 'FAST' : s.name}` : o.name) });
       });
     });
 
@@ -466,7 +473,7 @@ const LiveTvPlus: React.FC<{
     // unnumbered entries collect at the bottom instead of pushing everyone else around.
     out.sort((a, b) => guideSortKey(a.number) - guideSortKey(b.number));
     return out;
-  }, [feeds, fastChannels, registry, renamedChannels]);
+  }, [feeds, fastChannels, registry, renamedSubs]);
 
   // Per-program EPG for the selected channel (fetched once per owner, cached, refreshed each 30s).
   const [epg, setEpg] = useState<EpgProgram[]>([]);
@@ -479,7 +486,10 @@ const LiveTvPlus: React.FC<{
     if (!owner) { setEpg([]); setPreemptUntil(null); return; }
     const build = (sched: FastChannelSchedule | null) => {
       if (cancelled) return;
-      setEpg(computeEpg(sched, clockNow()));
+      // The guide row is decoration over playback — a bad schedule shows an empty guide, not a crash.
+      let programs: EpgProgram[] = [];
+      try { programs = computeEpg(sched, clockNow()); } catch (e) { console.warn('[LiveTV] EPG build failed for', owner, e); }
+      setEpg(programs);
       // Live pre-emption: warn viewers from when the interrupt is pending until it airs + 30s after.
       const pli = (sched as any)?.pendingLiveInterrupt;
       const until = pli ? pli.scheduledAt + 30000 : 0;
@@ -528,9 +538,14 @@ const LiveTvPlus: React.FC<{
   useEffect(() => {
     if (!channels.length) return;
     if (!focusOwnerId && !focusPlajahId && !focusNumber && !focusSourceId) return;
+    // Tune ONCE per shared link. `channels` is rebuilt on every feed/registry update, and without
+    // this the guide kept snapping back to the shared channel while the viewer was browsing.
+    const key = [focusOwnerId, focusPlajahId, focusNumber, focusSourceId].join('|');
+    if (focusAppliedRef.current === key) return;
     const i = findSharedChannel(channels, { ownerId: focusOwnerId, plajahId: focusPlajahId, number: focusNumber, sourceId: focusSourceId });
-    if (i >= 0) { setIndex(i); setLoadedIndex(i); }
+    if (i >= 0) { focusAppliedRef.current = key; setIndex(i); setLoadedIndex(i); }
   }, [focusOwnerId, focusPlajahId, focusNumber, focusSourceId, channels]);
+  const focusAppliedRef = useRef<string>('');
 
   // Keyboard / D-pad (works on the TV app too).
   //
@@ -595,32 +610,29 @@ const LiveTvPlus: React.FC<{
   const beginRename = useCallback((channel: TvChannel) => {
     const ownerId = channel.scheduleOwner || channel.ownerId;
     if (!ownerId || ownerId !== currentUser?.uid) return;
-    const accountName = renamedChannels[ownerId]
-      || fastChannels.find(fc => fc.ownerId === ownerId)?.name
-      || channel.name.replace(/ · (FAST|.+)$/, '');
-    setEditingOwnerId(ownerId);
-    setChannelNameDraft(accountName);
+    setEditingSubId(channel.id);
+    setChannelNameDraft(channel.name);
     setRenameError('');
-  }, [currentUser?.uid, fastChannels, renamedChannels]);
+  }, [currentUser?.uid]);
 
   const saveRename = useCallback(async () => {
-    if (!editingOwnerId || editingOwnerId !== currentUser?.uid || savingName) return;
+    if (!editingSubId || !currentUser?.uid || savingName) return;
     const name = channelNameDraft.trim().slice(0, 60);
     if (!name) { setRenameError('Enter a channel name.'); return; }
     setSavingName(true);
     setRenameError('');
     try {
-      // Never accept an owner id from the selected guide row for the write. Binding the operation
-      // to the signed-in uid keeps the client aligned with the Firestore ownership rule.
-      await setChannelName(currentUser.uid, name);
-      setRenamedChannels(prev => ({ ...prev, [currentUser.uid]: name }));
-      setEditingOwnerId(null);
+      // The write is bound to the signed-in uid (matches the Firestore ownership rule) and keyed by
+      // the single sub-channel being edited, so the account's other channels keep their own names.
+      await setChannelSubName(currentUser.uid, editingSubId, name);
+      setRenamedSubs(prev => ({ ...prev, [editingSubId]: name }));
+      setEditingSubId(null);
     } catch {
       setRenameError('Could not save the name. Try again.');
     } finally {
       setSavingName(false);
     }
-  }, [channelNameDraft, currentUser?.uid, editingOwnerId, savingName]);
+  }, [channelNameDraft, currentUser?.uid, editingSubId, savingName]);
 
   // ── Sharing the channel that's on the dial right now ──────────────────────────
   // A stable key the /share route and the deep-link both understand: `plajah:<id>` for a
@@ -662,24 +674,90 @@ const LiveTvPlus: React.FC<{
   // that leaning back gets you a full picture); ANY input brings the chrome straight back.
   const [immersive, setImmersive] = useState(false);
   const idleRef = useRef<any>(null);
+
+  // REAL browser full screen (desktop/mobile web). The Full screen button used to only hide the
+  // dial + guide inside the page, so the browser chrome stayed and Esc did nothing. Now it takes
+  // the root element full screen; Esc is handled natively by the browser, and the
+  // `fullscreenchange` listener keeps our chrome state in step however it was exited.
+  // Mouse behaves like a normal video player: movement reveals the controls, ~3s of stillness
+  // hides them (and the cursor) again. TVs are already full screen and keep their remote idle model.
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [isFs, setIsFs] = useState(false);
+
+  // PHONE (portrait) layout. The desktop/TV layout — video filling the panel with a rolling dial
+  // down the right edge and a sideways card strip — is built for a wide screen with a remote or
+  // mouse; on a phone the dial eats the picture and the strip is a thumb-twister. Compact stacks
+  // it the way a phone TV app does: 16:9 player on top, what's on, then a vertical channel list.
+  const [compact, setCompact] = useState(() =>
+    typeof window !== 'undefined' && !!window.matchMedia?.('(max-width: 639px) and (orientation: portrait)').matches && !getPlatformInfo().isTV);
+  useEffect(() => {
+    const mq = window.matchMedia?.('(max-width: 639px) and (orientation: portrait)');
+    if (!mq) return;
+    const on = () => setCompact(mq.matches && !getPlatformInfo().isTV);
+    on();
+    mq.addEventListener?.('change', on);
+    return () => mq.removeEventListener?.('change', on);
+  }, []);
+  // Swipe the picture up/down to change channel (compact only; the dial isn't shown there).
+  const swipeRef = useRef<{ y: number; x: number } | null>(null);
+  const fsRef = useRef(false);
+  const fsElement = () => (document as any).fullscreenElement || (document as any).webkitFullscreenElement || null;
+  const toggleFullscreen = useCallback(() => {
+    const el = rootRef.current as any;
+    if (fsElement()) {
+      (document.exitFullscreen || (document as any).webkitExitFullscreen)?.call(document);
+      return;
+    }
+    setImmersive(true);
+    const req = el?.requestFullscreen || el?.webkitRequestFullscreen;
+    if (!req || getPlatformInfo().isTV) return;          // no API (e.g. iPhone Safari): in-page full screen only
+    Promise.resolve(req.call(el)).catch(() => { /* denied → stay in the in-page full screen */ });
+  }, []);
+
   useEffect(() => {
     const armIdle = () => {
       if (idleRef.current) clearTimeout(idleRef.current);
-      if (!getPlatformInfo().isTV) return;
-      idleRef.current = setTimeout(() => setImmersive(true), 15000);
+      const ms = getPlatformInfo().isTV ? 15000 : fsRef.current ? 3000 : 0;
+      if (!ms) return;
+      idleRef.current = setTimeout(() => setImmersive(true), ms);
     };
     const wake = () => { setImmersive(false); armIdle(); };
+    const onFsChange = () => {
+      const on = !!fsElement();
+      fsRef.current = on;
+      setIsFs(on);
+      if (on) armIdle();
+      else { setImmersive(false); armIdle(); }            // Esc / browser exit → bring the guide back
+    };
     armIdle();
     window.addEventListener('keydown', wake);
     window.addEventListener('pointerdown', wake);
     window.addEventListener('mousemove', wake);
+    document.addEventListener('fullscreenchange', onFsChange);
+    document.addEventListener('webkitfullscreenchange', onFsChange);
     return () => {
       if (idleRef.current) clearTimeout(idleRef.current);
       window.removeEventListener('keydown', wake);
       window.removeEventListener('pointerdown', wake);
       window.removeEventListener('mousemove', wake);
+      document.removeEventListener('fullscreenchange', onFsChange);
+      document.removeEventListener('webkitfullscreenchange', onFsChange);
+      if (fsElement()) (document.exitFullscreen || (document as any).webkitExitFullscreen)?.call(document);
     };
   }, []);
+
+  // `F` toggles full screen, like every video player.
+  useEffect(() => {
+    const onF = (e: KeyboardEvent) => {
+      if ((e.key !== 'f' && e.key !== 'F') || e.ctrlKey || e.metaKey || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+      e.preventDefault();
+      toggleFullscreen();
+    };
+    window.addEventListener('keydown', onF);
+    return () => window.removeEventListener('keydown', onF);
+  }, [toggleFullscreen]);
 
   // ── FAST playout: WALL-CLOCK DRIVEN, like a real broadcast station ─────────────────────────────
   // What is on air is a PURE FUNCTION OF THE CURRENT TIME: dayAnchoredPosition(slots, now) yields the
@@ -856,7 +934,8 @@ const LiveTvPlus: React.FC<{
       // data-tv-capture: see the comment above the keydown effect — without this the geometric
       // TVNavigationLayer eats arrow keys before this screen's own handler ever runs.
       data-tv-capture
-      className={`fixed ${tvInset ? 'inset-x-0 bottom-0 top-16' : tvRailInset ? 'inset-y-0 right-0 bottom-0' : 'inset-0'} z-[60] bg-[#04050a] text-white flex flex-col`}
+      ref={rootRef}
+      className={`${isFs && immersive ? 'cursor-none ' : ''}fixed ${tvInset ? 'inset-x-0 bottom-0 top-16' : tvRailInset ? 'inset-y-0 right-0 bottom-0' : 'inset-0'} z-[60] bg-[#04050a] text-white flex flex-col`}
       style={{
         height: tvInset ? 'calc(100dvh - 4rem)' : '100dvh',
         // left + right (no width) is deliberate: a fixed element with both edges set stretches to
@@ -866,7 +945,7 @@ const LiveTvPlus: React.FC<{
     >
       {/* Top bar (hidden in full-screen viewing) */}
       {!immersive && (
-      <div className="flex items-center justify-between px-4 py-2.5 shrink-0 z-30">
+      <div className="flex items-center justify-between px-4 py-2.5 shrink-0 z-30" style={compact ? { paddingTop: 'max(0.625rem, env(safe-area-inset-top))' } : undefined}>
         <button onClick={onBack} className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15"><ArrowLeft size={17} /></button>
         <div className="flex items-center gap-2">
           <Radio size={14} style={{ color: BRAND }} />
@@ -885,14 +964,23 @@ const LiveTvPlus: React.FC<{
             />
           )}
           <button onClick={() => setMuted(m => !m)} className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15">{muted ? <VolumeX size={16} /> : <Volume2 size={16} />}</button>
-          <button onClick={() => setImmersive(true)} title="Full screen" className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15"><Maximize2 size={16} /></button>
+          <button onClick={toggleFullscreen} title={isFs ? 'Exit full screen (Esc)' : 'Full screen (F)'} aria-label={isFs ? 'Exit full screen' : 'Full screen'} className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15">{isFs ? <Minimize2 size={16} /> : <Maximize2 size={16} />}</button>
           {onOpenClassic && <button onClick={onOpenClassic} title="All live" className="w-9 h-9 rounded-full bg-white/10 grid place-items-center hover:bg-white/15"><LayoutGrid size={16} /></button>}
         </div>
       </div>
       )}
 
       {/* Content + dial */}
-      <div className="relative flex-1 min-h-0">
+      <div
+        className={compact && !immersive ? 'relative shrink-0 w-full aspect-video bg-black' : 'relative flex-1 min-h-0'}
+        onTouchStart={compact ? (e) => { swipeRef.current = { y: e.touches[0].clientY, x: e.touches[0].clientX }; } : undefined}
+        onTouchEnd={compact ? (e) => {
+          const s = swipeRef.current; swipeRef.current = null;
+          if (!s) return;
+          const dy = e.changedTouches[0].clientY - s.y, dx = e.changedTouches[0].clientX - s.x;
+          if (Math.abs(dy) > 70 && Math.abs(dy) > Math.abs(dx) * 1.5) setIdx(Math.max(0, Math.min(channels.length - 1, index + (dy < 0 ? 1 : -1))));
+        } : undefined}
+        onDoubleClick={(e) => { if (!(e.target as HTMLElement).closest('button,a,input,textarea,[role="button"]')) toggleFullscreen(); }}>
         {/* A generative channel has no url and no file, so it does not go through ChannelPlayer
             at all — it renders itself from the clock. Mounted once and never keyed on a slot:
             re-mounting it would restart a session someone is inside. */}
@@ -934,7 +1022,7 @@ const LiveTvPlus: React.FC<{
         )}
 
         {/* Now-playing overlay (top-left) */}
-        {selected && (
+        {selected && (!compact || immersive) && (
           <div className="absolute top-4 left-4 z-20 max-w-[60%]">
             <div className="inline-flex items-center gap-2 mb-2">
               <span className="text-[10px] font-black px-2 py-0.5 rounded-md" style={{ background: selected.badge === 'LIVE' ? '#e11' : selected.badge === 'FAST' ? '#36c5f0' : selected.accent, color: '#000' }}>
@@ -949,7 +1037,7 @@ const LiveTvPlus: React.FC<{
 
         {/* Rolling dial pinned right — z-40 so the ad/FM/up-next overlays never swallow the channel
             buttons, and a bigger hit area so they work on touch and with a remote. */}
-        {!immersive && (
+        {!immersive && !compact && (
         <div className="absolute right-2 top-0 bottom-0 z-40 flex items-center">
           <div className="flex flex-col items-center gap-1.5">
             <button aria-label="Channel up" onClick={() => setIdx(Math.max(0, index - 1))}
@@ -964,7 +1052,24 @@ const LiveTvPlus: React.FC<{
 
       {/* Bottom EPG guide (hidden in full-screen viewing) */}
       {!immersive && (
-      <div className="shrink-0 border-t border-white/10 bg-black/50 backdrop-blur px-3 py-3">
+      <div
+        className={compact ? 'flex-1 min-h-0 overflow-y-auto overscroll-contain border-t border-white/10 bg-black/50 px-3 pt-3' : 'shrink-0 border-t border-white/10 bg-black/50 backdrop-blur px-3 py-3'}
+        style={compact ? { paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' } : undefined}
+      >
+        {/* Phone: what's on, right under the picture (the desktop layout overlays this on the video). */}
+        {compact && selected && (
+          <div className="mb-3">
+            <div className="flex items-center gap-2 mb-1">
+              <span className="text-[10px] font-black px-2 py-0.5 rounded-md" style={{ background: selected.badge === 'LIVE' ? '#e11' : selected.badge === 'FAST' ? '#36c5f0' : selected.accent, color: '#000' }}>
+                {selected.badge === 'LIVE' ? '● LIVE' : selected.badge}
+              </span>
+              <span className="text-[11px] font-black text-white/60">CH {selected.number}</span>
+              {loadedIndex !== index && <span className="text-[10px] font-bold text-white/40">tuning…</span>}
+            </div>
+            <h2 className="text-lg font-black leading-tight line-clamp-2">{selected.name}</h2>
+            <p className="text-[12px] text-white/60 font-bold mt-0.5 truncate">{selected.sub} · Now: {selected.now}</p>
+          </div>
+        )}
         {/* Per-program schedule for the selected channel (real times, from the FAST schedule). */}
         {selected && (selected.isLive || epg.length > 0) && (
           <div className="flex items-stretch gap-2 mb-3 overflow-x-auto no-scrollbar">
@@ -995,7 +1100,7 @@ const LiveTvPlus: React.FC<{
           <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Channels</span>
           <span className="text-[9px] font-bold text-white/30">{channels.length} channels</span>
         </div>
-        <div ref={guideRef} className="flex gap-2 overflow-x-auto no-scrollbar pb-1">
+        <div ref={guideRef} className={compact ? 'flex flex-col gap-2 pb-2' : 'flex gap-2 overflow-x-auto no-scrollbar pb-1'}>
           {channels.map((ch, i) => {
             const on = i === index;
             return (
@@ -1006,13 +1111,13 @@ const LiveTvPlus: React.FC<{
                 role="button"
                 tabIndex={0}
                 onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setIdx(i); } }}
-                className="shrink-0 w-52 text-left rounded-xl border p-2.5 transition-colors cursor-pointer"
+                className={`${compact ? 'w-full min-h-[64px]' : 'shrink-0 w-52'} text-left rounded-xl border p-2.5 transition-colors cursor-pointer`}
                 style={{ borderColor: on ? BRAND : 'rgba(255,255,255,0.08)', background: on ? `${BRAND}1f` : 'rgba(255,255,255,0.03)' }}
               >
                 <div className="flex items-center gap-1.5 mb-1">
                   <span className="text-[9px] font-black" style={{ color: on ? BRAND : 'rgba(255,255,255,0.4)' }}>CH {ch.number}</span>
                   <span className="text-[8px] font-black px-1.5 py-0.5 rounded" style={{ background: ch.badge === 'LIVE' ? '#e11' : ch.badge === 'FAST' ? '#36c5f0' : ch.accent, color: '#000' }}>{ch.badge === 'LIVE' ? 'LIVE' : ch.badge}</span>
-                  {canManageChannel(ch, currentUser) && editingOwnerId !== currentUser?.uid && (
+                  {canManageChannel(ch, currentUser) && editingSubId !== ch.id && (
                     <button
                       type="button"
                       aria-label={`Rename ${ch.name}`}
@@ -1024,7 +1129,7 @@ const LiveTvPlus: React.FC<{
                     </button>
                   )}
                 </div>
-                {!!currentUser && editingOwnerId === currentUser.uid && on ? (
+                {!!currentUser && editingSubId === ch.id && on ? (
                   <div onClick={e => e.stopPropagation()} className="mt-1">
                     <div className="flex items-center gap-1">
                       <input
@@ -1036,13 +1141,13 @@ const LiveTvPlus: React.FC<{
                         onKeyDown={e => {
                           e.stopPropagation();
                           if (e.key === 'Enter') { e.preventDefault(); void saveRename(); }
-                          if (e.key === 'Escape') setEditingOwnerId(null);
+                          if (e.key === 'Escape') setEditingSubId(null);
                         }}
                         className="min-w-0 flex-1 rounded-md border border-white/20 bg-black/50 px-2 py-1 text-[12px] font-black text-white outline-none focus:border-[#FF8C00]"
                       />
                       <button type="button" disabled={savingName} aria-label="Save channel name" onClick={() => void saveRename()}
                         className="w-7 h-7 rounded-md grid place-items-center bg-[#FF8C00] text-black disabled:opacity-50"><Check size={13} /></button>
-                      <button type="button" disabled={savingName} aria-label="Cancel renaming" onClick={() => setEditingOwnerId(null)}
+                      <button type="button" disabled={savingName} aria-label="Cancel renaming" onClick={() => setEditingSubId(null)}
                         className="w-7 h-7 rounded-md grid place-items-center bg-white/10 text-white"><X size={13} /></button>
                     </div>
                     {renameError && <p role="alert" className="mt-1 text-[9px] font-bold text-red-400">{renameError}</p>}
@@ -1060,9 +1165,9 @@ const LiveTvPlus: React.FC<{
 
       {/* Full-screen: a quiet hint that any press brings the guide back. */}
       {immersive && (
-        <button onClick={() => setImmersive(false)}
+        <button onClick={() => { if (fsElement()) toggleFullscreen(); else setImmersive(false); }}
           className="absolute bottom-5 right-5 z-40 flex items-center gap-2 px-4 py-2 rounded-full bg-black/55 border border-white/15 backdrop-blur text-[10px] font-black uppercase tracking-widest text-white/70 hover:text-white">
-          <Minimize2 size={14} /> Show guide
+          <Minimize2 size={14} /> {isFs ? 'Exit full screen · Esc' : 'Show guide'}
         </button>
       )}
     </div>
