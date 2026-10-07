@@ -11429,7 +11429,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       let replyText = '';
       let toolCalls: any[] = [];
       let usedSearch = false;
-      const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || '';
+      const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
       let replyError = false;
 
       try {
@@ -11732,7 +11732,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.get('/api/agent/health', async (_req, res) => {
     if (_ariaHealth && Date.now() - _ariaHealth.t < 60_000) return res.json({ ..._ariaHealth.v, cached: true });
     const mai = !!(process.env.MAI_API_KEY && !(process.env.MAI_ENDPOINT || '').includes('TODO'));
-    const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || '';
+    const geminiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
     let out: any;
     if (mai) {
       out = { provider: 'mai', configured: true, ok: true, note: 'MAI configured (not test-pinged)' };
@@ -11931,7 +11931,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
     const fbKey  = process.env.FIREBASE_API_KEY ?? process.env.VITE_FIREBASE_API_KEY ?? '';
     console.log('[Config] ENCRYPTION_KEY:', encKey.length >= 16 ? `set (${encKey.length} chars)` : 'MISSING');
     console.log('[Config] FIREBASE_API_KEY:', fbKey.length > 0 ? 'set' : 'MISSING');
-    const aiKey = process.env.GOOGLE_AI_API_KEY ?? process.env.VITE_GOOGLE_AI_API_KEY ?? '';
+    const aiKey = process.env.GOOGLE_AI_API_KEY || process.env.VITE_GOOGLE_AI_API_KEY || process.env.GEMINI_API_KEY || '';
     console.log('[Config] GOOGLE_AI_API_KEY (Aria fallback):', aiKey.length > 0 ? 'set' : 'not set');
     const maiKey      = process.env.MAI_API_KEY ?? '';
     const maiEp       = process.env.MAI_ENDPOINT ?? '';
