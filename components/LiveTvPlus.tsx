@@ -1052,7 +1052,10 @@ const LiveTvPlus: React.FC<{
       ref={rootRef}
       className={`${isFs && immersive ? 'cursor-none ' : ''}fixed ${tvInset ? 'inset-x-0 bottom-0 top-16' : tvRailInset ? 'inset-y-0 right-0 bottom-0' : 'inset-0'} z-[60] bg-[#04050a] text-white flex flex-col`}
       style={{
-        height: tvInset ? 'calc(100dvh - 4rem)' : '100dvh',
+        // On a phone the app's fixed bottom tab bar sits above this surface, so stop above it
+        // (--pj-mobile-nav-h is published by App; it is unset — 0 — on TV/desktop). Real browser
+        // full screen takes the whole display, where that bar isn't shown.
+        height: tvInset ? 'calc(100dvh - 4rem)' : isFs ? '100dvh' : 'calc(100dvh - var(--pj-mobile-nav-h, 0px))',
         // left + right (no width) is deliberate: a fixed element with both edges set stretches to
         // fill the gap on its own, which stays correct if TV_SPINE_W ever changes.
         left: tvRailInset || undefined,
@@ -1155,10 +1158,12 @@ const LiveTvPlus: React.FC<{
             buttons, and a bigger hit area so they work on touch and with a remote. */}
         {!immersive && !compact && (
         <div className="absolute right-2 top-0 bottom-0 z-40 flex items-center">
-          <div className="flex flex-col items-center gap-1.5">
+          <div className="flex flex-col items-center justify-center gap-1.5 h-full py-1">
             <button aria-label="Channel up" onClick={() => setIdx(Math.max(0, index - 1))}
               className="w-11 h-10 rounded-xl bg-black/60 border border-white/15 backdrop-blur grid place-items-center hover:bg-white/20 active:scale-95"><ChevronUp size={20} /></button>
-            <div className="h-[62vh]"><ChannelDial channels={channels} index={index} onIndex={setIdx} /></div>
+            {/* min-h-0 + the cap keep the dial inside a short panel (phone landscape) instead of
+                overflowing under the guide. */}
+            <div style={{ flex: '0 1 62vh', minHeight: 0, width: 78 }}><ChannelDial channels={channels} index={index} onIndex={setIdx} /></div>
             <button aria-label="Channel down" onClick={() => setIdx(Math.min(channels.length - 1, index + 1))}
               className="w-11 h-10 rounded-xl bg-black/60 border border-white/15 backdrop-blur grid place-items-center hover:bg-white/20 active:scale-95"><ChevronDown size={20} /></button>
           </div>
@@ -1170,7 +1175,7 @@ const LiveTvPlus: React.FC<{
       {!immersive && (
       <div
         className={compact ? 'flex-1 min-h-0 overflow-y-auto overscroll-contain border-t border-white/10 bg-black/50 px-3 pt-3' : 'shrink-0 border-t border-white/10 bg-black/50 backdrop-blur px-3 py-3'}
-        style={compact ? { paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' } : undefined}
+        style={compact ? { paddingBottom: '1rem' } : undefined}
       >
         {/* Phone: what's on, right under the picture (the desktop layout overlays this on the video). */}
         {compact && selected && (
