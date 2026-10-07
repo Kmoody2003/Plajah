@@ -68,7 +68,7 @@ export function labelGate(film: CouncilFilm): string[] {
     }
     if (tr === 'silenceHold' && s.kind !== 'card') issues.push(`${s.id}: Silence Hold must be a content card`);
     if (s.kind === 'card' && !s.card?.lines.length) issues.push(`${s.id}: card has no text`);
-    if (s.kind !== 'card' && !(s.plates?.length)) issues.push(`${s.id}: shot has no plate`);
+    if (s.kind !== 'card' && s.kind !== 'animatedPainting' && !(s.plates?.length)) issues.push(`${s.id}: shot has no plate`);
     if (tr === 'stampSlam' && !s.stamp) issues.push(`${s.id}: Stamp Slam needs the spoken year or number it lands on`);
   });
   if (fullBleed > 1) issues.push(`${fullBleed} full-bleed reconstructions; the owner allows exactly one per film`);

@@ -1,6 +1,8 @@
 // Standalone Dossier film page (dossier-film.html).
 //   /dossier-film.html                      → the interactive player (Douglass)
 //   /dossier-film.html?film=ford            → the interactive player, Henry Ford (council style)
+//   /dossier-film.html?film=founding-battle → the interactive player, the animated-painting demo (Trumbull, Bunker Hill);
+//                                              add &motion=full to play the motion when the OS asks for reduced motion
 //   /dossier-film.html?render=1[&film=ford] → bare 1920×1080 canvas driven by scripts/dossier/renderFilm.ts
 //   /dossier-film.html?render=1&t=42        → a single still at 42 s (for review)
 import React from 'react';
@@ -10,9 +12,10 @@ import { FilmRenderer, FONT_CSS } from '../services/dossier/film/filmRenderer';
 import type { FilmSpec } from '../services/dossier/film/filmTypes';
 import { loadDouglassFilm } from '../data/dossier/douglassFilm';
 import { loadFordCouncilFilm } from '../data/dossier/fordFilmCouncil';
+import { loadFoundingBattleFilm } from '../data/dossier/foundingBattleDemo';
 
 const q = new URLSearchParams(location.search);
-const LOADERS: Record<string, (w?: number, h?: number) => Promise<FilmSpec>> = { douglass: loadDouglassFilm, ford: loadFordCouncilFilm };
+const LOADERS: Record<string, (w?: number, h?: number) => Promise<FilmSpec>> = { douglass: loadDouglassFilm, ford: loadFordCouncilFilm, 'founding-battle': loadFoundingBattleFilm };
 const which = q.get('film') ?? 'douglass';
 const loadSpec = LOADERS[which] ?? loadDouglassFilm;
 
@@ -30,14 +33,23 @@ declare global {
         timing: 'estimated' | 'voiced' | 'mixed';
         cues: Array<{ a: number; b: number; text: string }>;
         silences: Array<{ from: number; to: number }>;
-        foley: Array<{ at: number; kind: string }>;
+        foley: Array<{ at: number; kind: string; gain?: number }>;
+        ambience: Array<{ from: number; to: number; kind: string }>;
         stableTimes: Array<{ id: string; t: number }>;
         warnings: string[];
         verify(t: number): { fidelity: Array<{ asset: string; psnr: number; vsSource: number }> };
         textGates(): { captionFit: Array<{ text: string; lines: number; width: number }>; textFit: string[] };
+        paintingGates(): Array<{ id: string; ok: boolean; lock?: { maxDiff: number; compared: number; farMoved: number }; stillDb?: number; bookendDiff?: number; note?: string }>;
       };
     };
   }
+}
+
+// Preview only: ?motion=full plays the animated version even when the OS asks for reduced motion (the player otherwise shows
+// the authored still, as it must for viewers who asked for it). Useful for review on machines that have it switched on.
+if (q.get('motion') === 'full' && window.matchMedia) {
+  const real = window.matchMedia.bind(window);
+  window.matchMedia = (query: string) => /prefers-reduced-motion/.test(query) ? ({ ...real('(min-width: 0px)'), matches: false, media: query } as MediaQueryList) : real(query);
 }
 
 async function renderMode() {
@@ -59,10 +71,11 @@ async function renderMode() {
     council: c && {
       timing: c.tl.timing,
       cues: c.tl.cues.map(x => ({ a: x.a, b: x.b, text: x.text })),
-      silences: c.tl.silences, foley: c.tl.foley, warnings: c.tl.warnings,
+      silences: c.tl.silences, foley: c.tl.foley, ambience: c.tl.ambience, warnings: c.tl.warnings,
       // A frame inside each plate shot's hold (after its transition, before the lower third retracts) for the PSNR gate.
       stableTimes: c.tl.shots.filter(s => s.kind === 'plates').map(s => ({ id: s.spec.id, t: s.start + s.trDur + Math.min(1.5, (s.end - s.start - s.trDur) / 2) })),
       verify: t => { r.draw(t); return { fidelity: c.painter.plateFidelity(canvas.getContext('2d')!, t) }; },
+      paintingGates: () => c.painter.paintingGates(),
       textGates: () => ({ captionFit: c.painter.captionFit(canvas.getContext('2d')!), textFit: c.painter.textFit(canvas.getContext('2d')!) }),
     },
   };
@@ -72,6 +85,6 @@ async function renderMode() {
 
 if (q.has('render')) void renderMode();
 else {
-  document.title = `${which === 'ford' ? 'Henry Ford' : 'Frederick Douglass'} — Dossier film`;
+  document.title = `${which === 'ford' ? 'Henry Ford' : which === 'founding-battle' ? 'Bunker Hill (animated painting)' : 'Frederick Douglass'} — Dossier film`;
   createRoot(document.getElementById('root')!).render(<DossierFilmPlayer load={loadSpec} width={1600} height={900} />);
 }

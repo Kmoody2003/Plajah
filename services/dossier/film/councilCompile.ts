@@ -6,12 +6,13 @@
  * 0.5 s between beats), so no transition begins inside a spoken word.
  */
 import type {
-  Box, CouncilFilm, CouncilShot, CouncilTheme, CouncilTimeline, FoleyEvent, LaidPlate, PlateSpec, TBeat, TShot, TransitionName,
+  AmbienceBed, Box, CouncilFilm, CouncilShot, CouncilTheme, CouncilTimeline, FoleyEvent, LaidPlate, PlateSpec, TBeat, TShot, TransitionName,
 } from './councilTypes';
 import { DH, DW, GEO, intersects } from './councilTypes';
 import { buildCues, estimateWords, markAccents, MAX_CAPTION_CHARS } from './captions';
 import { CouncilGateError, labelGate } from './provenance';
 import { GATE, KIT } from './transitions';
+import { animatedPaintingIssues, layoutPainting, paintingFoley, resolveCam } from './animatedPainting';
 
 export const FPS = 30;
 export const TITLE_LEN = 6.5;
@@ -62,11 +63,12 @@ export function layoutPlates(plates: PlateSpec[]): { laid: LaidPlate[]; slateBox
 const wordIndex = (words: Array<{ text: string }>, anchor: string) => words.findIndex(w => strip(w.text).toLowerCase() === anchor.toLowerCase());
 
 export function compileCouncil(film: CouncilFilm): CouncilTimeline {
-  const issues: string[] = labelGate(film);
+  const issues: string[] = [...labelGate(film), ...animatedPaintingIssues(film)];
   const warnings: string[] = [];
   const shots: TShot[] = [];
   const cues: CouncilTimeline['cues'] = [];
   const foley: FoleyEvent[] = [];
+  const ambience: AmbienceBed[] = [];
 
   // Title sequence.
   const titleLaid = layoutPlates([film.titlePlate]);
@@ -83,11 +85,12 @@ export function compileCouncil(film: CouncilFilm): CouncilTimeline {
     const kit = KIT[tr];
     const start = t;
     if (spec.kind === 'card') {
-      const end = start + CARD_LEN;
+      const end = start + Math.max(CARD_LEN, spec.minHold ?? 0);   // a card may be held longer than 45 frames to be read
       shots.push({ spec, index, start, end, kind: 'card', transition: tr, trDur: 0, voiceAt: start, beats: [], plates: [], anchors: {}, room: spec.room });
       t = end; return;
     }
-    const plates = layoutPlates(spec.plates ?? []);
+    const anim = spec.kind === 'animatedPainting' && spec.painting ? spec.painting : undefined;
+    const plates = anim ? { laid: [] as LaidPlate[], slateBox: undefined } : layoutPlates(spec.plates ?? []);
     // Beats: clock the narration. First beat starts after padIn; later beats follow after a gap.
     const timed = (spec.beats ?? []).map(b => ({ b, ...estimateWords(b.text, b.duration) }));
     let padIn = DEFAULT_PAD_IN;
@@ -111,6 +114,7 @@ export function compileCouncil(film: CouncilFilm): CouncilTimeline {
     const voiceEnd = beats.length ? beats[beats.length - 1].b : start;
     const holds = [kit.dur + (spec.minHold ?? 0), ...(spec.plates ?? []).map(p => kit.dur + (p.minHold ?? 0))];
     let end = Math.max(beats.length ? voiceEnd + CUT_AFTER : 0, start + Math.max(...holds, 1.5));
+    if (anim && beats.length) end = Math.max(end, voiceEnd + (anim.tail ?? 3.2));   // the camera pulls back to the whole painting after the last word
 
     // Anchors for graphics and lower thirds.
     const anchors: Record<string, number> = {};
@@ -137,7 +141,15 @@ export function compileCouncil(film: CouncilFilm): CouncilTimeline {
     }
     if (kit.foley) foley.push({ at: start + kit.foley.at, kind: kit.foley.kind });
 
-    const shot: TShot = { spec, index, start, end, kind: 'plates', transition: tr, trDur: kit.dur, voiceAt, beats, plates: plates.laid, slateBox: plates.slateBox, lowerThird, anchors, room: spec.room };
+    let laidAnim: TShot['anim'];
+    if (anim) {
+      const pl = layoutPainting(anim);
+      laidAnim = { ...pl, cam: resolveCam(anim.cam, beats, start, end - start, issues, spec.id), rampIn: anim.rampIn ?? 1.8, rampOut: anim.rampOut ?? 1.6 };
+      const pf = paintingFoley(anim, start, end, index + 1);
+      foley.push(...pf.events);
+      if (pf.wind) ambience.push({ ...pf.wind, kind: 'wind' });
+    }
+    const shot: TShot = { spec, index, start, end, kind: anim ? 'animated' : 'plates', transition: tr, trDur: kit.dur, voiceAt, beats, plates: plates.laid, slateBox: anim ? laidAnim!.slateBox : plates.slateBox, lowerThird, anchors, room: spec.room, anim: laidAnim };
     shots.push(shot);
     beats.forEach(b => cues.push(...buildCues(index, b.words, FPS)));
     t = end;
@@ -145,8 +157,9 @@ export function compileCouncil(film: CouncilFilm): CouncilTimeline {
 
   // End card.
   const endStart = t;
-  shots.push({ spec: { id: 'end', room: -1 }, index: shots.length, start: endStart, end: endStart + END_LEN, kind: 'end', transition: 'groundDip', trDur: KIT.groundDip.dur, voiceAt: endStart, beats: [], plates: [], anchors: {}, room: -1 });
-  const duration = endStart + END_LEN;
+  const endLen = film.endLen ?? END_LEN;
+  shots.push({ spec: { id: 'end', room: -1 }, index: shots.length, start: endStart, end: endStart + endLen, kind: 'end', transition: 'groundDip', trDur: KIT.groundDip.dur, voiceAt: endStart, beats: [], plates: [], anchors: {}, room: -1 });
+  const duration = endStart + endLen;
 
   // Rooms.
   const rooms = film.rooms.map((r, index) => {
@@ -171,6 +184,12 @@ export function compileCouncil(film: CouncilFilm): CouncilTimeline {
   // ── Gates that need timing ──
   const cap: Box = GEO.caption;
   shots.forEach(s => {
+    if (s.kind === 'animated' && s.anim) {
+      const { win, slateBox } = s.anim;
+      if (intersects(win, cap) || intersects(slateBox, cap)) issues.push(`${s.spec.id}: the painting or its slate overlaps the caption band`);
+      if (win.x < 0 || win.y < 0 || win.x + win.w > DW || win.y + win.h > DH) issues.push(`${s.spec.id}: the painting leaves the frame`);
+      for (const b of s.beats) if (!b.claimIds.length) issues.push(`${s.spec.id}/${b.id}: factual narration cites no claim`);
+    }
     if (s.kind === 'plates') {
       const full = s.plates.some(p => p.spec.fullBleed);
       for (const p of s.plates) {
@@ -208,7 +227,7 @@ export function compileCouncil(film: CouncilFilm): CouncilTimeline {
   const beatsAll = shots.flatMap(s => s.beats);
   const voiced = beatsAll.filter(b => b.voiced).length;
   return {
-    film, fps: FPS, duration, titleEnd: TITLE_LEN, shots, rooms, cues, skips, silences, foley: foley.sort((a, b) => a.at - b.at),
+    film, fps: FPS, duration, titleEnd: TITLE_LEN, shots, rooms, cues, skips, silences, foley: foley.sort((a, b) => a.at - b.at), ambience,
     timing: voiced === 0 ? 'estimated' : voiced === beatsAll.length ? 'voiced' : 'mixed', warnings,
   };
 }

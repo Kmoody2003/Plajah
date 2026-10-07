@@ -1,9 +1,10 @@
 /**
  * Exports a Dossier film to MP4 by driving the exact renderer the app uses.
  *
- *   npx tsx scripts/dossier/renderFilm.ts [--film=douglass|ford] [--out=path.mp4] [--from=0] [--to=end] [--fps=30] [--w=1920 --h=1080]
+ *   npx tsx scripts/dossier/renderFilm.ts [--film=douglass|ford|founding-battle] [--out=path.mp4] [--from=0] [--to=end] [--fps=30] [--w=1920 --h=1080]
  *   npx tsx scripts/dossier/renderFilm.ts --film=ford --stills=5,30,62      # review stills → .film-work/stills/*.jpg
  *   npx tsx scripts/dossier/renderFilm.ts --film=ford --verify               # build gates only (PSNR, caption fit), no render
+ *   npx tsx scripts/dossier/renderFilm.ts --film=founding-battle             # the animated-painting demo -> docs/dossier/founding-battle-demo.mp4
  *
  * Pipeline: Vite dev server → dossier-film.html?render=1 in headless Chromium → window.__film.frame(t) per frame →
  * ffmpeg (H.264) → narration lines placed at their cue times + score ducked under the voice (sidechain) → MP4 + SRT.
@@ -49,15 +50,17 @@ const ffmpeg = (args: string[]) => execFileSync(FFMPEG, ['-y', '-v', 'error', ..
 /** Synthesised foley (credited as generated on the end card): one dry steel tap, one thunk (the same every time), one ratchet tick. */
 function foleySamples(): Record<string, string> {
   const dir = path.join(WORK, 'foley'); fs.mkdirSync(dir, { recursive: true });
-  const defs: Record<string, { expr: string; d: number }> = {
+  const defs: Record<string, { expr: string; d: number; af?: string }> = {
     tap: { expr: '0.8*sin(2*PI*2300*t)*exp(-85*t)+0.5*sin(2*PI*610*t)*exp(-40*t)+0.25*(random(0)*2-1)*exp(-140*t)', d: 0.3 },
     thunk: { expr: '0.9*sin(2*PI*82*t)*exp(-13*t)+0.3*sin(2*PI*205*t)*exp(-30*t)+0.12*(random(0)*2-1)*exp(-60*t)', d: 0.7 },
     tick: { expr: '0.7*sin(2*PI*3300*t)*exp(-260*t)', d: 0.1 },
+    // A distant musket report: a low thump and a puff of noise, low-passed and given a faint echo off the hill.
+    musket: { expr: '0.9*sin(2*PI*66*t)*exp(-20*t)+0.5*(random(0)*2-1)*exp(-34*t)', d: 0.9, af: 'lowpass=f=520,aecho=0.5:0.4:120|260:0.35|0.2' },
   };
   const out: Record<string, string> = {};
   for (const [k, v] of Object.entries(defs)) {
     out[k] = path.join(dir, `${k}.wav`);
-    ffmpeg(['-f', 'lavfi', '-i', `aevalsrc='${v.expr}':s=48000:d=${v.d}`, '-ac', '1', out[k]]);
+    ffmpeg(['-f', 'lavfi', '-i', `aevalsrc='${v.expr}':s=48000:d=${v.d}`, '-ac', '1', ...(v.af ? ['-af', v.af] : []), out[k]]);
   }
   return out;
 }
@@ -71,7 +74,7 @@ async function main() {
   await page.waitForFunction(() => window.__film?.ready === true, null, { timeout: 180_000 });
   const film = await page.evaluate(() => ({
     duration: window.__film!.duration, fps: window.__film!.fps, voiceCues: window.__film!.voiceCues, score: window.__film!.score,
-    council: window.__film!.council && { timing: window.__film!.council.timing, cues: window.__film!.council.cues, silences: window.__film!.council.silences, foley: window.__film!.council.foley, warnings: window.__film!.council.warnings },
+    council: window.__film!.council && { timing: window.__film!.council.timing, cues: window.__film!.council.cues, silences: window.__film!.council.silences, foley: window.__film!.council.foley, ambience: window.__film!.council.ambience, warnings: window.__film!.council.warnings },
   }));
   const fps = Number(arg('fps', String(film.fps)));
 
@@ -87,6 +90,11 @@ async function main() {
         if (f.psnr < 40) failures.push(`plate pixels altered: ${s.id}/${f.asset} PSNR ${f.psnr.toFixed(1)} dB < 40`);
         if (f.vsSource < 25) failures.push(`plate geometry/scale off: ${s.id}/${f.asset} ${f.vsSource.toFixed(1)} dB against the source < 25`);
       }
+    }
+    const pg = await page.evaluate(() => window.__film!.council!.paintingGates());
+    for (const r of pg) {
+      console.log(`animated painting ${r.id}: ${r.ok ? 'ok' : 'FAILED'}${r.lock ? `; figure lock: ${r.lock.compared} figure px compared, max diff ${r.lock.maxDiff}, far plane moved at ${r.lock.farMoved} sampled px` : ''}${r.stillDb !== undefined ? `; opening still vs painting ${r.stillDb.toFixed(1)} dB` : ''}${r.bookendDiff !== undefined ? `; last frame vs first max diff ${r.bookendDiff}` : ''}${r.note ? `; ${r.note}` : ''}`);
+      if (!r.ok) failures.push(`animated painting gate failed: ${r.id} ${JSON.stringify(r)}`);
     }
     const g = await page.evaluate(() => window.__film!.council!.textGates());
     g.captionFit.forEach(c => failures.push(`caption does not fit two lines (${Math.round(c.width)}px): ${c.text}`));
@@ -170,20 +178,28 @@ async function main() {
     events.forEach(e => {
       inputs.push('-i', samples[e.kind]);
       const ms = Math.round((e.at - from) * 1000);
-      fo.push(`[${next}:a]adelay=${ms}|${ms},volume=${e.kind === 'tick' ? 0.05 : 0.13},aformat=sample_rates=48000:channel_layouts=stereo[f${next}]`);
+      fo.push(`[${next}:a]adelay=${ms}|${ms},volume=${e.kind === 'tick' ? 0.05 : e.kind === 'musket' ? 0.55 * ((e as { gain?: number }).gain ?? 1) : 0.13},aformat=sample_rates=48000:channel_layouts=stereo[f${next}]`);
       next++;
     });
     if (fo.length) graph += `;${fo.join(';')};${fo.map((_, k) => `[f${next - fo.length + k}]`).join('')}amix=inputs=${fo.length}:normalize=0:dropout_transition=0,apad,atrim=0:${len}[foley]`;
+    const wn: string[] = [];   // continuous synthesised beds (wind under a painted battle): brown noise, band-limited, with slow gusts
+    for (const b of (film.council?.ambience ?? []).filter(b => b.to > from && b.from < to)) {
+      const a0 = Math.max(0, b.from - from), d = Math.min(b.to, to) - Math.max(b.from, from), ms = Math.round(a0 * 1000);
+      inputs.push('-f', 'lavfi', '-i', `anoisesrc=color=brown:amplitude=0.9:sample_rate=48000:duration=${d.toFixed(2)}`);
+      wn.push(`[${next}:a]lowpass=f=900,highpass=f=70,tremolo=f=0.17:d=0.5,volume=0.30,afade=t=in:d=2,afade=t=out:st=${Math.max(0, d - 2).toFixed(2)}:d=2,adelay=${ms}|${ms},aformat=sample_rates=48000:channel_layouts=stereo[w${next}]`);
+      next++;
+    }
+    if (wn.length) graph += `;${wn.join(';')}`;
     const windows = [{ from: 0, to: 0.4 }, ...(film.council?.silences ?? [])].map(s => `between(t,${(s.from - from).toFixed(2)},${(s.to - from).toFixed(2)})`);
     graph += `;anoisesrc=color=pink:amplitude=0.012:sample_rate=48000:duration=${len},aformat=channel_layouts=stereo,volume='${windows.join('+')}':eval=frame[tone]`;
-    const mixIn = [map, ...(fo.length ? ['[foley]'] : []), '[tone]'];
+    const mixIn = [map, ...(fo.length ? ['[foley]'] : []), ...wn.map((_, k) => `[w${next - wn.length + k}]`), '[tone]'];
     graph += `;${mixIn.join('')}amix=inputs=${mixIn.length}:normalize=0:dropout_transition=0,${cues.length ? 'loudnorm=I=-16:TP=-1:LRA=11,' : ''}alimiter=limit=0.95[final]`;
     map = '[final]';
   } else if (scoreFile) {
     graph = graph.replace('[mix0]', '[mix1]').replace(/$/, ';[mix1]alimiter=limit=0.95[mix]');
     map = '[mix]';
   }
-  const out = arg('out', path.join(ROOT, 'docs', 'dossier', COUNCIL ? 'ford-explainer-council.mp4' : 'douglass-film.mp4'))!;
+  const out = arg('out', path.join(ROOT, 'docs', 'dossier', FILM === 'founding-battle' ? 'founding-battle-demo.mp4' : COUNCIL ? 'ford-explainer-council.mp4' : 'douglass-film.mp4'))!;
   ffmpeg([...inputs, '-filter_complex', graph, '-map', '0:v', '-map', map, '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', out]);
 
   // ── Captions: the same chunking as the on-screen captions ──

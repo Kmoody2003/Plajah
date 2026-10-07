@@ -9,6 +9,8 @@
  * Everything below is in design units on a 1920x1080 frame; the painter scales to the canvas.
  */
 
+import type { AnimatedPaintingSpec, LaidPainting } from './animatedPainting';
+
 export type TransitionName = 'breath' | 'stampSlam' | 'formeLock' | 'roadLine' | 'madderRule' | 'reconGate' | 'silenceHold' | 'groundDip';
 
 /** The exhibit's look. Built from services/dossier/dossierTheme.ts (see councilTheme in councilCompile.ts). */
@@ -78,7 +80,9 @@ export interface CouncilShot {
   id: string;
   /** Index into CouncilFilm.rooms. */
   room: number;
-  kind?: 'plates' | 'card';
+  kind?: 'plates' | 'card' | 'animatedPainting';
+  /** kind 'animatedPainting': a real painting given motion by code (animatedPainting.ts). Owner-approved exception, painted battles only. */
+  painting?: AnimatedPaintingSpec;
   transition?: TransitionName;
   /** Text set in the Stamp Slam bar (a spoken year or number). Also the word the slam lands on. */
   stamp?: string;
@@ -123,6 +127,8 @@ export interface CouncilFilm {
   accentTerms: string[];
   /** The honesty line set under the title. */
   honesty: string;
+  /** Seconds the end card holds (default 12). */
+  endLen?: number;
 }
 
 // ── Compiled timeline ─────────────────────────────────────────────────────────────
@@ -137,7 +143,7 @@ export interface TShot {
   index: number;
   start: number;
   end: number;
-  kind: 'title' | 'plates' | 'card' | 'end';
+  kind: 'title' | 'plates' | 'card' | 'end' | 'animated';
   transition: TransitionName;
   trDur: number;
   /** Time on the film clock where the first beat's voice begins. */
@@ -151,10 +157,14 @@ export interface TShot {
   anchors: Record<string, number>;
   /** Index into rooms (title and end card use -1). */
   room: number;
+  /** kind 'animated': the painting's window, slate box and resolved camera. */
+  anim?: LaidPainting;
 }
 
 export interface CaptionCue { shot: number; a: number; b: number; text: string; wordFrom: number; wordTo: number; words: TWord[] }
-export interface FoleyEvent { at: number; kind: 'tap' | 'thunk' | 'tick' }
+export interface FoleyEvent { at: number; kind: 'tap' | 'thunk' | 'tick' | 'musket'; /** 0..1 relative level (default 1). */ gain?: number }
+/** A continuous synthesised bed (wind) between two film-clock times. */
+export interface AmbienceBed { from: number; to: number; kind: 'wind' }
 
 export interface CouncilTimeline {
   film: CouncilFilm;
@@ -169,6 +179,7 @@ export interface CouncilTimeline {
   /** Windows where the score is out (Silence Hold). */
   silences: Array<{ from: number; to: number }>;
   foley: FoleyEvent[];
+  ambience: AmbienceBed[];
   /** 'voiced' when every beat has audio, 'estimated' when none do, 'mixed' otherwise. */
   timing: 'estimated' | 'voiced' | 'mixed';
   warnings: string[];

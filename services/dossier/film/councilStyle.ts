@@ -14,6 +14,7 @@ import { shotAt } from './councilCompile';
 import { slateLines } from './provenance';
 import { clamp, ease, span } from './motion';
 import { mixHex } from '../dossierTheme';
+import { PAINTING_MARGIN_W, PAINTING_MARGIN_X, PaintingFx, paintingCamAt, paintingMotion, type AnimatedPaintingSpec } from './animatedPainting';
 
 const F = 1 / 30;
 
@@ -23,6 +24,9 @@ export class CouncilPainter {
   private ctx!: CanvasRenderingContext2D;
   private reduced = false;
   private cache = new Map<string, HTMLCanvasElement>();
+  private W = DW; private H = DH;
+  /** One GPU compositor per animated painting (animatedPainting.ts), built on first use at the canvas's pixel scale. */
+  private fxs = new Map<string, PaintingFx | null>();
   /** Names every font stack the film needs, so the loader can wait for them. */
   readonly fontLoads: string[];
 
@@ -43,7 +47,7 @@ export class CouncilPainter {
 
   // ── Frame ─────────────────────────────────────────────────────────────────────
   draw(ctx: CanvasRenderingContext2D, W: number, H: number, t: number, o: PaintOpts): void {
-    this.ctx = ctx; this.reduced = o.reduced;
+    this.ctx = ctx; this.reduced = o.reduced; this.W = W; this.H = H;
     const tl = this.tl;
     t = clamp(t, 0, tl.duration - 1e-3);
     ctx.save();
@@ -74,6 +78,7 @@ export class CouncilPainter {
       case 'card': return this.card(s);
       case 'end': return this.endCard(s, local);
       case 'plates': return this.plates(s, local, t);
+      case 'animated': return this.animated(s, local);
     }
   }
 
@@ -159,14 +164,14 @@ export class CouncilPainter {
   }
 
   /** The RECONSTRUCTION stamp: Inter Tight caps +140 tracking, 30 px, a hollow 3 px box. Returns its width. */
-  private drawStamp(x: number, y: number): number {
+  private drawStamp(x: number, y: number, text = 'RECONSTRUCTION', color = this.th.stamp): number {
     const ctx = this.ctx;
     ctx.save();
     ctx.font = this.font(600, 30, 'sans');
     (ctx as any).letterSpacing = '4.2px';
-    const w = ctx.measureText('RECONSTRUCTION').width + 28;
-    ctx.strokeStyle = this.th.stamp; ctx.lineWidth = 3; ctx.strokeRect(x + 1.5, y + 1.5, w - 3, 44 - 3);
-    ctx.fillStyle = this.th.stamp; ctx.fillText('RECONSTRUCTION', x + 14, y + 32);
+    const w = ctx.measureText(text).width + 28;
+    ctx.strokeStyle = color; ctx.lineWidth = 3; ctx.strokeRect(x + 1.5, y + 1.5, w - 3, 44 - 3);
+    ctx.fillStyle = color; ctx.fillText(text, x + 14, y + 32);
     (ctx as any).letterSpacing = '0px';
     ctx.restore();
     return w;
@@ -189,6 +194,81 @@ export class CouncilPainter {
       if (ctx.measureText(next).width > maxW && line) { ctx.fillText(line, x, yy); yy += lh; line = w; } else line = next;
     }
     if (line) ctx.fillText(line, x, yy);
+  }
+
+  // ── Animated painting (animatedPainting.ts) ──────────────────────────────────
+  private fxFor(spec: AnimatedPaintingSpec, win: Box): PaintingFx | null {
+    const key = `${spec.asset}|${this.W}x${this.H}`;
+    if (this.fxs.has(key)) return this.fxs.get(key)!;
+    const imgs = { img: this.image(spec.asset), depth: this.image(spec.depth), masks: this.image(spec.masks), fx: this.image(spec.fx) };
+    let fx: PaintingFx | null = null;
+    if (imgs.img && imgs.depth && imgs.masks && imgs.fx) {
+      const f = new PaintingFx(Math.round(win.w * this.W / DW), Math.round(win.h * this.H / DH), spec);
+      if (f.load({ img: imgs.img, depth: imgs.depth, masks: imgs.masks, fx: imgs.fx })) fx = f;
+    }
+    this.fxs.set(key, fx);
+    return fx;
+  }
+
+  private animated(s: TShot, local: number) {
+    const a = s.anim!, spec = s.spec.painting!, ctx = this.ctx, win = a.win, th = this.th;
+    const dur = s.end - s.start;
+    // Reduced motion is an authored still: the whole painting at its real edges, nothing moving.
+    const cam = this.reduced ? { x: .5, y: .5, zoom: 1 } : paintingCamAt(a.cam, local);
+    const motion = this.reduced ? 0 : paintingMotion(local, dur, a.rampIn, a.rampOut);
+    const fx = this.fxFor(spec, win);
+    const frame = fx?.render({ t: local, motion, cam });
+    if (frame) ctx.drawImage(frame, win.x, win.y, win.w, win.h);
+    else {   // no WebGL2: the camera still moves over the unaltered painting
+      const img = this.image(spec.asset);
+      if (img) { const v = PaintingFx.view(cam); ctx.drawImage(img, v.x0 * img.naturalWidth, v.y0 * img.naturalHeight, v.vw * img.naturalWidth, v.vw * img.naturalHeight, win.x, win.y, win.w, win.h); }
+      else { ctx.fillStyle = this.mute(0.12); ctx.fillRect(win.x, win.y, win.w, win.h); }
+    }
+    ctx.save(); ctx.strokeStyle = this.mute(0.32); ctx.lineWidth = 1; ctx.strokeRect(win.x - 0.5, win.y - 0.5, win.w + 1, win.h + 1); ctx.restore();
+    // Provenance slate: painter, date, credit, licence.
+    const sl = spec.slate;
+    this.slate(a.slateBox, { stamp: false, line1: sl.title ?? '', line2: ['ARCHIVE', sl.source, sl.year, sl.licence].filter(Boolean).join(' · ') }, false);
+    // The label and the one-line note, present from the first frame to the last.
+    const x = PAINTING_MARGIN_X;
+    this.drawStamp(x, win.y, spec.label, th.accent);
+    let y = win.y + 44 + 30;
+    if (spec.margin?.year) { ctx.fillStyle = th.accent; ctx.font = this.font(400, 64, 'display'); ctx.fillText(this.text(spec.margin.year), x, y + 64); y += 84; }
+    if (spec.margin?.place) { ctx.fillStyle = this.mute(0.85); ctx.font = this.font(500, 28, 'sans'); this.fit(spec.margin.place, x, y + 14, PAINTING_MARGIN_W, 28, 500, 'sans'); y += 56; }
+    ctx.fillStyle = this.mute(0.92);
+    this.wrap(spec.note, x, y + 22, PAINTING_MARGIN_W, 38, 28);
+  }
+
+  /**
+   * Gates for animated paintings, on real pixels (the renderer's build gates call this):
+   *  - lock: with only parallax and flags on, every figure pixel (nearer than the sky, outside the flag regions) is identical to
+   *    the unmoved painting, and the far plane did move (so the test is not vacuous);
+   *  - still: the opening frame (effects at zero, camera on the whole painting) against the painting scaled by the canvas's own
+   *    resampler (dB; the compositor samples with mipmaps, so this is held to 28 dB, not the 40 dB of an unprocessed plate);
+   *  - bookends: the last frame of the shot is pixel-identical to the first.
+   */
+  paintingGates(): Array<{ id: string; ok: boolean; lock?: { maxDiff: number; compared: number; farMoved: number }; stillDb?: number; bookendDiff?: number; note?: string }> {
+    const out: ReturnType<CouncilPainter['paintingGates']> = [];
+    for (const s of this.tl.shots) {
+      if (s.kind !== 'animated' || !s.anim) continue;
+      const spec = s.spec.painting!, a = s.anim, fx = this.fxFor(spec, a.win);
+      if (!fx?.ok) { out.push({ id: s.spec.id, ok: false, note: 'WebGL2 unavailable: the painting would show only its camera move' }); continue; }
+      const scratch = document.createElement('canvas').getContext('2d', { willReadFrequently: true })!;
+      const dur = s.end - s.start;
+      // A camera that is off-centre and looks at sky and figures together, so parallax is non-zero and there is a far plane to move.
+      const lock = fx.lockCheck({ x: .7, y: .32, zoom: 1.9 }, dur * .5, scratch);
+      const grab = (f: Parameters<PaintingFx['render']>[0]) => { const c = fx.render(f)!; scratch.canvas.width = c.width; scratch.canvas.height = c.height; scratch.drawImage(c, 0, 0); return scratch.getImageData(0, 0, c.width, c.height).data; };
+      const first = grab({ t: 0, motion: paintingMotion(0, dur, a.rampIn, a.rampOut), cam: paintingCamAt(a.cam, 0) });
+      const last = grab({ t: dur - 1e-3, motion: paintingMotion(dur - 1e-3, dur, a.rampIn, a.rampOut), cam: paintingCamAt(a.cam, dur - 1e-3) });
+      let bookend = 0; for (let i = 0; i < first.length; i++) bookend = Math.max(bookend, Math.abs(first[i] - last[i]));
+      const img = this.image(spec.asset)!;
+      const ref = document.createElement('canvas'); ref.width = fx.w; ref.height = fx.h;
+      const rc = ref.getContext('2d', { willReadFrequently: true })!; rc.imageSmoothingEnabled = true; rc.imageSmoothingQuality = 'high'; rc.drawImage(img, 0, 0, fx.w, fx.h);
+      const rd = rc.getImageData(0, 0, fx.w, fx.h).data; let se = 0, n = 0;
+      for (let i = 0; i < rd.length; i += 4) for (let c = 0; c < 3; c++) { const d = rd[i + c] - first[i + c]; se += d * d; n++; }
+      const mse = se / n, db = mse === 0 ? 99 : 10 * Math.log10(255 * 255 / mse);
+      out.push({ id: s.spec.id, ok: lock.maxDiff <= 2 && lock.farMoved > 0 && db >= 28 && bookend === 0, lock, stillDb: db, bookendDiff: bookend });
+    }
+    return out;
   }
 
   // ── Lower third ───────────────────────────────────────────────────────────────
@@ -450,6 +530,12 @@ export class CouncilPainter {
     const bad: string[] = [];
     ctx.save();
     for (const s of this.tl.shots) {
+      if (s.kind === 'animated' && s.slateBox) {
+        const sl = s.spec.painting!.slate; ctx.font = this.font(500, 26, 'sans');
+        if (ctx.measureText(sl.title ?? '').width > s.slateBox.w) bad.push(`${s.spec.id}: slate title clipped`);
+        if (ctx.measureText(['ARCHIVE', sl.source, sl.year, sl.licence].filter(Boolean).join(' · ')).width > s.slateBox.w) bad.push(`${s.spec.id}: slate source line clipped`);
+        continue;
+      }
       if (!s.slateBox) continue;
       for (const p of s.plates) {
         const l = slateLines(p.spec);
