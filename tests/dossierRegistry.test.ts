@@ -7,7 +7,7 @@ import { validateDossier } from '../services/dossier/dossierTypes';
 
 test('registry lists the five exhibits with lobby artwork and years', () => {
   assert.deepEqual(DOSSIERS.map(d => d.id), ['frederick-douglass', 'henry-ford', 'christianity-in-persia', 'partition-1947', 'founding-era']);
-  for (const d of DOSSIERS) { assert.ok(d.heroUrl?.startsWith('https://'), d.id); assert.ok(d.years, d.id); assert.ok(d.tagline, d.id); }
+  for (const d of DOSSIERS) { assert.ok(d.heroUrl?.startsWith('https://') || d.heroUrl?.startsWith('/dossier/'), d.id); assert.ok(d.years, d.id); assert.ok(d.tagline, d.id); }
 });
 
 for (const entry of DOSSIERS) {

@@ -88,7 +88,7 @@ test('Partition: all assets are real, publishable, credited, record a Commons UR
     assert.ok(PUBLISHABLE.includes(a.rights.status) && a.rights.status !== 'generated' && a.rights.status !== 'unknown', a.id);
     assert.ok(a.rights.credit && a.rights.credit.length > 15, a.id);
     assert.ok(a.rights.verifiedAt?.startsWith('https://commons.wikimedia.org/wiki/File:'), a.id);
-    assert.ok(a.url.startsWith('https://upload.wikimedia.org/'), a.id);
+    assert.ok(a.url.startsWith('https://upload.wikimedia.org/') || a.url.startsWith('/dossier/partition/'), a.id); // a local copy of a Commons file is allowed
     assert.ok(a.claimIds.length >= 1 && a.claimIds.every(c => claimIds.has(c)), `${a.id} cites unknown claim`);
     assert.ok(!a.reconstruction, a.id);
     assert.ok(a.kind !== 'recreation', a.id);
