@@ -268,13 +268,15 @@ type Posture = 'PAGE' | 'BOARD' | 'STUDIO';
 type SaveState = 'clean' | 'dirty' | 'saving' | 'saved' | 'synced';
 
 interface TelaViewProps {
+  onDocumentChange?: (doc: TelaDoc) => void;
   onBack?: () => void;
   /** Opens a domain-generated Tela file directly (Melos, Notes, journals). */
   initialDocId?: string | null;
 }
 
-const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId }) => {
+const TelaView: React.FC<TelaViewProps> = ({ onBack, initialDocId, onDocumentChange }) => {
   const [doc, setDoc] = useState<TelaDoc | null>(null);
+  useEffect(() => { if (doc) onDocumentChange?.(doc); }, [doc, onDocumentChange]);
   const [showHome, setShowHome] = useState(!initialDocId);
   const [posture, setPosture] = useState<Posture>('PAGE');
   const [cam, setCam] = useState({ x: 0, y: 0, z: 1 });

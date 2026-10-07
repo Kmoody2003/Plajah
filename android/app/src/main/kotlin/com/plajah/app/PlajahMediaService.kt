@@ -5,14 +5,18 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.net.Uri
 import android.net.wifi.WifiManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.core.app.NotificationCompat
+import androidx.core.content.ContextCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
@@ -55,6 +59,16 @@ class PlajahMediaService : MediaLibraryService() {
     private var wakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    // The WebView <audio> element is the real player for web-driven Chora; ExoPlayer here only
+    // mirrors metadata and never plays. Without this flag the service never became a foreground
+    // service (ExoPlayer.isPlaying is always false), so the moment the screen went off Android was
+    // free to freeze the WebView process and its network — the next HLS segment / next track simply
+    // never arrived. While the web player is playing we hold a mediaPlayback foreground service plus
+    // the partial wake lock and the Wi-Fi lock.
+    @Volatile private var webPlaybackActive = false
+    private val stopWebPlaybackRunnable = Runnable { stopWebPlayback() }
 
     private var cachedCatalog: List<PlatformItem> = emptyList()
 
@@ -70,9 +84,39 @@ class PlajahMediaService : MediaLibraryService() {
         const val CAT_RADIO = "[CAT_RADIO]"
         const val CAT_LOCAL = "[CAT_LOCAL]"
 
+        const val ACTION_WEB_PLAYBACK = "com.plajah.app.action.WEB_PLAYBACK"
+        const val EXTRA_TITLE = "title"
+        const val EXTRA_ARTIST = "artist"
+
+        /** Hand-off blips between tracks pause the element for a moment; don't tear the service down for those. */
+        private const val WEB_STOP_GRACE_MS = 8_000L
+
         @Volatile
         var instance: PlajahMediaService? = null
             private set
+
+        /**
+         * Called by PlajahNativeAudioPlugin when the web player starts/stops. Starting is an explicit
+         * startForegroundService so the process is promoted; stopping is delayed by a short grace
+         * period so a track change doesn't flap the service.
+         */
+        fun setWebPlayback(context: Context, active: Boolean, title: String, artist: String) {
+            if (active) {
+                val intent = Intent(context, PlajahMediaService::class.java)
+                    .setAction(ACTION_WEB_PLAYBACK)
+                    .putExtra(EXTRA_TITLE, title)
+                    .putExtra(EXTRA_ARTIST, artist)
+                try {
+                    ContextCompat.startForegroundService(context, intent)
+                } catch (e: Exception) {
+                    // Android 12+ refuses to start a foreground service from the background; playback
+                    // that began in the foreground has already promoted the service, so this is rare.
+                    Log.w(TAG, "startForegroundService refused: ${e.message}")
+                }
+            } else {
+                instance?.scheduleWebPlaybackStop()
+            }
+        }
     }
 
     @OptIn(UnstableApi::class)
@@ -128,7 +172,7 @@ class PlajahMediaService : MediaLibraryService() {
                     acquireLocks()
                     updateNotification(player)
                 } else {
-                    releaseLocks()
+                    if (!webPlaybackActive) releaseLocks()
                     updateNotification(player)
                 }
             }
@@ -138,7 +182,7 @@ class PlajahMediaService : MediaLibraryService() {
             }
 
             override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_ENDED) {
+                if (playbackState == Player.STATE_ENDED && !webPlaybackActive) {
                     releaseLocks()
                 }
                 updateNotification(player)
@@ -173,7 +217,73 @@ class PlajahMediaService : MediaLibraryService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaLibrarySession? =
         mediaLibrarySession
 
+    @OptIn(UnstableApi::class)
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.action == ACTION_WEB_PLAYBACK) {
+            startWebPlayback(
+                intent.getStringExtra(EXTRA_TITLE) ?: "Plajah Chora",
+                intent.getStringExtra(EXTRA_ARTIST) ?: "Now Playing"
+            )
+            return START_NOT_STICKY
+        }
+        return super.onStartCommand(intent, flags, startId)
+    }
+
+    /** Promote to a mediaPlayback foreground service + take the locks. Must run promptly after startForegroundService. */
+    private fun startWebPlayback(title: String, artist: String) {
+        mainHandler.removeCallbacks(stopWebPlaybackRunnable)
+        webPlaybackActive = true
+        val openIntent = PendingIntent.getActivity(
+            this, 0,
+            Intent(this, MainActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            },
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        val notification = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentTitle(title)
+            .setContentText(artist)
+            .setSubText("Plajah Chora")
+            .setContentIntent(openIntent)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            .setCategory(NotificationCompat.CATEGORY_TRANSPORT)
+            .setOngoing(true)
+            .setOnlyAlertOnce(true)
+            .build()
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "startForeground (web playback) failed: ${e.message}")
+        }
+        acquireLocks()
+    }
+
+    fun scheduleWebPlaybackStop() {
+        mainHandler.removeCallbacks(stopWebPlaybackRunnable)
+        mainHandler.postDelayed(stopWebPlaybackRunnable, WEB_STOP_GRACE_MS)
+    }
+
+    private fun stopWebPlayback() {
+        if (!webPlaybackActive) return
+        webPlaybackActive = false
+        if (exoPlayer?.isPlaying != true) {
+            releaseLocks()
+            try {
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            } catch (e: Exception) {
+                Log.w(TAG, "stopForeground failed: ${e.message}")
+            }
+        }
+    }
+
     override fun onDestroy() {
+        mainHandler.removeCallbacks(stopWebPlaybackRunnable)
+        webPlaybackActive = false
         instance = null
         releaseLocks()
         serviceScope.cancel()

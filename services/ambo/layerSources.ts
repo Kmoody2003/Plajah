@@ -1242,12 +1242,13 @@ export class ClockSource implements LayerSource {
 
 // ── Live Video Source (DeckLink, Switcher PGM/AUX, NDI, Camera) ─────────────
 
-import { getAppOutputStream, onAppOutputStream } from '../mediaEngine/bridge';
+import { getAppOutputStream, onAppOutputStream, onAppOutputRemoved } from '../mediaEngine/bridge';
 
 export class LiveSource implements LayerSource {
   readonly kind = 'live';
   private video: HTMLVideoElement;
   private unsubscribe?: () => void;
+  private unsubscribeRemoval?: () => void;
   private isReady = false;
 
   constructor(private content: Extract<LayerContent, { kind: 'LIVE' }>) {
@@ -1255,6 +1256,10 @@ export class LiveSource implements LayerSource {
     this.video.autoplay = true;
     this.video.muted = true;
     this.video.playsInline = true;
+    this.unsubscribeRemoval = onAppOutputRemoved(content.inputId, () => {
+      this.video.srcObject = null;
+      this.isReady = false;
+    });
 
     if (content.stream) {
       this.video.srcObject = content.stream;
@@ -1291,6 +1296,7 @@ export class LiveSource implements LayerSource {
   }
 
   dispose(): void {
+    this.unsubscribeRemoval?.();
     if (this.unsubscribe) {
       this.unsubscribe();
       this.unsubscribe = undefined;

@@ -13,7 +13,7 @@
 // takes the Whisper path. That path is slower (an utterance at a time) and
 // downloads models once; the caller is told through onStatus.
 
-import { createRecognizer, listeningAvailable, type Recognizer } from '../voca/vocaSpeech';
+import { createRecognizer, listeningAvailable, MicMeter, type Recognizer } from '../voca/vocaSpeech';
 import { loadTranslationEngine } from '../translation/translationEngine';
 
 export type TranscribeSource =
@@ -114,8 +114,19 @@ export async function startLiveTranscription(source: TranscribeSource, ev: Trans
       if (s === 'listening') ev.onStatus?.('Listening');
       else if (s === 'error') ev.onError?.(err?.message || 'Speech recognition stopped');
     };
+    // Web Speech reports no level of its own. A meter shows the operator the mic
+    // is really live, and its boosted track (when the engine accepts one) lets a
+    // soft voice through; it also tells the engine's watchdog someone is talking.
+    let meter: MicMeter | null = null;
+    if (rec.kind === 'web-speech' && !rec.providesLevel) {
+      meter = new MicMeter();
+      meter.onLevel = (l, sp) => { ev.onLevel?.(Math.min(1, l * 6), sp); if (sp) rec.noteVoiceActivity(); };
+      const err = await meter.start();
+      if (err) { meter = null; ev.onError?.(err.message); throw new Error(err.message); }
+      (rec as unknown as { inputTrack: MediaStreamTrack | null }).inputTrack = meter.boostedTrack;
+    }
     rec.start();
-    return { engine: 'speech', stop: () => { try { rec.stop(); } catch { /* */ } } };
+    return { engine: 'speech', stop: () => { try { rec.stop(); } catch { /* */ } meter?.stop(); } };
   }
 
   if (source.kind === 'stream') return startWhisper(source.stream, ev, false);
@@ -140,3 +151,18 @@ export async function listAudioInputs(): Promise<Array<{ deviceId: string; label
       .map((d, i) => ({ deviceId: d.deviceId, label: d.label || `Audio input ${i + 1}` }));
   } catch { return []; }
 }
+
+/**
+ * Browsers hide input names until the page has used a mic once. Open and close
+ * one briefly so the source list shows "Behringer X32 USB", not "Audio input 3".
+ */
+export async function unlockAudioInputLabels(): Promise<Array<{ deviceId: string; label: string }>> {
+  try {
+    const s = await navigator.mediaDevices.getUserMedia({ audio: true });
+    s.getTracks().forEach(t => t.stop());
+  } catch { /* denied: the list still works, just unnamed */ }
+  return listAudioInputs();
+}
+
+/** True when the browser is still hiding input names. */
+export const inputLabelsHidden = (inputs: Array<{ label: string }>) => inputs.length > 0 && inputs.every(d => /^Audio input \d+$/.test(d.label));

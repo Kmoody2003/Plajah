@@ -120,5 +120,9 @@ export const KIND_LABEL: Record<SourceKind, string> = {
   ambo: 'Ambo Output', switcher: 'Live Switcher',
 };
 
+/** Pseudo-source id meaning "the switcher's composited program" — routable to any
+ *  destination (STREAM, RECORD, AUX) alongside the real sources. */
+export const PROGRAM_SOURCE_ID = 'PGM';
+
 /** Which kinds need native code (unavailable in a browser tab). */
 export const NATIVE_ONLY: SourceKind[] = ['decklink', 'ndi', 'omt', 'srt', 'avb', 'rtmp', 'braw'];

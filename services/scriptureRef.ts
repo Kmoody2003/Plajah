@@ -152,8 +152,22 @@ const BASE_ALIASES: Record<string, AliasEntry> = {
   jud: { plain: 7, ambiguous: true },
 };
 
+/**
+ * Every alias as `[alias, ordinal | null, bookNum]` — the operator search
+ * (scriptureSearch) ranks books against these, so it shares one alias table
+ * with the parser instead of keeping its own.
+ */
+export function bookAliases(): Array<[string, number | null, number]> {
+  const out: Array<[string, number | null, number]> = [];
+  for (const [alias, e] of Object.entries(BASE_ALIASES)) {
+    if (e.plain) out.push([alias, null, e.plain]);
+    e.n?.forEach((num, i) => out.push([alias, i + 1, num]));
+  }
+  return out;
+}
+
 /** Books where a lone number means a verse, not a chapter ("Jude 5"). */
-const SINGLE_CHAPTER = new Set([31, 57, 63, 64, 65]);
+export const SINGLE_CHAPTER = new Set([31, 57, 63, 64, 65]);
 
 const BOOK_BY_NUM = new Map<number, BibleBook>([...ORTHODOX_BOOKS,...CATHOLIC_BOOKS].map(b => [b.num, b]));
 
@@ -613,6 +627,26 @@ export function normalizeSpoken(text: string): string {
   s = s.replace(
     new RegExp(`\\b((?:${ORDINAL_PATTERN})?\\s*(?:${BOOK_PATTERN}))\\s+(\\d{1,3})\\s+(\\d{1,3})\\b`, 'gi'),
     (_all, book: string, c: string, v: string) => ` ${book.trim()} ${c}:${v} `,
+  );
+
+  // Browser ASR often writes "John three sixteen" as "John 316". A 3–4 digit run
+  // after a book, bigger than the book's chapter count, is chapter+verse run
+  // together. Of the valid splits the smallest verse wins: Psalm 1191 is 119:1,
+  // not 11:91 (no chapter is that long in practice).
+  s = s.replace(
+    new RegExp(`\\b((?:(?:${ORDINAL_PATTERN})\\.?\\s*)?(?:${BOOK_PATTERN}))\\s+(\\d{3,4})\\b(?!\\s*[:.]\\s*\\d)`, 'gi'),
+    (all, book: string, digits: string) => {
+      const bk = lookupBook(book);
+      if (!bk || Number(digits) <= bk.chapters) return all;
+      let best: [number, number] | null = null;
+      for (let k = 1; k < digits.length; k++) {
+        if (digits[k] === '0') continue;
+        const c = Number(digits.slice(0, k)), v = Number(digits.slice(k));
+        if (c < 1 || c > bk.chapters || v < 1 || v > 176) continue;
+        if (!best || v < best[1]) best = [c, v];
+      }
+      return best ? ` ${book.trim()} ${best[0]}:${best[1]} ` : all;
+    },
   );
 
   // "through"/"to" as a range, only between numbers.

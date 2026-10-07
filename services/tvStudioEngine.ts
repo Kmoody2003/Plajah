@@ -15,6 +15,9 @@
 
 import { drawScriptureGraphic } from './scriptureGraphic';
 import { publishAppOutput, onAppOutputStream } from './mediaEngine/bridge';
+import { watchProductionFeeds } from './productionFeeds';
+import { Compositor } from '../components/plajahPixels/engine/core/compositor';
+import { parseCubeLut, type CubeLutData } from './fabula/cubeLut';
 
 export type SourceType =
   | 'CAMERA' | 'SCREEN' | 'MEDIA' | 'GRAPHIC' | 'COLOR' | 'BARS' | 'BLACK';
@@ -26,6 +29,8 @@ export interface StudioSource {
   type: SourceType;
   label: string;
   stream?: MediaStream;
+  borrowed?: boolean;
+  audioInputNode?: MediaStreamAudioSourceNode;
   videoEl?: HTMLVideoElement;
   imageEl?: HTMLImageElement;
   // Color source
@@ -34,6 +39,7 @@ export interface StudioSource {
   gainNode?: GainNode;
   analyserNode?: AnalyserNode;
   audioLevel: number;     // 0–1
+  faderGain?: number;
   isMuted: boolean;
   isSolo: boolean;
   // Color correction (applied per-source as CSS filter string on off-screen canvas)
@@ -43,6 +49,8 @@ export interface StudioSource {
   hue: number;         // -180 to 180, default 0
   // LUT
   lutData?: Float32Array; // 3D LUT 17x17x17 RGB
+  cubeLut?: CubeLutData;
+  colorProcessor?: { canvas: HTMLCanvasElement; compositor: Compositor };
   // State
   isReady: boolean;
   /** VTuber mode — when set, the avatar canvas is composited in place of the raw camera. */
@@ -52,7 +60,8 @@ export interface StudioSource {
 export interface GraphicOverlay {
   id: string;
   label: string;
-  type: 'LOWER_THIRD' | 'FULLSCREEN' | 'BUG' | 'CLOCK' | 'LOTTIE' | 'WEBM' | 'SCRIPTURE';
+  type: 'LOWER_THIRD' | 'FULLSCREEN' | 'BUG' | 'CLOCK' | 'LOTTIE' | 'WEBM' | 'SCRIPTURE' | 'TELA';
+  canvasEl?: HTMLCanvasElement;
   // Lower third
   title?: string;
   subtitle?: string;
@@ -100,6 +109,7 @@ export interface StudioProject {
 // ── Engine class ──────────────────────────────────────────────────────────────
 
 export class TVStudioEngine {
+  private productionFeedsUnsub?: () => void;
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private offA: OffscreenCanvas;
@@ -215,6 +225,18 @@ export class TVStudioEngine {
 
   /** Listen to native Ambo outputs published over the virtual video bus */
   listenToAmboFeeds(): void {
+    this.productionFeedsUnsub?.();
+    let productionIds = new Set<string>();
+    this.productionFeedsUnsub = watchProductionFeeds(feeds => {
+      const current = new Set(feeds.map(feed => feed.id));
+      for (const id of productionIds) if (!current.has(id)) this.removeSource(id);
+      for (const feed of feeds) {
+        const fresh = !this.sources.has(feed.id);
+        this.addStreamSourceWithId(feed.id, feed.stream, feed.label);
+        if (fresh && feed.kind === 'chat' && !feed.id.endsWith(':group')) this.muteSource(feed.id, true);
+      }
+      productionIds = current;
+    });
     this.amboAudienceUnsub?.();
     this.amboAudienceUnsub = onAppOutputStream('ambo:audience', (stream) => {
       this.addStreamSourceWithId('ambo_audience', stream, 'Ambo Audience');
@@ -253,12 +275,16 @@ export class TVStudioEngine {
   /** Add or update a stream source with an explicit ID */
   addStreamSourceWithId(id: string, stream: MediaStream, label: string): StudioSource {
     let src = this.sources.get(id);
+    if (src?.stream === stream) { src.label = label; return src; }
     if (!src) {
       src = this._makeSource(id, 'MEDIA', label);
       this.sources.set(id, src);
     } else {
       src.label = label;
     }
+    src.audioInputNode?.disconnect();
+    src.audioInputNode = undefined;
+    src.borrowed = true;
     src.stream = stream;
     if (!src.videoEl) {
       const video = document.createElement('video');
@@ -277,6 +303,7 @@ export class TVStudioEngine {
       try {
         const msSrc = this.audioCtx.createMediaStreamSource(new MediaStream([audioTrack]));
         msSrc.connect(src.gainNode);
+        src.audioInputNode = msSrc;
       } catch { /* ignored */ }
     }
     this.onSourcesChanged?.();
@@ -331,7 +358,10 @@ export class TVStudioEngine {
   removeSource(id: string) {
     const src = this.sources.get(id);
     if (!src) return;
-    src.stream?.getTracks().forEach(t => t.stop());
+    if (!src.borrowed) src.stream?.getTracks().forEach(t => t.stop());
+    src.audioInputNode?.disconnect();
+    if (src.videoEl) { src.videoEl.pause(); src.videoEl.srcObject = null; }
+    src.colorProcessor?.compositor.dispose();
     src.gainNode?.disconnect();
     this.sources.delete(id);
     if (this.programId === id) { this.programId = null; this.onProgramChanged?.(null); }
@@ -429,7 +459,14 @@ export class TVStudioEngine {
       ctx.filter = 'none';
       return;
     }
-    if (src.videoEl && src.isReady) {
+    if (src.videoEl && src.isReady && src.videoEl.readyState >= 2) {
+      if (src.cubeLut && src.colorProcessor && src.videoEl.readyState >= 2) {
+        src.colorProcessor.compositor.render([{ element: src.videoEl, opacity: 1, blendMode: 'normal' }], undefined, undefined, src.cubeLut);
+        ctx.filter = `brightness(${src.brightness}) contrast(${src.contrast}) saturate(${src.saturation}) hue-rotate(${src.hue}deg)`;
+        ctx.drawImage(src.colorProcessor.canvas, 0, 0, 1920, 1080);
+        ctx.filter = 'none';
+        return;
+      }
       // Apply basic color correction via CSS filter simulation on offscreen
       ctx.filter = `brightness(${src.brightness}) contrast(${src.contrast}) saturate(${src.saturation}) hue-rotate(${src.hue}deg)`;
       ctx.drawImage(src.videoEl, 0, 0, 1920, 1080);
@@ -462,6 +499,8 @@ export class TVStudioEngine {
       ctx.globalAlpha = ov.opacity;
       if (ov.type === 'LOWER_THIRD') {
         this._drawLowerThird(ctx, ov);
+      } else if (ov.type === 'TELA' && ov.canvasEl) {
+        ctx.drawImage(ov.canvasEl, 0, 0, 1920, 1080);
       } else if (ov.type === 'SCRIPTURE') {
         this._drawScripture(ctx, ov);
       } else if ((ov.type === 'WEBM' || ov.type === 'FULLSCREEN') && ov.videoEl) {
@@ -761,12 +800,29 @@ ${events}
     const src = this.sources.get(id);
     if (src) { src.brightness = brightness; src.contrast = contrast; src.saturation = saturation; src.hue = hue; }
   }
+  /** Same .cube parser and GPU LUT pass as Fabula preview/export. */
+  setSourceLut(id: string, text: string | null, name = 'Live LUT'): void {
+    const source = this.sources.get(id);
+    if (!source) throw new Error('Select a source before importing a LUT.');
+    if (!text) { source.cubeLut = undefined; source.colorProcessor?.compositor.dispose(); source.colorProcessor = undefined; return; }
+    const lut = parseCubeLut(text, name);
+    if (!source.colorProcessor) {
+      const canvas = document.createElement('canvas');
+      const compositor = new Compositor(canvas);
+      compositor.resize(1920, 1080);
+      source.colorProcessor = { canvas, compositor };
+    }
+    source.cubeLut = lut;
+  }
 
   // ── Audio ─────────────────────────────────────────────────────────────────
 
   setSourceGain(id: string, gain: number) {
     const src = this.sources.get(id);
-    if (src?.gainNode) src.gainNode.gain.value = Math.max(0, Math.min(2, gain));
+    if (src?.gainNode && Number.isFinite(gain)) {
+      src.faderGain = Math.max(0, Math.min(2, gain));
+      src.gainNode.gain.value = src.isMuted ? 0 : src.faderGain;
+    }
   }
 
   setMasterGain(gain: number) { this.masterGain.gain.value = Math.max(0, Math.min(2, gain)); }
@@ -775,7 +831,7 @@ ${events}
     const src = this.sources.get(id);
     if (!src) return;
     src.isMuted = muted;
-    if (src.gainNode) src.gainNode.gain.value = muted ? 0 : src.audioLevel;
+    if (src.gainNode) src.gainNode.gain.value = muted ? 0 : (src.faderGain ?? 1);
   }
 
   getSourceLevel(id: string): number {
@@ -1024,7 +1080,13 @@ ${events}
     this.recorder?.stop();
     this.amboAudienceUnsub?.();
     this.amboLowerThirdUnsub?.();
-    this.sources.forEach(src => src.stream?.getTracks().forEach(t => t.stop()));
+    this.productionFeedsUnsub?.();
+    this.sources.forEach(src => {
+      if (!src.borrowed) src.stream?.getTracks().forEach(t => t.stop());
+      src.audioInputNode?.disconnect();
+      src.colorProcessor?.compositor.dispose();
+      if (src.videoEl) { src.videoEl.pause(); src.videoEl.srcObject = null; }
+    });
     this.auxBuses.forEach(b => cancelAnimationFrame(b.rafHandle));
     this.audioCueNodes.forEach(n => { try { n.stop(); } catch {} });
     this.ndiWs?.close();

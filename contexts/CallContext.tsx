@@ -17,6 +17,8 @@ import {
 } from '../services/backendService';
 import VideoChat, { CallContact } from '../components/VideoChat';
 import VoiceRecorder from '../components/VoiceRecorder';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../services/firebase';
 
 interface CallPeer { uid?: string; name?: string; photo?: string }
 
@@ -169,6 +171,15 @@ export const CallProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const hungUpRef = useRef(false);
 
   const uid = auth.currentUser?.uid;
+  useEffect(() => {
+    const roomId = active?.room.id;
+    if (!roomId || !uid) return;
+    // Keep meeting role changes authoritative while the call remains mounted.
+    return onSnapshot(doc(db, 'chat_rooms', roomId), snapshot => {
+      if (!snapshot.exists()) { setActive(null); return; }
+      setActive(previous => previous?.room.id === roomId ? { ...previous, room: { id: snapshot.id, ...snapshot.data() } as ChatRoom } : previous);
+    }, () => { setActive(null); });
+  }, [active?.room.id, uid]);
 
   // Global incoming-call listener — rings anywhere in the app.
   useEffect(() => {

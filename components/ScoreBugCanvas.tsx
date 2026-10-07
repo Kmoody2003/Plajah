@@ -14,7 +14,7 @@
  */
 
 import React, { useRef, useEffect, useCallback } from 'react';
-import type { GameState } from '../services/sportscastService';
+import { displayClock, type GameState } from '../services/sportscastService';
 import type { TrackedPlayer } from '../hooks/usePlayerTracker';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -251,7 +251,7 @@ const ScoreBugCanvas: React.FC<Props> = ({
 
     ctx.font = `${gs.clockRunning ? 'bold' : 'normal'} 13px "SF Mono", "Courier New", monospace`;
     ctx.fillStyle = C.text;
-    ctx.fillText(gs.timeRemaining, MID, BY_BASE + 37);
+    ctx.fillText(displayClock(gs), MID, BY_BASE + 37);
 
     // Football down & distance row
     if (gs.sport === 'FOOTBALL' && gs.down != null) {

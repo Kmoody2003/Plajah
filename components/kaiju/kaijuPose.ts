@@ -24,6 +24,12 @@ export interface Pose {
   eyeOpen: number; happy: number; closed: number;
   lookX: number; lookY: number;
   mouth: number; mouthW: number; smile: number; blush: number;
+  /** Extra expression channels (canvas renderer only — the original SVG puppet ignores them):
+   *  brow tilt −1 (worried / sad) … 0 (the sheet's grumpy wedge) … +1 (furious); browY −1 (raised) … +1 (lowered);
+   *  eyeScale 1 = normal, >1 wide-eyed; squint 0..1 (> <); hearts 0..1 (love eyes); tear / sweat 0..1. */
+  brow: number; browY: number; eyeScale: number; squint: number; hearts: number; tear: number; sweat: number;
+  /** Per-eye openness multipliers (1 = as eyeOpen, 0 = shut — winks), tongue sticking out 0..1, brow asymmetry −1..1 (+ lowers the left brow, raises the right). Used by the VTuber face rig. */
+  eyeL: number; eyeR: number; tongue: number; browAsym: number;
   /** Prop visibilities 0..1 — the rig ignores props a character doesn't own. */
   mic: number; book: number; camUp: number; shades: number;
   glow: number;
@@ -36,6 +42,7 @@ export const REST: Pose = {
   tail: 0, mane: 0,
   eyeOpen: 1, happy: 0, closed: 0, lookX: 0, lookY: 0,
   mouth: 0, mouthW: 0.5, smile: -0.4, blush: 0.25,
+  brow: 0, browY: 0, eyeScale: 1, squint: 0, hearts: 0, tear: 0, sweat: 0, eyeL: 1, eyeR: 1, tongue: 0, browAsym: 0,
   mic: 0, book: 0, camUp: 0, shades: 0, glow: 0,
 };
 

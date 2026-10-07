@@ -211,7 +211,7 @@ export const KaijuDanceStage: React.FC<KaijuDanceStageProps> = (props) => {
             while (emitAcc > 1) {
               emitAcc -= 1;
               const pal = KAIJU_PALETTES[i === 0 ? 'lorik' : 'lumi'];
-              spawn(m.x + out * 26, m.y, pick(['♪', '♫', '♬', '♩']), pick([pal.frillIn, pal.frillOut, '#6B0099']),
+              spawn(m.x + out * 26, m.y, pick(['♪', '♫', '♬', '♩']), pick([pal.frillTop, pal.frillBot, '#6B0099']),
                 { vx: out * rnd(30, 110), vy: rnd(-140, -70), max: 1.8, sway: rnd(1, 2.5), size: rnd(28, 44), r: rnd(-20, 20) });
             }
           }

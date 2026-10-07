@@ -2,15 +2,20 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 import {
   Video, Mic, MicOff, VideoOff, PhoneOff,
   Settings, UserPlus, LayoutGrid, Monitor, Wifi, WifiOff,
-  Maximize2, Minimize2, MessageSquare, ChevronUp, Send, X, MonitorSpeaker, Search, Heart,
+  Maximize2, Minimize2, MessageSquare, ChevronUp, Send, X, MonitorSpeaker, Search, Heart, Hand, Clapperboard,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Circle } from 'lucide-react';
-import { ChatRoom, ChatMessage } from '../types';
-import { auth, listenToMessages, sendMessage } from '../services/backendService';
+import { ChatRoom } from '../types';
+import { auth } from '../services/backendService';
+import { MeetingControl, meetingRoomFor } from '../services/meetingCore';
+import { MeetingMessage, watchMeeting, watchMeetingMessages, sendMeetingMessage } from '../services/meetingService';
+import MeetingControls from './chat/MeetingControls';
 import { useRtcSession } from '../hooks/useRtcSession';
 import { saveSessionRecording } from '../services/liveStreamService';
 import RomanceFXOverlay from './RomanceFXOverlay';
+import { ChatProduction } from '../services/chatProduction';
+import { queueCallShow } from '../services/ambo/liveCallShows';
 
 export interface CallContact { uid: string; displayName: string; photoURL?: string }
 
@@ -65,6 +70,23 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
   const [addQuery, setAddQuery] = useState('');
   const [invited, setInvited] = useState<Set<string>>(new Set());
   const [romanceFx, setRomanceFx] = useState<boolean>(!!room?.isIntimate); // rose-petals/hearts on intimate calls
+  const [handRaised, setHandRaised] = useState(false);
+  const [raisedHands, setRaisedHands] = useState<Set<string>>(new Set());
+  const [productionEnabled, setProductionEnabled] = useState(false);
+  const [productionConsent, setProductionConsent] = useState(false);
+  const [productionNotice, setProductionNotice] = useState('');
+  const [consentingPeers, setConsentingPeers] = useState<Set<string>>(new Set());
+  const producer = useRef<ChatProduction | null>(null);
+  const isProducer = !!selfId && room.ownerId === selfId;
+  const [meeting, setMeeting] = useState<MeetingControl | null>(null);
+  const [meetingReady, setMeetingReady] = useState(false);
+  const [meetingError, setMeetingError] = useState('');
+  const meetingRoom = meetingRoomFor(meeting, selfId || '');
+  const removed = !!selfId && !!meeting?.removedIds.includes(selfId);
+  useEffect(() => {
+    setMeetingReady(false); setMeeting(null); setMeetingError('');
+    return watchMeeting(room.id, state => { setMeeting(state); setMeetingReady(true); }, error => { setMeetingError(error.message); setMeetingReady(false); });
+  }, [room.id]);
 
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -74,16 +96,54 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
     setTimeout(() => setFloats(prev => prev.filter(f => f.id !== id)), 2600);
   }, []);
 
-  const rtc = useRtcSession({
-    sessionId: `call_${room.id}`,
+  const rtc = useRtcSession(meetingReady && !removed ? {
+    collectionName: `chat_rooms/${room.id}/meeting_rtc`,
+    sessionId: meetingRoom,
     topology: 'mesh',
     role: 'participant',
     media: { audio: true, video: callType !== 'AUDIO' },
     displayName: auth.currentUser?.displayName || 'You',
-  }, {
+  } : null, {
+    excludePeerIds: meeting?.removedIds || [],
+    onRecordingStopped: blob => { saveSessionRecording({ blob, title: `${room.name || 'Call'} — recording` }); },
     // Data-channel reactions — instant, peer-to-peer (no Firestore round-trip).
-    onData: (_peer, msg) => { if (msg.type === 'reaction' && msg.payload?.emoji) addFloat(msg.payload.emoji); },
+    onData: (peer, msg) => {
+      if (msg.type === 'reaction' && msg.payload?.emoji) addFloat(msg.payload.emoji);
+      if (msg.type === 'meeting:hand') setRaisedHands(prev => { const next = new Set(prev); if (msg.payload?.raised === true) next.add(peer); else next.delete(peer); return next; });
+      if (msg.type === 'production:consent') setConsentingPeers(prev => { const next = new Set(prev); if (msg.payload?.allowed === true) next.add(peer); else next.delete(peer); return next; });
+    },
   });
+  const lastMute = useRef<number>(0);
+  useEffect(() => {
+    const request = meeting?.muteRequests[selfId || ''] || 0;
+    if (request > lastMute.current) { rtc.setAudio(false); setMeetingError('A moderator muted your microphone. You can unmute when you are ready.'); }
+    lastMute.current = request;
+  }, [meeting?.muteRequests, selfId, rtc.setAudio]);
+  useEffect(() => { setRaisedHands(new Set()); setConsentingPeers(new Set()); setProductionConsent(false); setHandRaised(false); }, [meetingRoom]);
+  useEffect(() => { if (removed) { setProductionEnabled(false); setMeetingError('You were removed from this meeting.'); } }, [removed]);
+
+  useEffect(() => {
+    rtc.sendData('meeting:hand', { raised: handRaised });
+    rtc.sendData('production:consent', { allowed: productionConsent });
+  }, [rtc.participants, rtc.peerStates, handRaised, productionConsent]);
+  useEffect(() => {
+    setConsentingPeers(previous => new Set([...previous].filter(id => rtc.remoteStreams.has(id))));
+  }, [rtc.remoteStreams]);
+  useEffect(() => {
+    if (!productionEnabled || !isProducer || room.isIntimate) return;
+    let instance: ChatProduction;
+    try { instance = new ChatProduction(room.id, room.name || 'Call'); }
+    catch { setProductionEnabled(false); setProductionNotice('This device could not start live production output.'); return; }
+    producer.current = instance;
+    return () => { instance.dispose(); producer.current = null; };
+  }, [productionEnabled, room.id, isProducer, room.isIntimate]);
+  useEffect(() => {
+    const moderators = new Set([room.ownerId, meeting?.hostId, ...(room.meetingModeratorIds || []), ...(meeting?.moderatorIds || [])]);
+    producer.current?.update([
+      ...(rtc.localStream && selfId ? [{ id: selfId, name: 'You', stream: rtc.localStream, moderator: moderators.has(selfId), allowed: productionConsent }] : []),
+      ...[...rtc.remoteStreams].map(([id, stream]) => ({ id, name: rtc.participants.find(p => p.id === id)?.name || 'Participant', stream, moderator: moderators.has(id), allowed: consentingPeers.has(id) })),
+    ]);
+  }, [productionEnabled, isProducer, room.isIntimate, rtc.localStream, rtc.remoteStreams, rtc.participants, consentingPeers, productionConsent, room.ownerId, room.meetingModeratorIds, selfId, meeting?.moderatorIds, meeting?.hostId]);
 
   const react = (emoji: string) => { addFloat(emoji); rtc.sendData('reaction', { emoji }); };
 
@@ -105,26 +165,24 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
     else rootRef.current?.requestFullscreen?.().catch(() => {});
   };
 
-  // ── In-call chat (reuses the room's message thread) ─────────────────────────
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // Each meeting room has a separate encrypted message stream.
+  const [messages, setMessages] = useState<MeetingMessage[]>([]);
   const [draft, setDraft] = useState('');
+  const [sendingChat, setSendingChat] = useState(false);
   const msgEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    const unsub = listenToMessages(room.id, setMessages);
-    return () => { try { unsub?.(); } catch {} };
-  }, [room.id]);
+    setMessages([]); setDraft('');
+    if (!meetingReady || removed) return;
+    return watchMeetingMessages(room.id, meetingRoom, setMessages, error => setMeetingError(error.message));
+  }, [room.id, meetingRoom, meetingReady, removed]);
   useEffect(() => { if (showChat) msgEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, showChat]);
-  const sendChat = () => {
+  const sendChat = async () => {
     const text = draft.trim();
-    if (!text) return;
-    setDraft('');
-    sendMessage(room.id, {
-      senderId: selfId || '',
-      senderName: auth.currentUser?.displayName || 'You',
-      senderPhoto: auth.currentUser?.photoURL || '',
-      text,
-      type: 'TEXT',
-    } as any).catch(() => {});
+    if (!text || sendingChat || removed || !meetingReady) return;
+    setSendingChat(true);
+    try { await sendMeetingMessage(room.id, meetingRoom, text); setDraft(current => current.trim() === text ? '' : current); }
+    catch (error) { setMeetingError((error as Error).message); }
+    finally { setSendingChat(false); }
   };
 
   const remotes = [...rtc.remoteStreams.entries()];
@@ -185,6 +243,7 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
             className={`p-2.5 sm:p-4 rounded-2xl transition-all ${showChat ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
             <MessageSquare size={20} />
           </button>
+          <button onClick={() => setHandRaised(v => !v)} aria-label={handRaised ? 'Lower hand' : 'Raise hand'} aria-pressed={handRaised} title={handRaised ? 'Lower hand' : 'Raise hand'} className={`p-2.5 rounded-2xl ${handRaised ? 'bg-amber-400/20 text-amber-300' : 'bg-white/5 text-white/50'}`}><Hand size={20} /></button>
           <button onClick={() => { setShowAdd(s => !s); setShowSettings(false); }} title="Add people"
             className={`p-2.5 sm:p-4 rounded-2xl transition-all ${showAdd ? 'bg-small-orange/20 text-small-orange' : 'bg-white/5 hover:bg-white/10 text-white/40 hover:text-white'}`}>
             <UserPlus size={20} />
@@ -202,6 +261,20 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
         </div>
       </div>
 
+      <div className="flex flex-wrap items-center gap-3 px-4 py-2 border-b border-white/10 text-xs bg-black/30">
+        {handRaised && <span className="text-amber-300">Your hand is raised</span>}
+        {[...raisedHands].filter(id => rtc.participants.some(p => p.id === id)).map(id => <span key={id} className="text-amber-300">✋ {nameFor(id)}</span>)}
+        {!room.isIntimate && <label className="flex items-center gap-2"><input type="checkbox" checked={productionConsent} onChange={e => setProductionConsent(e.target.checked)} /> Allow my audio/video in live production</label>}
+        {!room.isIntimate && isProducer && <>
+          <button onClick={() => setProductionEnabled(v => !v)} className={`flex items-center gap-2 rounded-lg px-3 py-2 ${productionEnabled ? 'bg-red-500/20 text-red-300' : 'bg-white/10'}`}><Clapperboard size={14} /> {productionEnabled ? 'Stop production feeds' : 'Route call to production'}</button>
+          {productionEnabled && <button onClick={() => { const show = producer.current?.show(); if (show && selfId) { queueCallShow(selfId, show); setProductionNotice('Group and single shots sent to Ambo. They load when you open the presenter. Keep the call running for live media.'); } }} className="rounded-lg px-3 py-2 bg-white/10">Send group + singles to Ambo</button>}
+          {productionEnabled && <span className="text-white/50">Moderators excluded · consenting guests only</span>}
+        </>}
+        {productionNotice && <span role="status" className="text-white/60">{productionNotice}</span>}
+      </div>
+
+      {meetingError && <div role="status" className="px-4 py-2 text-sm text-amber-300 bg-amber-400/10">{meetingError}</div>}
+      {meetingReady && !removed && selfId && !room.isIntimate && <MeetingControls room={room} state={meeting} uid={selfId} participants={room.participants.filter(id => id !== selfId).map(id => ({ id, name: rtc.participants.find(p => p.id === id)?.name || contacts.find(c => c.uid === id)?.displayName || 'Conversation member' }))} onError={setMeetingError} />}
       {/* Add-a-caller picker */}
       <AnimatePresence>
         {showAdd && (
@@ -464,7 +537,7 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
             className="absolute inset-0 z-40 w-full sm:relative sm:inset-auto sm:z-auto sm:w-[360px] sm:max-w-[85vw] shrink-0 border-l border-white/10 bg-[#0a0a0d] flex flex-col">
             <div className="p-5 flex items-center gap-2 border-b border-white/10">
               <MessageSquare size={15} className="text-small-orange" />
-              <h3 className="text-[11px] font-black uppercase tracking-widest text-white flex-1">In-call chat</h3>
+              <h3 className="text-[11px] font-black uppercase tracking-widest text-white flex-1">{meeting?.breakoutRooms[meetingRoom] || 'Meeting'} chat</h3>
               <button onClick={() => setShowChat(false)} className="text-white/40 hover:text-white"><X size={16} /></button>
             </div>
             <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3">
@@ -483,9 +556,9 @@ const VideoChat: React.FC<VideoChatProps> = ({ room, onClose, user, callType = '
               <div ref={msgEndRef} />
             </div>
             <div className="p-3 border-t border-white/10 flex items-center gap-2">
-              <input value={draft} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') sendChat(); }}
+              <input value={draft} disabled={removed || !meetingReady} maxLength={2000} onChange={e => setDraft(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') void sendChat(); }}
                 placeholder="Message…" className="flex-1 bg-white/5 border border-white/10 rounded-full px-4 py-2.5 text-[13px] text-white outline-none focus:border-small-orange/60 placeholder:text-white/30" />
-              <button onClick={sendChat} className="p-2.5 bg-small-orange text-white rounded-full hover:brightness-110 transition-all"><Send size={16} /></button>
+              <button aria-label="Send meeting message" disabled={sendingChat || removed || !meetingReady || !draft.trim()} onClick={() => void sendChat()} className="p-2.5 bg-small-orange text-white rounded-full hover:brightness-110 transition-all disabled:opacity-40"><Send size={16} /></button>
             </div>
           </motion.div>
         )}

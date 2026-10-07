@@ -4040,6 +4040,8 @@ export interface AppNotification {
 }
 
 export interface ChatMessage {
+  /** Room-encrypted native Tela snapshot; carries devices and bindings intact. */
+  telaDocument?: string;
   id: string;
   senderId: string;
   senderName: string;
@@ -4049,7 +4051,7 @@ export interface ChatMessage {
   imageUrl?: string;
   gifUrl?: string;
   mediaId?: string;
-  mediaType?: 'ALBUM' | 'TRACK' | 'VIDEO';
+  mediaType?: 'ALBUM' | 'TRACK' | 'VIDEO' | 'TELA';
   timestamp: number;
   type: 'TEXT' | 'VOICE' | 'SYSTEM' | 'MEDIA' | 'ACTION' | 'IMAGE' | 'VIDEO_NOTE';
   videoNoteUrl?: string;
@@ -4186,6 +4188,8 @@ export interface HqShareLink {
 }
 
 export interface ChatRoom {
+  /** Never published into live production, including isolated participant feeds. */
+  meetingModeratorIds?: string[];
   id: string;
   participants: string[]; // UIDs
   lastMessage?: string;
@@ -4279,6 +4283,8 @@ export interface DiaryEntry {
 }
 
 export interface CollabProject {
+  telaDocument?: string;
+  telaRevision?: number;
   id: string;
   name: string;
   chatRoomId: string;
@@ -7772,4 +7778,3 @@ export interface UserThreatWarning {
   guidanceMessage: string;
   resolved: boolean;
 }
-

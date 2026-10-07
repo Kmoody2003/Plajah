@@ -37,7 +37,10 @@ import { getIceServers } from './iceConfig';
 export type RtcTopology =
   | 'mesh'       // everyone publishes + subscribes (video rooms, group calls)
   | 'broadcast'  // one host publishes, many viewers subscribe (live streaming)
-  | 'stage';     // speakers publish, listeners subscribe (Clubhouse / X Spaces)
+  | 'stage'      // speakers publish, listeners subscribe (Clubhouse / X Spaces)
+  | 'collect';   // many participants publish UP to one host only (multicam contribution:
+                 // Sports Director phone cameras → the director). No participant↔participant
+                 // links, so a phone on cellular uploads one stream, not one per camera.
 export type RtcRole = 'host' | 'viewer' | 'participant' | 'watcher';
 
 export const DEFAULT_ICE: RTCIceServer[] = [
@@ -220,6 +223,11 @@ export class RtcSession {
   private peers = new Map<string, Peer>();
   private participantsUnsub: (() => void) | null = null;
   private closed = false;
+  private excludedPeers = new Set<string>();
+  setExcludedPeers(ids: string[]) {
+    this.excludedPeers = new Set(ids);
+    for (const id of this.excludedPeers) if (this.peers.has(id)) this.removePeer(id);
+  }
 
   constructor(config: RtcSessionConfig, events: RtcEvents = {}) {
     this.selfId = config.selfId || auth.currentUser?.uid || `anon-${Math.random().toString(36).slice(2)}`;
@@ -255,7 +263,9 @@ export class RtcSession {
           audio: this.cfg.media?.audio ?? true,
           video: hqVideo(this.cfg.media?.video),
         });
+        if (this.closed) { if (!this.cfg.localStream) this.local?.getTracks().forEach(track => track.stop()); this.local = null; return; }
         if (!this.cfg.localStream) await tuneVideoTrack(this.local.getVideoTracks()[0]);
+        if (this.closed) { if (!this.cfg.localStream) this.local?.getTracks().forEach(track => track.stop()); this.local = null; return; }
         this.events.onLocalStream?.(this.local);
       } catch (e: any) {
         this.events.onError?.(new Error(e?.message || 'Camera/mic unavailable'));
@@ -263,16 +273,18 @@ export class RtcSession {
       }
     }
 
+    if (this.closed) return;
     await setDoc(this.participantDoc(this.selfId), {
       role: this.cfg.role,
       name: this.cfg.displayName || auth.currentUser?.displayName || 'Guest',
       joinedAt: serverTimestamp(),
     });
+    if (this.closed) { await deleteDoc(this.participantDoc(this.selfId)).catch(() => {}); return; }
 
     // React to who is present.
     this.participantsUnsub = onSnapshot(this.participantsCol(), snap => {
       if (this.closed) return;
-      const list: RtcParticipant[] = snap.docs.map(d => ({ id: d.id, ...(d.data() as any) }));
+      const list: RtcParticipant[] = snap.docs.filter(d => !this.excludedPeers.has(d.id)).map(d => ({ id: d.id, ...(d.data() as any) }));
       this.events.onParticipants?.(list.filter(p => p.id !== this.selfId));
 
       const others = list.filter(p => p.id !== this.selfId);
@@ -298,14 +310,19 @@ export class RtcSession {
     if (role === 'watcher') return false;
     if (this.cfg.topology === 'mesh') return true;
     if (this.cfg.topology === 'broadcast') return role === 'host';
+    if (this.cfg.topology === 'collect') return role === 'participant'; // host only receives
     return role !== 'viewer'; // stage: host/participant = speaker, viewer = listener
   }
   private get selfPublishes(): boolean { return this.isPublisher(this.cfg.role); }
 
   /** Topology rules (publisher/subscriber model unifies all three topologies):
    *  a publisher connects to EVERYONE; a pure subscriber connects only to
-   *  publishers (two subscribers have nothing to exchange). */
+   *  publishers (two subscribers have nothing to exchange). 'collect' is the
+   *  exception: every link runs participant↔host and nowhere else. */
   private shouldConnectTo(p: RtcParticipant): boolean {
+    if (this.cfg.topology === 'collect') {
+      return this.cfg.role === 'host' ? p.role === 'participant' : (this.cfg.role === 'participant' && p.role === 'host');
+    }
     if (this.selfPublishes) return true;
     return this.isPublisher(p.role);
   }

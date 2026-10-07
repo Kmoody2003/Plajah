@@ -40,6 +40,8 @@ import {
 import { db, storage } from '../services/firebase';
 import { ref as storageRef, deleteObject } from 'firebase/storage';
 import RichText from '../src/lib/richText';
+import ConversationBackground from './chat/ConversationBackground';
+import ChatTelaDocument, { SendTelaDocument } from './chat/ChatTelaDocument';
 
 // ── Extended ChatMessage with reactions + reply ───────────────────────────────
 type ExtendedMessage = ChatMessage & {
@@ -809,7 +811,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     : decryptedMessages.filter(message => !message.threadRootId);
 
   return (
-    <div className="relative flex flex-col h-full overflow-hidden bg-black/10">
+    <div className="relative isolate flex flex-col h-full overflow-hidden bg-black/10">
+      {!isIntimate && uid && <ConversationBackground key={`${uid}:${room.id}`} roomId={room.id} userId={uid} />}
       <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageFile} />
       <input ref={intimateBgInputRef} type="file" accept="image/*" className="hidden" onChange={handleIntimateBgFile} />
 
@@ -1344,6 +1347,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                         )}
                       </div>
                     )
+                  ) : msg.mediaType === 'TELA' && msg.telaDocument ? (
+                    <ChatTelaDocument message={msg} roomId={room.id} />
                   ) : msg.type === 'MEDIA' ? (
                     <div className="flex items-center gap-3 min-w-[180px]">
                       <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center shrink-0">
@@ -1593,6 +1598,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                   className="p-2 text-white/35 hover:text-small-orange hover:bg-white/5 rounded-xl transition-all shrink-0">
                   <Camera size={19} />
                 </button>
+                {!isIntimate && <SendTelaDocument roomId={room.id} />}
                 <button type="button" onClick={() => { setShowEmoji(v => !v); setShowGif(false); }} title="Emoji"
                   className={`p-2 rounded-xl transition-all shrink-0 ${showEmoji ? 'text-small-orange bg-white/10' : 'text-white/35 hover:text-small-orange hover:bg-white/5'}`}>
                   <Smile size={19} />

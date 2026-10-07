@@ -145,6 +145,32 @@ export async function nativeProgram(program: string, preview: string): Promise<v
   try { await invoke('set_program', { program, preview }); } catch { /* */ }
 }
 
+/** Mirror the switcher transition to the native compositor. `position` is 0..1 (0 = idle);
+ *  the host renders the same maths as programCompositor.drawTransition. Sent on type/rate
+ *  changes and throttled during a transition (see MediaEngine.mirrorTransition). */
+export async function nativeTransition(type: string, rateFrames: number, position: number): Promise<void> {
+  const invoke = resolveInvoke();
+  if (!invoke) return;
+  try { await invoke('set_transition', { type, rateFrames, position }); } catch { /* */ }
+}
+
+export type NativeOutputKind = 'record' | 'rtmp' | 'srt';
+/** Start/stop a native program output (RTMP push, SRT caller, ProRes/MXF record). Returns
+ *  success:false in the browser or on a host that hasn't implemented it — callers fall back
+ *  to the browser paths (MediaRecorder / Plajah live / WHIP). */
+export async function nativeOutput(
+  action: 'start' | 'stop', output: { id: string; kind: NativeOutputKind; url?: string; streamKey?: string; source?: string },
+): Promise<{ success: boolean; error?: string }> {
+  const invoke = resolveInvoke();
+  if (!invoke) return { success: false, error: 'Requires native host' };
+  try {
+    const r: any = await invoke('set_output', { action, ...output });
+    return { success: !!pick(r, 'success', 'Success'), error: pick(r, 'error', 'Error') };
+  } catch (e: any) {
+    return { success: false, error: e?.message || String(e) };
+  }
+}
+
 /** Configure the native sync engine (master clock + jitter window). */
 export async function nativeSync(masterClock: string, syncTargetMs: number): Promise<void> {
   const invoke = resolveInvoke();
@@ -156,6 +182,19 @@ export async function nativeSync(masterClock: string, syncTargetMs: number): Pro
 
 const virtualStreamBus: Map<string, MediaStream> = new Map();
 const virtualStreamListeners: Map<string, Set<(stream: MediaStream) => void>> = new Map();
+const outputRemovalListeners = new Map<string, Set<() => void>>();
+
+/** Revoke an output without stopping the originating camera or call. */
+export function unpublishAppOutput(channelId: string): void {
+  virtualStreamBus.delete(channelId);
+  outputRemovalListeners.get(channelId)?.forEach(cb => cb());
+}
+export function onAppOutputRemoved(channelId: string, cb: () => void): () => void {
+  if (!outputRemovalListeners.has(channelId)) outputRemovalListeners.set(channelId, new Set());
+  const listeners = outputRemovalListeners.get(channelId)!;
+  listeners.add(cb);
+  return () => { listeners.delete(cb); if (!listeners.size) outputRemovalListeners.delete(channelId); };
+}
 
 /** Publish an application output (e.g. 'ambo:audience', 'switcher:pgm') onto the platform bus. */
 export function publishAppOutput(

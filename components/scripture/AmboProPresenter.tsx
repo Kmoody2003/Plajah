@@ -101,6 +101,7 @@ import {
 import { useContextMenu } from '../ui/ContextMenu';
 import { auth } from '../../services/backendService';
 import { templateById } from '../../services/ambo/slideTemplates/registry';
+import { pendingCallShows, acknowledgeCallShow } from '../../services/ambo/liveCallShows';
 import { themeById } from '../../services/ambo/slideTemplates/themes';
 import { SlideTemplateMenu, ScriptureLookMenu, anchorOf, type MenuAnchor } from './AmboTemplateMenus';
 import { mapFieldsToTemplate, fieldsFromText, retemplate, rethemed, slideLabelFor, type TemplateContent } from '../../services/ambo/slideTemplates/convert';
@@ -626,6 +627,19 @@ useEffect(() => {
     setPlaylist(prev => [...prev, newPlanItem]);
     setActiveShowId(importedShow.id);
   };
+  useEffect(() => {
+    const importLive = (event: Event) => {
+      const show = (event as CustomEvent<Show>).detail;
+      if (!show?.id?.startsWith('chat_show_') || !Array.isArray(show.slides)) return;
+      setLibrary(prev => [show, ...prev.filter(existing => existing.id !== show.id)]);
+      setPlaylist(prev => [{ id: `pi_${show.id}`, title: show.title, show, plannedSec: 0 }, ...prev.filter(item => item.show?.id !== show.id)]);
+      setActiveShowId(show.id);
+      if (auth.currentUser?.uid) acknowledgeCallShow(auth.currentUser.uid, show.id);
+    };
+    window.addEventListener('ambo:import-live-show', importLive);
+    if (auth.currentUser?.uid) pendingCallShows(auth.currentUser.uid).forEach(show => importLive(new CustomEvent('ambo:import-live-show', { detail: show })));
+    return () => window.removeEventListener('ambo:import-live-show', importLive);
+  }, []);
 
   const handleImportProject = (importedProject: AmboProject) => {
     handleSelectProject(importedProject);
@@ -728,7 +742,8 @@ useEffect(() => {
       if (detected.length) {
         setScreens(detected);
         const secondary = detected.find(d => !d.primary) ?? detected[0];
-        setTargetDisplayIndex(secondary.index);
+        // Keep the operator's (or the saved project's) display while it is still connected.
+        setTargetDisplayIndex(prev => (detected.some(d => d.index === prev) ? prev : secondary.index));
         setOutputs(prev => prev.map((o, idx) => {
           if (!o.autoDetectDisplay) return o;
           const targetScreen = idx === 0 ? secondary : (detected[idx] ?? detected[0]);
@@ -775,6 +790,8 @@ useEffect(() => {
   useEffect(() => {
     probeDisplays();
     loadSources();
+    // A projector plugged in mid-service shows up in the picker without a reload.
+    return subscribeToDisplayChanges(() => { void probeDisplays(); });
   }, []);
 
   // Dedicated Physical Output Router
@@ -911,14 +928,17 @@ useEffect(() => {
       ? targetDisplayIndex
       : screens.find(s => !s.primary)?.index ?? 1;
 
-    const screenList = screens.map(s => ({
-      left: s.left,
-      top: s.top,
-      width: s.width,
-      height: s.height,
-    }));
+    // window.open takes CSS pixels; detectScreens reports device pixels.
+    const screenList: Array<{ left: number; top: number; width: number; height: number }> = [];
+    for (const s of screens) {
+      const k = s.scaleFactor || 1;
+      screenList[s.index] = { left: s.left, top: s.top, width: Math.round(s.width / k), height: Math.round(s.height / k) };
+    }
 
     const patchedPgm = { ...pgm, screenIndex: screenTarget };
+    setOutputs(prev => prev.map(o => (o.id === pgm.id ? { ...o, screenIndex: screenTarget } : o)));
+    // An open browser window would only be focused where it is — move it by reopening on the new display.
+    if (isProgramWindowOpen) routerRef.current.closeWindow(pgm.id);
     const success = routerRef.current.openWindow(patchedPgm, screenList);
     if (success) {
       setIsProgramWindowOpen(true);
@@ -3132,25 +3152,33 @@ useEffect(() => {
             ) : (
               <span className="text-[10px] text-white/40 font-mono ml-0.5">2nd Disp</span>
             )}
-            {screens.length > 1 && (
-              <span
-                onClick={e => {
-                  e.stopPropagation();
-                  setIsDisplayPickerOpen(v => !v);
-                }}
-                className="ml-1 p-0.5 hover:bg-white/10 rounded cursor-pointer"
-                title="Select physical screen"
-              >
-                <ChevronDown size={12} />
-              </span>
-            )}
+            <span
+              onClick={e => {
+                e.stopPropagation();
+                setIsDisplayPickerOpen(v => !v);
+                // Opening the picker is a click, so the browser may ask for multi-screen access here.
+                void probeDisplays();
+              }}
+              className="ml-1 p-0.5 hover:bg-white/10 rounded cursor-pointer"
+              title="Choose which display Program Out goes to"
+            >
+              <ChevronDown size={12} />
+            </span>
           </button>
 
-          {isDisplayPickerOpen && screens.length > 0 && (
-            <div className="absolute top-full left-0 mt-1.5 w-64 bg-[#120d1c] border border-white/15 rounded-xl shadow-2xl p-2 z-50">
-              <div className="text-[10px] font-bold uppercase tracking-wider text-white/40 px-2 py-1">
-                Target Physical Display
+          {isDisplayPickerOpen && (
+            <div className="absolute top-full left-0 mt-1.5 w-72 bg-[#120d1c] border border-white/15 rounded-xl shadow-2xl p-2 z-50">
+              <div className="flex items-center justify-between px-2 py-1">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-white/40">Program Out → Display</span>
+                <button onClick={() => void probeDisplays()} className="text-[10px] text-[#00DAF3] hover:underline flex items-center gap-1" title="Rescan displays">
+                  <RefreshCw size={10} /> Detect
+                </button>
               </div>
+              {screens.length <= 1 && (
+                <div className="mx-1 mb-1 px-2 py-1.5 rounded-lg text-[10.5px] leading-snug text-white/55 bg-white/5">
+                  Only one display is visible{screens.length ? '' : ' yet'}. Plug in the projector/TV, then press Detect — Chrome/Edge will ask to allow window management so Ambo can place Program Out on it.
+                </div>
+              )}
               {screens.map(scr => (
                 <button
                   key={scr.index}
@@ -3172,6 +3200,47 @@ useEffect(() => {
                   {targetDisplayIndex === scr.index && <Check size={12} />}
                 </button>
               ))}
+              {(() => {
+                // Every other screen output (stage, aux, key…) gets its own display too.
+                const others = outputs.filter(o => o.kind !== 'PROGRAM' && o.kind !== 'STREAM' && o.enabled);
+                if (!others.length) return null;
+                const cssScreens: Array<{ left: number; top: number; width: number; height: number }> = [];
+                for (const sc of screens) { const k = sc.scaleFactor || 1; cssScreens[sc.index] = { left: sc.left, top: sc.top, width: Math.round(sc.width / k), height: Math.round(sc.height / k) }; }
+                return (
+                  <div className="mt-1.5 pt-1.5 border-t border-white/10">
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-white/40 px-2 py-1">Other outputs</div>
+                    {others.map(o => {
+                      const isOpen = !!routerRef.current?.isOpen(o.id);
+                      return (
+                        <div key={o.id} className="flex items-center gap-1.5 px-2 py-1">
+                          <span className="flex-1 min-w-0 truncate text-[11px] text-white/80">{o.name}</span>
+                          <select value={o.screenIndex ?? ''}
+                            onChange={e => {
+                              const idx = e.target.value === '' ? undefined : Number(e.target.value);
+                              const next = { ...o, screenIndex: idx };
+                              setOutputs(prev => prev.map(x => (x.id === o.id ? next : x)));
+                              if (isOpen && routerRef.current) { routerRef.current.closeWindow(o.id); routerRef.current.openWindow(next, cssScreens); }
+                            }}
+                            className="max-w-[120px] h-6 rounded bg-black/50 border border-white/15 text-[10px] text-white px-1">
+                            <option value="" className="bg-[#120d1c]">Window</option>
+                            {screens.map(sc => <option key={sc.index} value={sc.index} className="bg-[#120d1c]">{sc.label || `Display ${sc.index + 1}`}</option>)}
+                          </select>
+                          <button
+                            onClick={() => {
+                              if (!routerRef.current) return;
+                              if (isOpen) routerRef.current.closeWindow(o.id);
+                              else if (routerRef.current.openWindow(o, cssScreens)) routerRef.current.send(withScriptureLook(effectiveLiveStack), { elapsed });
+                              setOutputs(prev => [...prev]);
+                            }}
+                            className={`h-6 px-2 rounded text-[10px] font-bold border ${isOpen ? 'text-[#FF8C00] border-[#FF8C00]/50 bg-[#FF8C00]/15' : 'text-white/70 border-white/15 hover:bg-white/10'}`}>
+                            {isOpen ? 'Close' : 'Open'}
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })()}
             </div>
           )}
         </div>

@@ -210,14 +210,32 @@ if (import.meta.env.PROD && 'serviceWorker' in navigator) {
       } catch { /* treat as desktop web */ }
 
       if (isTvOrNative) {
-        // Already backgrounded? Safe to apply now. Otherwise wait for the app to be hidden.
-        if (document.visibilityState === 'hidden') { updateSW(true); return; }
-        const applyWhenHidden = () => {
-          if (document.visibilityState === 'hidden') {
-            document.removeEventListener('visibilitychange', applyWhenHidden);
-            updateSW(true);
-          }
+        // "Backgrounded" is NOT "idle": locking the phone with Chora playing hides the page too, and a
+        // reload there kills the audio and drops the queue — music dying the moment the screen turns
+        // off after any deploy. So never apply the update while audio is playing; re-check while the
+        // app stays hidden and apply once playback has stopped (or the next time it is backgrounded
+        // with nothing playing).
+        const audioIsPlaying = () => {
+          try {
+            if ((window as any).__plajahAudioActive?.()) return true;
+            return Array.from(document.querySelectorAll('audio,video')).some(m => !(m as HTMLMediaElement).paused && !(m as HTMLMediaElement).ended);
+          } catch { return false; }
         };
+        let recheck: ReturnType<typeof setTimeout> | null = null;
+        const applyWhenHidden = () => {
+          if (document.visibilityState !== 'hidden') return;
+          if (audioIsPlaying()) {
+            if (!recheck) recheck = setTimeout(() => { recheck = null; applyWhenHidden(); }, 60_000);
+            return;
+          }
+          document.removeEventListener('visibilitychange', applyWhenHidden);
+          updateSW(true);
+        };
+        // Already backgrounded? Safe to apply now (unless music is playing). Otherwise wait for hidden.
+        if (document.visibilityState === 'hidden') {
+          if (!audioIsPlaying()) { updateSW(true); return; }
+          applyWhenHidden();
+        }
         document.addEventListener('visibilitychange', applyWhenHidden);
         return;
       }

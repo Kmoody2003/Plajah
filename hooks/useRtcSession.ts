@@ -79,12 +79,16 @@ export interface UseRtcSession {
 
 export function useRtcSession(
   config: RtcSessionConfig | null,
-  opts: { autoJoin?: boolean; onData?: (peerId: string, msg: RtcDataMessage) => void } = { autoJoin: true },
+  opts: { autoJoin?: boolean; onData?: (peerId: string, msg: RtcDataMessage) => void; excludePeerIds?: string[]; onRecordingStopped?: (blob: Blob) => void } = { autoJoin: true },
 ): UseRtcSession {
   // Keep the latest onData without re-keying the session.
   const onDataRef = useRef(opts.onData);
   onDataRef.current = opts.onData;
+  const onRecordingStoppedRef = useRef(opts.onRecordingStopped);
+  onRecordingStoppedRef.current = opts.onRecordingStopped;
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [activeSessionKey, setActiveSessionKey] = useState<string | null>(null);
+  const emptySession = useRef({ remoteStreams: new Map<string, MediaStream>(), remotePeers: [] as RemotePeer[], participants: [] as RtcParticipant[], peerStates: new Map<string, RTCPeerConnectionState>() }).current;
   const [screenStream, setScreenStream] = useState<MediaStream | null>(null);
   const [remoteStreams, setRemoteStreams] = useState<Map<string, MediaStream>>(new Map());
   const [participants, setParticipants] = useState<RtcParticipant[]>([]);
@@ -98,6 +102,8 @@ export function useRtcSession(
   const [activeDevices, setActiveDevices] = useState<{ cameraId?: string; micId?: string }>({});
 
   const sessionRef = useRef<RtcSession | null>(null);
+  const enabledRef = useRef({ audio: true, video: true });
+  enabledRef.current = { audio: audioEnabled, video: videoEnabled };
   const recorderRef = useRef<SessionRecorder | null>(null);
   // Latest streams, read by the recorder's provider each frame (so participants
   // joining/leaving mid-recording are captured automatically).
@@ -107,9 +113,10 @@ export function useRtcSession(
 
   useEffect(() => {
     if (!config || !key || opts.autoJoin === false) return;
+    setActiveSessionKey(key);
     let cancelled = false;
     const session = new RtcSession(config, {
-      onLocalStream: s => { if (!cancelled) setLocalStream(s); },
+      onLocalStream: s => { if (!cancelled) { s.getAudioTracks().forEach(t => { t.enabled = enabledRef.current.audio; }); s.getVideoTracks().forEach(t => { t.enabled = enabledRef.current.video; }); setLocalStream(s); } },
       onScreenStream: s => { if (!cancelled) { setScreenStream(s); setSharingScreen(!!s); } },
       onRemoteStream: (id, stream) => {
         if (cancelled) return;
@@ -129,18 +136,33 @@ export function useRtcSession(
       onError: e => { if (!cancelled) setError(e.message); },
     });
     sessionRef.current = session;
-    session.join().catch(e => { if (!cancelled) setError(e?.message || 'Failed to join'); });
+    session.setExcludedPeers(opts.excludePeerIds || []);
+    session.join().catch(e => {
+      session.leave();
+      if (!cancelled) { setLocalStream(null); setScreenStream(null); setRemoteStreams(new Map()); setParticipants([]); setError(e?.message || 'Failed to join'); }
+    });
 
     return () => {
       cancelled = true;
+      const recording = recorderRef.current;
+      recorderRef.current = null;
+      if (recording) recording.stop().then(blob => { if (blob) onRecordingStoppedRef.current?.(blob); }).catch(() => {});
+      streamsRef.current = [];
+      setIsRecording(false);
       session.leave();
       sessionRef.current = null;
       setRemoteStreams(new Map());
       setParticipants([]);
       setPeerStates(new Map());
+      setLocalStream(null);
+      setScreenStream(null);
+      setSharingScreen(false);
+      setError(null);
+      setActiveSessionKey(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key]);
+  useEffect(() => { sessionRef.current?.setExcludedPeers(opts.excludePeerIds || []); }, [opts.excludePeerIds]);
 
   const toggleAudio = useCallback(() => {
     setAudioEnabled(prev => { const next = !prev; sessionRef.current?.setAudioEnabled(next); return next; });
@@ -244,8 +266,8 @@ export function useRtcSession(
   const stopRecording = useCallback(async () => {
     const rec = recorderRef.current;
     if (!rec) return null;
-    const blob = await rec.stop();
     recorderRef.current = null;
+    const blob = await rec.stop();
     setIsRecording(false);
     return blob;
   }, []);
@@ -255,17 +277,24 @@ export function useRtcSession(
   }, []);
 
   const leave = useCallback(() => {
-    recorderRef.current?.stop().catch(() => {});
+    const recording = recorderRef.current;
     recorderRef.current = null;
+    if (recording) recording.stop().then(blob => { if (blob) onRecordingStoppedRef.current?.(blob); }).catch(() => {});
+    streamsRef.current = [];
+    setIsRecording(false);
     sessionRef.current?.leave();
   }, []);
 
   return {
-    localStream, remoteStreams, remotePeers, participants, peerStates, error,
+    localStream: activeSessionKey === key ? localStream : null,
+    remoteStreams: activeSessionKey === key ? remoteStreams : emptySession.remoteStreams,
+    remotePeers: activeSessionKey === key ? remotePeers : emptySession.remotePeers,
+    participants: activeSessionKey === key ? participants : emptySession.participants,
+    peerStates: activeSessionKey === key ? peerStates : emptySession.peerStates, error,
     audioEnabled, videoEnabled, sharingScreen,
     toggleAudio, toggleVideo, setAudio, setVideo, switchCamera, cycleCamera, nextCameraStream, cameraStreamForDevice, publishExternalVideo, publishExternalAudio, toggleScreenShare, leave,
     isRecording, startRecording, stopRecording, sendData,
     devices, activeDevices, refreshDevices, switchVideoDevice, switchAudioDevice,
-    useDesktopAudio, screenStream,
+    useDesktopAudio, screenStream: activeSessionKey === key ? screenStream : null,
   };
 }

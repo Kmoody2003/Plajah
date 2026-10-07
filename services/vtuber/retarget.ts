@@ -9,10 +9,22 @@ import type { FaceFrame } from './faceTracker';
 
 export interface RetargetResult {
   expressions: Record<string, number>;       // VRM expression name -> weight 0..1
+  /** A smoothed subset of the raw ARKit blendshapes (brows, cheeks, mouth shapes, tongue …) for rigs richer than VRM's presets — the Kaiju face rig reads these. */
+  blend?: Record<string, number>;
   head: { x: number; y: number; z: number };  // head bone euler (radians)
 }
 
 const clamp01 = (v: number) => Math.max(0, Math.min(1, v));
+
+/** ARKit blendshapes passed through (One-Euro smoothed) for avatars with a full face rig. */
+export const RAW_BLEND_KEYS = [
+  'browInnerUp', 'browDownLeft', 'browDownRight', 'browOuterUpLeft', 'browOuterUpRight',
+  'eyeSquintLeft', 'eyeSquintRight', 'eyeWideLeft', 'eyeWideRight', 'cheekSquintLeft', 'cheekSquintRight', 'cheekPuff',
+  'jawOpen', 'jawLeft', 'jawRight', 'mouthClose', 'mouthFunnel', 'mouthPucker', 'mouthLeft', 'mouthRight',
+  'mouthSmileLeft', 'mouthSmileRight', 'mouthFrownLeft', 'mouthFrownRight', 'mouthStretchLeft', 'mouthStretchRight',
+  'mouthDimpleLeft', 'mouthDimpleRight', 'mouthPressLeft', 'mouthPressRight', 'mouthUpperUpLeft', 'mouthUpperUpRight',
+  'mouthLowerDownLeft', 'mouthLowerDownRight', 'noseSneerLeft', 'noseSneerRight', 'tongueOut',
+] as const;
 
 export class FaceRetargeter {
   private exprBank = new OneEuroBank(3.5, 0.01); // expressions: responsive (blink/lipsync)
@@ -50,6 +62,8 @@ export class FaceRetargeter {
     };
     const expressions: Record<string, number> = {};
     for (const k in raw) expressions[k] = this.exprBank.filter(k, raw[k], tSec);
+    const blend: Record<string, number> = {};
+    for (const k of RAW_BLEND_KEYS) blend[k] = this.exprBank.filter('b:' + k, clamp01(bs(k)), tSec);
 
     let head = { x: 0, y: 0, z: 0 };
     if (frame.matrix) {
@@ -61,7 +75,7 @@ export class FaceRetargeter {
         z: this.headBank.filter('hz', -this._e.z, tSec),  // roll (mirror)
       };
     }
-    return { expressions, head };
+    return { expressions, head, blend };
   }
 
   reset(): void { this.exprBank.reset(); this.headBank.reset(); }

@@ -366,6 +366,13 @@ export class OutputRouter {
     }
   }
 
+  /** Is this output's window open right now? */
+  isOpen(id: string): boolean {
+    if (this.nativeOpen.has(id)) return true;
+    const w = this.windows.get(id);
+    return !!w && !w.closed;
+  }
+
   /** How many output windows are actually open — the real count, not intent. */
   openCount(): number {
     let n = this.nativeOpen.size;

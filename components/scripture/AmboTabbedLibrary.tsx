@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { BOOKS, TRANSLATIONS, type BibleBook, type BibleVerse } from '../../services/bibleService';
 import { parseRef, formatRef, type ScriptureRef } from '../../services/scriptureRef';
+import { resolveScriptureQuery, queryLabel, type ScriptureQuery } from '../../services/scriptureSearch';
 import { getChapter, DEFAULT_TRANSLATION } from '../../services/scriptureText';
 import { newId, type Slide, type Show } from '../../services/ambo/showModel';
 import { GENERATOR_ITEMS } from '../../services/ambo/mediaLibrary';
@@ -35,6 +36,7 @@ import {
 import { type NativeSourceInfo } from '../../services/mediaEngine/bridge';
 import { type AmboMediaSourceItem } from './AmboMediaBin';
 import { type ScriptureCue } from './AmboScriptureDock';
+import AmboScriptureListenBar from './AmboScriptureListenBar';
 
 import {
   isWindowsApp,
@@ -361,6 +363,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   // ── Global Search and Subcategory selection ──
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [searchFocused, setSearchFocused] = useState(false);
   useEffect(() => {
     const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
     return () => clearTimeout(t);
@@ -959,29 +962,34 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   const verseListRef = useRef<HTMLDivElement>(null);
   const verseItemRefs = useRef<Map<number, HTMLDivElement>>(new Map());
 
-  // Filter 66 Books by testament and search
+  // The scripture box anticipates (services/scriptureSearch): partial names,
+  // misspellings, ordinals in any form ("2", "II", "second" → every book that
+  // has a second), and bare numbers as chapter then verse ("2 pet 3 9").
+  const scriptureQuery = useMemo(
+    () => (activeTab === 'scripture' && searchQuery.trim() ? resolveScriptureQuery(searchQuery) : null),
+    [searchQuery, activeTab],
+  );
   const filteredBooks = useMemo(() => {
-    return BOOKS.filter(b => {
-      if (scriptureTestament !== 'ALL' && b.testament !== scriptureTestament) return false;
-      if (debouncedSearch && debouncedSearch.trim() && activeTab === 'scripture') {
-        const q = debouncedSearch.toLowerCase().trim();
-        return (b.name && b.name.toLowerCase().includes(q)) || String(b.num) === q;
-      }
-      return true;
-    });
-  }, [scriptureTestament, debouncedSearch, activeTab]);
+    const inTestament = (b: BibleBook) => scriptureTestament === 'ALL' || b.testament === scriptureTestament;
+    // Numbers alone ("3 16") act on the open book — keep the whole list visible.
+    if (!scriptureQuery || scriptureQuery.contextual) return BOOKS.filter(inTestament);
+    return scriptureQuery.matches.map(m => m.book).filter(inTestament);
+  }, [scriptureTestament, scriptureQuery]);
 
   const activeBook = useMemo(() => {
     return BOOKS.find(b => b.num === selectedBookNum) || BOOKS[42]; // Fallback John
   }, [selectedBookNum]);
 
   // Load verses for active book & chapter
+  /** Which book:chapter `chapterVerses` holds — the verses have no chapter of their own. */
+  const loadedChapterRef = useRef('');
   useEffect(() => {
     let cancelled = false;
     setLoadingVerses(true);
     getChapter(translationSlug, selectedBookNum, selectedChapter)
       .then(verses => {
         if (!cancelled) {
+          loadedChapterRef.current = `${selectedBookNum}:${selectedChapter}`;
           setChapterVerses(verses || []);
           setLoadingVerses(false);
         }
@@ -997,17 +1005,46 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
     };
   }, [selectedBookNum, selectedChapter, translationSlug]);
 
-  // Handle Exact Scripture Search
-  const handleScriptureSearchSubmit = (text: string) => {
-    if (!text || !text.trim()) return;
-    const parsed = parseRef(text.trim());
-    if (parsed) {
-      setSelectedBookNum(parsed.book);
-      setSelectedChapter(parsed.chapterStart);
-      if (parsed.verseStart) {
-        setHighlightVerseNum(parsed.verseStart);
+  /** A verse the search asked for, delivered once its chapter has loaded. */
+  const pendingSearchVerseRef = useRef<{ book: number; chapter: number; verse: number; fire: boolean } | null>(null);
+
+  /** Go to what the box anticipates. `deliver` cues it (or transitions, when scripture is live) like a click; `fire` takes it straight to Program. */
+  const goToScriptureQuery = (q: ScriptureQuery | null, deliver: 'none' | 'cue' | 'fire') => {
+    if (!q) return;
+    const book = q.contextual ? activeBook : q.book;
+    if (!book) return;
+    const chapter = q.chapter ?? (q.contextual ? selectedChapter : 1);
+    if (chapter < 1 || chapter > book.chapters) return;
+    setSelectedBookNum(book.num);
+    setSelectedChapter(chapter);
+    setHighlightVerseNum(q.verse ?? null);
+    if (scriptureTestament !== 'ALL' && book.testament !== scriptureTestament) setScriptureTestament('ALL');
+    pendingSearchVerseRef.current = q.verse != null && deliver !== 'none'
+      ? { book: book.num, chapter, verse: q.verse, fire: deliver === 'fire' }
+      : null;
+    // Already on that chapter: nothing will reload, so deliver now.
+    if (pendingSearchVerseRef.current && !loadingVerses && loadedChapterRef.current === `${book.num}:${chapter}`) {
+      const verse = chapterVerses.find(v => v.verse === q.verse);
+      if (verse) {
+        pendingSearchVerseRef.current = null;
+        if (deliver === 'fire') handleVerseDoubleClick(verse); else handleVerseClick(verse);
       }
     }
+  };
+
+  // Typing "2 pet 3 9" lands on 2 Peter 3:9 without pressing anything; the book
+  // is committed as soon as a chapter is typed after it.
+  useEffect(() => {
+    if (activeTab !== 'scripture' || !debouncedSearch.trim()) return;
+    const q = resolveScriptureQuery(debouncedSearch);
+    if (q.chapter !== undefined && (q.book || q.contextual)) goToScriptureQuery(q, 'none');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, activeTab]);
+
+  // Enter = go there and cue it (live: transition to it); Shift+Enter = straight to Program.
+  const handleScriptureSearchSubmit = (text: string, fire = false) => {
+    if (!text || !text.trim()) return;
+    goToScriptureQuery(resolveScriptureQuery(text), fire ? 'fire' : 'cue');
   };
 
   // Scroll to highlighted verse in chapter context
@@ -1058,6 +1095,17 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
   const handleVerseDoubleClick = (verse: BibleVerse) => {
     fireVerse(verse);
   };
+
+  // A verse asked for from the search box is delivered once its chapter is on screen.
+  useEffect(() => {
+    const want = pendingSearchVerseRef.current;
+    if (!want || loadingVerses || loadedChapterRef.current !== `${want.book}:${want.chapter}`) return;
+    const verse = chapterVerses.find(v => v.verse === want.verse);
+    if (!verse) return;
+    pendingSearchVerseRef.current = null;
+    if (want.fire) handleVerseDoubleClick(verse); else handleVerseClick(verse);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chapterVerses, loadingVerses, selectedBookNum, selectedChapter]);
 
   const handleInsertScriptureAsSlide = (verse: BibleVerse) => {
     const bookName = activeBook?.name || 'Scripture';
@@ -1487,12 +1535,16 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
               type="text"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
+              onFocus={() => setSearchFocused(true)}
+              onBlur={() => setSearchFocused(false)}
               onKeyDown={e => {
                 if (e.key === 'Enter' && activeTab === 'scripture') {
-                  handleScriptureSearchSubmit(searchQuery);
+                  handleScriptureSearchSubmit(searchQuery, e.shiftKey);
                 }
+                if (e.key === 'Escape' && activeTab === 'scripture') setSearchQuery('');
               }}
-              placeholder={activeTab === 'scripture' ? 'Search John 3:16 or verse...' : `Search ${activeTab}...`}
+              placeholder={activeTab === 'scripture' ? 'john 3 16 · 2 pet 3 9 · II Peter · rev…' : `Search ${activeTab}...`}
+              title={activeTab === 'scripture' ? 'Type part of a book (any spelling, 2 / II / second), then chapter and verse — no colon needed. Enter cues it, Shift+Enter takes it live.' : undefined}
               className="pl-7 pr-7 py-1 w-56 lg:w-80 text-[11px] rounded-lg bg-black/40 border border-white/10 text-white placeholder-white/30 focus:border-[#00DAF3] focus:outline-hidden transition-all"
             />
             {searchQuery && (
@@ -1502,6 +1554,44 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
               >
                 <X size={10} />
               </button>
+            )}
+            {searchFocused && scriptureQuery && (scriptureQuery.book || scriptureQuery.contextual || scriptureQuery.ordinalOnly || scriptureQuery.matches.length === 0) && (
+              <div className="absolute left-0 right-0 top-full mt-1 z-50 rounded-lg border border-white/15 bg-[#120d1c]/98 shadow-2xl p-1 text-[11px]">
+                {scriptureQuery.ordinalOnly ? (
+                  <div className="px-2 py-1 text-white/45">Books with a {['', 'first', 'second', 'third', 'fourth'][scriptureQuery.ordinal ?? 0]} — keep typing or pick one</div>
+                ) : scriptureQuery.contextual ? (
+                  <button onMouseDown={e => { e.preventDefault(); handleScriptureSearchSubmit(searchQuery); }}
+                    className="w-full text-left px-2 py-1.5 rounded-md bg-[#E3C57E]/15 text-[#E3C57E] font-bold flex items-center justify-between">
+                    <span>{activeBook.name} {scriptureQuery.chapter}{scriptureQuery.verse != null ? `:${scriptureQuery.verse}` : ''}</span>
+                    <span className="text-[9px] font-mono text-white/40">↵ cue · ⇧↵ live</span>
+                  </button>
+                ) : scriptureQuery.book ? (
+                  <button onMouseDown={e => { e.preventDefault(); handleScriptureSearchSubmit(searchQuery); }}
+                    className="w-full text-left px-2 py-1.5 rounded-md bg-[#E3C57E]/15 text-[#E3C57E] font-bold flex items-center justify-between">
+                    <span>{queryLabel(scriptureQuery)}{scriptureQuery.chapter !== undefined && !scriptureQuery.ref ? <span className="text-[#F5C542] font-normal"> — {scriptureQuery.book.name} has {scriptureQuery.book.chapters} chapters</span> : null}</span>
+                    <span className="text-[9px] font-mono text-white/40">↵ cue · ⇧↵ live</span>
+                  </button>
+                ) : (
+                  <div className="px-2 py-1 text-white/45">No book matches “{searchQuery}”</div>
+                )}
+                {scriptureQuery.matches.length > (scriptureQuery.ordinalOnly ? 0 : 1) && (
+                  <div className="flex flex-wrap gap-1 px-1 pt-1">
+                    {scriptureQuery.matches.slice(scriptureQuery.ordinalOnly ? 0 : 1, 10).map(m => (
+                      <button key={m.book.num}
+                        onMouseDown={e => {
+                          e.preventDefault();
+                          const n = m.book.name;
+                          const nums = searchQuery.match(/\d[\d\s:.,v\-–]*$/)?.[0] ?? '';
+                          const lead = /^\s*\d/.test(searchQuery) && !scriptureQuery.bookText ? '' : nums;
+                          setSearchQuery(`${n}${lead ? ' ' + lead.trim() : ' '}`);
+                        }}
+                        className="px-1.5 py-0.5 rounded border border-white/10 text-white/75 hover:text-white hover:bg-white/10">
+                        {m.book.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             )}
           </div>
         </div>
@@ -1780,6 +1870,9 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                     : 'Auto-cue is off — cue verses yourself, or turn it on to preview the next verse automatically.'}
                 </span>
               </div>
+
+              {/* Live audio → scripture: pick a source (the live mic is always offered) and the operator can just say it */}
+              <AmboScriptureListenBar />
 
               {/* Verses List / Context View (Double click takes live; single click transitions when live) */}
               <div

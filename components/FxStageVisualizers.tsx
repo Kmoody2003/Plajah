@@ -138,7 +138,7 @@ const TYPO_MODES: { name: string; preset: import('./ChoraTypoVisualizer').TypoVo
 ];
 
 // ── Kaiju dance party — Lorik & Lumi (names mirror KAIJU_PRESETS in kaiju/KaijuFxStage) ──
-const KAIJU_MODES = ['Kaiju Party (Auto)', 'Meditation Float', 'EDM Rave', 'Rock Headbang', 'Ballet & Cinema', 'Kaiju Music Video (Clips)'];
+const KAIJU_MODES = ['Kaiju Party (Auto)', 'Meditation Float', 'EDM Rave', 'Rock Headbang', 'Ballet & Cinema', 'Kaiju Music Video (Clips)', 'Kaiju Disco 2D (Lorik & Lumi)', 'Kaiju Disco 3D (Chora & Reello)'];
 
 // Preset-list metadata the selector uses to label. MilkDrops is loaded async (above).
 export const FX_ENGINE_PRESETS: Record<FxEngine, string[]> = {

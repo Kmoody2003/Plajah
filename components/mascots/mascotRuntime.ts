@@ -21,7 +21,7 @@ export type MascotReaction = 'nod_yes' | 'almost' | 'cheer' | 'wave';
 export type FurQuality = 'high' | 'medium' | 'low';
 
 const LOOPS = new Set(['idle', 'listen', 'encourage', 'excited', 'think', 'hop']);
-const FACE_TRACK = /^(h?eye|brow|mouth)/i;
+const FACE_TRACK = /^(h?eye|brow|mouth|blush_big|tear|sweat)/i;   // eye_*, heye_*, brow_*, mouth_* (incl. the expression set) + blush_big/tear/sweat
 /** How much each hand holds the prop during a clip (0 = let go; the clip parks the prop on the lap). */
 const HOLD: Record<string, [number, number]> = {
   idle: [1, 1], listen: [1, 1], think: [1, 0], nod_yes: [1, 1], almost: [0.6, 0.6], wave: [1, 0],
@@ -50,36 +50,58 @@ function patchMaterial(mat: THREE.MeshPhysicalMaterial, o: SkinOpts) {
     sh.uniforms.uFurLen = { value: o.shell?.length ?? 0 };
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', `#include <common>
-        attribute vec3 _fx; varying vec3 vFx; varying vec3 vObj; uniform float uShell; uniform float uFurLen;`)
+        attribute vec3 _fx; varying vec3 vFx; varying vec3 vObj; uniform float uShell; uniform float uFurLen;
+        attribute vec3 _c0; attribute vec3 _c1; attribute vec3 _c2; attribute vec3 _fm;
+        varying vec3 vC0; varying vec3 vC1; varying vec3 vC2; varying vec3 vFm;`)
       .replace('#include <begin_vertex>', `#include <begin_vertex>
-        vObj = position; vFx = _fx;
+        vObj = position; vFx = _fx; vC0 = _c0; vC1 = _c1; vC2 = _c2; vFm = _fm;
         ${o.shell ? 'transformed += normal * uShell * uFurLen * (0.25 + 0.75 * _fx.z);' : ''}`);
     sh.fragmentShader = sh.fragmentShader
       .replace('#include <common>', `#include <common>
         varying vec3 vFx; varying vec3 vObj; uniform float uShell;
+        varying vec3 vC0; varying vec3 vC1; varying vec3 vC2; varying vec3 vFm;
         ${NOISE}`)
       .replace('#include <color_fragment>', `#include <color_fragment>
         {
+          // crisp painted masks: the GLB carries three smooth colour fields (cap/body, face, goggle-or-belly) and signed
+          // fields for the chevron and the goggle/belly edges; thresholding them per pixel keeps the sheet's clean
+          // anti-aliased edges whatever the mesh density. (vFm.z > 1.5 only on skins exported with the layers.)
+          float fa = vFm.x, fb = vFm.y;
+          float wa = max(fwidth(fa) * 0.75, 0.004), wb = max(fwidth(fb) * 0.75, 0.004);
+          if (vFm.z > 1.5) {
+            vec3 cc = mix(vC0, vC1, smoothstep(-wa, wa, fa));
+            cc = mix(cc, vC2, smoothstep(-wb, wb, fb) * clamp(vFm.z - 2.0, 0.0, 1.0));
+            diffuseColor.rgb = cc;
+          }
           vec3 p = vObj;
           // airbrush grain (two octaves) — the sheet's fine stipple
-          float g = mvn(p * 520.0) * 0.55 + mvn(p * 150.0) * 0.45;
-          diffuseColor.rgb *= 0.9 + 0.2 * g;
+          float g = mvn(p * 700.0) * 0.7 + mvn(p * 190.0) * 0.3;
+          // grain is strong in saturated colour, almost gone on the white face (the sheet's whites are clean)
+          float lum = dot(diffuseColor.rgb, vec3(0.333));
+          diffuseColor.rgb *= 1.0 + (g - 0.5) * mix(0.2, 0.06, smoothstep(0.3, 0.8, lum));
           ${o.spots ? `
           // scale spots: warped worley cells, dark navy + a scatter of lighter lavender
-          vec3 q = p * 10.5 + 0.5 * vec3(mvn(p * 22.0), mvn(p * 22.0 + 7.1), mvn(p * 22.0 + 13.7));
+          // stretched a little along the body's up axis → leaf/teardrop speckles like the sheet, not round dots
+          vec3 q = p * vec3(17.0, 15.0, 12.0) + 0.5 * vec3(mvn(p * 22.0), mvn(p * 22.0 + 7.1), mvn(p * 22.0 + 13.7));
           vec2 w = mworley(q);
-          float dark = smoothstep(0.44, 0.33, w.x) * step(0.42, w.y) * vFx.x;
+          float dark = smoothstep(0.54, 0.42, w.x) * step(0.22, w.y) * vFx.x;
           vec2 w2 = mworley(q * 1.3 + 31.0);
           float lite = smoothstep(0.30, 0.22, w2.x) * step(0.82, w2.y) * vFx.y * (1.0 - dark);
           diffuseColor.rgb = mix(diffuseColor.rgb, diffuseColor.rgb * vec3(0.26, 0.28, 0.5), dark * 0.95);
           diffuseColor.rgb = mix(diffuseColor.rgb, min(diffuseColor.rgb * 1.35 + vec3(0.04, 0.03, 0.08), vec3(1.0)), lite * 0.6);` : ''}
           ${o.shell ? `
           // shell fur: tiny strands, thinning toward the tips; darker at the root (self-shadow)
-          float strand = mh3(floor(p * 900.0));
+          float strand = mh3(floor(p * 1300.0));
           float fur = vFx.z;
-          if (fur < 0.05 || strand < uShell * 1.05) discard;
+          if (fur < 0.05 || strand < uShell * 1.05 + (1.0 - fur) * 0.35) discard;
           diffuseColor.rgb *= 0.82 + 0.26 * uShell;` : ''}
-        }`);
+        }`)
+      // soft, tinted ambient lift: the sheet is lit like a studio airbrush render (bright coloured shadows, no black
+      // undersides). Costs one MAD per pixel.
+      .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>
+        reflectedLight.indirectDiffuse += diffuseColor.rgb * vec3(0.17, 0.15, 0.19);
+        // warm floor bounce on downward-facing surfaces (chin, belly underside): the videos' undersides glow peach instead of going dark
+        { float dn = clamp(-normal.y, 0.0, 1.0); reflectedLight.indirectDiffuse += diffuseColor.rgb * vec3(0.62, 0.36, 0.26) * dn * dn; }`);
   };
   mat.customProgramCacheKey = () => `mascot:${o.spots}:${o.shell ? o.shell.index : -1}`;
 }
@@ -99,7 +121,7 @@ function makeMaterials(furQuality: FurQuality) {
   const count = furQuality === 'high' ? 8 : furQuality === 'medium' ? 4 : 0;
   for (let i = 0; i < count; i++) {
     const m = new THREE.MeshPhysicalMaterial({ vertexColors: true, roughness: 0.85, sheen: 1, sheenRoughness: 0.6, sheenColor: new THREE.Color(0.34, 0.3, 0.42) });
-    patchMaterial(m, { spots: true, fur: 1, shell: { index: i, count, length: 0.0045 } });
+    patchMaterial(m, { spots: true, fur: 1, shell: { index: i, count, length: 0.0026 } });
     shells.push(m);
   }
   return { skin, fin, horn, ink, paint, claw, shells };
@@ -108,14 +130,14 @@ function makeMaterials(furQuality: FurQuality) {
 // ------------------------------------------------------------------ springs
 interface SpringSpec { stiffness: number; drag: number; maxDeg: number; animated: boolean }
 const SPRING_FOR = (name: string): SpringSpec | null => {
-  if (/^fin_[fb]\d+_0$/.test(name)) return { stiffness: 5.5, drag: 0.42, maxDeg: 16, animated: false };
-  if (/^fin_[fb]\d+_1$/.test(name)) return { stiffness: 3.6, drag: 0.36, maxDeg: 20, animated: false };
+  if (/^fin_[fb]\d+_0$/.test(name)) return { stiffness: 4.8, drag: 0.38, maxDeg: 20, animated: false };
+  if (/^fin_[fb]\d+_1$/.test(name)) return { stiffness: 3.2, drag: 0.33, maxDeg: 26, animated: false };
   if (/^fin_[dt]\d+_0$/.test(name)) return { stiffness: 6.5, drag: 0.45, maxDeg: 12, animated: false };
   if (/^fin_[dt]\d+_1$/.test(name)) return { stiffness: 4.5, drag: 0.4, maxDeg: 16, animated: false };
   if (/^horn_\d+$/.test(name)) return { stiffness: 11, drag: 0.55, maxDeg: 6, animated: false };
-  if (name === 'head') return { stiffness: 14, drag: 0.5, maxDeg: 6, animated: true };
+  if (name === 'head') return { stiffness: 12, drag: 0.48, maxDeg: 8, animated: true };
   if (name === 'arm_L' || name === 'arm_R') return { stiffness: 12, drag: 0.45, maxDeg: 10, animated: true };
-  if (name === 'tail_3' || name === 'tail_4') return { stiffness: 7, drag: 0.4, maxDeg: 18, animated: true };
+  if (name === 'tail_3' || name === 'tail_4') return { stiffness: 6, drag: 0.38, maxDeg: 24, animated: true };
   return null;
 };
 

@@ -24,6 +24,8 @@ import { objBounds } from './TelaVector';
 import TelaFlyingMenu, { resolveFlyingTarget, type FlyingRef, flyingStripInline } from './TelaFlyingMenu';
 
 export interface TelaEmbedProps {
+  /** Read-only inline snapshot; never persisted to the viewer's document library. */
+  snapshot?: TelaDoc;
   docId: string;
   /** Pinned mode reads this exact snapshot. Ignored for follow-latest. */
   versionId?: string;
@@ -50,7 +52,7 @@ const uid = (p: string) => `${p}_${Date.now()}_${Math.random().toString(36).slic
 const blockPlainText = (b: { text: string }) => flyingStripInline(b.text).replace(/\n/g, ' ').trim();
 
 const TelaEmbed: React.FC<TelaEmbedProps> = ({
-  docId, versionId, frameId, mode, editable = false, canEdit = true, width = 360, versionLabel, className,
+  docId, versionId, frameId, mode, editable = false, canEdit = true, width = 360, versionLabel, className, snapshot,
 }) => {
   const [doc, setDoc] = useState<TelaDoc | null>(null);
   const [resolvedVersion, setResolvedVersion] = useState<string | null>(null);
@@ -66,6 +68,7 @@ const TelaEmbed: React.FC<TelaEmbedProps> = ({
 
   // ── Load / resolve ───────────────────────────────────────────────────────────
   const load = useCallback(async () => {
+    if (snapshot) { setDoc(snapshot); setResolvedVersion(null); setLoading(false); return; }
     if (editable) {
       // Editable always edits the canonical LIVE doc.
       const d = await loadTelaDoc(docId);
@@ -77,28 +80,29 @@ const TelaEmbed: React.FC<TelaEmbedProps> = ({
       setResolvedVersion(v);
     }
     setLoading(false);
-  }, [docId, mode, versionId, editable]);
+  }, [docId, mode, versionId, editable, snapshot]);
 
   useEffect(() => { setLoading(true); void load(); }, [load]);
 
   // Cross-instance sync: a save/publish elsewhere re-resolves follow-latest
   // embeds. Pinned copies IGNORE the signal — they are immutable by contract.
   useEffect(() => {
-    if (editable || mode === 'pinned') return;
+    if (snapshot || editable || mode === 'pinned') return;
     const h = (e: Event) => {
       const detail = (e as CustomEvent<TelaDocChangedDetail>).detail;
       if (detail?.docId === docId) void load();
     };
     window.addEventListener(TELA_DOC_CHANGED_EVENT, h as EventListener);
     return () => window.removeEventListener(TELA_DOC_CHANGED_EVENT, h as EventListener);
-  }, [docId, mode, editable, load]);
+  }, [docId, mode, editable, load, snapshot]);
 
   // ── Editable: ops + debounced autosave ───────────────────────────────────────
   const dispatchOp = useCallback((op: TelaOp) => {
+    if (snapshot) return;
     setDoc(d => (d ? applyTelaOp(d, op) : d));
     if (saveTimer.current) clearTimeout(saveTimer.current);
     saveTimer.current = setTimeout(() => { const cur = docRef.current; if (cur) void saveTelaDoc(cur); }, 700);
-  }, []);
+  }, [snapshot]);
 
   useEffect(() => () => { if (saveTimer.current) { clearTimeout(saveTimer.current); const cur = docRef.current; if (cur) void saveTelaDoc(cur); } }, []);
 

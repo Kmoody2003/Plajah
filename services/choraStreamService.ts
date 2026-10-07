@@ -107,9 +107,23 @@ function secureMediaUrl(u?: string): string | undefined {
   } catch { return u; }
 }
 
+/** True when the page runs from the Capacitor APK's own bundled assets (https://plajah.app, or
+ *  capacitor://localhost) instead of the live site. There `/api/chora/media/...` resolves against the
+ *  APP's local asset server — it 404s — so every transcoded track used to stall on a dead playlist URL
+ *  before falling back to the raw file. Returning no stream pick sends playback straight to the
+ *  original file, the same thing it would do ~10s later after hls.js gave up. (With the live-site
+ *  `server.url` shell the origin is plajah.com and this is false.) */
+export function isBundledNativeOrigin(): boolean {
+  try {
+    if (typeof location === 'undefined') return false;
+    return location.hostname === 'plajah.app' || location.protocol === 'capacitor:' || location.protocol === 'ionic:';
+  } catch { return false; }
+}
+
 /** Pick the playable URL for a ready stream at the chosen quality; null if not ready. */
 export function pickStreamUrl(s: ChoraStream | null | undefined, quality: ChoraQuality): { url: string; isHls: boolean } | null {
   if (!s || s.status !== 'ready') return null;
+  if (isBundledNativeOrigin()) return null;
   if (quality === 'lossless' && s.flac) return { url: secureMediaUrl(s.flac)!, isHls: false };
   if (quality === 'data' && s.low) return { url: secureMediaUrl(s.low)!, isHls: false };
   if (s.hls) return { url: secureMediaUrl(s.hls)!, isHls: true };           // 'high' default

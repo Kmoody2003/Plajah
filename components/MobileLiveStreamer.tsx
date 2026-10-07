@@ -32,7 +32,7 @@ import { LiveComposer, type ComposerMode, LOOKS, type LookId, AMBIENT_FX, type A
 import type { LensId } from '../services/lenses/lensEngine';
 import { LensPicker, LensVideoOverlay } from './LensVideoOverlay';
 import { tapToFrame } from '../services/lenses/auraOrbs';
-import { buildVTuberFromSheet } from '../services/vtuber/avatarFactory';
+import { buildVTuberFromSheet, KAIJU_VTUBER_PRESETS } from '../services/vtuber/avatarFactory';
 import { buildBodyRig } from '../services/vtuber/bodyPuppet';
 import { VoiceFX, VOICE_EFFECTS, type VoiceEffectId } from '../services/voiceFX';
 import {
@@ -853,6 +853,17 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
       const raw = await res.blob();
       if (demo.body) await buildBodyFromBlob(raw, demo.body.crop, demo.body).catch(() => {});
       await buildAvatarFromBlob(await cropSheetFace(raw, demo.crop), demo.puppet);
+    } catch (e: any) { alert(e?.message || 'Could not load that character.'); setDemoId(null); }
+    finally { setAvatarBuilding(false); }
+  };
+  // Kaiju characters (Lorik / Lumi): ready-made face-tracked VTuber presets — no upload, full continuous face rig.
+  const useKaijuPreset = async (preset: typeof KAIJU_VTUBER_PRESETS[number]) => {
+    setAvatarBuilding(true); setBuildMsg(`Loading ${preset.name}…`); setDemoId(preset.id);
+    try {
+      if (!composerRef.current) composerRef.current = new LiveComposer(() => { applyMode('front'); });
+      composerRef.current.setAvatar(preset.descriptor as any);
+      setAvatarBuilt(true); setAvatarKind('vrm'); setVtuberStyleState('face');   // face-driven (no body rig yet), so the face/body toggle stays hidden
+      await applyMode('vtuber');
     } catch (e: any) { alert(e?.message || 'Could not load that character.'); setDemoId(null); }
     finally { setAvatarBuilding(false); }
   };
@@ -1729,6 +1740,22 @@ function MobileStreamer({ onClose, clubId, isPrivate }: { onClose: () => void; c
                     {/* Slide 4 · Avatar */}
                     <div className="w-full shrink-0 snap-center overflow-y-auto px-2 py-1">
                       <div className="grid grid-cols-3 gap-1.5">
+                        {KAIJU_VTUBER_PRESETS.map(pre => {
+                          const active = demoId === pre.id;
+                          return (
+                            <button key={pre.id} onClick={() => useKaijuPreset(pre)} disabled={avatarBuilding} title={pre.blurb}
+                              className={`relative rounded-xl overflow-hidden aspect-square border-2 transition-all disabled:opacity-50 ${active ? 'border-orange-400 ring-2 ring-orange-400/40' : 'border-white/12'}`}
+                              style={{ background: pre.id === 'kaiju-lorik' ? 'linear-gradient(160deg,#6B0099,#D40055 60%,#FF8C00)' : 'linear-gradient(160deg,#1F2B52,#B3430F 70%,#FF8C00)' }}>
+                              <span className="absolute inset-0 flex items-center justify-center text-3xl">{pre.emoji}</span>
+                              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent px-1 pt-3 pb-1">
+                                <span className="text-[10px] font-bold text-white flex items-center gap-0.5">{pre.name} · kaiju</span>
+                              </div>
+                              {active && avatarBuilding && (
+                                <div className="absolute inset-0 bg-black/60 flex items-center justify-center"><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" /></div>
+                              )}
+                            </button>
+                          );
+                        })}
                         {DEMO_AVATARS.map(demo => {
                           const active = demoId === demo.id;
                           return (

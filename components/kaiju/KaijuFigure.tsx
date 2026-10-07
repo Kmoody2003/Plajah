@@ -60,14 +60,14 @@ export const KAIJU_PALETTES: Record<KaijuKind, Palette> = {
 };
 
 // ── geometry (character space) ───────────────────────────────────────────────────────────────────
-const NECK_Y = -112;             // head pivot
-const HEAD_CY = -175;            // frill / mane pivot
-const EYE_Y = -162;              // blink pivot
-const SHOULDER = { x: 40, y: -103 };
-const HIP = { x: 24, y: -32 };
-const ARM_LEN = 56;
+export const NECK_Y = -112;             // head pivot
+export const HEAD_CY = -175;            // frill / mane pivot
+export const EYE_Y = -162;              // blink pivot
+export const SHOULDER = { x: 40, y: -103 };
+export const HIP = { x: 24, y: -32 };
+export const ARM_LEN = 56;
 /** Static head enlargement about the neck (the video renders read even more head-dominant). */
-const HEAD_SCALE = 1.1;
+export const HEAD_SCALE = 1.1;
 
 const HEAD = 'M 0 -238 C 36 -238 60 -222 62 -198 C 66 -180 66 -158 62 -145 C 56 -125 36 -114 0 -114 C -36 -114 -56 -125 -62 -145 C -66 -158 -66 -180 -62 -198 C -60 -222 -36 -238 0 -238 Z';
 const MASK = 'M -63 -195 C -50 -198 -30 -199 -19 -191 C -11 -185 -5 -177 0 -168 C 5 -177 11 -185 19 -191 C 30 -199 50 -198 63 -195 C 66 -178 66 -158 62 -145 C 56 -125 36 -114 0 -114 C -36 -114 -56 -125 -62 -145 C -66 -158 -66 -178 -63 -195 Z';
@@ -119,10 +119,10 @@ const FRILL_R = frillPath(1);
 const FRILL_HL = [-1, 1].map(sx => FRILL_TIPS.map(([at, rt]) =>
   `M ${polar(at - 7, FRILL_VALLEY_R + 1, sx)} Q ${polar(at - 5, (FRILL_VALLEY_R + rt) / 2 + 3, sx)} ${polar(at - 1.5, rt - 6, sx)}`).join(' ')).join(' ');
 
-const EYE_L = 'M -50 -184 L -6 -167 C -5 -156 -14 -147 -26 -147 C -40 -147 -52 -158 -50 -184 Z';
-const EYE_R = 'M 50 -184 L 6 -167 C 5 -156 14 -147 26 -147 C 40 -147 52 -158 50 -184 Z';
-const BROW_L = 'M -55 -189 L -2 -169 L -3 -162.5 L -53 -183.5 Z';
-const BROW_R = 'M 55 -189 L 2 -169 L 3 -162.5 L 53 -183.5 Z';
+export const EYE_L = 'M -50 -184 L -6 -167 C -5 -156 -14 -147 -26 -147 C -40 -147 -52 -158 -50 -184 Z';
+export const EYE_R = 'M 50 -184 L 6 -167 C 5 -156 14 -147 26 -147 C 40 -147 52 -158 50 -184 Z';
+export const BROW_L = 'M -55 -189 L -2 -169 L -3 -162.5 L -53 -183.5 Z';
+export const BROW_R = 'M 55 -189 L 2 -169 L 3 -162.5 L 53 -183.5 Z';
 const NOSE = 'M -2.8 -149.5 L 2.8 -149.5 L 0 -146 Z';
 
 const BODY = 'M -34 -117 C -42 -108 -46 -92 -47 -72 C -48 -54 -48 -40 -45 -30 C -42 -22 -32 -20 -20 -20 L 20 -20 C 32 -20 42 -22 45 -30 C 48 -40 48 -54 47 -72 C 46 -92 42 -108 34 -117 Z';
@@ -288,7 +288,7 @@ export const KaijuFigure = forwardRef<KaijuRig, FigureProps>(({ kind, flipTail, 
   }), [mic]);
 
   const micEl = (
-    <g ref={r.mic} opacity={0}>
+    <g ref={r.mic} opacity={0} data-kj-part="mic">
       <rect x={-3.4} y={-16} width={6.8} height={18} rx={3} fill="#2A2A3A" />
       <circle cx={0} cy={-20} r={8} fill={url('mic')} stroke="#3A3A4C" strokeWidth={1.2} />
       <path d="M -5.5 -22 H 5.5 M -6.5 -18.5 H 6.5 M -4.5 -15 H 4.5" stroke="#ffffff" strokeOpacity={0.45} strokeWidth={0.9} />
@@ -296,7 +296,7 @@ export const KaijuFigure = forwardRef<KaijuRig, FigureProps>(({ kind, flipTail, 
   );
 
   const book = isLorik ? (
-    <g ref={r.book} opacity={0}>
+    <g ref={r.book} opacity={0} data-kj-part="book">
       <rect x={-29} y={-19} width={58} height={37} rx={3} fill="#162033" stroke={P.line} strokeWidth={1.2} />
       <path d="M -26 -16 L -1.5 -13 V 15 L -26 13 Z" fill="#FFFFFF" />
       <path d="M 26 -16 L 1.5 -13 V 15 L 26 13 Z" fill="#F6F2FF" />
@@ -308,7 +308,7 @@ export const KaijuFigure = forwardRef<KaijuRig, FigureProps>(({ kind, flipTail, 
   ) : null;
 
   const arm = (side: 'L' | 'R') => (
-    <g ref={side === 'L' ? r.armL : r.armR}>
+    <g ref={side === 'L' ? r.armL : r.armR} data-kj-part={side === 'L' ? 'armL' : 'armR'}>
       <path d={ARM} fill={url('arm')} />
       {ARM_SPECKS.map(([x, y, rx, ry], i) => <ellipse key={i} cx={x} cy={y} rx={rx} ry={ry} fill={P.speck} opacity={isLorik ? 0.75 : 0.45} />)}
       {skin(ARM, 'volLimb')}
@@ -325,7 +325,7 @@ export const KaijuFigure = forwardRef<KaijuRig, FigureProps>(({ kind, flipTail, 
   );
 
   const leg = (side: 'L' | 'R') => (
-    <g ref={side === 'L' ? r.legL : r.legR}>
+    <g ref={side === 'L' ? r.legL : r.legR} data-kj-part={side === 'L' ? 'legL' : 'legR'}>
       <path d={LEG} fill={url('leg')} />
       {LEG_SPECKS.map(([x, y, rx, ry], i) => <ellipse key={i} cx={side === 'L' ? x : -x} cy={y} rx={rx} ry={ry} fill={isLorik ? P.speck : '#C9561F'} opacity={isLorik ? 0.75 : 0.55} />)}
       {skin(LEG, 'vol')}
@@ -410,14 +410,14 @@ export const KaijuFigure = forwardRef<KaijuRig, FigureProps>(({ kind, flipTail, 
         </radialGradient>
       </defs>
 
-      <ellipse ref={r.shadow} cx={0} cy={3} rx={52} ry={8} fill="#3C1E5A" fillOpacity={0.16} />
+      <ellipse data-kj-dyn ref={r.shadow} cx={0} cy={3} rx={52} ry={8} fill="#3C1E5A" fillOpacity={0.16} />
 
       <g ref={r.root}>
-        <circle ref={r.aura} cx={0} cy={-150} r={140} fill={url('aura')} opacity={0} />
+        <circle data-kj-dyn ref={r.aura} cx={0} cy={-150} r={140} fill={url('aura')} opacity={0} />
 
         {/* tail (behind everything) */}
         <g transform={flipTail ? 'scale(-1 1)' : undefined}>
-          <g ref={r.tail}>
+          <g ref={r.tail} data-kj-part="tail">
             <path d={TAIL_SPIKES} fill={P.dorsal} stroke={P.line} strokeWidth={LW} strokeLinejoin="round" />
             <path d={TAIL_SPIKES} fill={url('grain')} opacity={GRAIN_OP} />
             <path d={TAIL} fill={P.tail} stroke={P.line} strokeWidth={LW} strokeLinejoin="round" />
@@ -452,9 +452,9 @@ export const KaijuFigure = forwardRef<KaijuRig, FigureProps>(({ kind, flipTail, 
         {leg('L')}{leg('R')}
 
         {/* head */}
-        <g ref={r.head}>
+        <g ref={r.head} data-kj-part="head">
           <g transform={`translate(0 ${NECK_Y}) scale(${HEAD_SCALE}) translate(0 ${-NECK_Y})`}>
-          <g ref={r.mane}>
+          <g ref={r.mane} data-kj-part="mane">
             <path d={FRILL_L} fill={url('frill')} stroke={P.line} strokeWidth={LW} strokeLinejoin="round" />
             <path d={FRILL_R} fill={url('frill')} stroke={P.line} strokeWidth={LW} strokeLinejoin="round" />
             <path d={`${FRILL_L} ${FRILL_R}`} fill={url('frillBase')} />
@@ -478,12 +478,12 @@ export const KaijuFigure = forwardRef<KaijuRig, FigureProps>(({ kind, flipTail, 
           <path d={HORN_L} fill={url('hornSheen')} />
           <path d={HORN_R} fill={url('hornSheen')} />
 
-          <g ref={r.blush}>
+          <g ref={r.blush} data-kj-dyn>
             <ellipse cx={-43} cy={-145} rx={7.5} ry={3.6} fill={P.blush} />
             <ellipse cx={43} cy={-145} rx={7.5} ry={3.6} fill={P.blush} />
           </g>
 
-          <g ref={r.eyesN}>
+          <g ref={r.eyesN} data-kj-dyn>
             <path d={EYE_L} fill={url('eye')} />
             <path d={EYE_R} fill={url('eye')} />
             <g ref={r.pupils}>
@@ -504,25 +504,29 @@ export const KaijuFigure = forwardRef<KaijuRig, FigureProps>(({ kind, flipTail, 
               )}
             </g>
           </g>
-          <g ref={r.eyesH} opacity={0} stroke={P.pupil} strokeWidth={4} strokeLinecap="round" fill="none">
+          <g ref={r.eyesH} data-kj-dyn opacity={0} stroke={P.pupil} strokeWidth={4} strokeLinecap="round" fill="none">
             <path d="M -38 -154 Q -26 -166 -14 -154" /><path d="M 38 -154 Q 26 -166 14 -154" />
           </g>
-          <g ref={r.eyesC} opacity={0} stroke={P.pupil} strokeWidth={3.6} strokeLinecap="round" fill="none">
+          <g ref={r.eyesC} data-kj-dyn opacity={0} stroke={P.pupil} strokeWidth={3.6} strokeLinecap="round" fill="none">
             <path d="M -40 -160 Q -26 -151 -12 -160" /><path d="M 40 -160 Q 26 -151 12 -160" />
           </g>
           {/* the angry brow wedges are the character — they stay in every expression */}
-          <path d={BROW_L} fill="#0E0B14" />
-          <path d={BROW_R} fill="#0E0B14" />
-          <path d={NOSE} fill="#0E0B14" />
+          <g data-kj-part="headBrows">
+            <path d={BROW_L} fill="#0E0B14" />
+            <path d={BROW_R} fill="#0E0B14" />
+          </g>
+          <g data-kj-part="headTop">
+            <path d={NOSE} fill="#0E0B14" />
+          </g>
 
-          <path ref={r.mouthC} d="M -8 -137 Q 0 -140 8 -137" stroke="#0E0B14" strokeWidth={2.4} strokeLinecap="round" fill="none" />
-          <g ref={r.mouthO} opacity={0}>
+          <path data-kj-dyn ref={r.mouthC} d="M -8 -137 Q 0 -140 8 -137" stroke="#0E0B14" strokeWidth={2.4} strokeLinecap="round" fill="none" />
+          <g ref={r.mouthO} data-kj-dyn opacity={0}>
             <ellipse ref={r.mouthOut} cx={0} cy={-135} rx={6} ry={6} fill="#4A0F24" />
             <ellipse ref={r.tongue} cx={0} cy={-132} rx={4} ry={2.5} fill="#FF6F91" />
             <path ref={r.fang} d="M 1.5 -137.5 L 5.5 -137.5 L 3.5 -132.5 Z" fill="#FFFFFF" />
           </g>
 
-          <g ref={r.shades} opacity={0}>
+          <g ref={r.shades} data-kj-dyn opacity={0}>
             <path d="M -56 -188 L -4 -170 L -6 -156 C -10 -148 -20 -145 -30 -146 C -46 -148 -56 -160 -56 -188 Z" fill="#121218" />
             <path d="M 56 -188 L 4 -170 L 6 -156 C 10 -148 20 -145 30 -146 C 46 -148 56 -160 56 -188 Z" fill="#121218" />
             <path d="M -8 -168 Q 0 -172 8 -168" stroke="#121218" strokeWidth={4} fill="none" />
@@ -533,8 +537,8 @@ export const KaijuFigure = forwardRef<KaijuRig, FigureProps>(({ kind, flipTail, 
 
         {/* camera — Lumi's strap camera at the belly, raised to her face for snaps */}
         {!isLorik && (
-          <g ref={r.cam}>
-            <path ref={r.strap} d="M -19 -10 L -30 -40 M 19 -10 L 30 -40" stroke="#15151B" strokeWidth={2.4} strokeLinecap="round" />
+          <g ref={r.cam} data-kj-part="cam">
+            <path data-kj-dyn ref={r.strap} d="M -19 -10 L -30 -40 M 19 -10 L 30 -40" stroke="#15151B" strokeWidth={2.4} strokeLinecap="round" />
             <rect x={-21} y={-13} width={42} height={27} rx={5} fill="#1D1D23" stroke="#0A0A0E" strokeWidth={1.2} />
             <rect x={-9} y={-18.5} width={18} height={7} rx={2} fill="#26262E" />
             <rect x={13} y={-13} width={8} height={27} rx={3} fill="#121216" />
@@ -543,7 +547,7 @@ export const KaijuFigure = forwardRef<KaijuRig, FigureProps>(({ kind, flipTail, 
             <circle cx={0} cy={1} r={7} fill="#0E2238" />
             <circle cx={0} cy={1} r={3.2} fill="#06101C" />
             <circle cx={-2.8} cy={-2} r={2.2} fill="#fff" opacity={0.8} />
-            <circle ref={r.flash} cx={0} cy={0} r={60} fill={url('flash')} opacity={0} />
+            <circle data-kj-dyn ref={r.flash} cx={0} cy={0} r={60} fill={url('flash')} opacity={0} />
           </g>
         )}
 

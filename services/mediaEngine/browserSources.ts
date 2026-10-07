@@ -65,6 +65,29 @@ export class WebcamSource extends BaseBrowserSource {
   }
 }
 
+/** A stream that arrived some other way — a Sports Director phone over rtcCore, an Ambo
+ *  output, a canvas. Already connected; the router/switcher treat it like any input. */
+export class ExternalStreamSource extends BaseBrowserSource {
+  kind: SourceKind;
+  constructor(id: string, label: string, stream: MediaStream, kind: SourceKind = 'webrtc', latencyMs = 0) {
+    super(id, label);
+    this.kind = kind;
+    this.latencyMs = latencyMs;
+    this.setStream(stream);
+  }
+  async connect(): Promise<void> { /* already connected */ }
+  /** Swap in a new stream for the same input (a phone reconnecting). */
+  setStream(stream: MediaStream) {
+    this.stream = stream;
+    this.connected = true;
+    const s = stream.getVideoTracks()[0]?.getSettings?.();
+    if (s?.width && s?.height) this.formats = [{ width: s.width, height: s.height, fps: s.frameRate || 30 }];
+    this.emit();
+  }
+  /** The stream is owned elsewhere (rtcCore / the caller) — don't stop its tracks. */
+  dispose(): void { this.stream = null; this.connected = false; this.frameCbs = []; }
+}
+
 /**
  * A remote guest / contribution feed over WHEP (WebRTC-HTTP Egress Protocol).
  * A MediaMTX (or any WHEP) endpoint ingests the camera's SRT/RTMP and serves WHEP;

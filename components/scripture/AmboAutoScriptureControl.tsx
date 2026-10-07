@@ -11,7 +11,7 @@ import {
   getAutoScripturePrefs, getAutoScriptureState, subscribeAutoScripture, setAutoScripturePrefs,
   startAutoScripture, stopAutoScripture, type AutoScripturePrefs,
 } from '../../services/ambo/autoScripture';
-import { listAudioInputs } from '../../services/ambo/liveTranscriber';
+import { AutoScriptureSourcePicker } from './AmboScriptureListenBar';
 import { SCRIPTURE_LAYOUTS } from '../../services/ambo/scriptureLayouts';
 import { TRANSLATIONS } from '../../services/bibleService';
 
@@ -43,12 +43,10 @@ const Row: React.FC<{ label: string; children: React.ReactNode }> = ({ label, ch
 const AmboAutoScriptureControl: React.FC = () => {
   const { prefs, state } = useAuto();
   const [open, setOpen] = useState(false);
-  const [inputs, setInputs] = useState<Array<{ deviceId: string; label: string }>>([]);
   const btnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const set = (p: Partial<AutoScripturePrefs>) => setAutoScripturePrefs(p);
 
-  useEffect(() => { if (open) void listAudioInputs().then(setInputs); }, [open, state.running]);
   useEffect(() => {
     if (!open) return;
     const down = (e: MouseEvent) => {
@@ -114,17 +112,16 @@ const AmboAutoScriptureControl: React.FC = () => {
           </select>
         </Row>
         <Row label="Listen to">
-          <div className="flex gap-1.5">
-            <Seg value={prefs.source} onChange={v => set({ source: v as any })} options={[['mic', 'Default mic'], ['device', 'Audio input']]} />
-            {prefs.source === 'device' && (
-              <select value={prefs.deviceId} onChange={e => set({ deviceId: e.target.value })}
-                className="flex-1 min-w-0 h-7 rounded-md bg-white/5 border border-white/10 text-[10.5px] text-white px-1.5">
-                <option value="" className="bg-[#14101e]">Choose input…</option>
-                {inputs.map(d => <option key={d.deviceId} value={d.deviceId} className="bg-[#14101e]">{d.label}</option>)}
-              </select>
-            )}
-          </div>
+          <AutoScriptureSourcePicker />
         </Row>
+        {prefs.source === 'device' && !!prefs.deviceId && (
+          <Row label="Operator">
+            <label className="flex items-center gap-2 text-[10.5px] text-white/70 cursor-pointer">
+              <input type="checkbox" checked={prefs.operatorMic} onChange={e => set({ operatorMic: e.target.checked })} />
+              Keep my mic live too — say a reference and it comes up
+            </label>
+          </Row>
+        )}
         <Row label="Verses">
           <div className="flex items-center gap-2 text-[10.5px] text-white/70">
             <select value={prefs.versesPerScreen} onChange={e => set({ versesPerScreen: Number(e.target.value) })}

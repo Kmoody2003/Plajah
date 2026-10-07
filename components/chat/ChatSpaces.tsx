@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   MessageSquare, Search, Hash, Users, Radio, Mail, ChevronLeft,
   Heart, X, User, GraduationCap, Clapperboard, Sparkles, ClipboardList,
-  MoreHorizontal, Trash2, Edit3, Music, Pin, Building2, Mic,
+  MoreHorizontal, Trash2, Edit3, Music, Pin, Building2, Mic, PanelLeftOpen, PanelLeftClose,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import type { ChatRoom, Organization, OrgMembership, UserProfile } from '../../types';
@@ -17,6 +17,8 @@ import ChatWindow from '../ChatWindow';
 import PostmanSystem from '../PostmanSystem';
 import IntimateEnrollmentModal from '../IntimateEnrollmentModal';
 import ProductionChatContextPanel from '../film/ProductionChatContextPanel';
+import CollaboBoard from '../CollaboBoard';
+import RoomMessagePreview from './RoomMessagePreview';
 
 // A Space is a built-in destination, one film production, or one organization the
 // user belongs to (business pages / churches / labels — the Organization backbone).
@@ -83,15 +85,19 @@ const Avatar: React.FC<{ room?: ChatRoom; profiles: Record<string, UserProfile>;
 const SpaceButton: React.FC<{
   active: boolean; title: string; onClick: () => void; children: React.ReactNode;
   badge?: { text: string; color: string; bg: string };
-}> = ({ active, title, onClick, children, badge }) => (
+  expanded?: boolean;
+}> = ({ active, title, onClick, children, badge, expanded }) => (
   <button
     onClick={onClick}
     title={title}
-    className={`relative w-11 h-11 rounded-2xl grid place-items-center text-lg transition-all shrink-0 ${
+    aria-label={title}
+    aria-pressed={active}
+    className={`relative ${expanded ? 'w-full min-h-11 flex items-center gap-3 px-3 py-2 text-left' : 'w-11 h-11 grid place-items-center'} rounded-2xl text-lg transition-all shrink-0 ${
       active ? 'ring-2 ring-small-orange bg-white/10' : 'bg-white/[0.04] hover:bg-white/10 hover:rounded-xl'
     }`}
   >
-    {children}
+    <span className="w-6 h-6 shrink-0 grid place-items-center overflow-hidden rounded-lg">{children}</span>
+    {expanded && <span className="text-[12px] font-semibold leading-snug break-words min-w-0">{title}</span>}
     {badge && (
       <span
         className="absolute -bottom-0.5 -right-0.5 text-[7px] font-black leading-none px-1 py-0.5 rounded-md border border-black/40"
@@ -143,7 +149,7 @@ const ChannelRow: React.FC<{
                 ? <span className="text-green-400">typing…</span>
                 : room.id.startsWith('live_chat_') && room.mediaArtist
                   ? <span className="text-orange-400/70">{room.mediaArtist}</span>
-                  : room.lastMessage || (room.channelDescription || 'No messages yet')}
+                  : <RoomMessagePreview roomId={room.id} text={room.lastMessage} fallback={room.channelDescription || 'No messages yet'} />}
             </div>
           )}
         </div>
@@ -260,6 +266,16 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
   const uid = auth.currentUser?.uid;
   const { placeCall } = useCall();
   const [space, setSpace] = useState<SpaceId>('home');
+  const [collaborationId, setCollaborationId] = useState<string | null>(null);
+  useEffect(() => { setCollaborationId(null); }, [activeRoom?.id, space]);
+  const [railExpanded, setRailExpanded] = useState(() => {
+    try { return localStorage.getItem('plajah:chat:expanded-spaces') === 'true'; } catch { return false; }
+  });
+  const toggleRail = () => setRailExpanded(value => {
+    const next = !value;
+    try { localStorage.setItem('plajah:chat:expanded-spaces', String(next)); } catch { /* optional preference */ }
+    return next;
+  });
   const [showNewDm, setShowNewDm] = useState(false);
   const [showBrief, setShowBrief] = useState(false);
 
@@ -575,6 +591,7 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
 
   // ── Main pane: mail / thread / empty ──────────────────────────────────────
   const renderMain = () => {
+    if (collaborationId) return <CollaboBoard projectId={collaborationId} onBack={() => setCollaborationId(null)} />;
     if (space === 'mail') {
       return (
         <div className="hidden md:flex flex-1 flex-col items-center justify-center p-12 text-center">
@@ -601,7 +618,7 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
             profiles={profiles}
             currentUserProfile={currentUserProfile}
             onBack={() => setActiveRoom(null)}
-            onOpenCollab={() => {}}
+            onOpenCollab={setCollaborationId}
             onStartVideo={() => activeRoom && placeCall(activeRoom, 'VIDEO')}
             onStartAudio={() => activeRoom && placeCall(activeRoom, 'AUDIO')}
           />
@@ -643,36 +660,40 @@ const ChatSpaces: React.FC<ChatSpacesProps> = ({
       )}
 
       {/* ── SPACES RAIL (64px) ── */}
-      <div className="w-16 shrink-0 border-r border-white/[0.06] bg-black/30 backdrop-blur-xl flex flex-col items-center gap-2 py-3 overflow-y-auto no-scrollbar z-20">
+      <div className={`${railExpanded ? 'w-56 max-w-[45vw] px-2' : 'w-16'} ${activeRoom ? 'hidden md:flex' : 'flex'} shrink-0 border-r border-white/[0.06] bg-black/30 backdrop-blur-xl flex-col items-center gap-2 py-3 overflow-y-auto no-scrollbar z-20 transition-[width] duration-200`}>
+        <button onClick={toggleRail} aria-expanded={railExpanded} aria-label={railExpanded ? 'Collapse chat categories' : 'Expand chat categories'} title={railExpanded ? 'Collapse categories' : 'Expand categories'} className="w-full min-h-11 flex items-center justify-center gap-2 rounded-xl text-white/60 hover:bg-white/10">
+          {railExpanded ? <PanelLeftClose size={18} /> : <PanelLeftOpen size={18} />}
+          {railExpanded && <span className="text-xs font-semibold">Categories</span>}
+        </button>
         {onBack && (
           <>
             <button onClick={onBack} title="Back" className="w-11 h-11 rounded-2xl grid place-items-center bg-white/[0.04] hover:bg-white/10 text-white/50"><ChevronLeft size={18} /></button>
             <div className="w-6 h-px bg-white/10" />
           </>
         )}
-        <SpaceButton active={space === 'home'} title="Home · DMs & Groups" onClick={() => selectSpace('home')}><MessageSquare size={18} className="text-white/80" /></SpaceButton>
+        <SpaceButton expanded={railExpanded} active={space === 'home'} title="Home · DMs & Groups" onClick={() => selectSpace('home')}><MessageSquare size={18} className="text-white/80" /></SpaceButton>
         <div className="w-6 h-px bg-white/10" />
         {productions.map(p => (
-          <SpaceButton key={p.id} active={space === `prod:${p.id}`} title={`${p.title} (Production)`} onClick={() => selectSpace(`prod:${p.id}`)}
+          <SpaceButton expanded={railExpanded} key={p.id} active={space === `prod:${p.id}`} title={`${p.title} (Production)`} onClick={() => selectSpace(`prod:${p.id}`)}
             badge={{ text: 'SET', color: '#fff', bg: 'linear-gradient(135deg,#6B0099,#D40055 55%,#FF8C00)' }}>
             <Clapperboard size={18} className="text-white/80" />
           </SpaceButton>
         ))}
         {orgSpaces.map(o => (
-          <SpaceButton key={o.id} active={space === `org:${o.id}`} title={`${o.name} (Organization)`} onClick={() => selectSpace(`org:${o.id}`)}
+          <SpaceButton expanded={railExpanded} key={o.id} active={space === `org:${o.id}`} title={`${o.name} (Organization)`} onClick={() => selectSpace(`org:${o.id}`)}
             badge={{ text: 'ORG', color: '#fff', bg: 'linear-gradient(135deg,#0E4429,#1F7A4D 55%,#39D353)' }}>
             {o.logoUrl
               ? <img src={o.logoUrl} alt="" className="w-full h-full object-cover rounded-2xl" loading="lazy" />
               : <Building2 size={18} className="text-white/80" />}
           </SpaceButton>
         ))}
-        <SpaceButton active={space === 'live'} title="Live & Song rooms" onClick={() => selectSpace('live')}><Radio size={18} className="text-red-400" /></SpaceButton>
-        {classrooms.length > 0 && <SpaceButton active={space === 'classrooms'} title="Classrooms" onClick={() => selectSpace('classrooms')}><GraduationCap size={18} className="text-blue-400" /></SpaceButton>}
-        <SpaceButton active={space === 'mail'} title="Postman / Mail" onClick={() => selectSpace('mail')}><Mail size={18} className="text-white/80" /></SpaceButton>
+        <SpaceButton expanded={railExpanded} active={space === 'live'} title="Live & Song rooms" onClick={() => selectSpace('live')}><Radio size={18} className="text-red-400" /></SpaceButton>
+        {classrooms.length > 0 && <SpaceButton expanded={railExpanded} active={space === 'classrooms'} title="Classrooms" onClick={() => selectSpace('classrooms')}><GraduationCap size={18} className="text-blue-400" /></SpaceButton>}
+        <SpaceButton expanded={railExpanded} active={space === 'mail'} title="Postman / Mail" onClick={() => selectSpace('mail')}><Mail size={18} className="text-white/80" /></SpaceButton>
       </div>
 
       {/* ── CHANNEL COLUMN ── */}
-      <div className={`w-full md:w-72 shrink-0 border-r border-white/[0.06] bg-black/20 backdrop-blur-xl flex flex-col z-10 ${activeRoom || space === 'mail' ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`flex-1 min-w-0 md:flex-none md:w-72 md:shrink-0 border-r border-white/[0.06] bg-black/20 backdrop-blur-xl flex flex-col z-10 ${activeRoom || space === 'mail' ? 'hidden md:flex' : 'flex'}`}>
         <div className="px-4 pt-4 pb-3 border-b border-white/[0.05] flex items-center justify-between">
           <h2 className="text-sm font-black uppercase tracking-widest text-white truncate">{spaceTitle}</h2>
           {space === 'home' && (

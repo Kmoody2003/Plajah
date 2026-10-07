@@ -321,7 +321,7 @@ const LectioReader: React.FC<Props> = ({ openAt }) => {
       <main className="flex-1 min-w-0 flex flex-col">
         {/* chrome above the page — stays Plajah-dark */}
         <div className="flex items-center gap-2 px-3 sm:px-5 py-2 border-b border-white/8 bg-black/25 flex-wrap">
-          <CanonBookPicker canon={canon} book={book} onBook={b=>{setBook(b);setChapter(1);setActiveVerse(null);}} onCanon={c=>{const list=canonBooks(c);setCanon(c);setBook(list.find(b=>b.num===book.num)??list[0]);setChapter(1);setActiveVerse(null);setActive([c==='catholic'?'douayrheims':c==='orthodox'?(book.testament==='NT'?'textusreceptus':'lxx'):'kjv']);}} />
+          <CanonBookPicker canon={canon} book={book} onBook={b=>{setBook(b);setChapter(1);setActiveVerse(null);}} onGo={(b,ch,v)=>{setBook(b);setChapter(ch);setActiveVerse(v??null);}} onCanon={c=>{const list=canonBooks(c);setCanon(c);setBook(list.find(b=>b.num===book.num)??list[0]);setChapter(1);setActiveVerse(null);setActive([c==='catholic'?'douayrheims':c==='orthodox'?(book.testament==='NT'?'textusreceptus':'lxx'):'kjv']);}} />
           <select aria-label="Chapter" value={chapter} onChange={e=>{setChapter(Number(e.target.value));setActiveVerse(null);}} className="bg-[#17141f] text-xs rounded px-1 py-1">{Array.from({length:book.chapters},(_,i)=><option key={i+1} value={i+1}>{i+1}</option>)}</select>
           <button onClick={prevCh} aria-label="Previous chapter"
             className="w-7 h-7 rounded-md bg-white/[0.06] border border-white/10 flex items-center justify-center hover:bg-white/[0.12]">

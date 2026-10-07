@@ -24,6 +24,12 @@ export interface ListenerOptions {
   cooldownMs?: number;
   /** Rolling transcript window, in words. Default 48. */
   windowWords?: number;
+  /**
+   * Bare chapters need a capitalised book or a cue phrase ("turn to Acts 2").
+   * Default true — right for the room. The operator's own mic is a command
+   * channel: "Psalm 23" spoken into it means Psalm 23, so it turns this off.
+   */
+  requireCue?: boolean;
 }
 
 export interface ListenerHit {
@@ -57,7 +63,7 @@ export interface ScriptureListener {
  * Detect references in a rolling transcript window.
  * Exported so the same logic can be run one-shot over a whole chunk.
  */
-export function detectSpoken(text: string, minConfidence = 0.7): Array<{ ref: ScriptureRef; confidence: number; heard: string; end: number }> {
+export function detectSpoken(text: string, minConfidence = 0.7, requireCue = true): Array<{ ref: ScriptureRef; confidence: number; heard: string; end: number }> {
   const spoken = normalizeSpoken(text);
   const out: Array<{ ref: ScriptureRef; confidence: number; heard: string; end: number }> = [];
   for (const d of findRefs(spoken, { minConfidence })) {
@@ -67,7 +73,7 @@ export function detectSpoken(text: string, minConfidence = 0.7): Array<{ ref: Sc
     const before = spoken.slice(Math.max(0, start - 60), start);
     const cued = CUE_BEFORE.test(before);
     // chapter:verse is unmistakable; a bare chapter must be capitalised or cued.
-    if (!hasVerse && !capital && !cued) continue;
+    if (requireCue && !hasVerse && !capital && !cued) continue;
     // A bare chapter in a one-chapter-book ("Jude 5") parses as a verse — fine, it has one.
     out.push({ ref: ref as ScriptureRef, confidence: cued ? Math.min(1, confidence + 0.05) : confidence, heard: raw, end });
   }
@@ -79,6 +85,7 @@ export function createScriptureListener(opts: ListenerOptions = {}): ScriptureLi
   const settleMs = opts.settleMs ?? 1100;
   const cooldownMs = opts.cooldownMs ?? 45_000;
   const windowWords = opts.windowWords ?? 48;
+  const requireCue = opts.requireCue ?? true;
 
   let words: string[] = [];
   let lastChange = 0;
@@ -100,7 +107,7 @@ export function createScriptureListener(opts: ListenerOptions = {}): ScriptureLi
 
   const evaluate = (now: number) => {
     const text = words.join(' ');
-    const found = detectSpoken(text, minConfidence);
+    const found = detectSpoken(text, minConfidence, requireCue);
     if (!found.length) { pend = null; return; }
     // The newest reference in the window is the one being spoken.
     const last = found[found.length - 1];

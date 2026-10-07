@@ -7233,7 +7233,7 @@ export const sendMessage = async (roomId: string, message: Omit<ChatMessage, 'id
           title: isProtected ? 'Plajah' : (isGuardianCopy ? 'Copied on your child\'s message' : isMention ? `Mentioned in ${roomData.name || 'chat'}` : 'New Message'),
           message: isProtected
             ? 'New protected message'
-            : `${auth.currentUser?.displayName}: ${(message.text ?? '').substring(0, 50)}${(message.text ?? '').length > 50 ? '...' : ''}`,
+            : (message.text?.startsWith('enc:') ? 'New encrypted message' : `${auth.currentUser?.displayName}: ${(message.text ?? '').substring(0, 50)}${(message.text ?? '').length > 50 ? '...' : ''}`),
           link: 'MESSAGES',
           targetId: roomId
         });
@@ -12314,4 +12314,3 @@ export const warnUserThreat = async (uid: string, vector?: string, details?: str
     });
   }
 };
-

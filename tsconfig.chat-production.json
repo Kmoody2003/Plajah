@@ -1,0 +1,5 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": { "allowJs": false, "noEmit": true },
+  "include": ["components/chat/ConversationBackground.tsx", "components/chat/TelaCollaborationWorkspace.tsx", "components/chat/ChatSpaces.tsx", "components/VideoChat.tsx", "components/TVStudio.tsx", "services/chatProduction.ts", "services/productionControl.ts"]
+}

@@ -19,6 +19,8 @@ import React, {
   useState, useEffect, useRef, useCallback, useMemo,
 } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import HardwareControls from './production/HardwareControls';
+import AmboCGPanel from './production/AmboCGPanel';
 import { useContextMenu, type MenuNode } from './ui/ContextMenu';
 import {
   ArrowLeft, Video, Monitor, Film, Palette, Radio, Circle, Square,
@@ -891,6 +893,7 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
 
         {/* ══ MAIN ════════════════════════════════════════════════════════ */}
         <main className="flex-1 flex flex-col min-w-0 min-h-0 gap-1.5 p-1.5 overflow-hidden" style={{background:'#0a0a0a'}}>
+          <AmboCGPanel visible={studioTab === 'GRAPHICS_BUILDER'} target={() => engineRef.current} />
 
           {/* ════ VIDEO SWITCHER TAB ════════════════════════════════════════ */}
           {studioTab === 'SWITCHER' && (
@@ -1300,6 +1303,10 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
                 ))}
               </div>
               <div className="flex-1 min-w-0 overflow-y-auto space-y-4">
+                {settingsSub === 'MIDI' && <HardwareControls target={() => {
+                  const engine = engineRef.current;
+                  return engine ? { inputs: () => engine.getSources().map(source => source.id), preview: id => engine.setPreview(id), cut: () => engine.cut(), auto: () => engine.auto(), gain: (id, value) => engine.setSourceGain(id, value) } : null;
+                }} />}
                 {activeProject&&(
                   <div className="p-3 rounded-xl space-y-1" style={{background:'#161616',border:'1px solid rgba(255,255,255,0.06)'}}>
                     <p className="text-[8px] opacity-30 uppercase tracking-widest mb-2">Project</p>
@@ -1333,23 +1340,10 @@ const TVStudio: React.FC<TVStudioProps> = ({ currentUser, onBack, onStreamReady 
                         ))}
                         <div className="flex gap-2">
                           <button onClick={resetCC} className="flex-1 py-1.5 rounded-xl text-[9px] font-bold uppercase opacity-40 hover:opacity-80 transition-opacity" style={{border:'1px solid rgba(255,255,255,0.1)'}}>Reset</button>
-                          <button onClick={()=>{const i=document.createElement('input');i.type='file';i.accept='.cube';i.onchange=()=>{if(i.files?.[0])alert('LUT loaded — applied on output stream.');};i.click();}} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl text-[9px] font-bold uppercase opacity-40 hover:opacity-80 transition-opacity" style={{border:'1px solid rgba(255,255,255,0.1)'}}><Upload size={10}/> .cube LUT</button>
+                          <button onClick={()=>{const i=document.createElement('input');i.type='file';i.accept='.cube';i.onchange=async()=>{const file=i.files?.[0];if(!file)return;try{engineRef.current?.setSourceLut(selectedSourceId,await file.text(),file.name);}catch(error){alert(error instanceof Error?error.message:'Could not apply LUT.');}};i.click();}} className="flex-1 flex items-center justify-center gap-1 py-1.5 rounded-xl text-[9px] font-bold uppercase opacity-40 hover:opacity-80 transition-opacity" style={{border:'1px solid rgba(255,255,255,0.1)'}}><Upload size={10}/> .cube LUT</button>
                         </div>
                       </div>
                     )}
-                  </div>
-                )}
-
-                {settingsSub==='MIDI'&&(
-                  <div className="space-y-3">
-                    <button onClick={handleConnectMIDI} className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all" style={{background:midiConnected?'rgba(34,197,94,0.1)':'rgba(107,0,153,0.15)',border:`1px solid ${midiConnected?'rgba(34,197,94,0.25)':'rgba(107,0,153,0.25)'}`,color:midiConnected?'#22c55e':'#a855f7'}}>
-                      <Usb size={12}/>{midiConnected?'MIDI Connected':'Connect MIDI Device'}
-                    </button>
-                    <div className="p-3 rounded-xl space-y-1.5" style={{background:'#161616',border:'1px solid rgba(255,255,255,0.06)'}}>
-                      {[['CC 1–8','Source channel faders'],['CC 10','Master output'],['CC 20','CUT'],['CC 21','AUTO'],['CC 22','FTB'],['Note C3','CUT note-on']].map(([cc,fn])=>(
-                        <div key={cc} className="flex items-center gap-2 text-[9px]"><span className="font-mono w-14 shrink-0" style={{color:'#a855f7'}}>{cc}</span><span className="opacity-40">{fn}</span></div>
-                      ))}
-                    </div>
                   </div>
                 )}
 

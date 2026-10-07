@@ -1496,11 +1496,25 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && request.auth.uid == critiqueId;
     }
     match /smartProductions/{productionId} {
-      // Smart Director multi-camera productions. Public read so any viewer can render the
-      // live PROGRAM feed the director state points at; any signed-in user may create a
-      // production, join as a contributor, and update the shared direction state.
-      allow read: if true;
-      allow create, update: if isAuthenticated();
+      // Sports Director (Smart Director) multi-camera productions.
+      // Read: public/unlisted productions are open to anyone with the link; a 'school'
+      // production only to its owner and signed-in members of the linked school/org
+      // (the orgMemberIndex/{orgId_uid} ACTIVE-membership marker).
+      allow read: if resource == null
+        || resource.data.get('audience', 'public') != 'school'
+        || (isAuthenticated() && (
+              resource.data.ownerId == request.auth.uid
+              || exists(/databases/$(database)/documents/orgMemberIndex/$(resource.data.get('school', {}).get('orgId', '_') + '_' + request.auth.uid))));
+      allow create: if isAuthenticated() && request.resource.data.ownerId == request.auth.uid;
+      // Only the owner directs (program, mode, consent, audience, outputs). Contributors may
+      // only change the roster (join / leave / their role) — and clear program if they leave
+      // while on it. (Per-slot ownership inside the feeds array isn't expressible here.)
+      allow update: if isAuthenticated() && (
+        resource.data.ownerId == request.auth.uid
+        || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['feeds', 'updatedAt'])
+        || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['feeds', 'updatedAt', 'directionState'])
+            && request.resource.data.directionState.programFeedId == '')
+      );
       allow delete: if isAuthenticated() && resource.data.ownerId == request.auth.uid;
     }
     match /loginIssues/{id} {
@@ -2011,6 +2025,81 @@ service cloud.firestore {
     }
 
     match /chat_rooms/{roomId} {
+      function meetingMember() {
+        return isAuthenticated() && request.auth.uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants;
+      }
+      function meetingControl() {
+        return get(/databases/$(database)/documents/chat_rooms/$(roomId)/meetings/control).data;
+      }
+      function hasMeetingControl() {
+        return exists(/databases/$(database)/documents/chat_rooms/$(roomId)/meetings/control);
+      }
+      function meetingScope(uid, scope) {
+        return uid in get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.participants && (
+          (!hasMeetingControl() && scope == 'main') ||
+          (hasMeetingControl() && !(uid in meetingControl().removedIds) &&
+           meetingControl().assignments.get(uid, 'main') == scope &&
+           (scope == 'main' || scope in meetingControl().breakoutRooms))
+        );
+      }
+      function meetingManager() {
+        return meetingMember() && !(request.auth.uid in meetingControl().removedIds) &&
+          (request.auth.uid == meetingControl().hostId || request.auth.uid in meetingControl().moderatorIds);
+      }
+      function validMeeting(data) {
+        return data.keys().hasOnly(['hostId', 'moderatorIds', 'breakoutRooms', 'assignments', 'removedIds', 'muteRequests', 'revision']) &&
+          data.hostId is string && data.moderatorIds is list && data.moderatorIds.size() <= 100 &&
+          data.breakoutRooms is map && data.breakoutRooms.size() <= 12 &&
+          data.assignments is map && data.assignments.size() <= 1000 &&
+          data.removedIds is list && data.removedIds.size() <= 1000 && !(data.hostId in data.removedIds) &&
+          data.muteRequests is map && data.muteRequests.size() <= 1000 && data.revision is int && data.revision >= 1;
+      }
+      match /meetings/{controlId} {
+        allow read: if meetingMember();
+        allow create: if controlId == 'control' && meetingMember() && validMeeting(request.resource.data) &&
+          request.auth.uid == get(/databases/$(database)/documents/chat_rooms/$(roomId)).data.get('ownerId', '') &&
+          request.resource.data.hostId == request.auth.uid && request.resource.data.revision == 1;
+        allow update: if controlId == 'control' && meetingManager() && validMeeting(request.resource.data) &&
+          request.resource.data.hostId == resource.data.hostId &&
+          request.resource.data.revision == resource.data.revision + 1 &&
+          (request.auth.uid == resource.data.hostId || request.resource.data.moderatorIds == resource.data.moderatorIds);
+      }
+      match /meeting_rtc/{scope} {
+        allow read: if meetingMember() && meetingScope(request.auth.uid, scope);
+        match /participants/{uid} {
+          allow read: if meetingMember() && meetingScope(request.auth.uid, scope);
+          allow create, update: if meetingMember() && uid == request.auth.uid && meetingScope(uid, scope) &&
+            request.resource.data.keys().hasOnly(['role', 'name', 'joinedAt']) && request.resource.data.role == 'participant' &&
+            request.resource.data.name is string && request.resource.data.name.size() <= 200;
+          // Removed or reassigned users may delete their own stale presence.
+          allow delete: if isAuthenticated() && uid == request.auth.uid;
+        }
+        match /signals/{edge} {
+          function edgeAllowed() {
+            let peers = edge.split('__');
+            return meetingMember() && meetingScope(request.auth.uid, scope) && peers.size() == 2 &&
+              request.auth.uid in peers && meetingScope(peers[0], scope) && meetingScope(peers[1], scope);
+          }
+          function edgeSender() { return edge.split('__')[0] == request.auth.uid; }
+          allow read: if edgeAllowed();
+          allow create, update: if edgeAllowed() && edgeSender() &&
+            request.resource.data.keys().hasOnly(['description']) && request.resource.data.description is map;
+          allow delete: if edgeAllowed() && edgeSender();
+          match /candidates/{candidateId} {
+            allow read: if edgeAllowed();
+            allow create: if edgeAllowed() && edgeSender() && request.resource.data.keys().hasOnly(['candidate', 'sdpMid', 'sdpMLineIndex', 'usernameFragment']);
+          }
+        }
+        match /messages/{messageId} {
+          allow read: if meetingMember() && meetingScope(request.auth.uid, scope);
+          allow create: if meetingMember() && meetingScope(request.auth.uid, scope) &&
+            request.resource.data.keys().hasOnly(['senderId', 'senderName', 'text', 'timestamp']) &&
+            request.resource.data.senderId == request.auth.uid && request.resource.data.senderName is string &&
+            request.resource.data.senderName.size() <= 100 && request.resource.data.text is string &&
+            request.resource.data.text.matches('^enc:.*') && request.resource.data.text.size() <= 16000 &&
+            request.resource.data.timestamp is number;
+        }
+      }
       allow read: if isAuthenticated() && (
         request.auth.uid in resource.data.participants || 
         resource.data.type == 'PUBLIC_LIVE' || 
@@ -2036,7 +2125,10 @@ service cloud.firestore {
          request.resource.data.get('productionId', '') == resource.data.get('productionId', '') &&
          request.resource.data.get('nibblesEnabled', true) == false &&
          canManageProductionChatById(resource.data.productionId) && isValidChatRoom(request.resource.data)) ||
-        (resource.data.get('workspaceType', '') != 'PRODUCTION' && request.auth.uid in resource.data.participants && isValidChatRoom(request.resource.data)) ||
+        (resource.data.get('workspaceType', '') != 'PRODUCTION' && request.auth.uid in resource.data.participants && isValidChatRoom(request.resource.data) &&
+         (request.auth.uid == resource.data.get('ownerId', '') ||
+          (request.resource.data.get('ownerId', '') == resource.data.get('ownerId', '') &&
+           request.resource.data.get('meetingModeratorIds', []) == resource.data.get('meetingModeratorIds', [])))) ||
         (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['typingUsers', 'updatedAt', 'lastMessage'])) ||
         isAdmin()
       );

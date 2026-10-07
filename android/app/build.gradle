@@ -42,8 +42,12 @@ android {
 
     buildTypes {
         release {
-            minifyEnabled false
-            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // R8 shrink + resource shrink: drops the unused parts of Compose / material-icons-extended /
+            // Cast / Media3 (the app dex is ~80MB unshrunk). Keep rules for Capacitor plugins (found by
+            // reflection) and our own classes live in proguard-rules.pro. Debug builds are unaffected.
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
 

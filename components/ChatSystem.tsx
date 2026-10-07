@@ -25,6 +25,7 @@ import ChatWindow from './ChatWindow';
 import CollaboBoard from './CollaboBoard';
 import PostmanSystem from './PostmanSystem';
 import ChatSpaces from './chat/ChatSpaces';
+import RoomMessagePreview from './chat/RoomMessagePreview';
 import { useShellNext } from '../hooks/useShellNext';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -158,7 +159,7 @@ const RoomRow: React.FC<{
               ? <span className="text-green-400">typing…</span>
               : room.id.startsWith('live_chat_') && room.mediaArtist
                 ? <span className="text-orange-400/70">{room.mediaArtist}</span>
-                : room.lastMessage || 'No messages yet'}
+                : <RoomMessagePreview roomId={room.id} text={room.lastMessage} />}
           </p>
         </div>
       </button>

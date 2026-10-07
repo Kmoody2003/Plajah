@@ -31,7 +31,18 @@ class PlajahNativeAudioPlugin : Plugin() {
         private const val TAG = "PlajahNativeAudio"
         var activePlugin: PlajahNativeAudioPlugin? = null
 
+        // The same physical button press can reach us twice (Media3 reports both the *_TO_NEXT and
+        // *_TO_NEXT_MEDIA_ITEM command for one tap, and the OS can also replay it via the legacy
+        // session). The web player skips a track per command, so de-duplicate here as well as in JS.
+        private const val DUPLICATE_WINDOW_MS = 600L
+        private val lastCommandAt = HashMap<String, Long>()
+
+        @Synchronized
         fun notifyRemoteCommand(command: String) {
+            val now = android.os.SystemClock.elapsedRealtime()
+            val last = lastCommandAt[command]
+            if (last != null && now - last < DUPLICATE_WINDOW_MS) return
+            lastCommandAt[command] = now
             activePlugin?.let { plugin ->
                 val ret = JSObject().put("command", command)
                 plugin.notifyListeners("onRemoteCommand", ret)
@@ -115,6 +126,23 @@ class PlajahNativeAudioPlugin : Plugin() {
             } catch (e: Exception) {
                 call.reject("Failed to sync track: ${e.message}", e)
             }
+        }
+    }
+
+    /**
+     * The web player started/stopped playing. Promotes PlajahMediaService to a foreground service
+     * (with wake + Wi-Fi locks) while audio is playing so the screen-off WebView keeps its network.
+     */
+    @PluginMethod
+    fun setPlaybackActive(call: PluginCall) {
+        val active = call.getBoolean("active") ?: false
+        val title = call.getString("title") ?: "Plajah Chora"
+        val artist = call.getString("artist") ?: "Now Playing"
+        try {
+            PlajahMediaService.setWebPlayback(context.applicationContext, active, title, artist)
+            call.resolve()
+        } catch (e: Exception) {
+            call.reject("setPlaybackActive failed: ${e.message}", e)
         }
     }
 

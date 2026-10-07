@@ -35,6 +35,13 @@ export interface AutoScripturePrefs {
   translation: string;
   source: AutoSourceKind;
   deviceId: string;
+  /**
+   * The operator's live mic stays open alongside a chosen source (the pastor's
+   * mixer feed). It is a command channel: whatever reference the operator says
+   * into it goes up, no "turn to…" needed. Only applies when the source is an
+   * audio input — when the source IS the mic there is one channel.
+   */
+  operatorMic: boolean;
   minConfidence: number;
   /** Take the verse off the screen this long after it goes up. 0 = leave it. */
   autoClearSec: number;
@@ -53,13 +60,15 @@ export interface AutoScriptureState {
   level: number;
   /** What the room is saying right now (last ~14 words). */
   heard: string;
+  /** The operator mic channel, when it runs beside an audio-input source. */
+  operator: { running: boolean; level: number; heard: string; error: string };
   hearing: ListenerHit | null;
   history: AutoScriptureHistoryItem[];
 }
 
 export const DEFAULT_PREFS: AutoScripturePrefs = {
   delivery: 'cue', style: 'overlay', overlayLayoutId: 'lower-third', lookLayoutId: 'sanctuary',
-  translation: 'kjv', source: 'mic', deviceId: '', minConfidence: 0.7, autoClearSec: 0, versesPerScreen: 3,
+  translation: 'kjv', source: 'mic', deviceId: '', operatorMic: true, minConfidence: 0.7, autoClearSec: 0, versesPerScreen: 3,
 };
 
 const KEY = 'ambo_auto_scripture_v1';
@@ -69,7 +78,8 @@ function readPrefs(): AutoScripturePrefs {
 }
 
 let prefs = readPrefs();
-let state: AutoScriptureState = { running: false, starting: false, engine: null, status: 'Off', error: '', level: 0, heard: '', hearing: null, history: [] };
+const OPERATOR_OFF = { running: false, level: 0, heard: '', error: '' };
+let state: AutoScriptureState = { running: false, starting: false, engine: null, status: 'Off', error: '', level: 0, heard: '', operator: OPERATOR_OFF, hearing: null, history: [] };
 const listeners = new Set<() => void>();
 const emit = () => { for (const fn of listeners) { try { fn(); } catch { /* */ } } };
 
@@ -115,18 +125,19 @@ export async function cuesForRef(ref: ScriptureRef, translation: string, per: nu
 }
 
 let handle: TranscriberHandle | null = null;
+let operatorHandle: TranscriberHandle | null = null;
 let timer: ReturnType<typeof setInterval> | null = null;
 let clearTimer: ReturnType<typeof setTimeout> | null = null;
 let savedLayout: string | null = null;
 let heardWords: string[] = [];
 let runId = 0;
 
-async function deliver(hit: ListenerHit) {
+async function deliver(hit: ListenerHit, via: 'room' | 'operator' = 'room') {
   const p = prefs;
   let cues: AutoCue[] = [];
   try { cues = await cuesForRef(hit.ref, p.translation, p.versesPerScreen); } catch { /* offline */ }
   const first = cues[0];
-  const item: AutoScriptureHistoryItem = { at: Date.now(), label: hit.label, delivered: p.delivery, ok: !!first };
+  const item: AutoScriptureHistoryItem = { at: Date.now(), label: via === 'operator' ? `🎙 ${hit.label}` : hit.label, delivered: p.delivery, ok: !!first };
   setState({ history: [item, ...state.history].slice(0, 12), hearing: null });
   if (!first || !sink) return;
   // The look owns the layout while auto mode runs; the operator's own is restored on stop.
@@ -139,10 +150,24 @@ async function deliver(hit: ListenerHit) {
 export async function startAutoScripture(): Promise<void> {
   if (state.running || state.starting) return;
   const my = ++runId;
-  setState({ starting: true, error: '', status: 'Starting…', heard: '', hearing: null });
+  setState({ starting: true, error: '', status: 'Starting…', heard: '', hearing: null, operator: OPERATOR_OFF });
   const listener = createScriptureListener({ minConfidence: prefs.minConfidence });
   heardWords = [];
-  const source: TranscribeSource = prefs.source === 'device' && prefs.deviceId ? { kind: 'device', deviceId: prefs.deviceId } : { kind: 'mic' };
+  const useDevice = prefs.source === 'device' && !!prefs.deviceId;
+  const source: TranscribeSource = useDevice ? { kind: 'device', deviceId: prefs.deviceId } : { kind: 'mic' };
+  // The operator's mic, beside the chosen input — a command channel, so no cue
+  // phrase is needed and it settles faster. It starts in parallel: the room
+  // input may be downloading its speech model, and the operator should not wait.
+  const opListener = useDevice && prefs.operatorMic
+    ? createScriptureListener({ minConfidence: 0.6, requireCue: false, settleMs: 700, cooldownMs: 8000 })
+    : null;
+  savedLayout = getScriptureLook().layoutId;
+  if (opListener) void startOperatorMic(my, opListener);
+  timer = setInterval(() => {
+    const now = Date.now();
+    for (const hit of listener.poll(now)) void deliver(hit);
+    if (opListener) for (const hit of opListener.poll(now)) void deliver(hit, 'operator');
+  }, 250);
   try {
     const h = await startLiveTranscription(source, {
       onWords: (text, final) => {
@@ -157,13 +182,34 @@ export async function startAutoScripture(): Promise<void> {
     });
     if (my !== runId) { h.stop(); return; }
     handle = h;
-    savedLayout = getScriptureLook().layoutId;
-    timer = setInterval(() => {
-      for (const hit of listener.poll(Date.now())) void deliver(hit);
-    }, 250);
     setState({ running: true, starting: false, engine: h.engine, status: 'Listening' });
   } catch (e) {
-    if (my === runId) setState({ running: false, starting: false, engine: null, status: 'Off', error: state.error || String((e as Error)?.message || 'Could not start listening') });
+    if (my !== runId) return;
+    const error = state.error || String((e as Error)?.message || 'Could not start listening');
+    stopAutoScripture();
+    setState({ error });
+  }
+}
+
+async function startOperatorMic(my: number, listener: ReturnType<typeof createScriptureListener>) {
+  let words: string[] = [];
+  const op = (patch: Partial<AutoScriptureState['operator']>) => { if (my === runId) setState({ operator: { ...state.operator, ...patch } }); };
+  try {
+    const h = await startLiveTranscription({ kind: 'mic' }, {
+      onWords: (text, final) => {
+        words = words.concat(text.split(/\s+/).filter(Boolean)).slice(-10);
+        listener.feed(text, Date.now(), final);
+        op({ heard: words.join(' ') });
+        if (!state.hearing && listener.pending()) setState({ hearing: listener.pending() });
+      },
+      onLevel: level => { if (my === runId && Math.abs(level - state.operator.level) > 0.08) op({ level }); },
+      onError: m => op({ error: m }),
+    });
+    if (my !== runId) { h.stop(); return; }
+    operatorHandle = h;
+    op({ running: true, error: '' });
+  } catch (e) {
+    op({ running: false, error: state.operator.error || String((e as Error)?.message || 'Operator mic could not start') });
   }
 }
 
@@ -172,7 +218,9 @@ export function stopAutoScripture(): void {
   if (timer) { clearInterval(timer); timer = null; }
   if (clearTimer) { clearTimeout(clearTimer); clearTimer = null; }
   try { handle?.stop(); } catch { /* */ }
+  try { operatorHandle?.stop(); } catch { /* */ }
   handle = null;
+  operatorHandle = null;
   if (savedLayout) { setScriptureLook({ layoutId: savedLayout }); savedLayout = null; }
-  setState({ running: false, starting: false, engine: null, status: 'Off', level: 0, hearing: null });
+  setState({ running: false, starting: false, engine: null, status: 'Off', level: 0, hearing: null, operator: OPERATOR_OFF });
 }
