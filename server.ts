@@ -48,6 +48,7 @@ import { campaignsRouter } from './routes/campaigns';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { kithSightingsRouter } from './routes/kithSightings';
 import { createAriaSpeakRouter, decideAriaVoiceAccess } from './routes/ariaSpeak';
+import { decideVerifiedAgentTier, type VerifiedAgentTier, type VerifiedFacts } from './services/aria/ariaTier';
 import { socialServerRouter } from './routes/socialServer';
 import { veoRouter } from './routes/veo';
 import { taleoRouter, enqueueIfReady as taleoEnqueueIfReady } from './routes/taleo';
@@ -11150,6 +11151,31 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
   //   PLAJAH_PLUS (~$19.99/mo): ~$0.45 Gemini + ~$2.10 grounding = ~$2.55/user/month
   //   PRO (~$49.99/mo)        : ~$1.13 Gemini + ~$7.00 grounding = ~$8.13/user/month
 
+  // Aria's entitlement is derived HERE from facts a client cannot write (verified token email,
+  // the server-only `admins` collection, Stripe-written Plajah+ subscriptions) — never from a
+  // client-sent `tier`, and never from users/{uid}.role|tier, which are owner-writable.
+  // See services/aria/ariaTier.ts. Cached 60s per uid to spare Firestore on chatty sessions.
+  const verifiedFactsCache = new Map<string, { at: number; facts: { isAdminDoc: boolean; hasActiveSubscription: boolean } }>();
+  const resolveVerifiedFacts = async (req: any): Promise<VerifiedFacts> => {
+    const hit = verifiedFactsCache.get(req.uid);
+    let base = hit && Date.now() - hit.at < 60_000 ? hit.facts : null;
+    if (!base) {
+      const [adminDoc, subs] = await Promise.all([
+        fetchFirebaseDoc('admins', req.uid),
+        queryFirebase('plajahPlusSubscriptions', [{ field: 'subscriberId', value: req.uid }], 10),
+      ]);
+      base = {
+        isAdminDoc: !!adminDoc,
+        hasActiveSubscription: (subs || []).some((s: any) => ['active', 'trialing'].includes(String(s.status))),
+      };
+      verifiedFactsCache.set(req.uid, { at: Date.now(), facts: base });
+    }
+    return { ...base, email: req.email, emailVerified: req.emailVerified, extraAdminEmails: process.env.ARIA_VOICE_ADMIN_EMAILS };
+  };
+  const resolveVerifiedAgentTier = async (req: any): Promise<VerifiedAgentTier> => {
+    try { return decideVerifiedAgentTier(await resolveVerifiedFacts(req)); } catch { return 'FREE'; }
+  };
+
   const AGENT_TIER_LIMITS: Record<string, { daily: number; searches: number }> = {
     FREE:        { daily: 5,   searches: 0  },
     CREATOR:     { daily: 20,  searches: 0  },
@@ -11212,30 +11238,22 @@ Never: exclamation-mark spam, emoji walls, fake-excited marketing copy, flattery
 TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a request is genuinely ambiguous, ask ONE sharp clarifying question — otherwise just do the work.`;
 
   // ── The Council of Art Directors — a working team behind Aria ──────────────
-  const council = createCouncil({ authMiddleware, apiLimiter, firestoreAuthHeaders, libraries: { packs: FABULA_BROADCAST_PACKS.map(p => ({ id: p.id, name: p.name, councilStyle: p.councilStyle })) } });
+  const council = createCouncil({ authMiddleware, apiLimiter, firestoreAuthHeaders, resolveTier: resolveVerifiedAgentTier, libraries: { packs: FABULA_BROADCAST_PACKS.map(p => ({ id: p.id, name: p.name, councilStyle: p.councilStyle })) } });
   council.register(app);
 
   // Aria's spoken voice (ElevenLabs proxy) — see routes/ariaSpeak.ts. Dark until ELEVENLABS_API_KEY + ELEVENLABS_ARIA_VOICE_ID are set.
-  // Access = verified owner email / admin role / active Plajah+ subscription (all server-side).
+  // Access = verified owner email / admins collection / active Plajah+ subscription (all server-side).
   app.use('/api/aria/speak', createAriaSpeakRouter({
     authMiddleware, requireRegisteredUser, limiter: aiLimiter,
-    resolveAccess: async (req: any) => {
-      const [profile, subs] = await Promise.all([
-        firestoreRead('users', req.uid),
-        queryFirebase('plajahPlusSubscriptions', [{ field: 'subscriberId', value: req.uid }], 10),
-      ]);
-      return decideAriaVoiceAccess({
-        email: req.email, emailVerified: req.emailVerified, role: profile?.role,
-        hasActiveSubscription: (subs || []).some((s: any) => ['active', 'trialing'].includes(String(s.status))),
-        extraAdminEmails: process.env.ARIA_VOICE_ADMIN_EMAILS,
-      });
-    },
+    resolveAccess: async (req: any) => decideAriaVoiceAccess(await resolveVerifiedFacts(req)),
   }));
 
   app.post('/api/agent/chat', authMiddleware, express.json({ limit: '10mb' }), async (req: any, res) => {
     try {
       const uid: string = req.uid;
-      const { sessionId, message, attachments = [], tier = 'FREE', context = {}, localReply } = req.body;
+      // NOTE: any `tier` in the body is ignored on purpose — see resolveVerifiedAgentTier.
+      const { sessionId, message, attachments = [], context = {}, localReply } = req.body;
+      const tier: string = await resolveVerifiedAgentTier(req);
 
       if (!sessionId || !message) return res.status(400).json({ error: 'sessionId and message required' });
 

@@ -19,26 +19,19 @@
  */
 import { Router, json } from 'express';
 import { prepareSpeechText } from '../services/aria/ariaSpeech';
+import { isVerifiedAdmin, type VerifiedFacts } from '../services/aria/ariaTier';
 
 /** Who may use the premium (ElevenLabs) voice. `null` = nobody (free account). */
 export type AriaVoiceAccess = 'admin' | 'paid' | null;
 
-/** The owner's account — always has the premium voice so the experience can be tested over time. */
-export const ARIA_VOICE_OWNER_EMAIL = 'kmoody2003@gmail.com';
-
 /**
- * Pure entitlement decision. Inputs come from the VERIFIED token (email/emailVerified), the
- * server-written user doc (role) and the Stripe-webhook-written subscription docs — never the client.
- * Extra admin emails can be added via env ARIA_VOICE_ADMIN_EMAILS (comma-separated).
+ * Pure entitlement decision, built on the same server-side facts as Aria's tier (see ariaTier.ts):
+ * the verified token email, the admins collection and Stripe-written subscriptions — never the
+ * client and never the self-editable users profile (role/tier there prove nothing).
  */
-export function decideAriaVoiceAccess(i: {
-  email?: string; emailVerified?: boolean; role?: string; hasActiveSubscription: boolean; extraAdminEmails?: string;
-}): AriaVoiceAccess {
-  const email = (i.email || '').trim().toLowerCase();
-  const admins = [ARIA_VOICE_OWNER_EMAIL, ...(i.extraAdminEmails || '').split(',')].map(s => s.trim().toLowerCase()).filter(Boolean);
-  if (i.emailVerified && email && admins.includes(email)) return 'admin';
-  if (i.role === 'admin' || i.role === 'staff') return 'admin';
-  if (i.hasActiveSubscription) return 'paid';
+export function decideAriaVoiceAccess(f: VerifiedFacts): AriaVoiceAccess {
+  if (isVerifiedAdmin(f)) return 'admin';
+  if (f.hasActiveSubscription) return 'paid';
   return null;
 }
 

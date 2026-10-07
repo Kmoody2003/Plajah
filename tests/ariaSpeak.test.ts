@@ -78,14 +78,14 @@ test('admin is exempt from the daily cap', async () => {
   delete process.env.ARIA_TTS_DAILY_CHARS;
 });
 
-test('decideAriaVoiceAccess: owner email must be VERIFIED; role and subscription grant access', () => {
-  const base = { hasActiveSubscription: false };
+test('decideAriaVoiceAccess: verified owner email, admins doc, or subscription grant access', () => {
+  const base = { isAdminDoc: false, hasActiveSubscription: false };
   assert.equal(decideAriaVoiceAccess({ ...base, email: 'kmoody2003@gmail.com', emailVerified: true }), 'admin');
   assert.equal(decideAriaVoiceAccess({ ...base, email: 'KMoody2003@Gmail.com', emailVerified: true }), 'admin');
   assert.equal(decideAriaVoiceAccess({ ...base, email: 'kmoody2003@gmail.com', emailVerified: false }), null); // unverified claim
   assert.equal(decideAriaVoiceAccess({ ...base, email: 'someone@else.com', emailVerified: true }), null);
-  assert.equal(decideAriaVoiceAccess({ ...base, role: 'staff' }), 'admin');
-  assert.equal(decideAriaVoiceAccess({ hasActiveSubscription: true }), 'paid');
+  assert.equal(decideAriaVoiceAccess({ ...base, isAdminDoc: true }), 'admin');
+  assert.equal(decideAriaVoiceAccess({ ...base, hasActiveSubscription: true }), 'paid');
   assert.equal(decideAriaVoiceAccess({ ...base, email: 'a@b.com', emailVerified: true, extraAdminEmails: 'x@y.com, a@b.com' }), 'admin');
   assert.equal(decideAriaVoiceAccess({ ...base }), null);
 });
