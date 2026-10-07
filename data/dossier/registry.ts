@@ -64,6 +64,14 @@ export const DOSSIER_THEMES: Record<string, DossierTheme> = {
     script: { word: 'تقسیمِ ہند', font: "'Noto Nastaliq Urdu', 'Fraunces', serif", reading: 'Urdu: “the partition of India”', dir: 'rtl' },
     fonts: ['Fraunces:opsz,wght@9..144,400;9..144,800', 'Noto Nastaliq Urdu', SERIF_FONT],
   },
+  'founding-era': {
+    display: "'Libre Caslon Text', 'Libre Caslon Display', Georgia, 'Times New Roman', serif",
+    body: SERIF_BODY,
+    accent: '#4fb3a0', bg: '#101615', upper: false,
+    heroTitle: 'The Founding Era',
+    entranceAsset: 'a-declaration-trumbull',
+    fonts: ['Libre Caslon Text:ital,wght@0,400;0,700;1,400', SERIF_FONT],
+  },
 };
 
 export const DOSSIERS: DossierEntry[] = [
@@ -118,6 +126,18 @@ export const DOSSIERS: DossierEntry[] = [
     artPending: true,
     load: () => Promise.all([import('./partition'), import('./partitionScenes'), import('./partitionRecon.json')])
       .then(([m, s, r]) => applyReconstructions(m.partitionDossier, s.partitionScenes as any, r.default)),
+  },
+  {
+    id: 'founding-era',
+    theme: DOSSIER_THEMES['founding-era'],
+    title: 'The Founding Era',
+    kind: 'topic',
+    tagline: 'From thirteen colonies to four presidents, and the people the story left out.',
+    years: '1754 — 1817',
+    heroUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Declaration_of_Independence_%281819%29%2C_by_John_Trumbull.jpg/1280px-Declaration_of_Independence_%281819%29%2C_by_John_Trumbull.jpg',
+    artPending: true,
+    load: () => Promise.all([import('./founding'), import('./foundingScenes'), import('./foundingRecon.json')])
+      .then(([m, s, r]) => applyReconstructions(m.foundingDossier, s.foundingScenes as any, r.default)),
   },
 ];
 

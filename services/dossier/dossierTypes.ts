@@ -115,7 +115,8 @@ export type DossierExperience =
   | 'ford-moving-line'
   | 'douglass-composing-stick'
   | 'persia-road'
-  | 'partition-pen';
+  | 'partition-pen'
+  | 'founding-timeline';
 
 export interface ExhibitNode {
   id: string;

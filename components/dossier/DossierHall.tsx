@@ -13,6 +13,7 @@ const DossierFilmPlayer = React.lazy(() => import('./DossierFilmPlayer'));
 const ModelTExploded = React.lazy(() => import('./ModelTExploded'));
 const FordMovingLine = React.lazy(() => import('./experiences/FordMovingLine'));
 const PersiaRoad = React.lazy(() => import('./experiences/PersiaRoad'));
+const FoundingTimeline = React.lazy(() => import('./experiences/FoundingTimeline'));
 
 interface Props {
   dossier?: Dossier;
@@ -484,6 +485,13 @@ function HallInner({ dossier, entry, onBack, backLabel = 'Back' }: { dossier: Do
                   <div className="dh-exp">
                     <React.Suspense fallback={<p className="dh-banner-cap">Opening the road…</p>}>
                       <PersiaRoad />
+                    </React.Suspense>
+                  </div>
+                )}
+                {n.experience === 'founding-timeline' && (
+                  <div className="dh-exp">
+                    <React.Suspense fallback={<p className="dh-banner-cap">Drawing the timeline…</p>}>
+                      <FoundingTimeline dossier={dossier} onGoRoom={goRoom} />
                     </React.Suspense>
                   </div>
                 )}

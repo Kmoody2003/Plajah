@@ -10,6 +10,7 @@ interface Props {
 }
 
 const KIND_LABEL = { biography: 'Biography', topic: 'Topic' } as const;
+const COUNT_WORD = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight'];
 
 /**
  * The lobby is a quad of tall panels, one per exhibit, each in its own ink, ground and display face.
@@ -28,7 +29,10 @@ const CSS = `
 .dl-row{flex:1;min-height:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:clamp(8px,1vw,16px);padding:0 clamp(12px,2vw,32px) clamp(12px,2vw,28px)}
 .dl-card{--a:#f0c987;--b:#121014;--ink:#0b0a0d;position:relative;container-type:size;min-height:0;overflow:hidden;border:1px solid color-mix(in srgb,var(--a) 28%,transparent);border-top:4px solid var(--a);border-radius:4px;
   background:var(--b);cursor:pointer;text-align:left;color:inherit;padding:0;animation:dlRise .9s cubic-bezier(.2,.7,.2,1) both;transition:transform .4s cubic-bezier(.2,.7,.2,1),box-shadow .4s,border-color .3s}
-.dl-card:nth-child(2){animation-delay:.1s}.dl-card:nth-child(3){animation-delay:.2s}.dl-card:nth-child(4){animation-delay:.3s}
+.dl-card:nth-child(2){animation-delay:.1s}.dl-card:nth-child(3){animation-delay:.2s}.dl-card:nth-child(4){animation-delay:.3s}.dl-card:nth-child(5){animation-delay:.4s}
+/* Five exhibits: five columns on a wide screen; two rows (three over two) on a laptop; the last card spans the row on a tablet. */
+.dl-row[data-n="5"]{grid-template-columns:repeat(5,minmax(0,1fr))}
+@media(max-width:1399px){.dl-row[data-n="5"]{grid-template-columns:repeat(6,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr))}.dl-row[data-n="5"] .dl-card{grid-column:span 2}.dl-row[data-n="5"] .dl-card:nth-child(n+4){grid-column:span 3}}
 .dl-card:hover,.dl-card:focus-visible{transform:translateY(-5px);border-color:var(--a);box-shadow:0 26px 70px rgba(0,0,0,.6),0 0 0 2px var(--a);outline:none}
 .dl-card img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 22%;transform:scale(1.02);transition:transform 9s ease-out}
 .dl-card:hover img,.dl-card:focus-visible img{transform:scale(1.12)}
@@ -48,10 +52,13 @@ const CSS = `
 @keyframes dlFade{from{opacity:0}to{opacity:1}}
 @media(max-width:1000px){
   .dl{height:auto;min-height:100%;overflow:visible}
-  .dl-row{grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(300px,calc((100dvh - 150px)/2))}
+  .dl-row,.dl-row[data-n="5"]{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:none;grid-auto-rows:minmax(300px,calc((100dvh - 150px)/2))}
+  .dl-row[data-n="5"] .dl-card,.dl-row[data-n="5"] .dl-card:nth-child(n+4){grid-column:auto}
+  .dl-row[data-n="5"] .dl-card:nth-child(5){grid-column:1 / -1}
 }
 @media(max-width:620px){
-  .dl-row{grid-template-columns:1fr;grid-auto-rows:minmax(340px,92vw)}
+  .dl-row,.dl-row[data-n="5"]{grid-template-columns:1fr;grid-auto-rows:minmax(340px,92vw)}
+  .dl-row[data-n="5"] .dl-card:nth-child(5){grid-column:auto}
   .dl-card:hover{transform:none}
 }
 @media(prefers-reduced-motion:reduce){.dl *{animation:none!important;transition:none!important}.dl-card:hover img{transform:none}}
@@ -65,9 +72,9 @@ export default function DossierLobby({ onChoose, onBack }: Props) {
       {onBack && <div className="dl-top"><button className="dl-back" onClick={onBack}><ArrowLeft size={16} /> Back</button></div>}
       <header className="dl-head">
         <h1 className="dl-h1 dl-serif">The Exhibition Hall</h1>
-        <div className="dl-sub">Four exhibits, each researched, sourced and told at every reading level.</div>
+        <div className="dl-sub">{COUNT_WORD[DOSSIERS.length] ?? DOSSIERS.length} exhibits, each researched, sourced and told at every reading level.</div>
       </header>
-      <div className="dl-row">
+      <div className="dl-row" data-n={DOSSIERS.length}>
         {DOSSIERS.map(d => {
           const t = d.theme ?? DEFAULT_THEME;
           const title = t.heroTitle ?? d.title;

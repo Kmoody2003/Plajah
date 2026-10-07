@@ -127,6 +127,7 @@ export function glyphEm(theme: DossierTheme): number {
   if (first === 'abril fatface') return 0.74;
   if (first === 'cormorant garamond') return 0.46;
   if (first === 'fraunces') return 0.56;
+  if (first === 'libre caslon text' || first === 'libre caslon display') return 0.68;
   return theme.upper ? 0.66 : 0.54;
 }
 
