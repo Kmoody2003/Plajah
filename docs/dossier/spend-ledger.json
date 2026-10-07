@@ -899,5 +899,14 @@
     "credits": 75,
     "refs": 2,
     "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T15:25:00.000Z",
+    "scene": "recon-abigail-adams-letter-1776 (replacement regen 1, used: younger face closer to the Blyth pastel; the first image showed her about 40 or older; a light switch on the wall was painted out locally with Pillow, no credits)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 2,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped): Blyth pastel c. 1766 (exhibit asset a-abigail-adams) and Gilbert Stuart, Abigail Smith Adams, NGA 42934, 1800-1815 (CC0, structure only, age note in prompt); prompt built with services/dossier/characterGateway.ts, with an Avoid: line appended"
   }
 ]
