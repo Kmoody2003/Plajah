@@ -9,8 +9,11 @@ import { DOSSIERS, takeRequestedDossier, type DossierEntry } from '../../data/do
 import DossierEntrance from './DossierEntrance';
 import DossierLobby from './DossierLobby';
 import { ensureDossierFonts, prefersReducedMotion } from './dossierFonts';
+import { fetchHallFilm } from '../../services/dossier/experiences/experienceFilmClient';
+import type { ExperienceFilmPublic } from '../../services/dossier/experiences/experienceModel';
 
-const DossierFilmPlayer = React.lazy(() => import('./DossierFilmPlayer'));
+// Prefers the Mux copy an admin published for this exhibit (experienceFilms), falls back to the live canvas film.
+const DossierFilmHost = React.lazy(() => import('./DossierFilmHost'));
 const ModelTExploded = React.lazy(() => import('./ModelTExploded'));
 const FordMovingLine = React.lazy(() => import('./experiences/FordMovingLine'));
 const PersiaRoad = React.lazy(() => import('./experiences/PersiaRoad'));
@@ -273,6 +276,9 @@ function HallInner({ dossier, entry, onBack, backLabel = 'Back' }: { dossier: Do
   const [intro, setIntro] = useState(true);
   const [reveal, setReveal] = useState(false);
   const [film, setFilm] = useState(false);
+  /** The Mux film an admin published for this exhibit (public doc, any visitor). null until read, or when there is none. */
+  const [hallFilm, setHallFilm] = useState<ExperienceFilmPublic | null>(null);
+  useEffect(() => { let live = true; fetchHallFilm(entry.id).then(f => { if (live) setHallFilm(f); }); return () => { live = false; }; }, [entry.id]);
   const [zoom, setZoom] = useState<DossierAsset | null>(null);
   useEffect(() => {
     if (!zoom) return;
@@ -390,9 +396,9 @@ function HallInner({ dossier, entry, onBack, backLabel = 'Back' }: { dossier: Do
     <div className="dh" ref={rootRef} style={{ ...vars, '--dh-dir': String(dir) } as React.CSSProperties} data-slide={slide} data-exhibit={dossier.id}>
       <style>{CSS}</style>
       {intro && <DossierEntrance dossier={dossier} theme={theme} onEnter={finishIntro} />}
-      {film && entry.film && (
+      {film && (entry.film || hallFilm) && (
         <React.Suspense fallback={null}>
-          <DossierFilmPlayer load={entry.film} onClose={() => setFilm(false)} />
+          <DossierFilmHost entry={entry} onClose={() => setFilm(false)} />
         </React.Suspense>
       )}
       {reveal && <div className="dh-reveal" aria-hidden><i /><i /></div>}
@@ -425,7 +431,7 @@ function HallInner({ dossier, entry, onBack, backLabel = 'Back' }: { dossier: Do
           <summary aria-label="More: replay the opening, watch the film, open in Tela or Fabula"><MoreHorizontal size={16} /> More</summary>
           <div className="dh-tools-menu">
             {dossier.entrance && <button onClick={e => { setIntro(true); (e.currentTarget.closest('details') as HTMLDetailsElement).open = false; }}>Replay the opening</button>}
-            {entry.film && <button onClick={e => { setFilm(true); (e.currentTarget.closest('details') as HTMLDetailsElement).open = false; }}>▶ Watch the film</button>}
+            {(entry.film || hallFilm) && <button onClick={e => { setFilm(true); (e.currentTarget.closest('details') as HTMLDetailsElement).open = false; }}>▶ Watch the film</button>}
             {entry.telaTimeline && <button onClick={e => { openTimelineInTela(entry).catch(() => {}); (e.currentTarget.closest('details') as HTMLDetailsElement).open = false; }}>Open the timeline in Tela</button>}
             {entry.fabulaFilm && <button onClick={e => { openFilmInFabula(entry).catch(() => {}); (e.currentTarget.closest('details') as HTMLDetailsElement).open = false; }}>Open the film in Fabula</button>}
           </div>

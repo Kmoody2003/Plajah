@@ -159,6 +159,30 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // Dossier "Experiences" — the platform-admin-only asset area for the Dossier films on Mux.
+    // experiences/{id}: the full record (Mux asset id, source file, hash, status). Platform admins ONLY, read and write.
+    // Visitors never read this collection.
+    match /experiences/{expId} {
+      allow read, write: if isAdmin();
+    }
+    // experienceFilms/{exhibitId}: the minimal playback doc the Dossier hall reads so ANY visitor (signed in or not)
+    // can watch an exhibit film from Mux. Public read; only a platform admin can write, and only this exact shape:
+    // a public Mux playback id plus display fields. Deleting it sends the hall back to the live canvas film.
+    match /experienceFilms/{exhibitId} {
+      allow read: if true;
+      allow create, update: if isAdmin()
+        && request.resource.data.keys().hasOnly(['exhibitId', 'experienceId', 'title', 'muxPlaybackId', 'playbackPolicy', 'durationSec', 'width', 'height', 'captionsUrl', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['exhibitId', 'experienceId', 'title', 'muxPlaybackId', 'playbackPolicy', 'durationSec', 'updatedAt'])
+        && request.resource.data.exhibitId == exhibitId
+        && request.resource.data.playbackPolicy == 'public'
+        && request.resource.data.muxPlaybackId is string
+        && request.resource.data.muxPlaybackId.size() >= 8 && request.resource.data.muxPlaybackId.size() <= 200
+        && request.resource.data.title is string && request.resource.data.title.size() < 200
+        && request.resource.data.durationSec is number && request.resource.data.durationSec > 0
+        && (!('captionsUrl' in request.resource.data) || (request.resource.data.captionsUrl is string && request.resource.data.captionsUrl.size() < 1000));
+      allow delete: if isAdmin();
+    }
+
     match /sports_league_teams/{docId} {
       allow read: if true;
       allow write: if isAdmin();
