@@ -216,15 +216,31 @@ export default function DossierHall(props: Props) {
   );
   const entry = useMemo(() => DOSSIERS.find(d => d.id === chosen) ?? null, [chosen]);
   const [loaded, setLoaded] = useState<Dossier | null>(props.dossier ?? null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   useEffect(() => {
     if (props.dossier) { setLoaded(props.dossier); return; }
     if (!entry) { setLoaded(null); return; }
     let live = true;
     setLoaded(null);
-    entry.load().then(d => { if (live) setLoaded(d); }).catch(() => {});
+    setLoadError(null);
+    entry.load().then(d => { if (live) setLoaded(d); }).catch(e => {
+      console.error('[dossier] could not load ' + entry.id, e);
+      if (live) setLoadError(String((e && (e.message || e)) || 'unknown error'));
+    });
     return () => { live = false; };
-  }, [entry, props.dossier]);
+  }, [entry, props.dossier, attempt]);
   if (!entry && !props.dossier) return <DossierLobby onChoose={setChosen} onBack={props.onBack} />;
+  if (!loaded && loadError) {
+    return (
+      <div className="dh" role="alert" style={{ padding: 40, color: 'rgba(242,236,246,.85)', background: '#121014', minHeight: '60vh' }}>
+        <b>This exhibit could not load.</b>
+        <p style={{ margin: '8px 0 14px', opacity: .7, fontSize: 14 }}>{loadError}</p>
+        <button onClick={() => setAttempt(a => a + 1)} style={{ marginRight: 10, padding: '8px 14px', borderRadius: 99, border: '1px solid rgba(255,255,255,.4)', background: 'transparent', color: 'inherit', cursor: 'pointer' }}>Try again</button>
+        <button onClick={() => (DOSSIERS.length > 1 && !props.dossier ? setChosen(null) : props.onBack?.())} style={{ padding: '8px 14px', borderRadius: 99, border: '1px solid rgba(255,255,255,.4)', background: 'transparent', color: 'inherit', cursor: 'pointer' }}>Back</button>
+      </div>
+    );
+  }
   if (!loaded) return <div className="dh" style={{ padding: 40, color: 'rgba(242,236,246,.6)', background: '#121014' }}>Opening exhibit…</div>;
   const hasLobby = DOSSIERS.length > 1 && !props.dossier;
   const toLobby = hasLobby ? () => setChosen(null) : props.onBack;

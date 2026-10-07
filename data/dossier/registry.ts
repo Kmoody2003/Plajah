@@ -123,7 +123,7 @@ export const DOSSIERS: DossierEntry[] = [
     kind: 'topic',
     tagline: 'A line drawn in five weeks, and the lives it divided.',
     years: '1857 — Today',
-    heroUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/06/Map_of_the_partition_boundaries_in_the_Punjab%2C_Research_Dept.%2C_F.O.%2C_September%2C_1948.jpg/1280px-Map_of_the_partition_boundaries_in_the_Punjab%2C_Research_Dept.%2C_F.O.%2C_September%2C_1948.jpg',
+    heroUrl: '/dossier/partition/maps/punjab-fo-1948.jpg',
     artPending: true,
     film: (w, h) => import('./partitionFilmCouncil').then(m => m.loadPartitionCouncilFilm(w, h)),
     load: () => Promise.all([import('./partition'), import('./partitionScenes'), import('./partitionRecon.json')])
