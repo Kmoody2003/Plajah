@@ -1423,9 +1423,16 @@ public sealed partial class MainWindow : Window
                 {
                     result = new { success = true };
                 }
-                else if (cmd == "route" || cmd == "set_program" || cmd == "set_sync")
+                else if (cmd == "route" || cmd == "set_program" || cmd == "set_sync" || cmd == "set_transition")
                 {
+                    // Acknowledged; the browser compositor renders program until the native switcher lands.
                     result = new { success = true };
+                }
+                else if (cmd == "set_output")
+                {
+                    // Native RTMP/SRT push + record not implemented in this host yet — report it honestly
+                    // so the web engine falls back to MediaRecorder / Plajah live / WHIP.
+                    result = new { success = false, error = "Native outputs are not implemented in this build" };
                 }
                 else if (cmd == "camera_control")
                 {
