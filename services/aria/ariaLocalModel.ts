@@ -6,25 +6,28 @@
  * weights are cached — but only on capable browsers, and weaker than the cloud
  * (Gemini Flash) lane on hard tasks.
  *
- * Two engines:
+ * Two engines, both loaded as a TEXT-GENERATION pipeline:
  *   • 'qwen'   (default) Qwen2.5 1.5B on WebGPU / 0.5B on wasm — small download, runs anywhere.
- *   • 'gemma4' Google Gemma 4 E2B (Apache 2.0): native system prompt + function-calling
- *              training, so it follows Aria's persona and <ARIA_ACTION> protocol better.
- *              WebGPU only, ~3 GB first download (cached afterwards).
+ *   • 'gemma4' Google Gemma 4 E2B (Apache 2.0): native system prompt + function-calling training,
+ *              so it follows Aria's persona and <ARIA_ACTION> protocol better. WebGPU only.
+ *              Loaded TEXT-ONLY (embed_tokens + decoder) — the vision/audio encoders Aria never
+ *              uses are not downloaded or loaded, which keeps it inside the tab's memory budget.
  *
- * HOT-SWAP: when Gemma 4 is preferred but not cached yet, Aria starts on Qwen immediately
- * and Gemma 4 downloads in the background; the moment it is ready we switch over (and free
- * Qwen's GPU memory). If Gemma 4 is already cached it loads directly. If it cannot load for
- * any reason Aria simply stays on Qwen.
+ * MEMORY RULE — never two models at once. The in-browser runtime has a ~4 GB per-tab ceiling and
+ * does not give memory back after a failed load (that was the `std::bad_alloc` crash). So:
+ *   – Gemma 4 not downloaded yet → Qwen loads and answers; Gemma 4's files are only DOWNLOADED to
+ *     the browser cache in the background (no model session, no runtime memory).
+ *   – Download done → when no reply is being generated, Qwen is fully disposed FIRST, then Gemma 4
+ *     is loaded from the cache. If Gemma 4 can't load, Qwen comes back.
+ *   – Gemma 4 already cached → it loads directly.
  *
  * NOTE ON CACHING: browsers keep this cache per ORIGIN (scheme + host + PORT). A dev server
  * that changes port between runs starts with an empty cache every time and re-downloads —
  * use a fixed port. We also ask the browser for persistent storage so the cache isn't evicted.
  *
- * The default path stays cloud. This lane is opt-in (a "Run Aria on-device" toggle) and
- * always degrades gracefully: if nothing can load, callers fall back to the server.
+ * The default path stays cloud. This lane is opt-in (a "Run Aria on-device" toggle).
  *
- * Install (already a dependency): @huggingface/transformers (>= 4, which ships Gemma4).
+ * Install (already a dependency): @huggingface/transformers (>= 4, which ships Gemma 4).
  */
 
 import { isWindowsApp, invokeNativeLlm } from '../windowsBridgeService';
@@ -34,11 +37,13 @@ import { isWindowsApp, invokeNativeLlm } from '../windowsBridgeService';
 const MODEL_WEBGPU = 'onnx-community/Qwen2.5-1.5B-Instruct';
 const MODEL_WASM = 'onnx-community/Qwen2.5-0.5B-Instruct';
 const MODEL_GEMMA4 = 'onnx-community/gemma-4-E2B-it-ONNX';
-const GEMMA_CACHE_MATCH = /gemma-4-E2B-it-ONNX[^?]*\.onnx/i;
+const GEMMA_OPTS = { dtype: 'q4f16', device: 'webgpu' } as const;
+const CACHE_NAME = 'transformers-cache';
 
 export type LocalChatMessage = { role: 'system' | 'user' | 'assistant'; content: string };
 export type LocalModelStatus = 'idle' | 'loading' | 'ready' | 'unavailable';
 export type LocalEngine = 'qwen' | 'gemma4';
+type StatusFn = ((s: string) => void) | undefined;
 
 const ENGINE_KEY = 'aria_local_engine';
 const GEMMA_FAILED_KEY = 'aria_gemma_failed_at';
@@ -48,25 +53,31 @@ function hasWebGPU(): boolean {
   try { return typeof navigator !== 'undefined' && !!(navigator as any).gpu; } catch { return false; }
 }
 
-/** Turn "142 MB of 2.9 GB" style numbers into something readable. */
 function fmtBytes(n: number): string {
-  if (!Number.isFinite(n)) return '?';
+  if (!Number.isFinite(n) || n <= 0) return '0 MB';
   return n >= 1e9 ? `${(n / 1e9).toFixed(1)} GB` : `${Math.round(n / 1e6)} MB`;
 }
 
+/** Turn runtime errors into something a person can act on. */
+export function explainLocalError(e: unknown): string {
+  const raw = String((e as any)?.message || e || '').slice(0, 220);
+  if (/bad_alloc|out of memory|ERROR_CODE:\s*6|Aborted\(OOM\)|memory access out of bounds/i.test(raw)) {
+    return 'this browser tab ran out of memory for the on-device model. Reload the page and try again — if it keeps happening, this device can\'t run it';
+  }
+  return raw || 'unknown error';
+}
+
 class AriaLocalModel {
-  private gen: any = null;           // Qwen text-generation pipeline
-  private g4model: any = null;       // Gemma 4 model
-  private g4proc: any = null;        // Gemma 4 processor (tokenizer + chat template)
+  private gen: any = null;           // the ONE loaded text-generation pipeline (Qwen or Gemma 4)
   private loading: Promise<boolean> | null = null;
-  private busy = 0;                  // chats in flight (so a swap never pulls a model out from under one)
-  private epoch = 0;                 // bumped by reset(); a stale background load must not swap in
+  private busy = 0;                  // replies being generated (a swap waits for these)
+  private epoch = 0;                 // bumped by reset(); stale background work must not act
   status: LocalModelStatus = 'idle';
   modelId = '';
   backend: 'nvidia-rtx' | 'webgpu' | 'wasm' | '' = '';
   /** Which engine is answering right now (Qwen while Gemma 4 is still downloading). */
   engine: LocalEngine = 'qwen';
-  /** Gemma 4 is downloading/compiling in the background while Qwen answers. */
+  /** Gemma 4 is downloading (or about to be swapped in) in the background while Qwen answers. */
   upgrading = false;
   lastError = '';
   /** Set when the browser did not keep the Gemma 4 download (so it would re-download next time). */
@@ -97,7 +108,6 @@ class AriaLocalModel {
     } catch { /* private mode: preference just won't persist */ }
   }
 
-  /** Gemma 4 failed here recently (e.g. out of GPU memory) — don't retry on every load. */
   private static gemmaRecentlyFailed(): boolean {
     try {
       const at = Number(localStorage.getItem(GEMMA_FAILED_KEY) || 0);
@@ -108,26 +118,19 @@ class AriaLocalModel {
     try { localStorage.setItem(GEMMA_FAILED_KEY, String(Date.now())); } catch { /* ignore */ }
   }
 
-  /** Are the Gemma 4 weights already in this origin's browser cache? (then loading is quick) */
-  static async gemmaCached(): Promise<boolean> {
-    try {
-      if (typeof caches === 'undefined' || !(await caches.has('transformers-cache'))) return false;
-      const cache = await caches.open('transformers-cache');
-      return (await cache.keys()).some(r => GEMMA_CACHE_MATCH.test(r.url));
-    } catch { return false; }
-  }
-
-  /** Drop everything so the next warm() starts clean (also cancels a pending background upgrade). */
+  /** Drop everything so the next warm() starts clean (also cancels pending background work). */
   reset(): void {
     this.epoch++;
-    this.gen = null; this.g4model = null; this.g4proc = null;
+    const old = this.gen;
+    this.gen = null;
+    if (old) void Promise.resolve(old.dispose?.()).catch(() => {});
     this.loading = null; this.status = 'idle'; this.modelId = ''; this.lastError = '';
     this.upgrading = false; this.cacheWarning = ''; this.engine = 'qwen';
   }
 
   /**
    * Make Aria ready to answer on-device. Resolves as soon as ONE engine can answer
-   * (Qwen, if Gemma 4 still has to download); a Gemma 4 download carries on in the background.
+   * (Qwen, if Gemma 4 still has to download); the Gemma 4 download carries on in the background.
    */
   async warm(onStatus?: (s: string) => void): Promise<boolean> {
     if (this.status === 'ready') return true;
@@ -151,17 +154,14 @@ class AriaLocalModel {
         // @vite-ignore keeps the bundler from resolving the optional dep at build time.
         const mod: any = await import(/* @vite-ignore */ '@huggingface/transformers');
 
-        const wantGemma = AriaLocalModel.preferredEngine() === 'gemma4' && !AriaLocalModel.gemmaRecentlyFailed();
-        if (wantGemma) {
-          if (await AriaLocalModel.gemmaCached()) {
-            // Already on this device: load it straight from the cache.
+        if (AriaLocalModel.preferredEngine() === 'gemma4' && !AriaLocalModel.gemmaRecentlyFailed()) {
+          if (await this.gemmaCached(mod)) {
             onStatus?.('Loading Gemma 4 from this device…');
-            if (await this.loadGemma(mod, onStatus, epoch, /* swap */ false)) return true;
-            onStatus?.('Gemma 4 could not load here — using the lighter on-device model.');
+            if (await this.loadGemma(mod, onStatus, epoch)) return true;
+            // fall through to Qwen with the reason already reported
           } else {
-            // Not downloaded yet: get Aria talking on Qwen right now, fetch Gemma 4 in the background.
             await this.loadQwen(mod, onStatus);
-            this.upgradeToGemma(mod, onStatus, epoch);
+            this.downloadGemmaThenSwap(mod, onStatus, epoch);
             return true;
           }
         }
@@ -169,10 +169,10 @@ class AriaLocalModel {
         await this.loadQwen(mod, onStatus);
         return true;
       } catch (e: any) {
-        this.lastError = String(e?.message || e).slice(0, 220);
-        console.warn('[AriaLocalModel] unavailable:', this.lastError);
+        this.lastError = explainLocalError(e);
+        console.warn('[AriaLocalModel] unavailable:', e);
         this.status = 'unavailable';
-        onStatus?.(`On-device model unavailable (${this.lastError}) — using the cloud.`);
+        onStatus?.(`On-device model unavailable (${this.lastError}).`);
         return false;
       } finally {
         this.loading = null;
@@ -181,14 +181,13 @@ class AriaLocalModel {
     return this.loading;
   }
 
-  private async loadQwen(mod: any, onStatus?: (s: string) => void): Promise<void> {
+  private async loadQwen(mod: any, onStatus: StatusFn): Promise<void> {
     const webgpu = hasWebGPU();
     onStatus?.('Loading Aria on-device…');
     this.backend = webgpu ? 'webgpu' : 'wasm';
     this.modelId = webgpu ? MODEL_WEBGPU : MODEL_WASM;
     this.engine = 'qwen';
-    const { pipeline } = mod;
-    this.gen = await pipeline('text-generation', this.modelId, {
+    this.gen = await mod.pipeline('text-generation', this.modelId, {
       ...(webgpu ? { device: 'webgpu' } : {}),
       dtype: 'q4',
     } as any);
@@ -196,92 +195,143 @@ class AriaLocalModel {
     onStatus?.(`Aria on-device ready (${this.backend}).`);
   }
 
-  /**
-   * Load Gemma 4. `swap=false` makes it the answering engine immediately (nothing else is loaded);
-   * `swap=true` is the background upgrade: Qwen keeps answering until Gemma 4 is fully ready.
-   * Returns true on success. Never throws.
-   */
-  private async loadGemma(mod: any, onStatus: ((s: string) => void) | undefined, epoch: number, swap: boolean): Promise<boolean> {
+  /** Are all of Gemma 4's text-only files already in this origin's cache? */
+  private async gemmaCached(mod: any): Promise<boolean> {
     try {
-      const { Gemma4ForConditionalGeneration, AutoProcessor } = mod;
-      if (!Gemma4ForConditionalGeneration || !AutoProcessor) throw new Error('this Transformers.js build has no Gemma 4 support');
+      const reg = mod.ModelRegistry;
+      if (reg?.is_pipeline_cached) return !!(await reg.is_pipeline_cached('text-generation', MODEL_GEMMA4, GEMMA_OPTS));
+    } catch { /* fall through */ }
+    return false;
+  }
 
-      // Ask the browser not to evict the cache, and tell the user how much room there is.
-      try { await (navigator as any).storage?.persist?.(); } catch { /* optional */ }
-
-      let lastPct = -1;
-      const fileTotals = new Map<string, { loaded: number; total: number }>();
-      const progress_callback = (info: any) => {
-        if (info?.status === 'progress' && typeof info.total === 'number' && info.total > 0) {
-          fileTotals.set(String(info.file), { loaded: info.loaded ?? 0, total: info.total });
-          let loaded = 0, total = 0;
-          fileTotals.forEach(v => { loaded += v.loaded; total += v.total; });
-          const pct = Math.floor((loaded / total) * 100);
-          if (pct !== lastPct) {
-            lastPct = pct;
-            const prefix = swap ? 'Aria is ready · Gemma 4 downloading in the background' : 'Loading Gemma 4';
-            onStatus?.(`${prefix}… ${pct}% (${fmtBytes(loaded)} of ${fmtBytes(total)} so far)`);
-          }
-        }
-      };
-
-      const model = await Gemma4ForConditionalGeneration.from_pretrained(MODEL_GEMMA4, { dtype: 'q4f16', device: 'webgpu', progress_callback });
-      const proc = await AutoProcessor.from_pretrained(MODEL_GEMMA4);
-      if (epoch !== this.epoch) return false; // the user switched engines / reset while we were loading
-
-      // Did the browser actually keep the download? If not it will re-download every time — say so.
-      if (!(await AriaLocalModel.gemmaCached())) {
-        let room = '';
-        try { const est = await (navigator as any).storage?.estimate?.(); if (est?.quota) room = ` (this site may use ${fmtBytes(est.quota)}, ${fmtBytes(est.usage ?? 0)} used)`; } catch { /* ignore */ }
-        this.cacheWarning = `Your browser did not keep the Gemma 4 download, so it will download again next time${room}. Check free disk space and that the address (including the port) stays the same.`;
-        console.warn('[AriaLocalModel]', this.cacheWarning);
-      } else {
-        this.cacheWarning = '';
-      }
-
-      const old = this.gen;
-      this.g4model = model; this.g4proc = proc;
+  /** Load Gemma 4 as the ONLY model (caller guarantees nothing else is loaded). Never throws. */
+  private async loadGemma(mod: any, onStatus: StatusFn, epoch: number): Promise<boolean> {
+    try {
+      const pipe = await mod.pipeline('text-generation', MODEL_GEMMA4, GEMMA_OPTS as any);
+      if (epoch !== this.epoch) { void Promise.resolve(pipe?.dispose?.()).catch(() => {}); return false; }
+      this.gen = pipe;
       this.modelId = MODEL_GEMMA4; this.backend = 'webgpu'; this.engine = 'gemma4';
-      this.gen = null;
       this.status = 'ready';
-      if (old) this.disposeWhenIdle(old);
       onStatus?.('Aria on-device ready (Gemma 4 · webgpu).');
       return true;
-    } catch (ge: any) {
-      this.lastError = `Gemma 4: ${String(ge?.message || ge).slice(0, 180)}`;
-      console.warn('[AriaLocalModel] Gemma 4 failed:', this.lastError);
+    } catch (e: any) {
+      this.lastError = `Gemma 4: ${explainLocalError(e)}`;
+      console.warn('[AriaLocalModel] Gemma 4 failed:', e);
       AriaLocalModel.markGemmaFailed();
+      onStatus?.(`Gemma 4 couldn't load here — ${explainLocalError(e)}. Using the lighter on-device model.`);
       return false;
     }
   }
 
-  /** Background Gemma 4 download; Qwen keeps answering until it is ready, then we swap. */
-  private upgradeToGemma(mod: any, onStatus: ((s: string) => void) | undefined, epoch: number): void {
+  /**
+   * Background: DOWNLOAD Gemma 4's files into the cache (no model session, so no runtime memory)
+   * while Qwen answers; then swap — dispose Qwen first, load Gemma 4, fall back to Qwen on failure.
+   */
+  private downloadGemmaThenSwap(mod: any, onStatus: StatusFn, epoch: number): void {
     this.upgrading = true;
     void (async () => {
-      const ok = await this.loadGemma(mod, onStatus, epoch, /* swap */ true);
-      if (epoch === this.epoch) {
-        this.upgrading = false;
-        if (!ok) onStatus?.(`Gemma 4 couldn't load on this device — staying on the lighter model. (${this.lastError})`);
+      try {
+        try { await (navigator as any).storage?.persist?.(); } catch { /* optional */ }
+        await this.downloadGemmaFiles(mod, onStatus, epoch);
+        if (epoch !== this.epoch) return;
+
+        if (!(await this.gemmaCached(mod))) {
+          let room = '';
+          try { const est = await (navigator as any).storage?.estimate?.(); if (est?.quota) room = ` (this site may use ${fmtBytes(est.quota)}, ${fmtBytes(est.usage ?? 0)} used)`; } catch { /* ignore */ }
+          this.cacheWarning = `Your browser did not keep the Gemma 4 download, so it can't switch over${room}. Check free disk space and keep the same address (including the port).`;
+          onStatus?.('Gemma 4 download was not kept by the browser — staying on the lighter model.');
+          return;
+        }
+
+        // Wait until no reply is being generated, then swap with only ONE model in memory at a time.
+        while (this.busy > 0) { await new Promise(r => setTimeout(r, 300)); if (epoch !== this.epoch) return; }
+        onStatus?.('Gemma 4 downloaded — switching Aria over (about a minute)…');
+        const swap = (async () => {
+          this.status = 'loading';
+          const old = this.gen; this.gen = null;
+          try { await old?.dispose?.(); } catch { /* best effort */ }
+          if (await this.loadGemma(mod, onStatus, epoch)) return true;
+          if (epoch !== this.epoch) return false;
+          // Gemma 4 could not load: bring Qwen back (from cache).
+          try { await this.loadQwen(mod, onStatus); return true; }
+          catch (e: any) {
+            this.lastError = explainLocalError(e);
+            this.status = 'unavailable';
+            onStatus?.(`On-device model unavailable (${this.lastError}).`);
+            return false;
+          }
+        })();
+        this.loading = swap;                 // warm() callers wait for the swap instead of racing it
+        try { await swap; } finally { if (this.loading === swap) this.loading = null; }
+      } catch (e: any) {
+        if (epoch !== this.epoch) return;
+        this.lastError = `Gemma 4 download: ${explainLocalError(e)}`;
+        console.warn('[AriaLocalModel] Gemma 4 download failed:', e);
+        onStatus?.(`Gemma 4 download stopped (${explainLocalError(e)}) — staying on the lighter model.`);
+      } finally {
+        if (epoch === this.epoch) this.upgrading = false;
       }
     })();
   }
 
-  /** Free a model's GPU memory once no chat is using it. */
-  private disposeWhenIdle(model: any): void {
-    let tries = 0;
-    const tick = () => {
-      if (this.busy === 0 || ++tries > 240) { try { void model?.dispose?.(); } catch { /* best effort */ } return; }
-      setTimeout(tick, 500);
+  /** Stream each needed file straight into the Cache API (disk-backed — never held in memory). */
+  private async downloadGemmaFiles(mod: any, onStatus: StatusFn, epoch: number): Promise<void> {
+    const reg = mod.ModelRegistry;
+    if (!reg?.get_pipeline_files) throw new Error('this Transformers.js build cannot list model files');
+    const files: string[] = await reg.get_pipeline_files('text-generation', MODEL_GEMMA4, GEMMA_OPTS);
+    const cache = await caches.open(CACHE_NAME);
+    const urlFor = (f: string) => `https://huggingface.co/${MODEL_GEMMA4}/resolve/main/${f}`;
+
+    // Sizes up front so progress is honest across all files.
+    const sizes = new Map<string, number>();
+    let total = 0, done = 0;
+    for (const f of files) {
+      if (await cache.match(urlFor(f))) { sizes.set(f, 0); continue; }
+      try {
+        const h = await fetch(urlFor(f), { method: 'HEAD' });
+        const n = Number(h.headers.get('content-length') || 0);
+        sizes.set(f, n); total += n;
+      } catch { sizes.set(f, 0); }
+    }
+
+    let lastPct = -1;
+    const report = () => {
+      if (total <= 0) { // sizes unknown: report bytes, throttled to ~every 50 MB
+        const step = Math.floor(done / 5e7);
+        if (step !== lastPct) { lastPct = step; onStatus?.(`Aria is ready · Gemma 4 downloading in the background… ${fmtBytes(done)}`); }
+        return;
+      }
+      const pct = Math.floor((done / total) * 100);
+      if (pct !== lastPct) { lastPct = pct; onStatus?.(`Aria is ready · Gemma 4 downloading in the background… ${pct}% (${fmtBytes(done)} of ${fmtBytes(total)})`); }
     };
-    setTimeout(tick, 500);
+
+    for (const f of files) {
+      if (epoch !== this.epoch) return;
+      const url = urlFor(f);
+      if (await cache.match(url)) continue;
+      const res = await fetch(url);
+      if (!res.ok || !res.body) throw new Error(`download failed for ${f} (HTTP ${res.status})`);
+      // tee: one branch counts bytes for progress, the other streams into the cache.
+      const [counter, store] = res.body.tee();
+      const headers = new Headers(res.headers);
+      const putting = cache.put(url, new Response(store, { status: 200, headers }));
+      const reader = counter.getReader();
+      for (;;) {
+        const { done: end, value } = await reader.read();
+        if (end) break;
+        done += value?.byteLength ?? 0;
+        report();
+      }
+      await putting;
+    }
+    onStatus?.('Gemma 4 downloaded.');
   }
 
   get ready(): boolean { return this.status === 'ready'; }
 
   /**
    * Generate a chat reply. Throws if the model isn't ready (callers should have
-   * awaited warm() and checked `ready`, then fall back to cloud on throw).
+   * awaited warm() and checked `ready`).
    */
   async chat(
     messages: LocalChatMessage[],
@@ -296,45 +346,21 @@ class AriaLocalModel {
       if (res.success && res.text) return res.text;
     }
 
+    const gen = this.gen; // captured: a swap waits for busy === 0, so this stays valid for the whole reply
+    if (!gen) throw new Error('local model not ready');
     this.busy++;
     try {
-      // Capture the engine for THIS chat so a hot-swap mid-answer can't pull it away.
-      if (this.engine === 'gemma4' && this.g4model && this.g4proc) return await this.chatGemma4(this.g4model, this.g4proc, messages, opts);
-
-      const gen = this.gen;
-      if (!gen) throw new Error('local model not ready');
+      const temperature = opts.temperature ?? 0.7;
       const out = await gen(messages, {
         max_new_tokens: opts.maxNewTokens ?? 512,
-        temperature: opts.temperature ?? 0.7,
-        do_sample: (opts.temperature ?? 0.7) > 0,
+        temperature,
+        do_sample: temperature > 0,
       });
       const content = out?.[0]?.generated_text?.at?.(-1)?.content;
-      return typeof content === 'string' ? content : String(content ?? '');
+      return typeof content === 'string' ? content.trim() : String(content ?? '').trim();
     } finally {
       this.busy--;
     }
-  }
-
-  /** Gemma 4 text-only chat: processor chat template → tokens → generate → decode the new tokens only. */
-  private async chatGemma4(
-    model: any, proc: any,
-    messages: LocalChatMessage[],
-    opts: { maxNewTokens?: number; temperature?: number },
-  ): Promise<string> {
-    const temperature = opts.temperature ?? 0.7;
-    // Gemma 4's processor template takes content as typed parts.
-    const parts = messages.map(m => ({ role: m.role, content: [{ type: 'text', text: m.content }] }));
-    const prompt = proc.apply_chat_template(parts, { enable_thinking: false, add_generation_prompt: true });
-    const inputs = await proc(prompt, null, null, { add_special_tokens: false });
-    const outputs = await model.generate({
-      ...inputs,
-      max_new_tokens: opts.maxNewTokens ?? 512,
-      do_sample: temperature > 0,
-      ...(temperature > 0 ? { temperature, top_p: 0.95 } : {}),
-    });
-    const promptLen = inputs.input_ids.dims.at(-1);
-    const decoded = proc.tokenizer.batch_decode(outputs.slice(null, [promptLen, null]), { skip_special_tokens: true });
-    return String(decoded?.[0] ?? '').trim();
   }
 }
 
