@@ -16,11 +16,15 @@ import {
 } from '../../services/ambo/outputRouter';
 import { LayerRenderer } from '../../services/ambo/layerRenderer';
 import { installRemoteAmboAnalyser } from '../../services/ambo/amboAudioEngine';
+import { setVideoSyncRole } from '../../services/ambo/videoSync';
 import type { LiveStack } from '../../services/ambo/showModel';
 
 const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) => {
+  // Video in this window is a FOLLOWER of the studio's Program clip (one clock,
+  // always muted). Must be set before the first renderer builds a VideoSource.
+  setVideoSyncRole('follower');
   const id = outputId ?? outputIdFromUrl();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<LayerRenderer | null>(null);
@@ -127,7 +131,7 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
     const c = canvasRef.current;
     if (!c || !output) return;
     const r = new LayerRenderer(c, { w: renderWidth, h: renderHeight });
-    r.setOptions({ alpha: output.alpha, outputMask: output.mask, outputTransform: output.transform, timers });
+    r.setOptions({ alpha: output.alpha, outputMask: output.mask, outputTransform: output.transform, fit: output.fit, timers });
     r.start();
     rendererRef.current = r;
     return () => { r.dispose(); rendererRef.current = null; };
@@ -138,7 +142,7 @@ const AmboOutputWindow: React.FC<{ outputId?: string | null }> = ({ outputId }) 
   useEffect(() => {
     const r = rendererRef.current;
     if (!r || !output) return;
-    r.setOptions({ timers, outputMask: output.mask, outputTransform: output.transform });
+    r.setOptions({ timers, outputMask: output.mask, outputTransform: output.transform, fit: output.fit });
     r.setStack(stackForOutput(stack, output));
   }, [stack, output, timers, renderWidth, renderHeight]);
 

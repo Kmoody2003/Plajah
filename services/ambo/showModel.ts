@@ -92,8 +92,12 @@ export interface MaskSpec {
   points?: Array<{ x: number; y: number }>;
 }
 
+import type { FitSpec } from './outputFit';
+
 export interface TransformSpec {
   rect?: Rect;
+  /** How this layer's media is fitted when its aspect differs from the output (overrides the output's setting). */
+  fit?: Partial<FitSpec>;
   rotation?: number;
   opacity?: number;
   blend?: string;

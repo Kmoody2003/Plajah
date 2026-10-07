@@ -76,6 +76,9 @@ import AmboDJTrackPlayer, { type AmboDJTrack } from './AmboDJTrackPlayer';
 import AmboAudioBus, { useAudioBus } from './AmboAudioBus';
 import AmboLyricsControl from './AmboLyricsControl';
 import AmboAutoScriptureControl from './AmboAutoScriptureControl';
+import AmboOutputFitControl from './AmboOutputFitControl';
+import type { FitSpec } from '../../services/ambo/outputFit';
+import type { TransformSpec } from '../../services/ambo/showModel';
 import { setAutoScriptureSink } from '../../services/ambo/autoScripture';
 import AmboMixer from './AmboMixer';
 import { amboAudio } from '../../services/ambo/amboAudioEngine';
@@ -125,14 +128,16 @@ const line = 'rgba(255,255,255,0.09)';
 const line2 = 'rgba(255,255,255,0.15)';
 
 /** A live canvas driven by the shared renderer — same compositor the outputs run. */
-const OutputMonitor = React.memo<{ stack: LiveStack; audio?: boolean; className?: string }>(({ stack, audio, className }) => {
+const OutputMonitor = React.memo<{ stack: LiveStack; audio?: boolean; className?: string; fit?: Partial<FitSpec>; transform?: TransformSpec }>(({ stack, audio, className, fit, transform }) => {
   const ref = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<LayerRenderer | null>(null);
+  const fitRef = useRef(fit); fitRef.current = fit;
+  const transformRef = useRef(transform); transformRef.current = transform;
   useEffect(() => {
     const c = ref.current;
     if (!c) return;
     const r = new LayerRenderer(c, { w: 960, h: 540 });
-    r.setOptions({ audioEnabled: !!audio });
+    r.setOptions({ audioEnabled: !!audio, fit: fitRef.current, outputTransform: transformRef.current });
     r.start();
     rendererRef.current = r;
 
@@ -146,9 +151,24 @@ const OutputMonitor = React.memo<{ stack: LiveStack; audio?: boolean; className?
 
     return () => { r.dispose(); rendererRef.current = null; };
   }, [audio]);
+  useEffect(() => { rendererRef.current?.setOptions({ fit, outputTransform: transform }); }, [fit, transform]);
   useEffect(() => { rendererRef.current?.setStack(stack); }, [stack]);
   return <canvas ref={ref} className={`w-full block bg-black ${className ?? ''}`} />;
 });
+
+/** The clip a stack plays, as VIDEO content: a VIDEO layer in any slot, or a video slide template's clip. */
+function videoOfStack(stack: LiveStack): Extract<LayerContent, { kind: 'VIDEO' }> | null {
+  for (const slot of Object.keys(stack) as Array<keyof LiveStack>) {
+    const c: any = stack[slot]?.content;
+    if (c?.kind === 'VIDEO' && c.src) return c;
+    if (c?.kind === 'TELA_TEMPLATE' && templateById(c.templateId)?.media === 'video') {
+      const f = c.fields || {};
+      const src = String(f.videoUrl || '').trim();
+      if (src) return { kind: 'VIDEO', src, loop: false, muted: f.muted === 'true', volume: f.volume ? Number(f.volume) : 1 };
+    }
+  }
+  return null;
+}
 
 const fmt = (s: number) => {
   const m = Math.floor(s / 60), ss = s % 60;
@@ -260,6 +280,9 @@ const AmboProPresenter: React.FC<AmboProPresenterProps> = ({ onBack }) => {
   const [screens, setScreens] = useState<DetectedScreenInfo[]>([]);
   const [targetDisplayIndex, setTargetDisplayIndex] = useState<number>(1);
   const [outputs, setOutputs] = useState<AmboOutput[]>([]);
+  // The monitors mirror the Program output's placement, so what the operator sees is what the screen shows.
+  const programFit = useMemo(() => outputs.find(o => o.kind === 'PROGRAM')?.fit, [outputs]);
+  const programTransform = useMemo(() => outputs.find(o => o.kind === 'PROGRAM')?.transform, [outputs]);
 
 // ── Auto-detect devices & build outputs ──
 const [pairingInfo, setPairingInfo] = useState<any>(null);
@@ -1805,13 +1828,13 @@ useEffect(() => {
     return base;
   }, [live, previewSlide, previewBackgroundOverride, previewScriptureOverride, previewClearingMask]);
 
-  const isVideoLiveOnProgram = effectiveLiveStack.background?.content?.kind === 'VIDEO';
-  const isVideoCuedInPreview = previewStack.background?.content?.kind === 'VIDEO';
-  const activeVideoContent = (isVideoLiveOnProgram
-    ? effectiveLiveStack.background?.content
-    : isVideoCuedInPreview
-    ? previewStack.background?.content
-    : null) as Extract<LayerContent, { kind: 'VIDEO' }> | null;
+  // Program wins; otherwise the clip cued in Preview. Looks in EVERY slot and inside
+  // video slide templates, so slide videos and Reello/Taleo/Chora clips are all controllable.
+  const programVideo = videoOfStack(effectiveLiveStack);
+  const previewVideo = videoOfStack(previewStack);
+  const isVideoLiveOnProgram = !!programVideo;
+  const isVideoCuedInPreview = !!previewVideo;
+  const activeVideoContent = (programVideo ?? previewVideo) as Extract<LayerContent, { kind: 'VIDEO' }> | null;
 
   const activeVideoLabel = isVideoLiveOnProgram
     ? (liveSlideObj?.label || 'Program Video')
@@ -2327,7 +2350,7 @@ useEffect(() => {
         </span>
       </div>
       <div className="rounded-xl overflow-hidden border-2" style={{ borderColor: liveSlideId ? 'rgba(255,140,0,0.75)' : line2, boxShadow: liveSlideId ? '0 0 22px rgba(255,140,0,0.28)' : 'none' }}>
-        <OutputMonitor stack={effectiveLiveStack} audio={!isBlackout} />
+        <OutputMonitor stack={effectiveLiveStack} audio={!isBlackout} fit={programFit} transform={programTransform} />
       </div>
       <div className="flex items-center justify-between mt-3 mb-1.5">
         <div className="flex items-center gap-1.5">
@@ -2379,7 +2402,7 @@ useEffect(() => {
         </div>
       </div>
       <div className="rounded-lg overflow-hidden border" style={{ borderColor: 'rgba(0,218,243,0.4)' }}>
-        <OutputMonitor stack={previewStack} />
+        <OutputMonitor stack={previewStack} fit={programFit} transform={programTransform} />
       </div>
     </div>
   );
@@ -3422,7 +3445,7 @@ useEffect(() => {
               <div>
                 <div className="text-[10px] font-bold uppercase tracking-[0.14em] mb-1.5" style={{ color: ORANGE }}>● Audience Output</div>
                 <div className="rounded-xl overflow-hidden border-2" style={{ borderColor: 'rgba(255,140,0,0.75)', boxShadow: '0 0 22px rgba(255,140,0,0.28)' }}>
-                  <OutputMonitor stack={effectiveLiveStack} audio={!isBlackout} />
+                  <OutputMonitor stack={effectiveLiveStack} audio={!isBlackout} fit={programFit} transform={programTransform} />
                 </div>
               </div>
               <div>
@@ -3476,7 +3499,7 @@ useEffect(() => {
                   </div>
                 </div>
                 <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'rgba(0,218,243,0.4)' }}>
-                  <OutputMonitor stack={previewStack} />
+                  <OutputMonitor stack={previewStack} fit={programFit} transform={programTransform} />
                 </div>
               </div>
             </div>
@@ -3521,12 +3544,21 @@ useEffect(() => {
             )}
 
             {/* Active Video Transport Bar (Scrubber, Volume, Loop, Restart) */}
-            {activeVideoContent && (
+            {programVideo && (
               <div className="mb-3 rounded-xl overflow-hidden border border-white/15 shadow-xl flex-none">
                 <AmboVideoTransportBar
-                  videoContent={activeVideoContent}
-                  label={activeVideoLabel}
-                  isLive={isVideoLiveOnProgram}
+                  videoContent={programVideo}
+                  label={liveSlideObj?.label || 'Program Video'}
+                  isLive
+                />
+              </div>
+            )}
+            {previewVideo && previewVideo.src !== programVideo?.src && (
+              <div className="mb-3 rounded-xl overflow-hidden border border-white/15 shadow-xl flex-none">
+                <AmboVideoTransportBar
+                  videoContent={previewVideo}
+                  label={previewSlide?.label || 'Preview Video'}
+                  isLive={false}
                 />
               </div>
             )}
@@ -3726,7 +3758,7 @@ useEffect(() => {
       <AmboAudioBus
         deckOpen={playerMode === 'expanded'}
         onToggleDeck={() => setPlayerMode(m => (m === 'expanded' ? 'compact' : 'expanded'))}
-        controlsSlot={<><AmboMixer /><AmboAutoScriptureControl /><AmboLyricsControl live={liveLyrics} onSet={setLyricsLayer} /></>} />
+        controlsSlot={<><AmboMixer /><AmboOutputFitControl outputs={outputs} setOutputs={setOutputs} /><AmboAutoScriptureControl /><AmboLyricsControl live={liveLyrics} onSet={setLyricsLayer} /></>} />
 
       {/* ── BROADCAST PER-TRACK DJ AUDIO PLAYER & HORIZONTAL WAVEFORM ── */}
       {activeDjTrack && (

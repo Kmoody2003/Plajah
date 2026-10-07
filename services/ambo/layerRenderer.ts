@@ -14,6 +14,7 @@
 import { compositeOrder, type LayerSlot, type LiveStack, type MaskSpec, type TransformSpec } from './showModel';
 import { canUpdateInPlace, createSource, type LayerSource } from './layerSources';
 import { isMediaTemplate } from './telaTemplateSource';
+import { computePlacement, drawBackdrop, normalizeFit, BACKDROP_SLOTS, type FitSpec, type BackdropScratch } from './outputFit';
 import type { LayerContent } from './showModel';
 
 export interface RenderFrame { w: number; h: number; }
@@ -31,6 +32,8 @@ export interface RendererOptions {
   /** Applied after the whole stack — per-output warp / opacity. */
   outputTransform?: TransformSpec;
   outputMask?: MaskSpec;
+  /** How media whose aspect differs from this output is placed (letterbox / fill / align / zoom / offset). */
+  fit?: Partial<FitSpec>;
   timers?: Record<string, number>;
   /**
    * Whether THIS renderer plays audio. True in the studio, false in output
@@ -49,6 +52,7 @@ export class LayerRenderer {
   private running = false;
   /** Sources playing an exit animation after their slot was cleared. */
   private ghosts: Array<{ source: LayerSource; until: number }> = [];
+  private backdrop: BackdropScratch = { small: null };
 
   constructor(private canvas: HTMLCanvasElement, private frame: RenderFrame = { w: 1920, h: 1080 }) {
     canvas.width = frame.w;
@@ -169,6 +173,11 @@ export class LayerRenderer {
     if (this.opts.alpha) ctx.clearRect(0, 0, w, h);
     else { ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, w, h); }
 
+    // Whole-output placement (scale / shift / rotate / flip / clip to a rect): the entire composite is
+    // drawn inside it, which is how an output is repositioned on an awkward screen.
+    ctx.save();
+    applyTransform(ctx, this.opts.outputTransform, w, h);
+
     for (const { slot, layer } of compositeOrder(this.stack)) {
       const entry = this.entries.get(slot);
       if (!entry) continue;
@@ -191,11 +200,11 @@ export class LayerRenderer {
           ctx.save();
           if (part.blend) ctx.globalCompositeOperation = part.blend;
           ctx.globalAlpha = baseAlpha * (part.alpha ?? 1);
-          drawCover(ctx, part.img, natural, w, h);
+          this.drawFitted(ctx, part.img, natural, layer, slot, entry.content, timeSec);
           ctx.restore();
         }
       } else if (img) {
-        drawCover(ctx, img, natural, w, h);
+        this.drawFitted(ctx, img, natural, layer, slot, entry.content, timeSec);
       }
 
       if (layer.mask) applyMask(ctx, layer.mask, w, h);
@@ -206,12 +215,38 @@ export class LayerRenderer {
       const img = g.source.frame(timeSec);
       if (img) drawCover(ctx, img, g.source.size(), w, h);
     }
+    ctx.restore();
 
     if (this.opts.outputMask) {
       ctx.save();
       applyMask(ctx, this.opts.outputMask, w, h);
       ctx.restore();
     }
+  }
+
+  /**
+   * Media with an intrinsic aspect (image, video, live feed, Lottie) is FITTED to the output instead of
+   * cropped: letterboxed / pillarboxed when the aspect really differs, with the bars filled (blur,
+   * abstraction, colour) when it is the background. Procedural sources (generators, text, scripture,
+   * templates, lyrics…) already re-flow to the output, so they keep filling it.
+   */
+  private drawFitted(
+    ctx: CanvasRenderingContext2D, img: CanvasImageSource, natural: { w: number; h: number } | null,
+    layer: { transform?: TransformSpec }, slot: LayerSlot, content: LayerContent, timeSec: number,
+  ) {
+    const { w, h } = this.frame;
+    const explicit = layer.transform?.fit;
+    const kind = content.kind as string;
+    const intrinsic = kind === 'IMAGE' || kind === 'VIDEO' || kind === 'LIVE' || kind === 'LOTTIE' || kind === 'WEB';
+    if (!explicit && !intrinsic) { drawCover(ctx, img, natural, w, h); return; }
+
+    // An IMAGE's own fit setting is honoured when nothing more specific is set.
+    const legacy = kind === 'IMAGE' ? (content as any).fit : undefined;
+    const base: Partial<FitSpec> = { ...(this.opts.fit || {}), ...(legacy === 'cover' ? { mode: 'fill' } : legacy === 'fill' ? { mode: 'stretch' } : legacy === 'contain' ? { mode: 'auto' } : {}), ...(explicit || {}) };
+    const fit = normalizeFit(base);
+    const p = computePlacement(natural, this.frame, fit);
+    if (p.letterboxed && BACKDROP_SLOTS.has(slot) && natural) drawBackdrop(ctx, fit, img, natural, this.frame, timeSec, this.backdrop);
+    ctx.drawImage(img, p.x, p.y, p.w, p.h);
   }
 
   /** The live canvas — captureStream() on this feeds NDI/WebRTC/recording. */

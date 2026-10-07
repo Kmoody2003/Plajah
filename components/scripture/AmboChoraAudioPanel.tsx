@@ -11,6 +11,8 @@
 // Songs carry cue notes (colour + label + note) that tint the whole row, and a
 // playlist can be grouped or permanently organized by cue.
 
+import { SquareFrame, squareGridStyle } from './AmboSquareThumb';
+import { AmboPoster } from './AmboPoster';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
@@ -316,8 +318,8 @@ export const AmboChoraAudioPanel: React.FC<Props> = (p) => {
         style={{ borderColor: hex ? `${hex}88` : onBus ? 'rgba(255,140,0,0.6)' : 'rgba(255,255,255,0.08)', background: hex ? `${hex}14` : 'rgba(255,255,255,0.02)' }}
         title={cue?.note || t.title}
       >
-        <div className="relative w-full aspect-square rounded-lg overflow-hidden bg-white/5">
-          {t.coverImage ? <img src={t.coverImage} alt="" className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full grid place-items-center"><Music size={20} className="text-white/20" /></div>}
+        <SquareFrame className="rounded-lg bg-white/5">
+          <AmboPoster label={t.title} cover={t.coverImage} kind="audio" gradient="linear-gradient(135deg,#2a1f45,#120d1f)" />
           {hex && <div className="absolute inset-x-0 top-0 h-1" style={{ background: hex }} />}
           <div className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1.5">
             <button onClick={() => activePlaylist ? playPlaylist(activePlaylist, { startId: t.id }) : bus.playQueue([toBus(t)], 0)} className="p-2 rounded-full bg-white text-[#0b0812]" title="Play"><Play size={13} fill="currentColor" /></button>
@@ -325,7 +327,7 @@ export const AmboChoraAudioPanel: React.FC<Props> = (p) => {
             <button onClick={e => setMenuFor({ el: e.currentTarget, t })} className="p-2 rounded-full bg-white/20 text-white" title="More"><MoreHorizontal size={13} /></button>
           </div>
           {onBus && busState.playing && <div className="absolute bottom-1 left-1 px-1 rounded text-[8px] font-bold bg-[#FF8C00] text-black">ON AIR</div>}
-        </div>
+        </SquareFrame>
         <div className="min-w-0 px-0.5">
           <div className="text-[10.5px] font-semibold text-white truncate">{t.title}</div>
           <div className="text-[9px] truncate" style={{ color: hex ?? 'rgba(255,255,255,0.45)' }}>
@@ -433,14 +435,16 @@ export const AmboChoraAudioPanel: React.FC<Props> = (p) => {
             p.audioPlaylists.length === 0 ? (
               <div className="h-40 grid place-items-center text-[11px] text-white/40">No playlists yet — create one with New Playlist.</div>
             ) : (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-3">
+              <div style={squareGridStyle(150, 12)}>
                 {p.audioPlaylists.map(pl => {
                   const tracks = resolve(pl);
                   return (
                     <div key={pl.id} className="group flex flex-col gap-1.5 p-2 rounded-xl border border-white/10 hover:border-white/25 bg-white/[0.02] transition-all">
-                      <button onClick={() => p.setSelectedPlaylistId(pl.id)} className="relative w-full aspect-square rounded-lg overflow-hidden bg-white/5">
-                        {mosaic(pl)}
-                        <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <button onClick={() => p.setSelectedPlaylistId(pl.id)} className="block w-full text-left">
+                        <SquareFrame className="rounded-lg bg-white/5">
+                          {mosaic(pl)}
+                          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </SquareFrame>
                       </button>
                       <div className="min-w-0">
                         <div className="text-[11.5px] font-bold text-white truncate flex items-center gap-1">{pl.source === 'chora' && <Cloud size={10} className="text-white/40 flex-none" />}{pl.title}</div>
@@ -501,12 +505,12 @@ export const AmboChoraAudioPanel: React.FC<Props> = (p) => {
           {!activePlaylist && !showPlaylistGallery && (p.selectedSubcat === 'all' || p.selectedSubcat === 'Artists & Albums') && p.choraPublicAlbums.length > 0 && !p.expandedAlbumId && !p.debouncedSearch.trim() && (
             <div className="p-1">
               <div className="text-[9px] font-extrabold uppercase tracking-wider text-white/40 mb-2 px-1">Albums & Artists</div>
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-1.5">
+              <div style={squareGridStyle(112, 8)}>
                 {p.choraPublicAlbums.map(album => (
                   <button key={album.id} onClick={() => p.setExpandedAlbumId(album.id)} className="flex flex-col items-center gap-1 p-1 rounded-lg hover:bg-white/5 transition-all">
-                    <div className="w-full aspect-square rounded-md overflow-hidden bg-white/5">
-                      {album.coverImage ? <img src={album.coverImage} alt={album.title} className="w-full h-full object-cover" loading="lazy" /> : <div className="w-full h-full grid place-items-center"><Music size={16} className="text-white/20" /></div>}
-                    </div>
+                    <SquareFrame className="rounded-md bg-white/5">
+                      <AmboPoster label={album.title} cover={album.coverImage} kind="audio" gradient="linear-gradient(135deg,#2a1f45,#120d1f)" />
+                    </SquareFrame>
                     <span className="text-[9px] text-white/70 truncate w-full text-center leading-tight">{album.title}</span>
                     <span className="text-[8px] text-white/40 truncate w-full text-center">{album.artist}</span>
                   </button>
@@ -545,7 +549,7 @@ export const AmboChoraAudioPanel: React.FC<Props> = (p) => {
           {/* ── Songs ── */}
           {!showPlaylistGallery && (
             p.isLoadingChora && !songsList.length ? (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(72px,1fr))] gap-1.5 p-3">
+              <div className="p-3" style={squareGridStyle(112, 8)}>
                 {Array.from({ length: 12 }).map((_, i) => <div key={i} className="aspect-square rounded-lg bg-white/5 animate-pulse" />)}
               </div>
             ) : songsList.length === 0 ? (
@@ -569,14 +573,14 @@ export const AmboChoraAudioPanel: React.FC<Props> = (p) => {
                     ><ListPlus size={10} /> Queue section</button>
                   </div>
                   {view === 'gallery' ? (
-                    <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2">
+                    <div style={squareGridStyle(132, 8)}>
                       {g.ids.map((id, i) => { const t = songsList.find(x => x.id === id); return t ? renderTile(t, i) : null; })}
                     </div>
                   ) : g.ids.map((id) => { const i = songsList.findIndex(x => x.id === id); return i >= 0 ? renderRow(songsList[i], i, songsList.length) : null; })}
                 </div>
               ))
             ) : view === 'gallery' ? (
-              <div className="grid grid-cols-[repeat(auto-fill,minmax(120px,1fr))] gap-2">{songsList.map(renderTile)}</div>
+              <div style={squareGridStyle(132, 8)}>{songsList.map(renderTile)}</div>
             ) : (
               songsList.map((t, i) => renderRow(t, i, songsList.length))
             )

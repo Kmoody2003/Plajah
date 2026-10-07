@@ -14,6 +14,7 @@ import { ReactivityConditioner, REACTIVITY_STRENGTH, getReactivityMode } from '.
 import { FluxMusicSampler } from '../fabula/fluxMusic';
 import { SILENT_AUDIO } from '../fabula/fluxNode';
 import { amboAudio } from './amboAudioEngine';
+import { attachVideo, getVideoSyncRole, hasMaster as hasVideoMaster } from './videoSync';
 import type { LayerContent } from './showModel';
 import { lyricClockPos } from './showModel';
 import { lyricStyleById, renderLyricFrame } from './lyricStyles';
@@ -368,6 +369,9 @@ export class VideoSource implements LayerSource {
   readonly kind = 'VIDEO';
   readonly el: HTMLVideoElement;
   private routed = false;
+  private disposed = false;
+  private hls: { destroy(): void } | null = null;
+  private detachSync: () => void = () => {};
 
   constructor(content: Extract<LayerContent, { kind: 'VIDEO' }>, audioEnabled = false) {
     const v: HTMLVideoElement = typeof document !== 'undefined'
@@ -382,13 +386,19 @@ export class VideoSource implements LayerSource {
     v.volume = audioEnabled ? (content.volume ?? 1.0) : 0;
     // The one window that makes sound routes the video's audio through the
     // Ambo mixer (Video channel) — metered, limited, and feeding visualizers.
-    if (audioEnabled && typeof document !== 'undefined') this.routed = amboAudio.attachElement(v, 'video');
-    v.src = content.src;
+    // A second audible renderer of the same clip (device monitors, multiview) is a
+    // SHADOW of the first: silent and unrouted, so the room never hears it twice.
+    const shadow = audioEnabled && hasVideoMaster(content.src);
+    if (audioEnabled && !shadow && typeof document !== 'undefined') this.routed = amboAudio.attachElement(v, 'video');
+    this.setSrc(v, content.src);
     if (content.inSec) v.currentTime = content.inSec;
     void v.play().catch(() => { /* autoplay blocked until a gesture */ });
+    // ONE clock: the audible studio Program clip is the authority; output windows
+    // follow it; the studio preview free-runs but stays commandable by the transport bar.
+    this.detachSync = attachVideo(v, { key: content.src, master: audioEnabled });
 
     // LoopDeck auto-advance support: dispatch ambo:video-loop when video completes a full loop iteration
-    if (typeof window !== 'undefined' && typeof v.addEventListener === 'function') {
+    if (typeof window !== 'undefined' && typeof v.addEventListener === 'function' && getVideoSyncRole() === 'studio') {
       let lastTime = 0;
       v.addEventListener('timeupdate', () => {
         if (!v.seeking && v.currentTime < lastTime - 0.4 && lastTime > 0.5) {
@@ -404,10 +414,32 @@ export class VideoSource implements LayerSource {
     this.el = v;
   }
 
+  /** Mux / Reello streams are HLS: Chromium has no native HLS, so attach hls.js there. */
+  private setSrc(v: HTMLVideoElement, src: string) {
+    const isHls = /\.m3u8(\?|#|$)/i.test(src);
+    const native = typeof v.canPlayType === 'function' && v.canPlayType('application/vnd.apple.mpegurl') !== '';
+    if (!isHls || native || typeof document === 'undefined') { v.src = src; return; }
+    void import('hls.js').then(({ default: Hls }) => {
+      if (this.disposed) return;
+      if (!Hls.isSupported()) { v.src = src; return; }
+      const h = new Hls({ enableWorker: true });
+      this.hls = h;
+      h.loadSource(src);
+      h.attachMedia(v);
+      h.on(Hls.Events.MANIFEST_PARSED, () => { void v.play().catch(() => { /* */ }); });
+    }).catch(() => { v.src = src; });
+  }
+
   frame() { return this.el.readyState >= 2 ? this.el : null; }
   size() { return this.el.videoWidth ? { w: this.el.videoWidth, h: this.el.videoHeight } : null; }
   ready() { return this.el.readyState >= 2; }
-  dispose() { try { this.el.pause(); this.el.src = ''; this.el.load(); } catch { /* */ } if (this.routed) amboAudio.detachElement(this.el); }
+  dispose() {
+    this.disposed = true;
+    this.detachSync();
+    try { this.hls?.destroy(); this.hls = null; } catch { /* */ }
+    try { this.el.pause(); this.el.removeAttribute?.('src'); this.el.load(); } catch { /* */ }
+    if (this.routed) amboAudio.detachElement(this.el);
+  }
 }
 
 // ── Lottie — dotLottie renders straight to a canvas ─────────────────────────

@@ -9,6 +9,8 @@ import { renderSlideTemplate, loadThemeFonts, invalidateSlideLayouts } from '../
 import { renderScripture, scriptureLayoutById, SAMPLE_SCRIPTURE } from '../../services/ambo/scriptureLayouts';
 
 const TW = 448, TH = 252;
+/** Side of a square thumbnail raster (the renderer is asked for a true 1:1 frame, not a crop). */
+const SQ = 256;
 
 // ── cache ────────────────────────────────────────────────────────────────────
 const cache = new Map<string, HTMLCanvasElement>();
@@ -53,20 +55,21 @@ function useSeen(ref: React.RefObject<Element | null>): boolean {
 
 function blit(dst: HTMLCanvasElement | null, src: HTMLCanvasElement) {
   if (!dst) return;
-  if (dst.width !== TW || dst.height !== TH) { dst.width = TW; dst.height = TH; }
+  if (dst.width !== src.width || dst.height !== src.height) { dst.width = src.width; dst.height = src.height; }
   dst.getContext('2d')?.drawImage(src, 0, 0);
 }
 
-function failCard(ctx: CanvasRenderingContext2D, label: string) {
-  ctx.fillStyle = '#16111f'; ctx.fillRect(0, 0, TW, TH);
+function failCard(ctx: CanvasRenderingContext2D, label: string, w = TW, h = TH) {
+  ctx.fillStyle = '#16111f'; ctx.fillRect(0, 0, w, h);
   ctx.fillStyle = 'rgba(255,255,255,.55)'; ctx.font = '600 22px Inter, system-ui, sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText(label, TW / 2, TH / 2, TW - 40);
+  ctx.fillText(label, w / 2, h / 2, w - 40);
 }
 
 // ── slide template ───────────────────────────────────────────────────────────
 export const SlideThumb: React.FC<{
-  templateId: string; theme?: string; fields?: Record<string, string>; className?: string;
-}> = ({ templateId, theme = 'sanctuary', fields, className }) => {
+  templateId: string; theme?: string; fields?: Record<string, string>; className?: string; square?: boolean;
+}> = ({ templateId, theme = 'sanctuary', fields, className, square }) => {
+  const W = square ? SQ : TW, H = square ? SQ : TH;
   const box = useRef<HTMLDivElement>(null);
   const cv = useRef<HTMLCanvasElement>(null);
   const seen = useSeen(box);
@@ -82,24 +85,24 @@ export const SlideThumb: React.FC<{
 
   useEffect(() => {
     if (!seen) return;
-    const key = `slide|${theme}|${fontsReady.has(theme) ? 1 : 0}|${templateId}|${fk}`;
+    const key = `slide|${theme}|${fontsReady.has(theme) ? 1 : 0}|${templateId}|${fk}|${W}x${H}`;
     let tile = cache.get(key);
     if (!tile) {
-      tile = document.createElement('canvas'); tile.width = TW; tile.height = TH;
+      tile = document.createElement('canvas'); tile.width = W; tile.height = H;
       const ctx = tile.getContext('2d')!;
       try {
-        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, TW, TH);
-        renderSlideTemplate(ctx, templateId, theme, fields, TW, TH, { t: 4, enterP: 1, exitP: 0, reducedMotion: true });
-      } catch { failCard(ctx, templateId); }
+        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+        renderSlideTemplate(ctx, templateId, theme, fields, W, H, { t: 4, enterP: 1, exitP: 0, reducedMotion: true });
+      } catch { failCard(ctx, templateId, W, H); }
       remember(key, tile);
     }
     blit(cv.current, tile);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seen, templateId, theme, fk, epoch]);
+  }, [seen, templateId, theme, fk, epoch, W, H]);
 
   return (
-    <div ref={box} className={className} style={{ aspectRatio: '16 / 9', background: '#0c0914' }}>
-      <canvas ref={cv} width={TW} height={TH} className="block w-full h-full" />
+    <div ref={box} className={className} style={{ aspectRatio: square ? '1 / 1' : '16 / 9', background: '#0c0914' }}>
+      <canvas ref={cv} width={W} height={H} className="block w-full h-full" />
     </div>
   );
 };
@@ -124,8 +127,9 @@ function stageBackdrop(ctx: CanvasRenderingContext2D, w: number, h: number) {
 }
 
 export const ScriptureThumb: React.FC<{
-  layoutId: string; accent?: string; sample?: ScriptureSample; className?: string;
-}> = ({ layoutId, accent = '#D4AF37', sample, className }) => {
+  layoutId: string; accent?: string; sample?: ScriptureSample; className?: string; square?: boolean;
+}> = ({ layoutId, accent = '#D4AF37', sample, className, square }) => {
+  const W = square ? SQ : TW, H = square ? SQ : TH;
   const box = useRef<HTMLDivElement>(null);
   const cv = useRef<HTMLCanvasElement>(null);
   const seen = useSeen(box);
@@ -134,28 +138,28 @@ export const ScriptureThumb: React.FC<{
 
   useEffect(() => {
     if (!seen) return;
-    const key = `scr|${layoutId}|${accent}|${sk}`;
+    const key = `scr|${layoutId}|${accent}|${sk}|${W}x${H}`;
     let tile = cache.get(key);
     if (!tile) {
-      tile = document.createElement('canvas'); tile.width = TW; tile.height = TH;
+      tile = document.createElement('canvas'); tile.width = W; tile.height = H;
       const ctx = tile.getContext('2d')!;
       try {
         const layout = scriptureLayoutById(layoutId);
-        if (layout.background === 'transparent') stageBackdrop(ctx, TW, TH); else { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, TW, TH); }
+        if (layout.background === 'transparent') stageBackdrop(ctx, W, H); else { ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H); }
         renderScripture(ctx, layout.id, {
-          w: TW, h: TH, t: 4, text: s.text, reference: s.reference, translation: s.translation || 'KJV',
+          w: W, h: H, t: 4, text: s.text, reference: s.reference, translation: s.translation || 'KJV',
           accent, enterP: 1, exitP: 0, transition: 'crossfade', context: SAMPLE_CONTEXT, mt: 4,
         });
-      } catch { failCard(ctx, layoutId); }
+      } catch { failCard(ctx, layoutId, W, H); }
       remember(key, tile);
     }
     blit(cv.current, tile);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [seen, layoutId, accent, sk]);
+  }, [seen, layoutId, accent, sk, W, H]);
 
   return (
-    <div ref={box} className={className} style={{ aspectRatio: '16 / 9', background: '#0c0914' }}>
-      <canvas ref={cv} width={TW} height={TH} className="block w-full h-full" />
+    <div ref={box} className={className} style={{ aspectRatio: square ? '1 / 1' : '16 / 9', background: '#0c0914' }}>
+      <canvas ref={cv} width={W} height={H} className="block w-full h-full" />
     </div>
   );
 };

@@ -53,6 +53,10 @@ import { searchAudius, fetchAudiusTrending } from '../../services/audiusService'
 import { SHADER_LIBRARY, type ShaderLibraryEntry } from '../plajahPixels/components/ShaderPanel';
 import { SCENE_CATALOG } from '../plajahPixels/engine/sceneCatalog';
 import { AmboVisualizerThumb } from './AmboVisualizerThumb';
+import { AmboPoster } from './AmboPoster';
+import { AmboShowStill } from './AmboShowStill';
+import { AmboLottieStill, AmboTransitionDemo } from './AmboAssetTiles';
+import { SquareFrame, squareGridStyle, SQUARE_GRID_CLASS } from './AmboSquareThumb';
 import { MILKDROP_PREFIX, TYPO_PREFIX } from '../../services/ambo/layerSources';
 import { TYPO_CATALOG } from '../../services/ambo/typoCatalog';
 import { type AmboDJTrack } from './AmboDJTrackPlayer';
@@ -1922,27 +1926,30 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
               {/* Tela slide templates — opens the template gallery (inserts into the active show) */}
               <AmboSlideTemplateEntry onInsert={onInsertTemplateSlide} activeShowTitle={shows.find(sh => sh.id === activeShowId)?.title} />
             </div>
-            <div className="flex-1 p-3 overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className={`${SQUARE_GRID_CLASS} p-3`} style={squareGridStyle()}>
               {shows.map(show => {
                 const isActive = show.id === activeShowId;
                 return (
                   <div
                     key={show.id}
                     onClick={() => onSelectShow && onSelectShow(show.id)}
-                    className={`rounded-xl p-3 border cursor-pointer transition-all ${
+                    className={`rounded-xl overflow-hidden border cursor-pointer transition-all ${
                       isActive
                         ? 'border-[#00DAF3] bg-[#00DAF3]/10 shadow-[0_0_16px_rgba(0,218,243,0.15)]'
                         : 'border-white/10 hover:border-white/20 bg-white/5'
                     }`}
                   >
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/10 text-white/70">
+                    <SquareFrame className="bg-[#0c0914]">
+                      <AmboShowStill show={show} />
+                      <span className="absolute top-1 left-1 text-[9px] font-mono px-1.5 py-0.5 rounded bg-black/70 text-white/80">
                         {show.kind || 'PRESENTATION'}
                       </span>
-                      {isActive && <span className="text-[9px] font-bold text-[#00DAF3]">ACTIVE</span>}
+                      {isActive && <span className="absolute top-1 right-1 text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#00DAF3] text-[#04222a]">ACTIVE</span>}
+                    </SquareFrame>
+                    <div className="p-2 bg-black/60">
+                      <div className="text-[12px] font-bold text-white truncate">{show.title}</div>
+                      <div className="text-[10px] text-white/40">{show.slides?.length || 0} Slides</div>
                     </div>
-                    <div className="text-[13px] font-bold text-white truncate">{show.title}</div>
-                    <div className="text-[10px] text-white/40 mt-1">{show.slides?.length || 0} Slides</div>
                   </div>
                 );
               })}
@@ -2117,11 +2124,10 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                   <span className="text-[11px] text-white/30">Drop desktop video, audio, or image files or add a new folder</span>
                 </div>
               ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                <div style={squareGridStyle()}>
                   {activeMediaItems.slice(0, renderLimit).map(item => {
                     const isLive = currentLiveInputId === item.id || currentLiveInputId === item.mode || currentLiveInputId === item.inputId;
                     const isPrev = currentPreviewInputId === item.id || currentPreviewInputId === item.inputId;
-                    const hasThumb = Boolean(item.thumb || (item.kind === 'IMAGE' && item.src));
                     return (
                       <div
                         key={item.id}
@@ -2138,25 +2144,14 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                         }`}
                         title="Click to preview | Double-click to take live | Drag onto slide"
                       >
-                        <div
-                          className="w-full aspect-square relative flex items-center justify-center p-2 text-center overflow-hidden bg-[#120a1f]"
-                          style={!hasThumb && item.gradient ? { background: item.gradient } : undefined}
-                        >
-                          {hasThumb ? (
-                            <img
-                              src={item.thumb || item.src}
-                              alt={item.name}
-                              className="w-full h-full object-cover"
-                              loading="lazy"
-                              onError={e => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
-                            />
-                          ) : item.kind === 'LIVE' ? (
-                            <Radio size={24} className="text-[#00DAF3] animate-pulse" />
-                          ) : item.kind === 'IMAGE' ? (
-                            <Image size={24} className="text-[#E3C57E]" />
-                          ) : (
-                            <Film size={24} className="text-white/40" />
-                          )}
+                        <SquareFrame className="bg-[#120a1f]" style={item.gradient ? { background: item.gradient } : undefined}>
+                          <AmboPoster
+                            label={item.name}
+                            cover={item.thumb || (item.kind === 'IMAGE' ? item.src : undefined)}
+                            videoSrc={item.kind === 'VIDEO' ? item.src : undefined}
+                            gradient={item.gradient}
+                            kind={item.kind === 'VIDEO' ? 'video' : item.kind === 'IMAGE' ? 'image' : item.kind === 'AUDIO' ? 'audio' : 'other'}
+                          />
 
                           <div className="absolute top-1 left-1 px-1.5 py-0.5 rounded bg-black/70 font-mono text-[8.5px] text-white/90 backdrop-blur-sm">
                             {item.kind}
@@ -2210,7 +2205,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                               <span>Take</span>
                             </button>
                           </div>
-                        </div>
+                        </SquareFrame>
                         <div className="p-2 bg-black/75">
                           <div className="text-[11px] font-semibold text-white truncate" title={item.name}>{item.name}</div>
                           <div className="text-[9px] text-white/40 truncate">{item.sub || item.kind}</div>
@@ -2279,7 +2274,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                 </button>
               ))}
             </div>
-            <div className="flex-1 p-3 overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <div className={`${SQUARE_GRID_CLASS} p-3`} style={squareGridStyle()}>
               {activeReelloClips
                 .filter(r => {
                   if (debouncedSearch.trim() && activeTab === 'reello') {
@@ -2312,20 +2307,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                       onDoubleClick={() => onProgramSource(item)}
                       className="rounded-xl border border-white/10 hover:border-white/30 overflow-hidden bg-black/40 cursor-grab group transition-all flex flex-col relative"
                     >
-                      <div
-                        className="w-full aspect-square flex items-center justify-center p-2 relative overflow-hidden"
-                        style={{ background: 'linear-gradient(135deg,#1f1338,#0a0814)' }}
-                      >
-                        {r.coverImage ? (
-                          <img
-                            src={r.coverImage}
-                            alt={r.name}
-                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform"
-                            onError={e => { (e.target as HTMLElement).style.display = 'none'; }}
-                          />
-                        ) : (
-                          <Video size={20} className="text-white/40 group-hover:text-white transition-colors" />
-                        )}
+                      <SquareFrame style={{ background: 'linear-gradient(135deg,#1f1338,#0a0814)' }}>
+                        <AmboPoster label={r.name} cover={r.coverImage} videoSrc={r.src} kind="video" gradient="linear-gradient(135deg,#1f1338,#0a0814)" />
                         <span className="absolute top-1 left-1 px-1 py-0.2 rounded bg-black/70 backdrop-blur-sm text-[8px] font-mono text-[#00DAF3] z-10">
                           {r.ratio}
                         </span>
@@ -2368,7 +2351,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                             Take
                           </button>
                         </div>
-                      </div>
+                      </SquareFrame>
                       <div className="p-2 flex-1 flex flex-col justify-between">
                         <div className="text-[11px] font-semibold text-white truncate" title={r.name}>{r.name}</div>
                         <div className="text-[9px] text-white/40 truncate">{r.author}</div>
@@ -2399,7 +2382,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                 </button>
               ))}
             </div>
-            <div className="flex-1 p-3 overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className={`${SQUARE_GRID_CLASS} p-3`} style={squareGridStyle()}>
               {activeTaleoSeries
                 .filter(t => {
                   if (debouncedSearch.trim() && activeTab === 'taleo') {
@@ -2431,20 +2414,8 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                       onDoubleClick={() => onProgramSource(item)}
                       className="rounded-xl border border-white/10 hover:border-white/30 overflow-hidden bg-black/40 cursor-grab group transition-all relative flex flex-col"
                     >
-                      <div
-                        className="w-full aspect-square flex items-center justify-center p-2 relative overflow-hidden"
-                        style={{ background: 'linear-gradient(135deg,#360924,#0c0612)' }}
-                      >
-                        {t.coverImage ? (
-                          <img
-                            src={t.coverImage}
-                            alt={t.title}
-                            className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform"
-                            onError={e => { (e.target as HTMLElement).style.display = 'none'; }}
-                          />
-                        ) : (
-                          <Film size={22} className="text-[#D0BCFF]" />
-                        )}
+                      <SquareFrame style={{ background: 'linear-gradient(135deg,#360924,#0c0612)' }}>
+                        <AmboPoster label={t.title} cover={t.coverImage} videoSrc={t.videoSrc} kind="video" gradient="linear-gradient(135deg,#360924,#0c0612)" />
                         <span className="absolute top-1 left-1 px-1 py-0.2 rounded bg-black/70 backdrop-blur-sm text-[8px] font-mono text-[#E3C57E] z-10">
                           {t.season}
                         </span>
@@ -2487,7 +2458,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                             Take
                           </button>
                         </div>
-                      </div>
+                      </SquareFrame>
                       <div className="p-2 flex-1 flex flex-col justify-between">
                         <div className="text-[12px] font-bold text-white truncate" title={t.title}>{t.title}</div>
                         <div className="text-[9px] text-white/40">{t.episodes} Episodes · {t.artist || 'Taleo Production'}</div>
@@ -2528,7 +2499,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                 </button>
               ))}
             </div>
-            <div className="flex-1 p-3 overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            <div className={`${SQUARE_GRID_CLASS} p-3`} style={squareGridStyle()}>
               {visualizerItems
                 .filter(item => {
                   if (debouncedSearch.trim() && activeTab === 'visualizers') {
@@ -2568,10 +2539,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                       }`}
                       title="Single-click preview | Double-click take to Program Out"
                     >
-                      <div
-                        className="w-full aspect-square relative flex items-center justify-center p-2 text-center"
-                        style={{ background: item.gradient || '#120a1f' }}
-                      >
+                      <SquareFrame style={{ background: item.gradient || '#120a1f' }}>
                         <AmboVisualizerThumb item={item} hovered={hoverVizId === item.id} />
                         <div className="absolute top-1 left-1 px-1 py-0.2 rounded bg-black/60 font-mono text-[8px] text-white/80 max-w-[90%] truncate">
                           {item.sub || 'GLSL'}
@@ -2622,7 +2590,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                             Take
                           </button>
                         </div>
-                      </div>
+                      </SquareFrame>
                       <div className="p-2 bg-black/60">
                         <div className="text-[11px] font-semibold text-white truncate">{item.name}</div>
                         <div className="text-[9px] text-white/40 truncate">{item.kind === 'SHADER' || item.mode?.startsWith(MILKDROP_PREFIX) ? (item.kind === 'SHADER' ? 'GLSL shader' : 'Milkdrop') : item.mode}</div>
@@ -2699,28 +2667,29 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                     </span>
                     <span className="text-[9px] text-white/40">Click any transition to set as active live transition</span>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                  <div style={squareGridStyle(130, 10)}>
                     {FABULA_TRANSITIONS.map(tx => {
                       const isSelected = activeTransition === tx.name;
                       return (
                         <div
                           key={tx.id}
                           onClick={() => onSelectTransition && onSelectTransition(tx.name)}
-                          className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                          className={`rounded-xl overflow-hidden border cursor-pointer transition-all ${
                             isSelected
                               ? 'border-[#00DAF3] bg-[#00DAF3]/15 shadow-[0_0_16px_rgba(0,218,243,0.25)] ring-1 ring-[#00DAF3]'
                               : 'border-white/10 hover:border-white/25 bg-white/[0.02] hover:bg-white/[0.05]'
                           }`}
                         >
-                          <div className="flex items-center justify-between mb-1">
-                            <span className="text-[12px] font-bold text-white">{tx.name}</span>
+                          <SquareFrame>
+                            <AmboTransitionDemo id={tx.id} label={tx.name} active={isSelected} />
                             {isSelected && (
-                              <span className="text-[8.5px] font-mono px-1.5 py-0.2 rounded bg-[#00DAF3] text-[#04222a] font-extrabold">
-                                ACTIVE
-                              </span>
+                              <span className="absolute top-1 right-1 text-[8.5px] font-mono px-1.5 py-0.5 rounded bg-[#00DAF3] text-[#04222a] font-extrabold">ACTIVE</span>
                             )}
+                          </SquareFrame>
+                          <div className="p-2">
+                            <div className="text-[12px] font-bold text-white truncate">{tx.name}</div>
+                            <div className="text-[9.5px] text-white/50 truncate" title={tx.sub}>{tx.sub}</div>
                           </div>
-                          <div className="text-[9.5px] text-white/50">{tx.sub}</div>
                         </div>
                       );
                     })}
@@ -2735,20 +2704,22 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                     <Sparkles size={13} />
                     DotLottie Presets (24 Files in dist/fabula/lottie)
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                  <div style={squareGridStyle(130, 10)}>
                     {FABULA_LOTTIE_PRESETS.map(lot => (
                       <div
                         key={lot.id}
-                        className="p-3 rounded-xl border border-white/10 hover:border-white/30 bg-white/[0.02] hover:bg-white/[0.05] cursor-pointer transition-all"
+                        onMouseEnter={() => setHoverVizId(lot.id)}
+                        onMouseLeave={() => setHoverVizId(h => (h === lot.id ? null : h))}
+                        className="rounded-xl overflow-hidden border border-white/10 hover:border-white/30 bg-white/[0.02] hover:bg-white/[0.05] cursor-pointer transition-all"
                       >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[8px] font-mono px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300">
-                            .LOTTIE
-                          </span>
-                          <Sparkles size={12} className="text-[#E3C57E]" />
+                        <SquareFrame>
+                          <AmboLottieStill file={lot.file} label={lot.title} hovered={hoverVizId === lot.id} />
+                          <span className="absolute top-1 left-1 text-[8px] font-mono px-1.5 py-0.5 rounded bg-black/70 text-purple-300">.LOTTIE</span>
+                        </SquareFrame>
+                        <div className="p-2">
+                          <div className="text-[12px] font-semibold text-white truncate">{lot.title}</div>
+                          <div className="text-[9px] font-mono text-white/40 truncate">{lot.file}</div>
                         </div>
-                        <div className="text-[12px] font-semibold text-white">{lot.title}</div>
-                        <div className="text-[9px] font-mono text-white/40 mt-0.5 truncate">{lot.file}</div>
                       </div>
                     ))}
                   </div>
@@ -2762,20 +2733,20 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                     <FileText size={13} />
                     Tela Design Templates & Lower Thirds
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
+                  <div style={squareGridStyle(130, 10)}>
                     {TELA_DESIGN_TEMPLATES.map(t => (
                       <div
                         key={t.id}
-                        className="p-3 rounded-xl border border-white/10 hover:border-white/30 bg-white/[0.02] hover:bg-white/[0.05] cursor-pointer transition-all"
+                        className="rounded-xl overflow-hidden border border-white/10 hover:border-white/30 bg-white/[0.02] hover:bg-white/[0.05] cursor-pointer transition-all"
                       >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[8px] font-mono px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300">
-                            {t.kind}
-                          </span>
-                          <FileText size={12} className="text-[#00DAF3]" />
+                        <SquareFrame>
+                          <AmboPoster label={t.title} gradient="linear-gradient(135deg,#1d2b4a,#0b0f1c)" />
+                          <span className="absolute top-1 left-1 text-[8px] font-mono px-1.5 py-0.5 rounded bg-black/70 text-cyan-300">{t.kind}</span>
+                        </SquareFrame>
+                        <div className="p-2">
+                          <div className="text-[12px] font-semibold text-white truncate">{t.title}</div>
+                          <div className="text-[9.5px] text-white/40 truncate">{t.sub}</div>
                         </div>
-                        <div className="text-[12px] font-semibold text-white">{t.title}</div>
-                        <div className="text-[9.5px] text-white/40 mt-0.5">{t.sub}</div>
                       </div>
                     ))}
                   </div>
@@ -2804,7 +2775,7 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                 <span>{isScanningNdi ? 'Scanning…' : 'Rescan'}</span>
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-3 grid grid-cols-[repeat(auto-fill,minmax(170px,1fr))] gap-2 content-start">
+            <div className={`${SQUARE_GRID_CLASS} p-3`} style={squareGridStyle(150, 8)}>
               {liveFeedItems.map(item => {
                 const id = item.inputId || item.id;
                 const isLive = currentLiveInputId === id;
@@ -2824,9 +2795,11 @@ export const AmboTabbedLibrary: React.FC<AmboTabbedLibraryProps> = ({
                     }}
                     title={`${item.name} — click to preview, double-click to take live`}
                   >
-                    <div className="aspect-video rounded-lg mb-2 grid place-items-center bg-gradient-to-br from-[#14202b] to-[#0a0f14] border border-white/5">
-                      <Radio size={22} className={isLive ? 'text-[#FF8C00]' : isPrev ? 'text-[#00DAF3]' : 'text-white/25'} />
-                    </div>
+                    <SquareFrame className="rounded-lg mb-2 border border-white/5" style={{ background: 'linear-gradient(135deg,#14202b,#0a0f14)' }}>
+                      <div className="w-full h-full grid place-items-center">
+                        <Radio size={30} className={isLive ? 'text-[#FF8C00]' : isPrev ? 'text-[#00DAF3]' : 'text-white/25'} />
+                      </div>
+                    </SquareFrame>
                     <div className="text-[11px] font-semibold text-white truncate flex items-center gap-1.5">
                       <span className="truncate">{item.name}</span>
                       {item.online !== undefined && <span title={item.online ? 'Online' : 'Offline'} className="inline-block w-1.5 h-1.5 rounded-full flex-none" style={{ background: item.online ? '#34d399' : '#6b7280' }} />}

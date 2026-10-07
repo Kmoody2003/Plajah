@@ -69,6 +69,8 @@ export interface DetectedScreenInfo {
   resolutionLabel?: string;
 }
 
+import type { FitSpec } from './outputFit';
+
 export interface AmboOutput {
   id: string;
   name: string;
@@ -85,6 +87,8 @@ export interface AmboOutput {
   transform?: TransformSpec;
   /** Per-output mask, on top of any slide mask. */
   mask?: MaskSpec;
+  /** How media of a different aspect ratio is placed on this output: letterbox / fill, bar fill, alignment, zoom, shift. */
+  fit?: Partial<FitSpec>;
   /** Physical screen index from getScreenDetails(), when granted. */
   screenIndex?: number;
   /** Friendly display index for display mapping. */

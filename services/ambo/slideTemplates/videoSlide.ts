@@ -17,6 +17,7 @@
 // other window plays muted.
 import { fontCss } from '../../tela/telaFonts';
 import { setProgramVideoAudible } from '../audioPriority';
+import { attachVideo } from '../videoSync';
 import { registerLiveDrawer, onHostDispose, type LiveEnv, type SlideHost } from './live';
 import type { SlideObj, SlideTheme } from './types';
 
@@ -172,6 +173,7 @@ interface Runtime {
   soundOn: boolean;
   /** Program audio was blocked by autoplay policy and fell back to muted. */
   autoplayMuted: boolean;
+  detachSync: () => void;
 }
 
 const runtimes = new Map<string, Runtime>();
@@ -188,7 +190,7 @@ function release(hostId: string) {
   const rt = runtimes.get(hostId);
   runtimes.delete(hostId); lastPhase.delete(hostId);
   if (!rt) return;
-  try { rt.v.pause(); rt.v.removeAttribute('src'); rt.v.load(); } catch { /* */ }
+  try { rt.detachSync(); rt.v.pause(); rt.v.removeAttribute('src'); rt.v.load(); } catch { /* */ }
   if (rt.routed) void import('../amboAudioEngine').then(m => m.amboAudio.detachElement(rt.v)).catch(() => {});
   if (rt.soundOn) setProgramVideoAudible(false);
 }
@@ -206,8 +208,10 @@ function runtimeFor(host: SlideHost, s: VideoSettings): Runtime | null {
   // Non-program windows are always silent (no doubled audio in the room).
   v.muted = !host.audible || s.muted;
   v.volume = host.audible ? s.volume : 0;
-  const r: Runtime = { v, url: s.url, mode: 'direct', error: false, routed: false, ev: { expandAt: s.delaySec === 0 ? -Infinity : null, endAt: null }, poster: null, live: false, soundOn: false, autoplayMuted: false };
+  const r: Runtime = { v, url: s.url, mode: 'direct', error: false, routed: false, ev: { expandAt: s.delaySec === 0 ? -Infinity : null, endAt: null }, poster: null, live: false, soundOn: false, autoplayMuted: false, detachSync: () => {} };
   rt = r;
+  // One clock: the audible host is the authority, other windows follow it (services/ambo/videoSync.ts).
+  r.detachSync = attachVideo(v, { key: s.url, master: !!host.audible });
   runtimes.set(host.id, r);
   onHostDispose(host.id, () => release(host.id));
 

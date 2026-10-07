@@ -14,10 +14,14 @@ import type { AmboMediaSourceItem } from './AmboMediaBin';
 import { GeneratorPreviewTile, ShaderPreviewTile } from '../plajahPixels/components/ShaderPreviewTile';
 import { hasGenerator } from '../plajahPixels/engine/core/generators';
 import { getShaderThumb, peekShaderThumb } from '../plajahPixels/ui/shaderThumbs';
+import { AmboPoster } from './AmboPoster';
+import { SQUARE_SNAPSHOT_PX } from './AmboSquareThumb';
 import { normalizeGeneratorMode, snapshotVisualizer } from '../../services/ambo/layerSources';
 
 // ── Sequential snapshot queue (one GL context at a time) ─────────────────────
 const snapCache = new Map<string, string | null>();
+/** Cache key includes the raster size so a size change never serves a stale crop. */
+const snapKey = (mode: string) => `${mode}@${SQUARE_SNAPSHOT_PX}`;
 type Job = { mode: string; done: (url: string | null) => void; cancelled: boolean };
 const queue: Job[] = [];
 let running = false;
@@ -29,10 +33,14 @@ async function pump() {
     while (queue.length) {
       const job = queue.shift()!;
       if (job.cancelled) continue;
-      if (snapCache.has(job.mode)) { job.done(snapCache.get(job.mode) ?? null); continue; }
+      const key = snapKey(job.mode);
+      if (snapCache.has(key)) { job.done(snapCache.get(key) ?? null); continue; }
       let url: string | null = null;
-      try { url = await snapshotVisualizer({ kind: 'GENERATOR', mode: job.mode }, 320, 180); } catch { url = null; }
-      snapCache.set(job.mode, url);
+      // A card must never stay blank: retry a failed render (longer timeout) before giving up.
+      for (let attempt = 0; attempt < 2 && !url; attempt++) {
+        try { url = await snapshotVisualizer({ kind: 'GENERATOR', mode: job.mode }, SQUARE_SNAPSHOT_PX, SQUARE_SNAPSHOT_PX, 6 + attempt * 4, 15000 + attempt * 10000); } catch { url = null; }
+      }
+      snapCache.set(key, url);
       job.done(url);
     }
   } finally {
@@ -41,7 +49,8 @@ async function pump() {
 }
 
 function requestSnapshot(mode: string, done: (url: string | null) => void): () => void {
-  if (snapCache.has(mode)) { done(snapCache.get(mode) ?? null); return () => {}; }
+  const key = snapKey(mode);
+  if (snapCache.has(key)) { done(snapCache.get(key) ?? null); return () => {}; }
   const job: Job = { mode, done, cancelled: false };
   queue.push(job);
   void pump();
@@ -84,7 +93,7 @@ export const AmboVisualizerThumb: React.FC<{ item: AmboMediaSourceItem; hovered?
   const liveGen = !isShader && hasGenerator(mode);
   const [boxRef, onScreen] = useOnScreen<HTMLDivElement>();
   const shaderKey = `ambo-viz:${item.id}`;
-  const [still, setStill] = useState<string | null>(() => (isShader ? peekShaderThumb(shaderKey) : (snapCache.get(mode) ?? null)));
+  const [still, setStill] = useState<string | null>(() => (isShader ? peekShaderThumb(shaderKey) : (snapCache.get(snapKey(mode)) ?? null)));
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
@@ -111,6 +120,7 @@ export const AmboVisualizerThumb: React.FC<{ item: AmboMediaSourceItem; hovered?
       {still && <img src={still} alt="" draggable={false} style={fill} />}
       {isShader && hovered && shaderSrc && !failed && <ShaderPreviewTile id={shaderKey} src={shaderSrc} />}
       {!still && !liveGen && !failed && onScreen && <Unavailable text="Rendering…" />}
+      {failed && <AmboPoster label={item.name} gradient={item.gradient || 'linear-gradient(135deg,#2a1647,#0d0a18)'} />}
       {failed && <Unavailable text={isShader ? "Shader won't compile here" : 'Preview unavailable'} />}
     </div>
   );
