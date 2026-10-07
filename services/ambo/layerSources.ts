@@ -10,6 +10,7 @@
 // that introduced it — see layerRenderer's reconcile().
 
 import { otherAudioFactor, subscribeAudioPriority } from './audioPriority';
+import { ReactivityConditioner, REACTIVITY_STRENGTH, getReactivityMode } from './audioReactivity';
 import { FluxMusicSampler } from '../fabula/fluxMusic';
 import { SILENT_AUDIO } from '../fabula/fluxNode';
 import { amboAudio } from './amboAudioEngine';
@@ -519,6 +520,15 @@ function readLive(analyser: AnalyserNode, t: number): { freq: Uint8Array; wave: 
   for (let i = 0; i < 256; i++) { liveFreq[i] = f[Math.min(nb - 1, i)]; sum += liveFreq[i]; }
   for (let i = 0; i < 256; i++) liveWave[i] = w[Math.floor((i / 256) * nw)];
   const level = sum / 256 / 255;
+  // Stretch each frequency group between its own floor and ceiling so the visuals MOVE with the
+  // music (raw analyser bytes sit high and barely vary — see audioReactivity.ts). Silence is left alone.
+  const nowMs = typeof performance !== 'undefined' ? performance.now() : Date.now();
+  if (level > 0.012) {
+    reactivity.strength = REACTIVITY_STRENGTH[getReactivityMode()];
+    const b = reactivity.apply(liveFreq, Math.min(0.25, (nowMs - reactivityAt) / 1000 || 0.016));
+    liveBeat = b.pulse;
+  } else { liveBeat = Math.max(0, liveBeat - 0.05); if (level < 0.004) reactivity.reset(); }
+  reactivityAt = nowMs;
   // 0 → fully idle, 1 → fully live (crossover around a quiet room's floor)
   const live = Math.min(1, level / 0.06);
   if (live < 1) {
@@ -534,6 +544,9 @@ function readLive(analyser: AnalyserNode, t: number): { freq: Uint8Array; wave: 
   return { freq: liveFreq, wave: liveWave, level };
 }
 let liveLevel = 0;
+let liveBeat = 0;
+let reactivityAt = 0;
+const reactivity = new ReactivityConditioner();
 
 function feedAudioTexture(audio: any, analyser: AnalyserNode | null, t: number) {
   if (!audio) return;
@@ -554,7 +567,7 @@ function bandsFrom(analyser: AnalyserNode | null, t: number) {
       const f = readLive(analyser, t).freq;
       const avg = (a: number, b: number) => { let s = 0; const e = Math.min(f.length, b); for (let i = a; i < e; i++) s += f[i]; return e > a ? s / (e - a) / 255 : 0; };
       const bass = avg(0, 8), mid = avg(8, 64), treble = avg(64, 256);
-      return { bass, mid, treble, level: (bass + mid + treble) / 3, beat: bass > 0.6 ? 1 : 0 };
+      return { bass, mid, treble, level: (bass + mid + treble) / 3, beat: liveBeat };
     } catch { /* fall through */ }
   }
   const bass = 0.35 + 0.2 * Math.sin(t * 2.1), mid = 0.3 + 0.15 * Math.sin(t * 1.3 + 1), treble = 0.22 + 0.1 * Math.sin(t * 3.1 + 2);

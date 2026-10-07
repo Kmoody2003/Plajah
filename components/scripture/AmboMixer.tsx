@@ -13,6 +13,7 @@ import MeterBridge from '../shared/MeterBridge';
 import { amboAudio, AMBO_CHANNELS, type AmboChannelId, type VizFollow } from '../../services/ambo/amboAudioEngine';
 import { ERA_PROFILES, ENGINEERS, applyEra, eraById, defaultMastering, defaultSpectra } from '../../services/fabula/audioFx';
 import { useAudioBus } from './AmboAudioBus';
+import { getReactivityMode, setReactivityMode, subscribeReactivity, type ReactivityMode } from '../../services/ambo/audioReactivity';
 
 type StripId = AmboChannelId | 'master' | 'live';
 
@@ -128,7 +129,28 @@ const VIZ_FOLLOW: Array<{ id: VizFollow; label: string; hint: string }> = [
   { id: 'both', label: 'Both', hint: 'Visuals react to the program mix and the live input together' },
 ];
 
-export const AmboMixer: React.FC = () => {
+export /** How hard generators and visualizers react to the music. Natural keeps the raw feel; Punchy/Max stretch each band to its own range. */
+const REACT_MODES: Array<{ id: ReactivityMode; label: string; hint: string }> = [
+  { id: 'natural', label: 'Soft', hint: 'Gentle: close to the raw analyser' },
+  { id: 'punchy', label: 'Punchy', hint: 'Each band fills its own range, beats pulse (default)' },
+  { id: 'max', label: 'Max', hint: 'Full stretch: the most dramatic response' },
+];
+const ReactivityPicker: React.FC = () => {
+  const mode = useSyncExternalStore(subscribeReactivity, getReactivityMode);
+  return (
+    <div className="flex flex-col gap-0.5" title="How strongly generators and visualizers react to the music">
+      <div className="text-[7.5px] font-extrabold uppercase tracking-wider text-white/40 text-center">Reactivity</div>
+      <div className="flex rounded-md border border-white/10 overflow-hidden">
+        {REACT_MODES.map(m => (
+          <button key={m.id} onClick={() => setReactivityMode(m.id)} title={m.hint}
+            className={`flex-1 px-1 py-0.5 text-[8.5px] font-bold ${mode === m.id ? 'bg-[#2BE0A8] text-black' : 'text-white/60 hover:bg-white/10'}`}>{m.label}</button>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+const AmboMixer: React.FC = () => {
   const st = useSyncExternalStore(amboAudio.subscribe, amboAudio.getSnapshot);
   const busState = useAudioBus();
   const [open, setOpen] = useState(false);
@@ -311,6 +333,7 @@ export const AmboMixer: React.FC = () => {
                 ))}
               </div>
             </div>
+            <ReactivityPicker />
           </div>
         </div>
         <div className="flex-1 min-w-0 min-h-0 flex flex-col gap-1.5">
