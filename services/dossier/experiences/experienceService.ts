@@ -5,14 +5,20 @@
  *   - uploads go through uploadVideoFileMux()  -> POST /api/mux/upload (direct upload, UpChunk, resumable, ledgered)
  *   - readiness goes through pollMuxUploadUntilReady() -> GET /api/mux/asset + GET /api/mux/playback
  *   - a Reello video is the same `videos/{id}` document uploadVideo() writes for a Mux-only upload.
+ *
+ * Exhibit films: the REELLO video is the source of truth. publishAsReello() is the canonical publish step, putInHall()
+ * requires that video to be published PUBLIC (it reads `videos/{id}` live and copies its mux playback id into the public
+ * hall doc together with `reelloVideoId`), and every path that makes that video private or finds it gone also takes the
+ * hall doc down (setReelloVisibility, reconcileHall, unlinkReello, and the refresh/captions syncs), so the hall falls back to
+ * the live canvas film. Interactive content (kind 'interactive') can be uploaded to Mux but has no Reello or hall actions.
  */
-import { collection, deleteDoc, doc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import { auth, db, pollMuxUploadUntilReady, uploadFile, uploadVideoFileMux } from '../../backendService';
 import { buildProvenance } from '../../creatorPassport';
 import { forgetHallFilm } from './experienceFilmClient';
 import {
-  applyMuxAsset, catalogFor, experienceToReelloVideo, hallBlockers, manifestEntryToRecord, reelloBlockers, srtToVtt, stripUndefined, toPublicFilm,
-  type ExperienceRecord, type ExperiencesManifest, type MuxAssetLike,
+  applyMuxAsset, catalogFor, experienceToReelloVideo, hallBlockers, hallIsStale, manifestEntryToRecord, reelloBlockers, srtToVtt, stripUndefined, toPublicFilm,
+  type ExperienceRecord, type ExperiencesManifest, type MuxAssetLike, type ReelloVideoState,
 } from './experienceModel';
 
 const COL = 'experiences';
@@ -54,8 +60,7 @@ export async function refreshExperience(rec: ExperienceRecord): Promise<Experien
   const asset = await fetchMuxAsset(assetId);
   const next = applyMuxAsset({ ...rec, muxAssetId: assetId }, asset);
   await saveExperience(next);
-  if (next.inHall) await syncHall(next);
-  return next;
+  return next.inHall ? syncHallFor(next) : next;
 }
 
 const sha256Hex = async (file: Blob) => {
@@ -75,7 +80,7 @@ export async function uploadExperience(args: { slotId: string; file: File; onPro
   const base: ExperienceRecord = {
     ...(args.existing || {}),
     id: cat.id, title: args.existing?.title || cat.title, description: args.existing?.description || cat.description,
-    exhibitId: cat.exhibitId, kind: 'film', variant: cat.variant, status: 'uploading', playbackPolicy: 'public',
+    exhibitId: cat.exhibitId, kind: cat.kind, variant: cat.variant, status: 'uploading', playbackPolicy: 'public',
     sourceFile: cat.file, sourceSha256: sha, sizeBytes: args.file.size, renderedAt: args.file.lastModified || undefined,
     captionsSourcePaths: { vtt: cat.vtt, srt: cat.srt },
     createdAt: args.existing?.createdAt ?? now, updatedAt: now,
@@ -123,31 +128,61 @@ export async function attachCaptions(rec: ExperienceRecord, file: File): Promise
   const captionsSrtUrl = isSrt ? await uploadFile(`users/${uid}/experiences/${rec.id}/${rec.id}.en.srt`, new File([text], `${rec.id}.en.srt`, { type: 'text/plain' })) : rec.captionsSrtUrl;
   const next = { ...rec, captionsUrl, captionsSrtUrl, updatedAt: Date.now() };
   await saveExperience(next);
-  if (next.inHall) await syncHall(next);
-  return next;
+  // The Reello video is the source of truth for a film: give it the same subtitle track (only the admin who published it can).
+  if (next.publishedReelloId) {
+    try { await updateDoc(doc(db, 'videos', next.publishedReelloId), { subtitles: [{ label: 'English', srclang: 'en', url: captionsUrl, default: true }] }); }
+    catch (e) { console.warn('[experiences] could not update the Reello video subtitles (only its owner can):', e); }
+  }
+  return next.inHall ? syncHallFor(next) : next;
+}
+
+// ── Reello state (the source of truth) ───────────────────────────────────────
+
+/** Reads `videos/{id}` (public read). THROWS on a failed read: callers must not treat an error as "deleted". */
+export async function getReelloState(videoId: string): Promise<ReelloVideoState> {
+  const snap = await getDoc(doc(db, 'videos', videoId));
+  if (!snap.exists()) return { exists: false };
+  const d = snap.data() as { isPrivate?: boolean; muxPlaybackId?: unknown };
+  return { exists: true, isPrivate: d.isPrivate !== false, muxPlaybackId: typeof d.muxPlaybackId === 'string' ? d.muxPlaybackId : undefined };
 }
 
 // ── Hall (public playback doc) ───────────────────────────────────────────────
 
-async function syncHall(rec: ExperienceRecord) {
-  const pub = toPublicFilm(rec);
-  if (pub) await setDoc(doc(db, HALL, rec.exhibitId), stripUndefined(pub));
+/**
+ * Keeps the public hall doc in step with the record AND its Reello video. Takes the doc down (and clears inHall) when the
+ * Reello video is private, deleted or unusable; otherwise rewrites it from the Reello video's current mux playback id.
+ */
+async function syncHallFor(rec: ExperienceRecord): Promise<ExperienceRecord> {
+  if (!rec.inHall) return rec;
+  const reello: ReelloVideoState = rec.publishedReelloId ? await getReelloState(rec.publishedReelloId) : { exists: false };
+  const pub = hallBlockers(rec, reello).length ? null : toPublicFilm(rec, reello);
+  if (!pub) return removeFromHall(rec);
+  await setDoc(doc(db, HALL, rec.exhibitId), stripUndefined(pub));
   forgetHallFilm(rec.exhibitId);
+  return rec;
 }
 
-/** Puts a ready, public, timed record in front of every visitor of its exhibit (replacing any previous film for that exhibit). */
+/**
+ * Puts a ready, public, timed film in front of every visitor of its exhibit (replacing any previous film for that exhibit).
+ * Requires the film to be published as a PUBLIC Reello video: that video is read live, and its mux playback id is what
+ * visitors get, together with `reelloVideoId`. Interactive content is refused.
+ */
 export async function putInHall(rec: ExperienceRecord): Promise<ExperienceRecord> {
-  const blockers = hallBlockers(rec);
+  const reello = rec.publishedReelloId ? await getReelloState(rec.publishedReelloId) : undefined;
+  const blockers = hallBlockers(rec, reello);
   if (blockers.length) throw new Error(blockers.join(' '));
+  const pub = toPublicFilm(rec, reello);
+  if (!pub) throw new Error('This film cannot be put in the hall.');
   const others = await getDocs(query(collection(db, COL), where('exhibitId', '==', rec.exhibitId), where('inHall', '==', true)));
   for (const d of others.docs) if (d.id !== rec.id) await patchExperience(d.id, { inHall: false });
   const next = { ...rec, inHall: true, updatedAt: Date.now() };
-  await syncHall(next);
+  await setDoc(doc(db, HALL, rec.exhibitId), stripUndefined(pub));
+  forgetHallFilm(rec.exhibitId);
   await saveExperience(next);
   return next;
 }
 
-/** Takes the exhibit's Mux film down: the hall goes back to the live canvas film. Only deletes the doc if it is THIS record's. */
+/** Takes the exhibit's Mux film down: the hall goes back to the live canvas film. */
 export async function removeFromHall(rec: ExperienceRecord): Promise<ExperienceRecord> {
   if (!rec.inHall) return rec;
   await deleteDoc(doc(db, HALL, rec.exhibitId));
@@ -157,6 +192,15 @@ export async function removeFromHall(rec: ExperienceRecord): Promise<ExperienceR
   return next;
 }
 
+/**
+ * If this record is in the hall but its Reello video is private or gone (for example it was made private or deleted
+ * elsewhere), applies "Remove from hall". The admin UI runs it after loading; `removed` tells the UI to say so.
+ */
+export async function reconcileHall(rec: ExperienceRecord, reello: ReelloVideoState): Promise<{ rec: ExperienceRecord; removed: boolean }> {
+  if (!hallIsStale(rec, reello)) return { rec, removed: false };
+  return { rec: await removeFromHall(rec), removed: true };
+}
+
 // ── Reello ───────────────────────────────────────────────────────────────────
 
 /**
@@ -164,11 +208,12 @@ export async function removeFromHall(rec: ExperienceRecord): Promise<ExperienceR
  * Plajah Dossier. PRIVATE unless the admin explicitly picks public (and the UI makes them confirm). It never notifies
  * followers and never touches any feed beyond the document itself.
  */
-export async function publishAsReello(rec: ExperienceRecord, visibility: 'private' | 'public'): Promise<ExperienceRecord> {
+export async function publishAsReello(rec: ExperienceRecord, visibility: 'private' | 'public', publicConfirmed = false): Promise<ExperienceRecord> {
   const uid = auth.currentUser?.uid;
   if (!uid) throw new Error('Sign in required.');
   const blockers = reelloBlockers(rec);
   if (blockers.length) throw new Error(blockers.join(' '));
+  if (visibility === 'public' && !publicConfirmed) throw new Error('Publishing publicly on Reello needs an explicit confirmation.');
   const { DOSSIERS } = await import('../../../data/dossier/registry');
   const exhibitTitle = DOSSIERS.find(d => d.id === rec.exhibitId)?.title;
   const video = experienceToReelloVideo(rec, { ownerId: uid, visibility, exhibitTitle });
@@ -179,8 +224,29 @@ export async function publishAsReello(rec: ExperienceRecord, visibility: 'privat
   return next;
 }
 
-/** Flips the published Reello video between private and public. */
-export async function setReelloVisibility(rec: ExperienceRecord, visibility: 'private' | 'public'): Promise<void> {
+/**
+ * Flips the published Reello video between private and public. Making it PRIVATE also takes the film out of the hall
+ * (the hall only ever uses a public Reello video), done first so a failure can never leave a private video in the hall.
+ * Only the account that published the video can change it (Firestore: videos update = owner).
+ */
+export async function setReelloVisibility(rec: ExperienceRecord, visibility: 'private' | 'public'): Promise<ExperienceRecord> {
   if (!rec.publishedReelloId) throw new Error('Not published to Reello.');
+  let next = rec;
+  if (visibility === 'private' && rec.inHall) next = await removeFromHall(rec);
   await updateDoc(doc(db, 'videos', rec.publishedReelloId), { isPrivate: visibility !== 'public' });
+  return next;
+}
+
+/**
+ * Clears the link to a Reello video that no longer exists (deleted elsewhere) so the film can be published again. Refuses
+ * while the video still exists, and takes the film out of the hall first.
+ */
+export async function unlinkReello(rec: ExperienceRecord): Promise<ExperienceRecord> {
+  if (!rec.publishedReelloId) return rec;
+  const state = await getReelloState(rec.publishedReelloId);
+  if (state.exists) throw new Error('The Reello video still exists. Delete it in Reello first, or keep it linked.');
+  const base = await removeFromHall(rec);
+  const next: ExperienceRecord = { ...base, publishedReelloId: undefined, updatedAt: Date.now() };
+  await saveExperience(next);
+  return next;
 }

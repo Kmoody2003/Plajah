@@ -480,7 +480,7 @@ const rooms: Room[] = [
     id: 'r3', title: 'Lexington, Concord and the Congress', years: '1774 – 1776',
     nodes: [
       {
-        id: 'n-r3-story', title: 'The first shots, and a Congress that chose war and then independence', kind: 'story',
+        id: 'n-r3-story', title: 'The first shots, and a Congress that chose war and then independence', kind: 'story', experience: 'animated-painting',
         claimIds: ['c-continental-1774', 'c-lexington', 'c-who-fired', 'c-estabrook', 'c-congress2', 'c-common-sense', 'c-lee-resolution'],
         assetIds: ['a-lexington-map'],
         text: {

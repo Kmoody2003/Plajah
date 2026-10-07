@@ -126,7 +126,9 @@ export type DossierExperience =
   | 'douglass-composing-stick'
   | 'persia-road'
   | 'partition-pen'
-  | 'founding-timeline';
+  | 'founding-timeline'
+  /** The animated Bunker Hill painting (live canvas film player, embedded in the node card, labelled ANIMATED PAINTING). */
+  | 'animated-painting';
 
 export interface ExhibitNode {
   id: string;

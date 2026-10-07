@@ -10,6 +10,20 @@ interface Props {
   /** Render size; the renderer is resolution-independent (all sizes scale with height). */
   width?: number;
   height?: number;
+  /**
+   * Inline mode: the player sits inside a page (a node card) instead of covering the screen. Keys and mouse movement are
+   * handled on the player itself (so Space and the arrows keep scrolling the page), it pauses itself when scrolled out of
+   * view, and it has no close button. Everything else (scrub bar, pause, captions, chapters, fullscreen) is the same player.
+   */
+  embedded?: boolean;
+  /** Always-visible label in a corner (for example "ANIMATED PAINTING"). */
+  badge?: string;
+  /** Start playing as soon as the film is ready. Defaults to true for the full-screen player and false when embedded. */
+  autoPlay?: boolean;
+  /** Embedded and not auto-playing: the time of the frame to show as the still behind the play button (default 0). */
+  poster?: (r: FilmRenderer) => number;
+  /** Called with the message when the film cannot be loaded (the host can swap in a fallback). */
+  onFail?: (message: string) => void;
 }
 
 function ensureFonts() {
@@ -47,9 +61,18 @@ const CSS = `
 .dfp-skip{position:absolute;right:24px;bottom:96px;background:rgba(0,0,0,.72);border:1px solid var(--dfp-a,#d4a24c)!important;padding:8px 14px!important;font-size:14px!important}
 .dfp-big{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
 .dfp-big span{width:88px;height:88px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.45);border:1px solid rgba(212,162,76,.6);color:var(--dfp-a,#d4a24c)}
+.dfp.emb{position:relative;inset:auto;z-index:auto;width:100%;aspect-ratio:16/9;border-radius:12px;overflow:hidden}
+.dfp.emb:fullscreen{aspect-ratio:auto;border-radius:0}
+.dfp.emb:focus-visible{outline:2px solid var(--dfp-a,#d4a24c);outline-offset:2px}
+.dfp.emb .dfp-top h2{display:none}
+.dfp.emb .dfp-ui{padding:12px 14px}
+.dfp.emb .dfp-menu{right:14px;bottom:62px}
+.dfp.emb .dfp-skip{right:14px;bottom:72px}
+.dfp.emb .dfp-big{pointer-events:none}
+.dfp-badge{position:absolute;top:12px;left:14px;z-index:2;font:700 11px/1 'Inter',system-ui,sans-serif;letter-spacing:.22em;padding:6px 9px;border-radius:6px;background:rgba(0,0,0,.66);border:1px solid var(--dfp-a,#d4a24c);color:var(--dfp-a,#d4a24c);pointer-events:none}
 `;
 
-export default function DossierFilmPlayer({ load, onClose, width = 1280, height = 720 }: Props) {
+export default function DossierFilmPlayer({ load, onClose, width = 1280, height = 720, embedded = false, badge, autoPlay = !embedded, poster, onFail }: Props) {
   const wrap = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const r = useRef<FilmRenderer | null>(null);
@@ -66,6 +89,9 @@ export default function DossierFilmPlayer({ load, onClose, width = 1280, height 
   const [error, setError] = useState('');
   const [accent, setAccent] = useState('');
   const [skip, setSkip] = useState<{ from: number; to: number; label: string } | null>(null);
+  // Embedded and not yet played: the still frame is on screen behind the big play button.
+  const [atPoster, setAtPoster] = useState(false);
+  const atPosterRef = useRef(false);
 
   const now = () => {
     const c = clock.current;
@@ -116,11 +142,15 @@ export default function DossierFilmPlayer({ load, onClose, width = 1280, height 
         if (rr.council) setAccent(rr.council.tl.film.theme.accent);
         if (spec.score) { const s = new Audio(spec.score.src); s.loop = true; s.volume = 0; audio.current.score = s; }
         setChapters(rr.chapters);
-        rr.draw(0);
+        const start = rr.council && autoPlay;
+        // Not auto-playing inline: show the authored still (poster frame) and wait for the viewer to press play.
+        const stillAt = !start && embedded && poster ? Math.max(0, Math.min(rr.duration - .05, poster(rr))) : 0;
+        if (stillAt > 0) { clock.current = { playing: false, base: 0, at: stillAt }; atPosterRef.current = true; setAtPoster(true); setT(stillAt); }
+        rr.draw(stillAt);
         setReady(true);
         // The council style plays live from frame one (the viewer already pressed Watch the film).
-        if (rr.council) { clock.current = { playing: true, base: performance.now(), at: 0 }; setPlaying(true); }
-      } catch (e) { setError((e as Error).message || 'The film could not be loaded.'); }
+        if (start) { clock.current = { playing: true, base: performance.now(), at: 0 }; setPlaying(true); }
+      } catch (e) { const m = (e as Error).message || 'The film could not be loaded.'; setError(m); onFail?.(m); }
     })();
     return () => {
       dead = true;
@@ -153,7 +183,9 @@ export default function DossierFilmPlayer({ load, onClose, width = 1280, height 
 
   const play = useCallback(() => {
     const rr = r.current; if (!rr) return;
-    const at = now() >= rr.duration - .05 ? 0 : now();
+    // From the still, play from the very start (the content note comes first).
+    const at = atPosterRef.current || now() >= rr.duration - .05 ? 0 : now();
+    atPosterRef.current = false; setAtPoster(false);
     clock.current = { playing: true, base: performance.now(), at };
     setPlaying(true);
   }, []);
@@ -161,6 +193,7 @@ export default function DossierFilmPlayer({ load, onClose, width = 1280, height 
   const seek = useCallback((to: number) => {
     const rr = r.current; if (!rr) return;
     to = Math.max(0, Math.min(rr.duration - .01, to));
+    atPosterRef.current = false; setAtPoster(false);
     audio.current.voices.forEach(v => v.pause());
     if (audio.current.score) audio.current.score.currentTime = to % (audio.current.score.duration || 1e9);
     clock.current = { ...clock.current, base: performance.now(), at: to };
@@ -172,9 +205,13 @@ export default function DossierFilmPlayer({ load, onClose, width = 1280, height 
     let timer = 0;
     const poke = () => { setIdle(false); clearTimeout(timer); timer = window.setTimeout(() => setIdle(true), 2600); };
     const key = (e: KeyboardEvent) => {
+      // Embedded: a focused button handles its own Enter/Space; the player only reacts to keys while it has focus.
+      if (embedded && (e.target as HTMLElement | null)?.closest?.('button')) return;
       // Any key, tap or remote button skips the title sequence or a content-noted section (Escape still closes).
       const rr = r.current, here = rr?.skips.find(k => now() >= k.from && now() < k.to);
       if (rr && here && e.key !== 'Escape' && e.key !== 'c' && !e.metaKey && !e.ctrlKey && clock.current.playing) { e.preventDefault(); seek(here.to); poke(); return; }
+      // Embedded in the hall: the arrows seek here and must not also turn the page to the next room (Escape still reaches the hall).
+      if (embedded && (e.key === 'ArrowRight' || e.key === 'ArrowLeft' || e.key === ' ' || e.key === 'k' || e.key === 'c')) e.stopPropagation();
       if (e.key === ' ' || e.key === 'k') { e.preventDefault(); clock.current.playing ? pause() : play(); }
       else if (e.key === 'ArrowRight') seek(now() + 5);
       else if (e.key === 'ArrowLeft') seek(now() - 5);
@@ -182,22 +219,35 @@ export default function DossierFilmPlayer({ load, onClose, width = 1280, height 
       else if (e.key === 'Escape') onClose?.();
       poke();
     };
-    window.addEventListener('keydown', key); window.addEventListener('mousemove', poke);
+    // Full-screen: the whole window. Embedded: only the player itself, so the page keeps its own keys.
+    const target: HTMLElement | Window = embedded && wrap.current ? wrap.current : window;
+    target.addEventListener('keydown', key as EventListener); target.addEventListener('mousemove', poke);
     poke();
-    return () => { window.removeEventListener('keydown', key); window.removeEventListener('mousemove', poke); clearTimeout(timer); };
-  }, [play, pause, seek, onClose]);
+    return () => { target.removeEventListener('keydown', key as EventListener); target.removeEventListener('mousemove', poke); clearTimeout(timer); };
+  }, [play, pause, seek, onClose, embedded]);
+
+  // Embedded: pause when the player is scrolled out of view.
+  useEffect(() => {
+    const el = wrap.current;
+    if (!embedded || !el || typeof IntersectionObserver === 'undefined') return;
+    const io = new IntersectionObserver(es => { if (es[0] && !es[0].isIntersecting && clock.current.playing) pause(); }, { threshold: 0.1 });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [embedded, pause]);
 
   const duration = r.current?.duration ?? 1;
   const current = [...chapters].reverse().find(c => t >= c.start);
 
   return (
-    <div className="dfp" ref={wrap} data-idle={idle && playing} role="dialog" aria-label="Dossier film" style={accent ? ({ '--dfp-a': accent } as React.CSSProperties) : undefined}>
+    <div className={embedded ? 'dfp emb' : 'dfp'} ref={wrap} data-idle={idle && playing} role={embedded ? 'region' : 'dialog'} aria-label={embedded ? (badge || 'Dossier film') : 'Dossier film'}
+      tabIndex={embedded ? 0 : undefined} style={accent ? ({ '--dfp-a': accent } as React.CSSProperties) : undefined}>
       <style>{CSS}</style>
+      {badge && <span className="dfp-badge">{badge}</span>}
       <canvas ref={canvas} onClick={() => { if (skip && playing) seek(skip.to); else playing ? pause() : play(); }} aria-label="Film frame" />
       {!ready && !error && <div className="dfp-load"><div>Preparing the film<i><b style={{ width: `${Math.round(progress * 100)}%` }} /></i></div></div>}
       {error && <div className="dfp-load">{error}</div>}
       {ready && skip && playing && <button className="dfp-skip" onClick={() => seek(skip.to)}>{skip.label} (any key)</button>}
-      {ready && !playing && t < .05 && <div className="dfp-big"><span><Play size={34} /></span></div>}
+      {ready && !playing && (t < .05 || atPoster) && <div className="dfp-big"><span><Play size={34} /></span></div>}
       <div className="dfp-top">
         <h2>A Plajah Dossier · Film</h2>
         {onClose && <button onClick={onClose} aria-label="Close film"><X size={20} /></button>}

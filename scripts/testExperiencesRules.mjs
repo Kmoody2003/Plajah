@@ -34,7 +34,7 @@ const DB = '/databases/(default)/documents';
 const ADM = 'adm', USR = 'usr', STF = 'stf', OWNER = 'ownr';
 const mocks = [ADM, USR, STF, OWNER].map(u => ({ function: 'exists', args: [{ exactValue: `${DB}/admins/${u}` }], result: { value: u === ADM } }));
 
-const film = (o = {}) => ({ exhibitId: 'henry-ford', experienceId: 'ford-council', title: 'Henry Ford: the film', muxPlaybackId: 'AbCdEf0123456789', playbackPolicy: 'public', durationSec: 219.17, width: 1920, height: 1080, updatedAt: 1, ...o });
+const film = (o = {}) => ({ exhibitId: 'henry-ford', experienceId: 'ford-council', reelloVideoId: 'vid_1760000000000', title: 'Henry Ford: the film', muxPlaybackId: 'AbCdEf0123456789', playbackPolicy: 'public', durationSec: 219.17, width: 1920, height: 1080, updatedAt: 1, ...o });
 const rec = { id: 'ford-council', exhibitId: 'henry-ford', kind: 'film', muxAssetId: 'a1', status: 'ready' };
 const cases = [];
 const t = (name, expect, who, method, path, { data, existing } = {}) => cases.push({ name, expect, who, method, path, data, existing });
@@ -72,6 +72,13 @@ t('hall film doc id must equal exhibitId', 'DENY', ADM, 'create', F('someone-els
 t('hall film without duration', 'DENY', ADM, 'create', F('henry-ford'), { data: (() => { const d = film(); delete d.durationSec; return d; })() });
 t('hall film with zero duration', 'DENY', ADM, 'create', F('henry-ford'), { data: film({ durationSec: 0 }) });
 t('hall film with tiny playback id', 'DENY', ADM, 'create', F('henry-ford'), { data: film({ muxPlaybackId: 'abc' }) });
+t('hall film without reelloVideoId (the Reello video is the source of truth)', 'DENY', ADM, 'create', F('henry-ford'), { data: (() => { const d = film(); delete d.reelloVideoId; return d; })() });
+t('hall film with empty reelloVideoId', 'DENY', ADM, 'create', F('henry-ford'), { data: film({ reelloVideoId: '' }) });
+t('hall film with non-string reelloVideoId', 'DENY', ADM, 'create', F('henry-ford'), { data: film({ reelloVideoId: 12345 }) });
+t('hall film with oversized reelloVideoId', 'DENY', ADM, 'create', F('henry-ford'), { data: film({ reelloVideoId: 'v'.repeat(250) }) });
+t('hall film with an unknown extra field', 'DENY', ADM, 'create', F('henry-ford'), { data: film({ reelloIsPrivate: false }) });
+t('hall film update cannot drop reelloVideoId', 'DENY', ADM, 'update', F('henry-ford'), { data: (() => { const d = film({ updatedAt: 2 }); delete d.reelloVideoId; return d; })(), existing: film() });
+t('user cannot write a hall film with reelloVideoId', 'DENY', USR, 'update', F('henry-ford'), { data: film({ updatedAt: 2 }), existing: film() });
 t('hall film with non-string playback id', 'DENY', ADM, 'create', F('henry-ford'), { data: film({ muxPlaybackId: 12345678 }) });
 
 const claims = { [ADM]: {}, [USR]: {}, [STF]: {}, [OWNER]: { email: 'kmoody2003@gmail.com', email_verified: true }, unv: { email: 'kmoody2003@gmail.com', email_verified: false } };

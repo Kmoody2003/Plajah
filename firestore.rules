@@ -167,13 +167,18 @@ service cloud.firestore {
     }
     // experienceFilms/{exhibitId}: the minimal playback doc the Dossier hall reads so ANY visitor (signed in or not)
     // can watch an exhibit film from Mux. Public read; only a platform admin can write, and only this exact shape:
-    // a public Mux playback id plus display fields. Deleting it sends the hall back to the live canvas film.
+    // a public Mux playback id plus display fields. The film is SOURCED FROM a public Reello video: reelloVideoId names
+    // it and muxPlaybackId is copied from it (so visitors never need to read videos/). The admin tools only write this
+    // doc while that Reello video is public, and remove it when the video goes private or is deleted.
+    // Deleting it sends the hall back to the live canvas film.
     match /experienceFilms/{exhibitId} {
       allow read: if true;
       allow create, update: if isAdmin()
-        && request.resource.data.keys().hasOnly(['exhibitId', 'experienceId', 'title', 'muxPlaybackId', 'playbackPolicy', 'durationSec', 'width', 'height', 'captionsUrl', 'updatedAt'])
-        && request.resource.data.keys().hasAll(['exhibitId', 'experienceId', 'title', 'muxPlaybackId', 'playbackPolicy', 'durationSec', 'updatedAt'])
+        && request.resource.data.keys().hasOnly(['exhibitId', 'experienceId', 'reelloVideoId', 'title', 'muxPlaybackId', 'playbackPolicy', 'durationSec', 'width', 'height', 'captionsUrl', 'updatedAt'])
+        && request.resource.data.keys().hasAll(['exhibitId', 'experienceId', 'reelloVideoId', 'title', 'muxPlaybackId', 'playbackPolicy', 'durationSec', 'updatedAt'])
         && request.resource.data.exhibitId == exhibitId
+        && request.resource.data.reelloVideoId is string
+        && request.resource.data.reelloVideoId.size() > 0 && request.resource.data.reelloVideoId.size() < 200
         && request.resource.data.playbackPolicy == 'public'
         && request.resource.data.muxPlaybackId is string
         && request.resource.data.muxPlaybackId.size() >= 8 && request.resource.data.muxPlaybackId.size() <= 200

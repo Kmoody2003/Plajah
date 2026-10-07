@@ -6,7 +6,9 @@ import { selectFilmSource, type ExperienceFilmPublic } from '../../services/doss
 
 /**
  * "Watch the film" for one exhibit. Prefers the Mux copy the platform admin published for this exhibit
- * (experienceFilms/{exhibitId}, readable by any visitor), played through the platform's Mux Player with captions, and
+ * (experienceFilms/{exhibitId}, readable by any visitor; sourced from a PUBLIC Reello video, whose id it carries as
+ * reelloVideoId, and removed again when that video goes private or is deleted), played through the platform's Mux Player
+ * with captions, and
  * falls back to the live canvas film (DossierFilmPlayer) when:
  *   - nothing is published, the doc is malformed, or the read fails or is slow (offline, rules not deployed yet);
  *   - Mux playback errors, or does not start within LOAD_BUDGET_MS (for example an Android-TV WebView without MSE).

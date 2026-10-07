@@ -1,14 +1,19 @@
 /**
- * Uploads the Dossier film MP4s in docs/dossier to Mux and records the result in a local manifest.
+ * Uploads the Dossier MP4s in docs/dossier to Mux and records the result in a local manifest.
+ *
+ * What is uploaded by default: the four council exhibit films (douglass, ford, persia, partition) AND the animated Bunker
+ * Hill painting (founding-battle-demo), which is INTERACTIVE CONTENT inside the Founding Era exhibit, not an exhibit film.
+ * The older pre-council explainers are skipped unless asked for. Playback is PUBLIC only (signed is not supported).
  *
  *   npx tsx scripts/dossier/uploadExperiences.ts                    # DRY RUN (default): hashes files, prints the plan, touches nothing
  *   npx tsx scripts/dossier/uploadExperiences.ts --upload           # really upload (needs MUX_TOKEN_ID + MUX_TOKEN_SECRET)
  *
  * Options
- *   --include-legacy        also plan the three older (pre-council) explainers
+ *   --include-legacy        also plan the three older (pre-council) explainers (excluded by default)
  *   --only=id1,id2          limit to catalog ids (douglass-council, ford-council, persia-council, partition-council,
  *                           founding-battle-demo, douglass-legacy, ford-legacy, persia-legacy)
- *   --policy=public|signed  Mux playback policy (default public: the platform players cannot play signed assets yet)
+ *   --policy=public         Mux playback policy. Only "public" is supported (the platform players cannot play signed assets);
+ *                           --policy=signed is refused.
  *   --quality=basic|plus|premium   Mux video quality (default plus = what the platform's "smart" tier maps to)
  *   --manifest=path         default data/dossier/experiences-manifest.json
  *   --force                 re-upload even when the manifest says this exact file is already on Mux
@@ -19,7 +24,9 @@
  * scripts/loadLocalEnv.ts) and are never printed.
  *
  * Afterwards: open Admin -> Experiences -> "Import manifest" and pick the manifest file to create the admin-only
- * Firestore records, then attach captions and choose what goes in the hall / on Reello.
+ * Firestore records, then attach captions. For each exhibit FILM: "Publish as Reello video" (the canonical step; public on
+ * Reello needs the explicit choice and a confirm), then "Use in the hall" once it is public. The animated painting is
+ * interactive content: it only needs the upload, and has no Reello or hall actions.
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -37,8 +44,8 @@ const flag = (k: string) => process.argv.includes(`--${k}`);
 
 const UPLOAD = flag('upload');
 if (UPLOAD && flag('dry-run')) { console.error('Pass either --dry-run (default) or --upload, not both.'); process.exit(2); }
-const POLICY = (arg('policy', 'public') as PlaybackPolicy);
-if (POLICY !== 'public' && POLICY !== 'signed') { console.error('--policy must be public or signed'); process.exit(2); }
+const POLICY: PlaybackPolicy = 'public';
+if (arg('policy', 'public') !== 'public') { console.error('--policy: only "public" is supported. Signed playback is not supported by the platform players (or by Reello), so a signed asset could not be played.'); process.exit(2); }
 const QUALITY = arg('quality', 'plus') as 'basic' | 'plus' | 'premium';
 if (!['basic', 'plus', 'premium'].includes(QUALITY)) { console.error('--quality must be basic, plus or premium'); process.exit(2); }
 const MANIFEST = path.resolve(ROOT, arg('manifest', 'data/dossier/experiences-manifest.json')!);
@@ -150,7 +157,7 @@ async function main() {
   console.log(`\nDossier experiences: ${UPLOAD ? 'UPLOAD' : 'DRY RUN (nothing is sent to Mux)'}  policy=${POLICY}  quality=${QUALITY}\n`);
   for (const p of plan) {
     const tag = p.action.padEnd(17);
-    console.log(`  ${tag} ${p.entry.id.padEnd(22)} ${p.entry.file}${p.sizeBytes ? `  (${mb(p.sizeBytes)})` : ''}\n${' '.repeat(20)}${p.reason}`);
+    console.log(`  ${tag} ${p.entry.id.padEnd(22)} [${p.entry.kind}] ${p.entry.file}${p.sizeBytes ? `  (${mb(p.sizeBytes)})` : ''}\n${' '.repeat(20)}${p.reason}`);
   }
   const s = summarizePlan(plan, probe);
   console.log(`\nWould send ${s.files} file(s), ${mb(s.bytes)}, about ${s.minutes} min of video${s.unknownDurations ? ` (+${s.unknownDurations} of unknown length)` : ''}.`);
@@ -158,7 +165,7 @@ async function main() {
 
   const nothing = s.files === 0;
   if (!UPLOAD) {
-    const cmd = `npx tsx scripts/dossier/uploadExperiences.ts --upload${flag('include-legacy') ? ' --include-legacy' : ''}${only ? ` --only=${only.join(',')}` : ''}${POLICY !== 'public' ? ` --policy=${POLICY}` : ''}`;
+    const cmd = `npx tsx scripts/dossier/uploadExperiences.ts --upload${flag('include-legacy') ? ' --include-legacy' : ''}${only ? ` --only=${only.join(',')}` : ''}`;
     console.log(nothing ? '\nNothing to upload.' : `\nTo upload for real:\n  ${cmd}\n`);
     return;
   }

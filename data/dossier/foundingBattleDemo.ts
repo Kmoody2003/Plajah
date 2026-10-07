@@ -6,9 +6,13 @@
  * shadow), then the credits. About 45 seconds, silent with estimated caption timing; synthesised musket thuds and wind are
  * scheduled for the MP4 (scripts/dossier/renderFilm.ts --film=founding-battle).
  *
- * NOT part of the Founding exhibit's evidence ledger. The Founding exhibit (data/dossier/founding.ts) was still being built
- * elsewhere when this was written, so the four narrated sentences cite the local claims below, each with the sources checked
- * on 7 October 2026. When the exhibit ledger lands, map these to its claim ids (or replace them) and nothing else changes.
+ * NOT part of the Founding exhibit's evidence ledger. The four narrated sentences cite the local claims below, each with the
+ * sources checked on 7 October 2026. The Founding ledger (data/dossier/founding.ts) was re-checked when this was wired into the
+ * hall as interactive content (node n-r3-story, experience 'animated-painting'): it has NO claims for 17 June 1775, Breed's
+ * Hill or the Bunker Hill casualty figures (it only mentions Bunker Hill inside c-estabrook), so these local claims stay. When
+ * the ledger gains real claims for those facts, map these to its claim ids and nothing else changes.
+ *
+ * This is ADDITIONAL INTERACTIVE CONTENT inside the Founding exhibit, not the exhibit's film (the exhibit has no film yet).
  */
 import type { FilmAsset, FilmSpec } from '../../services/dossier/film/filmTypes';
 import type { CouncilFilm, CouncilShot, PlateSpec } from '../../services/dossier/film/councilTypes';

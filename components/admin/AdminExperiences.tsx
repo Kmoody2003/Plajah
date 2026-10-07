@@ -1,21 +1,28 @@
-// AdminExperiences — the platform-admin-only "Experiences" asset area: the Dossier films, hosted on Mux.
+// AdminExperiences — the platform-admin-only "Experiences" asset area: the Dossier films and interactive content, hosted on Mux.
 //
 // Who can see and use this: platform admins only. The Firestore rules (`experiences` = isAdmin() read/write) are the
 // real gate; if the signed-in account is not an admin the list fails and this tab says so instead of showing an empty
-// shelf. Visitors never read this collection: "Use in the hall" copies just the playback fields to the public
-// `experienceFilms/{exhibitId}` doc, and "Publish as Reello video" creates an ordinary Reello video (private by default).
+// shelf. Visitors never read this collection.
+//
+// Exhibit FILMS: the Reello video is the source of truth. The flow is  Upload -> Publish as Reello video (private by
+// default; public needs the explicit choice and a confirm, and never notifies followers) -> make it public on Reello ->
+// "Use in the hall". "Use in the hall" copies the playback fields (and reelloVideoId) to the public
+// `experienceFilms/{exhibitId}` doc and is disabled, with the reason shown, until the Reello video is public. Making the
+// Reello video private removes the film from the hall; if it is found private or deleted on load, the hall film is removed
+// automatically and the row says so (the hall then plays the live canvas film again).
+// Interactive content (the animated Bunker Hill painting) can be uploaded to Mux but has NO Reello or hall actions.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Clapperboard, RefreshCw, UploadCloud, Captions, Play, Landmark, Film, Loader2, AlertTriangle, CheckCircle2, FileJson, EyeOff, Eye, ChevronDown } from 'lucide-react';
+import { Clapperboard, RefreshCw, UploadCloud, Captions, Play, Landmark, Film, Loader2, AlertTriangle, CheckCircle2, FileJson, EyeOff, Eye, ChevronDown, ExternalLink, Link2Off, MousePointerClick } from 'lucide-react';
 import { DOSSIERS } from '../../data/dossier/registry';
 import {
-  EXPERIENCE_CATALOG, hallBlockers, posterUrl, reelloBlockers, type ExperienceRecord, type ExperienceStatus,
+  EXPERIENCE_CATALOG, INTERACTIVE_NO_ACTIONS, hallBlockers, posterUrl, reelloBlockers, reelloDrift, reelloIsPublic,
+  type ExperienceKind, type ExperienceRecord, type ExperienceStatus, type ReelloVideoState,
 } from '../../services/dossier/experiences/experienceModel';
 import {
-  attachCaptions, importManifest, listExperiences, publishAsReello, refreshExperience, removeFromHall, setReelloVisibility, uploadExperience, putInHall,
+  attachCaptions, getReelloState, importManifest, listExperiences, publishAsReello, putInHall, reconcileHall, refreshExperience, removeFromHall,
+  setReelloVisibility, unlinkReello, uploadExperience,
 } from '../../services/dossier/experiences/experienceService';
-import { db } from '../../services/firebase';
-import { doc, getDoc } from 'firebase/firestore';
 
 const MuxPlayer = React.lazy(() => import('@mux/mux-player-react'));
 
@@ -33,7 +40,7 @@ const chip = (cls: string, text: string) => <span className={`px-2 py-0.5 rounde
 const btn = 'px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-[11px] font-black uppercase tracking-widest text-white/70 disabled:opacity-35 disabled:hover:bg-white/5 transition-colors inline-flex items-center gap-1.5 whitespace-nowrap';
 const btnPrimary = 'px-3 py-2 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 text-[11px] font-black uppercase tracking-widest text-rose-300 disabled:opacity-35 disabled:hover:bg-rose-500/20 transition-colors inline-flex items-center gap-1.5 whitespace-nowrap';
 
-interface Row { id: string; rec?: ExperienceRecord; title: string; exhibitId: string; variant: string; file: string; legacy?: boolean }
+interface Row { id: string; rec?: ExperienceRecord; title: string; kind: ExperienceKind; exhibitId: string; variant: string; file: string; legacy?: boolean }
 
 const AdminExperiences: React.FC = () => {
   const [records, setRecords] = useState<ExperienceRecord[]>([]);
@@ -45,7 +52,9 @@ const AdminExperiences: React.FC = () => {
   const [preview, setPreview] = useState<string | null>(null);
   const [showLegacy, setShowLegacy] = useState(false);
   const [reelloVis, setReelloVis] = useState<Record<string, 'private' | 'public'>>({});
-  const [reelloState, setReelloState] = useState<Record<string, boolean | undefined>>({});   // id -> isPrivate of the published video
+  // experience id -> live state of its Reello video (the source of truth); absent while unread or when the read failed.
+  const [reelloState, setReelloState] = useState<Record<string, ReelloVideoState>>({});
+  const [reelloErr, setReelloErr] = useState<Record<string, string>>({});
   const manifestInput = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
@@ -58,21 +67,32 @@ const AdminExperiences: React.FC = () => {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  // Which published Reello videos are currently private/public (for the toggle label).
+  // Read each published Reello video live. A film that is in the hall while its Reello video is private or gone is taken out
+  // of the hall right here (a failed READ never counts as "gone"), so visitors fall back to the live canvas film.
   useEffect(() => {
     let live = true;
     (async () => {
-      const out: Record<string, boolean | undefined> = {};
-      for (const r of records) if (r.publishedReelloId) {
-        try { const s = await getDoc(doc(db, 'videos', r.publishedReelloId)); out[r.id] = s.exists() ? !!(s.data() as any).isPrivate : undefined; } catch { /* ignore */ }
+      const states: Record<string, ReelloVideoState> = {};
+      const errs: Record<string, string> = {};
+      for (const r of records) {
+        if (!r.publishedReelloId) continue;
+        try {
+          const state = await getReelloState(r.publishedReelloId);
+          const fixed = await reconcileHall(r, state);
+          if (fixed.removed && live) {
+            replace(fixed.rec);
+            setMsg({ kind: 'ok', text: `"${r.title}" was removed from the hall because its Reello video is ${state.exists ? 'private' : 'gone'}. Visitors get the live canvas film again.` });
+          }
+          states[r.id] = state;
+        } catch (e: any) { errs[r.id] = String(e?.message || e).slice(0, 160); }
       }
-      if (live) setReelloState(out);
+      if (live) { setReelloState(states); setReelloErr(errs); }
     })();
     return () => { live = false; };
   }, [records]);
 
   const rows: Row[] = useMemo(() => EXPERIENCE_CATALOG.map(c => ({
-    id: c.id, title: c.title, exhibitId: c.exhibitId, variant: c.variant, file: c.file, legacy: c.legacy, rec: records.find(r => r.id === c.id),
+    id: c.id, title: c.title, kind: c.kind, exhibitId: c.exhibitId, variant: c.variant, file: c.file, legacy: c.legacy, rec: records.find(r => r.id === c.id),
   })), [records]);
   const exhibitTitle = (id: string) => DOSSIERS.find(d => d.id === id)?.title || id;
 
@@ -106,12 +126,16 @@ const AdminExperiences: React.FC = () => {
     const rec = row.rec;
     const status: ExperienceStatus | 'missing' = rec?.status || 'missing';
     const working = busy[row.id];
-    const hb = rec ? hallBlockers(rec) : ['Not uploaded yet.'];
+    const isFilm = row.kind === 'film';
+    const reello = reelloState[row.id];                                  // live state of its Reello video, when read
+    const hb = rec ? hallBlockers(rec, rec.publishedReelloId ? reello : undefined) : ['Not uploaded yet.'];
     const rb = rec ? reelloBlockers(rec) : ['Not uploaded yet.'];
     const hasCanvasFilm = !!DOSSIERS.find(d => d.id === row.exhibitId)?.film;
     const vis = reelloVis[row.id] || 'private';
     const published = rec?.publishedReelloId;
-    const isPrivate = reelloState[row.id];
+    const reelloPublic = reelloIsPublic(reello);
+    const reelloGone = !!reello && !reello.exists;
+    const drift = rec ? reelloDrift(rec, reello) : null;
     return (
       <div key={row.id} className="rounded-xl border border-white/8 bg-white/[0.02] p-4">
         <div className="flex gap-4">
@@ -125,9 +149,10 @@ const AdminExperiences: React.FC = () => {
               <div className="text-[13px] font-bold text-white/90 truncate">{rec?.title || row.title}</div>
               {chip(STATUS_STYLE[status], status === 'missing' ? 'not uploaded' : status)}
               {chip('bg-white/5 text-white/50 border-white/10', row.variant)}
-              {rec?.playbackPolicy && chip(rec.playbackPolicy === 'public' ? 'bg-white/5 text-white/50 border-white/10' : 'bg-amber-500/15 text-amber-300 border-amber-500/30', rec.playbackPolicy)}
-              {rec?.inHall && chip('bg-rose-500/15 text-rose-300 border-rose-500/30', 'in the hall')}
-              {published && chip(isPrivate === false ? 'bg-green-500/15 text-green-300 border-green-500/30' : 'bg-white/5 text-white/50 border-white/10', isPrivate === false ? 'reello: public' : 'reello: private')}
+              {!isFilm && chip('bg-sky-500/15 text-sky-300 border-sky-500/30', 'interactive content')}
+              {rec?.playbackPolicy && chip(rec.playbackPolicy === 'public' ? 'bg-white/5 text-white/50 border-white/10' : 'bg-amber-500/15 text-amber-300 border-amber-500/30', rec.playbackPolicy === 'public' ? 'public playback' : 'signed: unsupported')}
+              {isFilm && rec?.inHall && chip('bg-rose-500/15 text-rose-300 border-rose-500/30', 'in the hall')}
+              {isFilm && published && chip(reelloPublic ? 'bg-green-500/15 text-green-300 border-green-500/30' : reelloGone ? 'bg-red-500/15 text-red-300 border-red-500/30' : 'bg-white/5 text-white/50 border-white/10', reelloPublic ? 'reello: public' : reelloGone ? 'reello: deleted' : reello ? 'reello: private' : 'reello: checking')}
               {rec?.captionsUrl && chip('bg-white/5 text-white/50 border-white/10', 'captions')}
             </div>
             <div className="text-[11px] text-white/45 tabular-nums">
@@ -135,7 +160,8 @@ const AdminExperiences: React.FC = () => {
               {rec?.renderedAt ? ` · rendered ${new Date(rec.renderedAt).toLocaleDateString()}` : ''}
             </div>
             {rec?.error && <div className="mt-1 text-[11px] text-red-300 flex items-center gap-1"><AlertTriangle size={12} /> {rec.error}</div>}
-            {!hasCanvasFilm && rec && <div className="mt-1 text-[10px] text-white/35">This exhibit has no live canvas film; if put in the hall, the Mux film is the only one.</div>}
+            {isFilm && !hasCanvasFilm && rec && <div className="mt-1 text-[10px] text-white/35">This exhibit has no live canvas film; if put in the hall, the Mux film is the only one.</div>}
+            {!isFilm && <div className="mt-1 text-[11px] text-sky-200/80 flex items-start gap-1.5"><MousePointerClick size={12} className="shrink-0 mt-0.5" /> {INTERACTIVE_NO_ACTIONS} The visitor experience (the animated painting in the exhibit) plays live in the hall from code; this upload is the Mux copy registered for it.</div>}
             {working && <div className="mt-2 text-[11px] text-rose-300 flex items-center gap-2"><Loader2 size={13} className="animate-spin" /> {working}{working === 'Upload' && progress[row.id] != null ? ` ${Math.round(progress[row.id])}%` : ''}…</div>}
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -149,34 +175,54 @@ const AdminExperiences: React.FC = () => {
                 <Captions size={13} /> {rec?.captionsUrl ? 'Replace captions' : 'Attach captions'}
                 <input type="file" accept=".vtt,.srt,text/vtt" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f && rec) run(row.id, 'Attach captions', () => attachCaptions(rec, f), 'Captions attached.'); }} />
               </label>
-              {rec?.inHall
-                ? <button className={btn} disabled={!!working} onClick={() => run(row.id, 'Remove from hall', () => removeFromHall(rec), 'Removed from the hall: visitors get the live canvas film again.')}><Landmark size={13} /> Remove from hall</button>
-                : <button className={btn} disabled={!rec || hb.length > 0 || !!working} title={hb.join(' ')} onClick={() => run(row.id, 'Use in hall', () => putInHall(rec!), 'In the hall: visitors of this exhibit now watch the Mux film (the live canvas film stays as the fallback).')}><Landmark size={13} /> Use in hall</button>}
             </div>
 
-            {rec && (
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                {!published ? (
-                  <>
+            {isFilm && (
+              <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.03] p-3 space-y-2.5">
+                <div className="text-[10px] font-black uppercase tracking-widest text-white/40 flex items-center gap-1.5"><Clapperboard size={12} /> Reello video · source of truth for the hall</div>
+                {!rec && <div className="text-[11px] text-white/45">Upload the film first.</div>}
+                {rec && !published && (
+                  <div className="flex flex-wrap items-center gap-2">
                     <select value={vis} onChange={e => setReelloVis(v => ({ ...v, [row.id]: e.target.value as any }))} className="px-2 py-2 rounded-lg bg-white/5 text-[11px] font-bold text-white/70 border border-white/10">
                       <option value="private">Private (only you)</option>
                       <option value="public">Public on Reello</option>
                     </select>
-                    <button className={btn} disabled={rb.length > 0 || !!working} title={rb.join(' ')}
+                    <button className={btnPrimary} disabled={rb.length > 0 || !!working} title={rb.join(' ')}
                       onClick={() => {
-                        if (vis === 'public' && !window.confirm('Publish this film PUBLICLY on Reello? Anyone can watch it and it can appear in feeds.')) return;
-                        run(row.id, 'Publish to Reello', () => publishAsReello(rec, vis), vis === 'public' ? 'Published publicly on Reello.' : 'Created as a PRIVATE Reello video. Use the toggle to make it public when you are ready.');
+                        if (vis === 'public' && !window.confirm('Publish this film PUBLICLY on Reello? Anyone can watch it and it can appear in feeds. Followers are not notified.')) return;
+                        run(row.id, 'Publish to Reello', () => publishAsReello(rec, vis, vis === 'public'), vis === 'public' ? 'Published publicly on Reello. You can now use it in the hall.' : 'Created as a PRIVATE Reello video. Make it public on Reello when you are ready; the hall needs it public.');
                       }}><Clapperboard size={13} /> Publish as Reello video</button>
-                  </>
-                ) : (
-                  <button className={btn} disabled={!!working} onClick={() => {
-                    const next = isPrivate === false ? 'private' : 'public';
-                    if (next === 'public' && !window.confirm('Make this Reello video PUBLIC? Anyone can watch it and it can appear in feeds.')) return;
-                    run(row.id, 'Reello visibility', async () => { await setReelloVisibility(rec, next); setReelloState(s => ({ ...s, [row.id]: next === 'private' })); }, next === 'public' ? 'Reello video is now public.' : 'Reello video is now private.');
-                  }}>{isPrivate === false ? <EyeOff size={13} /> : <Eye size={13} />} {isPrivate === false ? 'Make Reello video private' : 'Make Reello video public'}</button>
+                    <span className="text-[10px] text-white/40">{rb.length ? rb[0] : 'Step 1. Publish as a Reello video; the hall can then use it once it is public.'}</span>
+                  </div>
                 )}
-                {!published && rb.length > 0 && <span className="text-[10px] text-white/35">{rb[0]}</span>}
-                {!rec.inHall && hb.length > 0 && rec.status === 'ready' && <span className="text-[10px] text-white/35">{hb[0]}</span>}
+                {rec && published && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <a className={btn} href={`/reello/${published}`} target="_blank" rel="noreferrer"><ExternalLink size={13} /> Open on Reello</a>
+                    <span className="text-[11px] text-white/50 tabular-nums">{published}</span>
+                    {reelloGone ? (
+                      <button className={btn} disabled={!!working} onClick={() => run(row.id, 'Unlink Reello video', () => unlinkReello(rec), 'Unlinked the deleted Reello video (and removed the film from the hall). You can publish it again.')}><Link2Off size={13} /> Unlink deleted video</button>
+                    ) : (
+                      <button className={btn} disabled={!!working || !reello} onClick={() => {
+                        const next = reelloPublic ? 'private' : 'public';
+                        if (next === 'public' && !window.confirm('Make this Reello video PUBLIC? Anyone can watch it and it can appear in feeds. Followers are not notified.')) return;
+                        if (next === 'private' && rec.inHall && !window.confirm('This film is in the hall. Making the Reello video private also REMOVES it from the hall (visitors get the live canvas film). Continue?')) return;
+                        run(row.id, 'Reello visibility', async () => { const r2 = await setReelloVisibility(rec, next); setReelloState(st => ({ ...st, [row.id]: { ...(st[row.id] || { exists: true }), exists: true, isPrivate: next === 'private' } })); return r2; },
+                          next === 'public' ? 'Reello video is now public. You can use it in the hall.' : rec.inHall ? 'Reello video is now private and the film was removed from the hall.' : 'Reello video is now private.');
+                      }}>{reelloPublic ? <EyeOff size={13} /> : <Eye size={13} />} {reelloPublic ? 'Make Reello video private' : 'Make Reello video public'}</button>
+                    )}
+                    {reelloErr[row.id] && <span className="text-[10px] text-amber-300">Could not read the Reello video: {reelloErr[row.id]}</span>}
+                  </div>
+                )}
+                {drift && <div className="text-[10px] text-amber-300 flex items-center gap-1"><AlertTriangle size={11} /> {drift}</div>}
+                {published && reello && reello.exists && !reelloPublic && <div className="text-[10px] text-white/40">Only the account that published the video can change its visibility.</div>}
+
+                <div className="flex flex-wrap items-center gap-2 pt-0.5">
+                  {rec?.inHall
+                    ? <button className={btn} disabled={!!working} onClick={() => run(row.id, 'Remove from hall', () => removeFromHall(rec), 'Removed from the hall: visitors get the live canvas film again.')}><Landmark size={13} /> Remove from hall</button>
+                    : <button className={btn} disabled={!rec || hb.length > 0 || !!working} title={hb.join(' ')} onClick={() => run(row.id, 'Use in hall', () => putInHall(rec!), 'In the hall: visitors of this exhibit now watch the film from its public Reello video (the live canvas film stays as the fallback).')}><Landmark size={13} /> Use in hall</button>}
+                  {rec && !rec.inHall && hb.length > 0 && <span className="text-[10px] text-white/45">Disabled: {hb[0]}</span>}
+                  {rec?.inHall && <span className="text-[10px] text-rose-200/70">Visitors of this exhibit watch this film from its public Reello video.</span>}
+                </div>
               </div>
             )}
 
@@ -204,8 +250,9 @@ const AdminExperiences: React.FC = () => {
         <div>
           <h2 className="text-2xl font-black tracking-tight text-white flex items-center gap-3"><Clapperboard size={22} className="text-rose-400" /> Experiences</h2>
           <p className="text-[12px] text-white/45 mt-1 max-w-2xl">
-            Dossier films hosted on Mux. Admin-only: visitors never see this list. "Use in the hall" shows a film to every visitor of its exhibit
-            (the live canvas film stays as the fallback). "Publish as Reello video" makes an ordinary Reello video, private until you make it public.
+            Dossier films and interactive content hosted on Mux. Admin-only: visitors never see this list. Exhibit films are sourced from Reello:
+            publish the film as a Reello video, make it public, then "Use in the hall" (the live canvas film stays the fallback, and is used again if the
+            Reello video goes private or is deleted). Interactive content, such as the animated Bunker Hill painting, is uploaded here only. Public playback only.
           </p>
         </div>
         <div className="flex gap-2 shrink-0">

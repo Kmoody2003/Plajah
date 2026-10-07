@@ -102,7 +102,7 @@ export async function runUploads(plan: PlanItem[], deps: UploadDeps): Promise<Up
 /** The slice of a ManifestEntry applyMuxAsset needs, shaped as a record. */
 function recordShell(e: ManifestEntry) {
   return {
-    id: e.id, title: e.title, exhibitId: e.exhibitId, kind: 'film' as const, variant: e.variant, status: e.status,
+    id: e.id, title: e.title, exhibitId: e.exhibitId, kind: e.kind ?? ('film' as const), variant: e.variant, status: e.status,
     playbackPolicy: e.playbackPolicy, muxAssetId: e.muxAssetId, muxPlaybackId: e.muxPlaybackId,
     durationSec: e.durationSec, width: e.width, height: e.height,
     sourceFile: e.sourceFile, createdAt: 0, updatedAt: 0,

@@ -4,18 +4,25 @@ import fs from 'node:fs';
 import {
   EXPERIENCE_CATALOG, applyMuxAsset, buildPassthrough, emptyManifest, experienceToReelloVideo, hallBlockers,
   manifestEntryFrom, manifestEntryToRecord, parsePublicFilm, planUploads, reelloBlockers, selectFilmSource, srtToVtt,
-  stripUndefined, toPublicFilm, EXPERIENCE_FILM_PUBLIC_KEYS, catalogFor,
-  type ExperienceRecord, type FileFact, type ExperiencesManifest,
+  stripUndefined, toPublicFilm, EXPERIENCE_FILM_PUBLIC_KEYS, EXPERIENCE_FILM_REQUIRED_KEYS, INTERACTIVE_NO_ACTIONS, catalogFor,
+  hallIsStale, reelloDrift, reelloIsPublic,
+  type ExperienceRecord, type FileFact, type ExperiencesManifest, type ReelloVideoState,
 } from '../services/dossier/experiences/experienceModel';
 import { runUploads, summarizePlan, type MuxUploadClient } from '../services/dossier/experiences/uploader';
 import { DOSSIERS } from '../data/dossier/registry';
 
 const SHA = (c: string) => c.repeat(64);
+/** A film that is ready on Mux but NOT yet published as a Reello video: the hall must refuse it. */
 const readyRec = (o: Partial<ExperienceRecord> = {}): ExperienceRecord => ({
   id: 'ford-council', title: 'Henry Ford: the film', description: 'About Ford.', exhibitId: 'henry-ford', kind: 'film', variant: 'council',
   status: 'ready', muxAssetId: 'asset1', muxPlaybackId: 'AbCdEf0123456789', playbackPolicy: 'public', durationSec: 219.17, width: 1920, height: 1080,
   sourceFile: 'docs/dossier/ford-explainer-council.mp4', createdAt: 1, updatedAt: 1, ...o,
 });
+/** The same film, published as Reello video vid_1. */
+const publishedRec = (o: Partial<ExperienceRecord> = {}) => readyRec({ publishedReelloId: 'vid_1', ...o });
+const PUBLIC_REELLO: ReelloVideoState = { exists: true, isPrivate: false, muxPlaybackId: 'AbCdEf0123456789' };
+const PRIVATE_REELLO: ReelloVideoState = { exists: true, isPrivate: true, muxPlaybackId: 'AbCdEf0123456789' };
+const GONE_REELLO: ReelloVideoState = { exists: false };
 const facts = (ids: string[], sha = 'a'): Record<string, FileFact> => Object.fromEntries(ids.map(id => [id, { exists: true, sha256: SHA(sha), sizeBytes: 1000 }]));
 const allIds = EXPERIENCE_CATALOG.map(c => c.id);
 
@@ -43,12 +50,27 @@ test('catalog: exactly one council film per exhibit that has a canvas film; lega
   assert.deepEqual(EXPERIENCE_CATALOG.filter(c => c.legacy).map(c => c.variant), ['legacy', 'legacy', 'legacy']);
 });
 
+test('catalog: the animated battle video is INTERACTIVE content of the Founding exhibit, not an exhibit film', () => {
+  const battle = catalogFor('founding-battle-demo')!;
+  assert.equal(battle.kind, 'interactive');
+  assert.equal(battle.exhibitId, 'founding-era');
+  assert.notEqual(battle.variant, 'council');
+  assert.ok(!battle.legacy);
+  // every other entry is a film, and the Founding Era has no film entry at all and no canvas film
+  assert.deepEqual(EXPERIENCE_CATALOG.filter(c => c.kind === 'interactive').map(c => c.id), ['founding-battle-demo']);
+  assert.deepEqual(EXPERIENCE_CATALOG.filter(c => c.exhibitId === 'founding-era' && c.kind === 'film'), []);
+  assert.equal(DOSSIERS.find(d => d.id === 'founding-era')!.film, undefined);
+});
+
 // ── plan / idempotency ───────────────────────────────────────────────────────
 
-test('plan: a fresh run uploads the five non-legacy films and skips legacy by default', () => {
+test('plan: a fresh run uploads the four council films plus the interactive painting, and skips legacy by default', () => {
   const plan = planUploads(EXPERIENCE_CATALOG, emptyManifest(), facts(allIds));
   assert.deepEqual(plan.filter(p => p.action === 'upload').map(p => p.entry.id), ['douglass-council', 'ford-council', 'persia-council', 'partition-council', 'founding-battle-demo']);
   assert.equal(plan.filter(p => p.action === 'skip-legacy').length, 3);
+  // the animated painting is in the default set as interactive content; the legacy explainers are not
+  assert.equal(plan.find(p => p.entry.id === 'founding-battle-demo')!.entry.kind, 'interactive');
+  assert.ok(plan.filter(p => p.action === 'skip-legacy').every(p => p.entry.legacy));
 });
 
 test('plan: --include-legacy and --only bring legacy in', () => {
@@ -166,6 +188,14 @@ test('manifest entry becomes an admin record without undefined fields (Firestore
   assert.equal(rec.captionsSourcePaths?.vtt, 'docs/dossier/ford-explainer-council.vtt');
 });
 
+test('manifest entries carry the kind; an old manifest without one is classified by the catalog', () => {
+  const battle = manifestEntryFrom(catalogFor('founding-battle-demo')!, { sha256: SHA('a'), sizeBytes: 5 }, 'public');
+  assert.equal(battle.kind, 'interactive');
+  const { kind: _drop, ...old } = battle;
+  assert.equal(manifestEntryToRecord(old as any, 1).kind, 'interactive');
+  assert.equal(manifestEntryToRecord({ ...manifestEntryFrom(catalogFor('ford-council')!, { sha256: SHA('a'), sizeBytes: 5 }, 'public'), kind: undefined } as any, 1).kind, 'film');
+});
+
 test('re-importing a manifest keeps the admin\'s hall / Reello / caption state', () => {
   const prev = readyRec({ inHall: true, publishedReelloId: 'vid_1', captionsUrl: 'https://x/c.vtt', createdAt: 5 });
   const m = { ...manifestEntryFrom(catalogFor('ford-council')!, { sha256: SHA('a'), sizeBytes: 5 }, 'public'), muxAssetId: 'asset1', muxPlaybackId: 'AbCdEf0123456789', status: 'ready' as const };
@@ -189,37 +219,115 @@ test('applyMuxAsset: ready asset fills playback id, policy, duration, size; erro
 
 // ── hall: public doc + player choice ─────────────────────────────────────────
 
-test('public hall doc carries ONLY playback fields (no asset id, source path, hash, sizes, uploader)', () => {
-  const pub = toPublicFilm(readyRec({ captionsUrl: 'https://x/c.vtt', sourceSha256: SHA('a'), sizeBytes: 5 }), 10)!;
+test('public hall doc carries ONLY playback fields, the Reello video id included (no asset id, source path, hash, sizes, uploader)', () => {
+  const pub = toPublicFilm(publishedRec({ captionsUrl: 'https://x/c.vtt', sourceSha256: SHA('a'), sizeBytes: 5 }), PUBLIC_REELLO, 10)!;
   assert.deepEqual(Object.keys(pub).sort(), [...EXPERIENCE_FILM_PUBLIC_KEYS].sort());
+  assert.equal(pub.reelloVideoId, 'vid_1');
   const json = JSON.stringify(pub);
   for (const secret of ['asset1', 'docs/dossier', SHA('a'), 'sourceFile', 'muxAssetId']) assert.equal(json.includes(secret), false, secret);
   assert.equal(pub.playbackPolicy, 'public');
 });
 
-test('a record is kept out of the hall until it is ready, public, timed, and not a legacy explainer', () => {
-  assert.deepEqual(hallBlockers(readyRec()), []);
-  assert.equal(toPublicFilm(readyRec({ status: 'processing' })), null);
-  assert.equal(toPublicFilm(readyRec({ muxPlaybackId: undefined })), null);
-  assert.equal(toPublicFilm(readyRec({ playbackPolicy: 'signed' })), null);
-  assert.equal(toPublicFilm(readyRec({ durationSec: undefined })), null);
-  assert.equal(toPublicFilm(readyRec({ variant: 'legacy' })), null);
-  assert.ok(toPublicFilm(readyRec({ variant: 'demo' })));
+test('the hall playback id is copied from the REELLO video, not from the Mux record', () => {
+  const pub = toPublicFilm(publishedRec(), { ...PUBLIC_REELLO, muxPlaybackId: 'ReelloPlayback9999' })!;
+  assert.equal(pub.muxPlaybackId, 'ReelloPlayback9999');
+  assert.match(reelloDrift(publishedRec(), { ...PUBLIC_REELLO, muxPlaybackId: 'ReelloPlayback9999' })!, /older Mux asset/);
+  assert.equal(reelloDrift(publishedRec(), PUBLIC_REELLO), null);
 });
 
-test('parsePublicFilm rejects malformed or unsafe docs', () => {
-  const good = toPublicFilm(readyRec())!;
+test('HALL REQUIRES REELLO: no hall without a published, PUBLIC, existing Reello video', () => {
+  // not published as a Reello video at all
+  assert.ok(hallBlockers(readyRec(), undefined).some(s => /Publish this film as a Reello video first/.test(s)));
+  assert.equal(toPublicFilm(readyRec(), PUBLIC_REELLO), null);        // even if some video state is supplied, the record is not linked to it
+  // published but private
+  assert.ok(hallBlockers(publishedRec(), PRIVATE_REELLO).some(s => /private/.test(s)));
+  assert.equal(toPublicFilm(publishedRec(), PRIVATE_REELLO), null);
+  // published, deleted
+  assert.ok(hallBlockers(publishedRec(), GONE_REELLO).some(s => /no longer exists/.test(s)));
+  assert.equal(toPublicFilm(publishedRec(), GONE_REELLO), null);
+  assert.equal(toPublicFilm(publishedRec(), null), null);
+  // published but the status is not known yet (never assumed public)
+  assert.ok(hallBlockers(publishedRec(), undefined).some(s => /Checking the Reello video/.test(s)));
+  assert.equal(toPublicFilm(publishedRec(), undefined), null);
+  // a Reello video with no Mux playback id cannot be copied from
+  assert.ok(hallBlockers(publishedRec(), { exists: true, isPrivate: false }).length);
+  // published and public: allowed
+  assert.deepEqual(hallBlockers(publishedRec(), PUBLIC_REELLO), []);
+  assert.ok(toPublicFilm(publishedRec(), PUBLIC_REELLO));
+});
+
+test('a record is kept out of the hall until it is ready, public, timed, a council film, and its Reello video is public', () => {
+  assert.deepEqual(hallBlockers(publishedRec(), PUBLIC_REELLO), []);
+  assert.equal(toPublicFilm(publishedRec({ status: 'processing' }), PUBLIC_REELLO), null);
+  assert.equal(toPublicFilm(publishedRec({ muxPlaybackId: undefined }), PUBLIC_REELLO), null);
+  assert.equal(toPublicFilm(publishedRec({ playbackPolicy: 'signed' }), PUBLIC_REELLO), null);
+  assert.ok(hallBlockers(publishedRec({ playbackPolicy: 'signed' }), PUBLIC_REELLO).some(s => /public playback only/i.test(s)));
+  assert.equal(toPublicFilm(publishedRec({ durationSec: undefined }), PUBLIC_REELLO), null);
+  assert.equal(toPublicFilm(publishedRec({ variant: 'legacy' }), PUBLIC_REELLO), null);
+});
+
+test('stale hall: a film in the hall whose Reello video is private or gone is detected (and only when the state is actually known)', () => {
+  const inHall = publishedRec({ inHall: true });
+  assert.equal(hallIsStale(inHall, PUBLIC_REELLO), false);
+  assert.equal(hallIsStale(inHall, PRIVATE_REELLO), true);
+  assert.equal(hallIsStale(inHall, GONE_REELLO), true);
+  assert.equal(hallIsStale(inHall, undefined), false);                 // a failed or pending read never takes the hall down
+  assert.equal(hallIsStale(publishedRec(), PRIVATE_REELLO), false);    // not in the hall: nothing to remove
+  assert.equal(reelloIsPublic(PUBLIC_REELLO), true);
+  assert.equal(reelloIsPublic(PRIVATE_REELLO), false);
+  assert.equal(reelloIsPublic(GONE_REELLO), false);
+  assert.equal(reelloIsPublic(undefined), false);
+});
+
+test('the admin service takes the film out of the hall when the Reello video goes private, is found stale, or is unlinked', () => {
+  const svc = fs.readFileSync('services/dossier/experiences/experienceService.ts', 'utf8');
+  const fn = (name: string) => { const i = svc.indexOf('export async function ' + name); assert.ok(i >= 0, name); const j = svc.indexOf('\nexport ', i + 10); return svc.slice(i, j < 0 ? undefined : j); };
+  assert.match(fn('setReelloVisibility'), /visibility === 'private' && rec\.inHall\) next = await removeFromHall\(rec\)/);
+  assert.match(fn('setReelloVisibility'), /removeFromHall[\s\S]*updateDoc/);              // hall first, then the video
+  assert.match(fn('reconcileHall'), /hallIsStale[\s\S]*removeFromHall/);
+  assert.match(fn('unlinkReello'), /removeFromHall/);
+  assert.match(fn('putInHall'), /getReelloState\(rec\.publishedReelloId\)/);
+  assert.match(fn('putInHall'), /hallBlockers\(rec, reello\)/);
+  assert.match(svc, /async function syncHallFor[\s\S]*removeFromHall\(rec\)/);
+  const ui = fs.readFileSync('components/admin/AdminExperiences.tsx', 'utf8');
+  assert.match(ui, /reconcileHall\(r, state\)/);                                          // the admin tab applies it on load
+  assert.match(ui, /Disabled: \{hb\[0\]\}/);                                             // the hall toggle states why it is disabled
+});
+
+test('INTERACTIVE content (the animated battle painting) has no hall and no Reello actions, at any state', () => {
+  const battle = readyRec({ id: 'founding-battle-demo', exhibitId: 'founding-era', kind: 'interactive', variant: 'demo', publishedReelloId: 'vid_9', inHall: true });
+  assert.deepEqual(hallBlockers(battle, PUBLIC_REELLO), [INTERACTIVE_NO_ACTIONS]);
+  assert.equal(toPublicFilm(battle, PUBLIC_REELLO), null);
+  assert.deepEqual(reelloBlockers({ ...battle, publishedReelloId: undefined }), [INTERACTIVE_NO_ACTIONS]);
+  assert.throws(() => experienceToReelloVideo(battle, { ownerId: 'a', visibility: 'private' }), /not an exhibit film/);
+  // the shipped catalog entry, uploaded and ready, still has nothing to offer
+  const fromCatalog = manifestEntryToRecord({ ...manifestEntryFrom(catalogFor('founding-battle-demo')!, { sha256: SHA('a'), sizeBytes: 5, durationSec: 45 }, 'public'), muxAssetId: 'a', muxPlaybackId: 'AbCdEf0123456789', status: 'ready' }, 1);
+  assert.equal(fromCatalog.kind, 'interactive');
+  assert.ok(hallBlockers(fromCatalog, PUBLIC_REELLO).length);
+  assert.ok(reelloBlockers(fromCatalog).length);
+  assert.equal(toPublicFilm(fromCatalog, PUBLIC_REELLO), null);
+  // the admin UI renders no Reello or hall controls for a non-film row
+  const ui = fs.readFileSync('components/admin/AdminExperiences.tsx', 'utf8');
+  assert.match(ui, /\{isFilm && \(\s*<div className="mt-3 rounded-lg border/);
+  assert.match(ui, /interactive content/);
+});
+
+test('parsePublicFilm rejects malformed or unsafe docs, and docs that do not name a Reello video', () => {
+  const good = toPublicFilm(publishedRec(), PUBLIC_REELLO)!;
   assert.ok(parsePublicFilm(good));
   assert.equal(parsePublicFilm(null), null);
   assert.equal(parsePublicFilm({ ...good, muxPlaybackId: '../../etc' }), null);
   assert.equal(parsePublicFilm({ ...good, muxPlaybackId: 'short' }), null);
   assert.equal(parsePublicFilm({ ...good, playbackPolicy: 'signed' }), null);
   assert.equal(parsePublicFilm({ ...good, durationSec: 0 }), null);
+  assert.equal(parsePublicFilm({ ...good, reelloVideoId: undefined }), null);
+  assert.equal(parsePublicFilm({ ...good, reelloVideoId: '' }), null);
+  assert.equal(parsePublicFilm({ ...good, reelloVideoId: 42 }), null);
   assert.equal(parsePublicFilm({ ...good, captionsUrl: 'javascript:alert(1)' })!.captionsUrl, undefined);
 });
 
 test('selectFilmSource: Mux when a valid published film exists, canvas when it does not or Mux failed, none without either', () => {
-  const published = toPublicFilm(readyRec())!;
+  const published = toPublicFilm(publishedRec(), PUBLIC_REELLO)!;
   const mux = selectFilmSource({ published, hasCanvasFilm: true });
   assert.equal(mux.kind, 'mux');
   if (mux.kind === 'mux') {
@@ -230,10 +338,77 @@ test('selectFilmSource: Mux when a valid published film exists, canvas when it d
   assert.equal(selectFilmSource({ published: null, hasCanvasFilm: true }).kind, 'canvas');         // nothing published
   assert.equal(selectFilmSource({ published: undefined, hasCanvasFilm: true }).kind, 'canvas');    // read failed / signed out
   assert.equal(selectFilmSource({ published: { garbage: true }, hasCanvasFilm: true }).kind, 'canvas');
+  assert.equal(selectFilmSource({ published: { ...published, reelloVideoId: undefined }, hasCanvasFilm: true }).kind, 'canvas');  // not sourced from Reello
   assert.equal(selectFilmSource({ published, hasCanvasFilm: true, muxFailed: true }).kind, 'canvas'); // player error -> live film
   assert.equal(selectFilmSource({ published: null, hasCanvasFilm: false }).kind, 'none');
   assert.equal(selectFilmSource({ published, hasCanvasFilm: false }).kind, 'mux');                  // a Mux-only exhibit film is allowed
   assert.equal(selectFilmSource({ published, hasCanvasFilm: false, muxFailed: true }).kind, 'none');
+  // the founding exhibit has no film and nothing in the hall: no "Watch the film" button
+  assert.equal(selectFilmSource({ published: null, hasCanvasFilm: !!DOSSIERS.find(d => d.id === 'founding-era')!.film }).kind, 'none');
+});
+
+test('firestore.rules experienceFilms allowlist is exactly the public doc shape (reelloVideoId included)', () => {
+  const rules = fs.readFileSync('firestore.rules', 'utf8').replace(/\r\n/g, '\n');
+  const block = rules.slice(rules.indexOf('match /experienceFilms/{exhibitId}'));
+  const list = (fn: string) => {
+    const m = block.match(new RegExp(fn + '\\(\\[([^\\]]*)\\]\\)'));
+    assert.ok(m, fn);
+    return m![1].split(',').map(x => x.trim().replace(/'/g, '')).sort();
+  };
+  assert.deepEqual(list('hasOnly'), [...EXPERIENCE_FILM_PUBLIC_KEYS].sort());
+  assert.deepEqual(list('hasAll'), [...EXPERIENCE_FILM_REQUIRED_KEYS].sort());
+  assert.match(block, /reelloVideoId is string/);
+  assert.match(block, /playbackPolicy == 'public'/);
+  assert.match(block, /allow read: if true/);
+  assert.match(block.slice(0, block.indexOf('allow delete')), /isAdmin\(\)/);
+  // experiences itself stays admin-only
+  assert.match(rules.slice(rules.indexOf('match /experiences/{expId}'), rules.indexOf('match /experienceFilms')), /allow read, write: if isAdmin\(\)/);
+  // the rules test script sends the same exact keys
+  const script = fs.readFileSync('scripts/testExperiencesRules.mjs', 'utf8');
+  assert.match(script, /reelloVideoId: 'vid_/);
+  assert.match(script, /hall film without reelloVideoId/);
+});
+
+test('no signed-playback option is offered: the upload script refuses it and the UI labels it unsupported', () => {
+  const cli = fs.readFileSync('scripts/dossier/uploadExperiences.ts', 'utf8');
+  assert.match(cli, /const POLICY: PlaybackPolicy = 'public'/);
+  assert.match(cli, /only "public" is supported/);
+  assert.equal(/--policy=public\|signed/.test(cli), false);
+  const ui = fs.readFileSync('components/admin/AdminExperiences.tsx', 'utf8');
+  assert.match(ui, /signed: unsupported/);
+  assert.equal(/<option value="signed"/.test(ui), false);
+});
+
+test('the Founding exhibit wires the animated painting to exactly one node, declared in the union, lazy-loaded, boundary-wrapped, and not a film', async () => {
+  const { foundingDossier } = await import('../data/dossier/founding');
+  const nodes = foundingDossier.rooms.flatMap(r => r.nodes);
+  const hosts = nodes.filter(n => n.experience === 'animated-painting');
+  assert.equal(hosts.length, 1);
+  assert.equal(hosts[0].id, 'n-r3-story');
+  const claimIds = new Set(foundingDossier.ledger.claims.map(c => c.id));
+  assert.ok(hosts[0].claimIds.length > 0);
+  for (const c of hosts[0].claimIds) assert.ok(claimIds.has(c), c);
+  assert.match(fs.readFileSync('services/dossier/dossierTypes.ts', 'utf8'), /\| 'animated-painting'/);
+  const hall = fs.readFileSync('components/dossier/DossierHall.tsx', 'utf8');
+  assert.match(hall, /React\.lazy\(\(\) => import\('\.\/experiences\/AnimatedPainting'\)\)/);
+  assert.match(hall, /n\.experience === 'animated-painting'/);
+  assert.match(hall, /<AnimatedPainting \/>/);
+  const start = hall.indexOf('<DossierBoundary key={n.id} scope="experience">');
+  assert.ok(start >= 0);
+  const inBoundary = hall.slice(start, hall.indexOf('</DossierBoundary>', start));
+  assert.ok(inBoundary.includes("n.experience === 'animated-painting'"));
+  const comp = fs.readFileSync('components/dossier/experiences/AnimatedPainting.tsx', 'utf8');
+  assert.match(comp, /ANIMATED PAINTING/);
+  assert.match(comp, /loadFoundingBattleFilm/);
+  assert.match(comp, /embedded/);
+  assert.match(comp, /prefers-reduced-motion/);
+  assert.match(comp, /autoPlay=\{!reduced\}/);
+  assert.match(comp, /muxPlaybackId/);                                       // the future Mux-asset fallback hook
+  const player = fs.readFileSync('components/dossier/DossierFilmPlayer.tsx', 'utf8');
+  for (const needle of ['aria-label="Seek"', 'aria-label="Captions"', "aria-label={playing ? 'Pause' : 'Play'}", 'embedded']) assert.ok(player.includes(needle), needle);
+  // the exhibit's "Watch the film" never uses the painting: the Founding entry has no film and the host only reads experienceFilms
+  assert.equal(DOSSIERS.find(d => d.id === 'founding-era')!.film, undefined);
+  assert.equal(fs.readFileSync('components/dossier/DossierFilmHost.tsx', 'utf8').includes('AnimatedPainting'), false);
 });
 
 // ── Reello ───────────────────────────────────────────────────────────────────

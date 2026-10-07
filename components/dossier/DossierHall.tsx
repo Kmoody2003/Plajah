@@ -18,6 +18,7 @@ const ModelTExploded = React.lazy(() => import('./ModelTExploded'));
 const FordMovingLine = React.lazy(() => import('./experiences/FordMovingLine'));
 const PersiaRoad = React.lazy(() => import('./experiences/PersiaRoad'));
 const FoundingTimeline = React.lazy(() => import('./experiences/FoundingTimeline'));
+const AnimatedPainting = React.lazy(() => import('./experiences/AnimatedPainting'));
 const DouglassComposingStick = React.lazy(() => import('./experiences/DouglassComposingStick'));
 const PartitionPen = React.lazy(() => import('./experiences/PartitionPen'));
 
@@ -536,6 +537,13 @@ function HallInner({ dossier, entry, onBack, backLabel = 'Back' }: { dossier: Do
                   <div className="dh-exp">
                     <React.Suspense fallback={<p className="dh-banner-cap">Drawing the timeline…</p>}>
                       <FoundingTimeline dossier={dossier} onGoRoom={goRoom} />
+                    </React.Suspense>
+                  </div>
+                )}
+                {n.experience === 'animated-painting' && (
+                  <div className="dh-exp">
+                    <React.Suspense fallback={<p className="dh-banner-cap">Hanging the painting…</p>}>
+                      <AnimatedPainting />
                     </React.Suspense>
                   </div>
                 )}
