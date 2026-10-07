@@ -17,6 +17,8 @@ export interface AriaVoiceState {
   loadingId: string | null;
   /** Server has a voice configured (null = not probed yet). */
   available: boolean | null;
+  /** This account may use the premium voice (paid plan or admin). */
+  eligible: boolean | null;
   /** Last failure, human-readable; cleared on the next attempt. */
   error: string | null;
 }
@@ -24,7 +26,7 @@ export interface AriaVoiceState {
 const CACHE_LIMIT = 24;
 
 class AriaVoice {
-  private state: AriaVoiceState = { playingId: null, loadingId: null, available: null, error: null };
+  private state: AriaVoiceState = { playingId: null, loadingId: null, available: null, eligible: null, error: null };
   private listeners = new Set<() => void>();
   private audio: HTMLAudioElement | null = null;
   private cache = new Map<string, string>(); // message id → object URL
@@ -48,23 +50,23 @@ class AriaVoice {
     try { return (await auth.currentUser?.getIdToken()) || null; } catch { return null; }
   }
 
-  /** Ask the server whether a voice is configured. Safe to call repeatedly. */
+  /** Ask the server whether a voice is configured and this account may use it. Safe to call repeatedly. */
   probe(): Promise<boolean> {
-    if (this.state.available !== null) return Promise.resolve(this.state.available);
+    if (this.state.available !== null) return Promise.resolve(this.state.available && this.state.eligible === true);
     if (this.probing) return this.probing;
     this.probing = (async () => {
-      let ok = false;
+      let ok = false, eligible = false;
       try {
         const t = await this.token();
         if (t) {
           const res = await fetch('/api/aria/speak/status', { headers: { Authorization: `Bearer ${t}` } });
-          ok = res.ok && !!(await res.json()).available;
+          if (res.ok) { const j = await res.json(); ok = !!j.available; eligible = !!j.eligible; }
         }
       } catch { /* leave unavailable */ }
       this.probing = null;
       // Only cache a definite answer; no token yet shouldn't pin us to "unavailable".
-      if (ok || (await this.token())) this.set({ available: ok });
-      return ok;
+      if (ok || (await this.token())) this.set({ available: ok, eligible });
+      return ok && eligible;
     })();
     return this.probing;
   }
@@ -99,6 +101,7 @@ class AriaVoice {
         });
         if (!res.ok) {
           if (res.status === 503) this.set({ available: false });
+          if (res.status === 403) this.set({ eligible: false });
           const msg = (await res.json().catch(() => ({})))?.error;
           throw new Error(msg || 'Aria could not speak just now.');
         }

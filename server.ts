@@ -47,7 +47,7 @@ import { postmanRouter } from './routes/postman';
 import { campaignsRouter } from './routes/campaigns';
 import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { kithSightingsRouter } from './routes/kithSightings';
-import { createAriaSpeakRouter } from './routes/ariaSpeak';
+import { createAriaSpeakRouter, decideAriaVoiceAccess } from './routes/ariaSpeak';
 import { socialServerRouter } from './routes/socialServer';
 import { veoRouter } from './routes/veo';
 import { taleoRouter, enqueueIfReady as taleoEnqueueIfReady } from './routes/taleo';
@@ -1089,6 +1089,9 @@ async function secureTokenCerts(): Promise<Record<string, string>> {
 export interface VerifiedAuthToken {
   uid: string;
   isAnonymous: boolean;
+  /** From the verified token itself (not the user-editable profile doc). */
+  email?: string;
+  emailVerified?: boolean;
 }
 
 // Verify a Firebase ID token by its RS256 signature + claims — no API key needed
@@ -1117,7 +1120,7 @@ async function verifyIdTokenViaJwt(token: string): Promise<VerifiedAuthToken | n
     const ok = nodeCrypto.verify('RSA-SHA256', Buffer.from(`${parts[0]}.${parts[1]}`), cert, Buffer.from(parts[2], 'base64url'));
     if (!ok) return null;
     const isAnonymous = payload.firebase?.sign_in_provider === 'anonymous';
-    return { uid: payload.sub, isAnonymous };
+    return { uid: payload.sub, isAnonymous, email: typeof payload.email === 'string' ? payload.email : undefined, emailVerified: payload.email_verified === true };
   } catch (e: any) {
     console.error('[Auth] JWT signature verify error:', e.message);
     return null;
@@ -1141,7 +1144,7 @@ async function verifyFirebaseToken(token: string): Promise<VerifiedAuthToken | n
         const uid = user?.localId;
         if (uid) {
           const isAnonymous = !user.providerUserInfo || user.providerUserInfo.length === 0;
-          return { uid, isAnonymous };
+          return { uid, isAnonymous, email: typeof user.email === 'string' ? user.email : undefined, emailVerified: user.emailVerified === true };
         }
       }
     } catch (err: any) {
@@ -1160,6 +1163,8 @@ async function authMiddleware(req: any, res: any, next: any) {
   if (!result) return res.status(401).json({ error: 'Invalid token' });
   req.uid = result.uid;
   req.isAnonymous = result.isAnonymous;
+  req.email = result.email;
+  req.emailVerified = result.emailVerified === true;
   next();
 }
 
@@ -11211,7 +11216,21 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   council.register(app);
 
   // Aria's spoken voice (ElevenLabs proxy) — see routes/ariaSpeak.ts. Dark until ELEVENLABS_API_KEY + ELEVENLABS_ARIA_VOICE_ID are set.
-  app.use('/api/aria/speak', createAriaSpeakRouter({ authMiddleware, requireRegisteredUser, limiter: aiLimiter }));
+  // Access = verified owner email / admin role / active Plajah+ subscription (all server-side).
+  app.use('/api/aria/speak', createAriaSpeakRouter({
+    authMiddleware, requireRegisteredUser, limiter: aiLimiter,
+    resolveAccess: async (req: any) => {
+      const [profile, subs] = await Promise.all([
+        firestoreRead('users', req.uid),
+        queryFirebase('plajahPlusSubscriptions', [{ field: 'subscriberId', value: req.uid }], 10),
+      ]);
+      return decideAriaVoiceAccess({
+        email: req.email, emailVerified: req.emailVerified, role: profile?.role,
+        hasActiveSubscription: (subs || []).some((s: any) => ['active', 'trialing'].includes(String(s.status))),
+        extraAdminEmails: process.env.ARIA_VOICE_ADMIN_EMAILS,
+      });
+    },
+  }));
 
   app.post('/api/agent/chat', authMiddleware, express.json({ limit: '10mb' }), async (req: any, res) => {
     try {

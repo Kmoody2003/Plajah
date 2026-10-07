@@ -228,7 +228,7 @@ const MessageBubble: React.FC<{ msg: AgentMessage; onApplyBuild?: (b: AgentBuild
             {new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
           </span>
           {/* Hear Aria say it — only when the server has a voice configured */}
-          {!isUser && !msg.error && msg.content && voice.available === true && (
+          {!isUser && !msg.error && msg.content && (voice.available === true && voice.eligible === true) && (
             <button
               onClick={() => ariaVoice.speak(msg.id, msg.content)}
               title={voice.playingId === msg.id || voice.loadingId === msg.id ? 'Stop' : 'Hear Aria say this'}
@@ -340,7 +340,7 @@ const PlajahAgent: React.FC<Props> = ({
     try { return localStorage.getItem('aria_voice_auto') === '1'; } catch { return false; }
   });
   const autoReadRef = useRef(autoRead);
-  autoReadRef.current = autoRead && voice.available === true;
+  autoReadRef.current = autoRead && voice.available === true && voice.eligible === true;
 
   // Warm the on-device model when the user turns the lane on.
   useEffect(() => {
@@ -666,7 +666,7 @@ const PlajahAgent: React.FC<Props> = ({
               )}
 
               {/* Spoken replies — auto-read toggle (only when a voice is configured) */}
-              {voice.available === true && (
+              {(voice.available === true && voice.eligible === true) && (
                 <button
                   onClick={() => {
                     setAutoRead(v => {
