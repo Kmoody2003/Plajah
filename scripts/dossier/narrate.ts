@@ -1,9 +1,11 @@
 /**
  * Voices the Dossier film narration with Gemini TTS and writes the timing file the film uses.
  *
- *   npx tsx scripts/dossier/narrate.ts [--force] [--only=sceneId,sceneId]
+ *   npx tsx scripts/dossier/narrate.ts [--film=douglass|ford] [--force] [--only=sceneId,sceneId]
  *
  * Output: public/dossier/douglass/film/voice/<sceneId>.m4a + public/dossier/douglass/film/narration.json
+ *         (--film=ford, council style: public/dossier/ford/film/council/voice/<beatId>.m4a + narration.json keyed by beat id;
+ *          the film re-times itself from those measured durations, nothing else to edit.)
  * Needs GEMINI_API_KEY (.env.local) and ffmpeg (FFMPEG_DIR or the default tools folder).
  *
  * Two voices: a narrator, and a separate reader for Douglass's own words (quote scenes), so a
@@ -13,9 +15,12 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { DOUGLASS_FILM_SCENES } from '../../data/dossier/douglassFilm';
+import { FORD_COUNCIL_SHOTS } from '../../data/dossier/fordFilmCouncil';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..', '..');
-const OUT = path.join(ROOT, 'public', 'dossier', 'douglass', 'film');
+const FILM = process.argv.find(a => a.startsWith('--film='))?.slice(7) ?? 'douglass';
+const OUT = FILM === 'ford' ? path.join(ROOT, 'public', 'dossier', 'ford', 'film', 'council') : path.join(ROOT, 'public', 'dossier', 'douglass', 'film');
+const PUBLIC_VOICE = FILM === 'ford' ? '/dossier/ford/film/council/voice' : '/dossier/douglass/film/voice';
 const VOICE_DIR = path.join(OUT, 'voice');
 const FFDIR = process.env.FFMPEG_DIR || 'C:\\Users\\Kenne\\tools\\ffmpeg\\ffmpeg-9.0.2-essentials_build\\bin';
 const FFMPEG = path.join(FFDIR, 'ffmpeg.exe'), FFPROBE = path.join(FFDIR, 'ffprobe.exe');
@@ -36,6 +41,7 @@ if (!KEY) { console.error('GEMINI_API_KEY is not set (.env.local).'); process.ex
 // One model for the whole film so the narrator's timbre never shifts mid-film (override: TTS_MODEL=...).
 const MODELS = [process.env.TTS_MODEL ?? 'gemini-2.5-flash-preview-tts'];
 const NARRATOR = { voice: 'Gacrux', style: 'You are the narrator of a high-end historical documentary for students. Read warmly and clearly, with measured pacing, gravity and quiet wonder; never theatrical. Read exactly this text:' };
+const FORD_NARRATOR = { voice: 'Gacrux', style: 'You are the narrator of a sober, rigorous historical documentary for students. Read plainly and clearly at a steady documentary pace of about 150 words per minute, with dignity, without long pauses; no drama, no emphasis beyond the sense of the words, the same even tone for every line, including the hardest. Read exactly this text:' };
 const ORATOR = { voice: 'Alnilam', style: 'Read these words of the nineteenth-century orator Frederick Douglass as they would be delivered from a lectern: resonant, deliberate, unhurried, with conviction and controlled anger. Read exactly this text:' };
 
 const force = process.argv.includes('--force');
@@ -75,6 +81,7 @@ async function speak(text: string, who: typeof NARRATOR): Promise<Buffer> {
           const secs = Number(/"retryDelay":\s*"(\d+(?:\.\d+)?)s"/.exec(body)?.[1] ?? 30);
           if (/PerDay/i.test(body) && attempt >= 2) break;   // daily cap: give up on this model
           wait = (secs + 3) * 1000;
+          if (wait > 10 * 60 * 1000) throw new Error(`${model} quota exhausted (retry in ${Math.round(wait / 3600000)} h); the film stays silent on estimated timing until narration is produced`);
           console.log(`  ${model} rate-limited; waiting ${Math.round(wait / 1000)}s`);
         }
       }
@@ -90,21 +97,32 @@ fs.mkdirSync(VOICE_DIR, { recursive: true });
 const timingPath = path.join(OUT, 'narration.json');
 const timings: Record<string, { audio: string; duration: number; voice: string }> = fs.existsSync(timingPath) ? JSON.parse(fs.readFileSync(timingPath, 'utf8')) : {};
 
-for (const s of DOUGLASS_FILM_SCENES) {
-  if (!s.narration || (only && !only.includes(s.id))) continue;
-  const m4a = path.join(VOICE_DIR, `${s.id}.m4a`);
-  if (!force && fs.existsSync(m4a) && timings[s.id]) { console.log(`${s.id}: cached`); continue; }
-  const who = s.kind === 'quote' && s.narration.text === s.text ? ORATOR : NARRATOR;
-  const pcm = await speak(s.narration.text, who);
-  const tmp = path.join(VOICE_DIR, `${s.id}.wav`);
+type Item = { id: string; text: string; who: typeof NARRATOR };
+const items: Item[] = FILM === 'ford'
+  ? FORD_COUNCIL_SHOTS.flatMap(s => (s.beats ?? []).map(b => ({ id: b.id, text: b.text, who: FORD_NARRATOR })))
+  : DOUGLASS_FILM_SCENES.filter(s => s.narration).map(s => ({ id: s.id, text: s.narration!.text, who: s.kind === 'quote' && s.narration!.text === s.text ? ORATOR : NARRATOR }));
+
+for (const it of items) {
+  if (only && !only.includes(it.id)) continue;
+  const m4a = path.join(VOICE_DIR, `${it.id}.m4a`);
+  if (!force && fs.existsSync(m4a) && timings[it.id]) { console.log(`${it.id}: cached`); continue; }
+  const who = it.who;
+  const pcm = await speak(it.text, who);
+  const words = it.text.split(/\s+/).length;
+  const tmp = path.join(VOICE_DIR, `${it.id}.wav`);
   fs.writeFileSync(tmp, wav(pcm));
   // Trim leading/trailing silence, gentle broadcast loudness, AAC.
+  // Gemini reads this style slowly (about 110 words a minute); the council films are written for 140 to 150, so the council
+  // narration is sped up with atempo (pitch preserved) when the raw read is slower than 135 wpm, capped at 1.3x.
+  const raw = duration(tmp);
+  const wpm = words / (raw / 60);
+  const tempo = FILM === 'ford' && wpm < 135 ? Math.min(1.3, 144 / wpm) : 1;
   execFileSync(FFMPEG, ['-y', '-v', 'error', '-i', tmp, '-af',
-    'silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.05,areverse,silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.1,areverse,loudnorm=I=-18:TP=-2:LRA=9',
+    `${tempo > 1 ? `atempo=${tempo.toFixed(3)},` : ''}silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.05,areverse,silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.1,areverse,loudnorm=I=-18:TP=-2:LRA=9`,
     '-ar', '48000', '-c:a', 'aac', '-b:a', '160k', m4a]);
   fs.unlinkSync(tmp);
-  timings[s.id] = { audio: `/dossier/douglass/film/voice/${s.id}.m4a`, duration: Math.round(duration(m4a) * 100) / 100, voice: who.voice };
+  timings[it.id] = { audio: `${PUBLIC_VOICE}/${it.id}.m4a`, duration: Math.round(duration(m4a) * 100) / 100, voice: who.voice };
   fs.writeFileSync(timingPath, JSON.stringify(timings, null, 2));
-  console.log(`${s.id}: ${timings[s.id].duration}s (${who.voice})`);
+  console.log(`${it.id}: ${timings[it.id].duration}s (${who.voice})`);
 }
 console.log(`wrote ${timingPath}`);

@@ -12,6 +12,8 @@
  *  - every image carries its credit.
  */
 
+import type { CouncilFilm } from './councilTypes';
+
 export type Ease = 'linear' | 'inOut' | 'out' | 'in' | 'outBack' | 'inOutQuint' | 'outExpo';
 
 /** A camera keyframe over an image: centre (0..1 of the image) and zoom (1 = cover). */
@@ -178,6 +180,13 @@ export interface FilmSpec {
   assets: FilmAsset[];
   score?: { src: string; volume: number; duckTo: number };
   basemaps?: Partial<Record<MapScene['basemap'], Basemap>>;
+  /**
+   * 'council' selects the Motion Council's style (councilTypes.ts): the film is then described by `council`
+   * (rooms, shots, plates) instead of `scenes`, and drawn by councilStyle.ts. Absent = the original film style,
+   * so films not yet migrated (Douglass) keep rendering exactly as before.
+   */
+  style?: 'legacy' | 'council';
+  council?: CouncilFilm;
 }
 
 /** A scene placed on the timeline. */

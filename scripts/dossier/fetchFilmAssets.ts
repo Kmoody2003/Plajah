@@ -6,13 +6,16 @@
  *      (Depth Anything V2 small via transformers.js; near = white)
  *
  *   npx tsx scripts/dossier/fetchFilmAssets.ts [--skip-depth] [--force]
+ *   npx tsx scripts/dossier/fetchFilmAssets.ts --slug=ford [--only=id,id]   (archival only; the council films use no depth maps)
  */
 import fs from 'node:fs';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..', '..');
-const PUB = path.join(ROOT, 'public', 'dossier', 'douglass');
+const SLUG = process.argv.find(a => a.startsWith('--slug='))?.split('=')[1] ?? 'douglass';
+const ONLY = process.argv.find(a => a.startsWith('--only='))?.split('=')[1]?.split(',');
+const PUB = path.join(ROOT, 'public', 'dossier', SLUG);
 const UA = 'PlajahDossier/0.2 (research; contact kmoody2003@gmail.com)';
 const force = process.argv.includes('--force');
 
@@ -34,13 +37,32 @@ async function download(url: string, dest: string) {
   throw new Error(`gave up on ${url}`);
 }
 
+/**
+ * Council films: plates are only ever positioned, scaled and masked, so the local copy is a pure downscale of the
+ * Commons original (Lanczos, no sharpening, no colour change) capped at 2600 px on the long side; the PSNR gate
+ * in the renderer compares against this file. Originals up to 10,000 px would stall the canvas.
+ */
+async function shrink(file: string) {
+  const sharp = (await import('sharp')).default;
+  const img = sharp(fs.readFileSync(file)), meta = await img.metadata();
+  const long = Math.max(meta.width ?? 0, meta.height ?? 0);
+  if (long <= 2600) return;
+  const buf = await img.resize({ width: meta.width! >= meta.height! ? 2600 : undefined, height: meta.height! > meta.width! ? 2600 : undefined, kernel: 'lanczos3', withoutEnlargement: true }).jpeg({ quality: 93, chromaSubsampling: '4:4:4' }).toBuffer();
+  fs.writeFileSync(file, buf);
+  console.log(`  shrunk ${path.basename(file)} ${meta.width}x${meta.height} -> ${(await sharp(buf).metadata()).width} wide`);
+}
+
 async function archival() {
   const dir = path.join(PUB, 'archival');
   fs.mkdirSync(dir, { recursive: true });
-  const assets: Array<{ id: string; url: string }> = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/dossier/douglassAssets.json'), 'utf8'));
+  const assets: Array<{ id: string; url: string }> = JSON.parse(fs.readFileSync(path.join(ROOT, `data/dossier/${SLUG}Assets.json`), 'utf8'));
   for (const a of assets) {
-    if (!a.url?.startsWith('http')) continue;
-    try { console.log(`archival ${a.id}: ${await download(commonsThumb(a.url), path.join(dir, `${a.id}.jpg`))}`); }
+    if (!a.url?.startsWith('http') || (ONLY && !ONLY.includes(a.id))) continue;
+    try {
+      const dest = path.join(dir, `${a.id}.jpg`);
+      console.log(`archival ${a.id}: ${await download(commonsThumb(a.url), dest)}`);
+      if (SLUG !== 'douglass') await shrink(dest);
+    }
     catch (e) { console.warn(`archival ${a.id}: FAILED ${(e as Error).message}`); }
   }
 }
@@ -91,6 +113,8 @@ function softenDepth() {
 }
 
 await archival();
-if (!process.argv.includes('--skip-depth')) await depth();
-softenDepth();
+if (SLUG === 'douglass') {
+  if (!process.argv.includes('--skip-depth')) await depth();
+  softenDepth();
+}
 console.log('done');

@@ -27,13 +27,13 @@ const CSS = `
 .dfp-ui{position:absolute;left:0;right:0;bottom:0;padding:18px 24px 20px;background:linear-gradient(0deg,rgba(0,0,0,.85),rgba(0,0,0,0));transition:opacity .35s}
 .dfp[data-idle=true] .dfp-ui,.dfp[data-idle=true] .dfp-top{opacity:0}
 .dfp-top{position:absolute;top:0;left:0;right:0;display:flex;justify-content:space-between;align-items:center;padding:16px 20px;background:linear-gradient(180deg,rgba(0,0,0,.7),rgba(0,0,0,0));transition:opacity .35s}
-.dfp-top h2{margin:0;font:600 13px/1 'Inter';letter-spacing:.2em;text-transform:uppercase;color:#d4a24c}
+.dfp-top h2{margin:0;font:600 13px/1 'Inter';letter-spacing:.2em;text-transform:uppercase;color:var(--dfp-a,#d4a24c)}
 .dfp button{background:none;border:0;color:inherit;cursor:pointer;display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:6px;border-radius:8px}
 .dfp button:hover{background:rgba(255,255,255,.08)}
-.dfp button[aria-pressed=true]{color:#d4a24c}
+.dfp button[aria-pressed=true]{color:var(--dfp-a,#d4a24c)}
 .dfp-bar{position:relative;height:18px;cursor:pointer;margin-bottom:8px}
 .dfp-track{position:absolute;left:0;right:0;top:8px;height:3px;background:rgba(255,255,255,.18);border-radius:2px}
-.dfp-fill{position:absolute;left:0;top:8px;height:3px;background:#d4a24c;border-radius:2px}
+.dfp-fill{position:absolute;left:0;top:8px;height:3px;background:var(--dfp-a,#d4a24c);border-radius:2px}
 .dfp-tick{position:absolute;top:5px;width:2px;height:9px;background:rgba(243,234,216,.55)}
 .dfp-row{display:flex;align-items:center;gap:10px}
 .dfp-time{font-variant-numeric:tabular-nums;font-size:12px;color:rgba(243,234,216,.7);margin-left:4px}
@@ -41,11 +41,12 @@ const CSS = `
 .dfp-menu{position:absolute;right:24px;bottom:78px;background:rgba(14,11,10,.94);border:1px solid rgba(212,162,76,.35);border-radius:12px;padding:8px;min-width:260px;backdrop-filter:blur(10px)}
 .dfp-menu button{display:flex;justify-content:space-between;width:100%;text-align:left;padding:9px 10px}
 .dfp-menu small{color:rgba(243,234,216,.5)}
-.dfp-load{position:absolute;inset:0;display:grid;place-items:center;font:500 13px 'Inter';letter-spacing:.2em;text-transform:uppercase;color:#d4a24c}
+.dfp-load{position:absolute;inset:0;display:grid;place-items:center;font:500 13px 'Inter';letter-spacing:.2em;text-transform:uppercase;color:var(--dfp-a,#d4a24c)}
 .dfp-load i{display:block;width:220px;height:2px;background:rgba(212,162,76,.2);margin-top:14px}
-.dfp-load i b{display:block;height:100%;background:#d4a24c;transition:width .2s}
+.dfp-load i b{display:block;height:100%;background:var(--dfp-a,#d4a24c);transition:width .2s}
+.dfp-skip{position:absolute;right:24px;bottom:96px;background:rgba(0,0,0,.72);border:1px solid var(--dfp-a,#d4a24c)!important;padding:8px 14px!important;font-size:14px!important}
 .dfp-big{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
-.dfp-big span{width:88px;height:88px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.45);border:1px solid rgba(212,162,76,.6);color:#d4a24c}
+.dfp-big span{width:88px;height:88px;border-radius:50%;display:grid;place-items:center;background:rgba(0,0,0,.45);border:1px solid rgba(212,162,76,.6);color:var(--dfp-a,#d4a24c)}
 `;
 
 export default function DossierFilmPlayer({ load, onClose, width = 1280, height = 720 }: Props) {
@@ -63,6 +64,8 @@ export default function DossierFilmPlayer({ load, onClose, width = 1280, height 
   const [idle, setIdle] = useState(false);
   const [chapters, setChapters] = useState<Chapter[]>([]);
   const [error, setError] = useState('');
+  const [accent, setAccent] = useState('');
+  const [skip, setSkip] = useState<{ from: number; to: number; label: string } | null>(null);
 
   const now = () => {
     const c = clock.current;
@@ -87,7 +90,9 @@ export default function DossierFilmPlayer({ load, onClose, width = 1280, height 
     }
     const score = a.score, spec = rr.spec.score;
     if (score && spec) {
-      const target = (speaking ? spec.duckTo : spec.volume) * Math.min(1, time / 2, (rr.duration - time) / 4);
+      // Council films: the score is out through every Silence Hold (the render ramps over a second; so does this).
+      const out = rr.silences.some(w => time >= w.from && time < w.to);
+      const target = out ? 0 : (speaking ? spec.duckTo : spec.volume) * Math.min(1, time / 2, (rr.duration - time) / 4);
       score.volume = Math.max(0, Math.min(1, score.volume + (target - score.volume) * .08));
       if (isPlaying && score.paused) { score.currentTime = time % (score.duration || 1e9); void score.play().catch(() => {}); }
       if (!isPlaying && !score.paused) score.pause();
@@ -105,11 +110,16 @@ export default function DossierFilmPlayer({ load, onClose, width = 1280, height 
         await rr.load((d, n) => !dead && setProgress(d / n));
         if (dead) return;
         rr.captions = cc;
+        // Council films: reduced motion is an authored cut list (holds and 150 ms fades), not a disabled animation.
+        rr.reducedMotion = !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
         r.current = rr;
+        if (rr.council) setAccent(rr.council.tl.film.theme.accent);
         if (spec.score) { const s = new Audio(spec.score.src); s.loop = true; s.volume = 0; audio.current.score = s; }
         setChapters(rr.chapters);
         rr.draw(0);
         setReady(true);
+        // The council style plays live from frame one (the viewer already pressed Watch the film).
+        if (rr.council) { clock.current = { playing: true, base: performance.now(), at: 0 }; setPlaying(true); }
       } catch (e) { setError((e as Error).message || 'The film could not be loaded.'); }
     })();
     return () => {
@@ -133,6 +143,8 @@ export default function DossierFilmPlayer({ load, onClose, width = 1280, height 
       rr.draw(time);
       syncAudio(time, clock.current.playing);
       setT(time);
+      const w = rr.skips.find(k => time >= k.from && time < k.to) ?? null;
+      setSkip(prev => (prev?.from === w?.from && prev?.to === w?.to ? prev : w));
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
@@ -160,6 +172,9 @@ export default function DossierFilmPlayer({ load, onClose, width = 1280, height 
     let timer = 0;
     const poke = () => { setIdle(false); clearTimeout(timer); timer = window.setTimeout(() => setIdle(true), 2600); };
     const key = (e: KeyboardEvent) => {
+      // Any key, tap or remote button skips the title sequence or a content-noted section (Escape still closes).
+      const rr = r.current, here = rr?.skips.find(k => now() >= k.from && now() < k.to);
+      if (rr && here && e.key !== 'Escape' && e.key !== 'c' && !e.metaKey && !e.ctrlKey && clock.current.playing) { e.preventDefault(); seek(here.to); poke(); return; }
       if (e.key === ' ' || e.key === 'k') { e.preventDefault(); clock.current.playing ? pause() : play(); }
       else if (e.key === 'ArrowRight') seek(now() + 5);
       else if (e.key === 'ArrowLeft') seek(now() - 5);
@@ -176,11 +191,12 @@ export default function DossierFilmPlayer({ load, onClose, width = 1280, height 
   const current = [...chapters].reverse().find(c => t >= c.start);
 
   return (
-    <div className="dfp" ref={wrap} data-idle={idle && playing} role="dialog" aria-label="Dossier film">
+    <div className="dfp" ref={wrap} data-idle={idle && playing} role="dialog" aria-label="Dossier film" style={accent ? ({ '--dfp-a': accent } as React.CSSProperties) : undefined}>
       <style>{CSS}</style>
-      <canvas ref={canvas} onClick={() => (playing ? pause() : play())} aria-label="Film frame" />
+      <canvas ref={canvas} onClick={() => { if (skip && playing) seek(skip.to); else playing ? pause() : play(); }} aria-label="Film frame" />
       {!ready && !error && <div className="dfp-load"><div>Preparing the film<i><b style={{ width: `${Math.round(progress * 100)}%` }} /></i></div></div>}
       {error && <div className="dfp-load">{error}</div>}
+      {ready && skip && playing && <button className="dfp-skip" onClick={() => seek(skip.to)}>{skip.label} (any key)</button>}
       {ready && !playing && t < .05 && <div className="dfp-big"><span><Play size={34} /></span></div>}
       <div className="dfp-top">
         <h2>A Plajah Dossier · Film</h2>

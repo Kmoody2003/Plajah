@@ -13,7 +13,6 @@ const DossierFilmPlayer = React.lazy(() => import('./DossierFilmPlayer'));
 const ModelTExploded = React.lazy(() => import('./ModelTExploded'));
 const FordMovingLine = React.lazy(() => import('./experiences/FordMovingLine'));
 const PersiaRoad = React.lazy(() => import('./experiences/PersiaRoad'));
-const loadDouglassFilm = (w: number, h: number) => import('../../data/dossier/douglassFilm').then(m => m.loadDouglassFilm(w, h));
 
 interface Props {
   dossier?: Dossier;
@@ -367,9 +366,9 @@ function HallInner({ dossier, entry, onBack, backLabel = 'Back' }: { dossier: Do
     <div className="dh" ref={rootRef} style={{ ...vars, '--dh-dir': String(dir) } as React.CSSProperties} data-slide={slide} data-exhibit={dossier.id}>
       <style>{CSS}</style>
       {intro && <DossierEntrance dossier={dossier} theme={theme} onEnter={finishIntro} />}
-      {film && (
+      {film && entry.film && (
         <React.Suspense fallback={null}>
-          <DossierFilmPlayer load={loadDouglassFilm} onClose={() => setFilm(false)} />
+          <DossierFilmPlayer load={entry.film} onClose={() => setFilm(false)} />
         </React.Suspense>
       )}
       {reveal && <div className="dh-reveal" aria-hidden><i /><i /></div>}
@@ -402,7 +401,7 @@ function HallInner({ dossier, entry, onBack, backLabel = 'Back' }: { dossier: Do
           <summary aria-label="More: replay the opening, watch the film, open in Tela or Fabula"><MoreHorizontal size={16} /> More</summary>
           <div className="dh-tools-menu">
             {dossier.entrance && <button onClick={e => { setIntro(true); (e.currentTarget.closest('details') as HTMLDetailsElement).open = false; }}>Replay the opening</button>}
-            {dossier.id === 'frederick-douglass' && <button onClick={e => { setFilm(true); (e.currentTarget.closest('details') as HTMLDetailsElement).open = false; }}>▶ Watch the film</button>}
+            {entry.film && <button onClick={e => { setFilm(true); (e.currentTarget.closest('details') as HTMLDetailsElement).open = false; }}>▶ Watch the film</button>}
             {entry.telaTimeline && <button onClick={e => { openTimelineInTela(entry).catch(() => {}); (e.currentTarget.closest('details') as HTMLDetailsElement).open = false; }}>Open the timeline in Tela</button>}
             {entry.fabulaFilm && <button onClick={e => { openFilmInFabula(entry).catch(() => {}); (e.currentTarget.closest('details') as HTMLDetailsElement).open = false; }}>Open the film in Fabula</button>}
           </div>

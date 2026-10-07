@@ -5,6 +5,7 @@
 import type { Dossier } from '../../services/dossier/dossierTypes';
 import { applyReconstructions } from '../../services/dossier/reconAssets';
 import type { DossierTheme } from '../../services/dossier/dossierTheme';
+import type { FilmSpec } from '../../services/dossier/film/filmTypes';
 
 export interface DossierEntry {
   id: string;
@@ -18,6 +19,8 @@ export interface DossierEntry {
   /** Optional deliverables the hall can hand off. */
   telaTimeline?: () => Promise<any>;
   fabulaFilm?: () => Promise<any>;
+  /** The exhibit's watchable film (services/dossier/film): builds the spec for the in-app player. Absent = no film yet. */
+  film?: (width: number, height: number) => Promise<FilmSpec>;
   /** True while the planned reconstruction paintings (and the film) have not been produced yet. */
   artPending?: boolean;
   /** The exhibit's own look: display face, ink colour, ground. The hall turns it into CSS variables. */
@@ -75,6 +78,7 @@ export const DOSSIERS: DossierEntry[] = [
     load: () => import('./douglass').then(m => m.douglassDossier),
     telaTimeline: () => import('./douglassTimeline.tela.json').then(m => m.default),
     fabulaFilm: () => import('./douglassFabula.json').then(m => m.default),
+    film: (w, h) => import('./douglassFilm').then(m => m.loadDouglassFilm(w, h)),
   },
   {
     id: 'henry-ford',
@@ -88,6 +92,7 @@ export const DOSSIERS: DossierEntry[] = [
       .then(([m, s, r]) => applyReconstructions(m.fordDossier, s.fordScenes as any, r.default)),
     telaTimeline: () => import('./fordTimeline.tela.json').then(m => m.default),
     fabulaFilm: () => import('./fordFabula.json').then(m => m.default),
+    film: (w, h) => import('./fordFilmCouncil').then(m => m.loadFordCouncilFilm(w, h)),
   },
   {
     id: 'christianity-in-persia',

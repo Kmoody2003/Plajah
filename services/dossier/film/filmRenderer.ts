@@ -8,6 +8,9 @@ import {
 } from './filmTypes';
 import { camAt, captionChunks, clamp, coverRect, ease, envelope, hash, lerp, noise1, span, wrap } from './motion';
 import { DepthParallax } from './depthParallax';
+import { compileCouncil } from './councilCompile';
+import { CouncilPainter } from './councilStyle';
+import type { CouncilTimeline } from './councilTypes';
 
 // ── Art direction ─────────────────────────────────────────────────────────────
 // 19th-century print culture: lamp-black, bone paper, brass, oxblood. Type is a period face
@@ -56,6 +59,10 @@ export class FilmRenderer {
   private blurCache = new Map<string, HTMLCanvasElement>();
   /** Show narration captions (accessibility; on by default). */
   captions = true;
+  /** Council style: the authored reduced-motion cut list (holds and 150 ms fades) instead of animated transitions. */
+  reducedMotion = false;
+  /** Council style only: the compiled timeline and its painter. */
+  readonly council?: { tl: CouncilTimeline; painter: CouncilPainter };
 
   constructor(readonly canvas: HTMLCanvasElement, spec: FilmSpec) {
     // Unvoiced lines get an estimated duration so the cut is right even before narration exists.
@@ -63,19 +70,31 @@ export class FilmRenderer {
       ? { ...s, narration: { ...s.narration, duration: s.narration.text.split(/\s+/).length / WPS } } : s) };
     const l = layout(this.spec);
     this.placed = l.placed; this.duration = l.duration;
+    if (spec.style === 'council' && spec.council) {
+      const tl = compileCouncil(spec.council);
+      this.council = { tl, painter: new CouncilPainter(tl, id => this.images.get(id)) };
+      this.duration = tl.duration;
+    }
     canvas.width = spec.width; canvas.height = spec.height;
     this.W = spec.width; this.H = spec.height;
     this.ctx = canvas.getContext('2d', { alpha: false })!;
   }
 
   get chapters(): Chapter[] {
+    if (this.council) return this.council.tl.rooms.map(r => ({ label: `${r.label.replace(' of ' + this.council!.tl.film.exhibitRoomCount, '')} · ${r.title}`, start: r.start }));
     return this.placed.filter(p => p.scene.chapter).map(p => ({ label: p.scene.chapter!, start: p.start }));
   }
 
   /** Voiced lines with their start times on the film clock (for the audio mixer). */
   get voiceCues(): Array<{ src: string; at: number; duration: number }> {
+    if (this.council) return this.council.tl.shots.flatMap(s => s.beats.filter(b => b.audio).map(b => ({ src: b.audio!, at: b.a, duration: b.b - b.a })));
     return this.placed.filter(p => p.scene.narration?.audio).map(p => ({ src: p.scene.narration!.audio!, at: p.voiceAt, duration: p.scene.narration!.duration! }));
   }
+
+  /** Council style: windows where any key skips ahead (title sequence, content-note section). */
+  get skips(): Array<{ from: number; to: number; label: string }> { return this.council?.tl.skips ?? []; }
+  /** Council style: windows where the score is out (Silence Hold). */
+  get silences(): Array<{ from: number; to: number }> { return this.council?.tl.silences ?? []; }
 
   /** Load fonts, images and depth maps. Resolves even if some assets fail (they draw as gaps). */
   async load(onProgress?: (done: number, total: number) => void): Promise<void> {
@@ -90,7 +109,8 @@ export class FilmRenderer {
     jobs.push((async () => {
       try {
         await fontSheet();
-        await Promise.all([
+        if (this.council) await Promise.all(this.council.painter.fontLoads.map(f => document.fonts.load(f)));
+        else await Promise.all([
           document.fonts.load(`italic 40px 'IM Fell English'`), document.fonts.load(`40px 'IM Fell English'`),
           document.fonts.load(`900 40px 'Playfair Display'`), document.fonts.load(`italic 400 40px 'Playfair Display'`),
           document.fonts.load(`700 40px 'Playfair Display'`), document.fonts.load(`600 20px 'Inter'`),
@@ -103,6 +123,7 @@ export class FilmRenderer {
       if (a.depth) jobs.push(img(a.depth).then(i => { if (i) this.depths.set(a.id, i); tick(); }));
     }
     await Promise.all(jobs);
+    if (this.council) return;   // the council style paints flat grounds: no depth parallax, grain or paper
     this.parallax = new DepthParallax(this.W, this.H);
     for (const [id, d] of this.depths) { const i = this.images.get(id); if (i) this.parallax.add(id, i, d); }
     this.grain = Array.from({ length: 8 }, (_, k) => this.makeGrain(256, k));
@@ -113,6 +134,7 @@ export class FilmRenderer {
   draw(t: number): void {
     const { ctx, W, H } = this;
     t = clamp(t, 0, this.duration - 1e-3);
+    if (this.council) { this.council.painter.draw(ctx, W, H, t, { captions: this.captions, reduced: this.reducedMotion }); return; }
     ctx.save();
     ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over'; ctx.filter = 'none';
     ctx.fillStyle = PALETTE.night; ctx.fillRect(0, 0, W, H);
