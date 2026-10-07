@@ -1055,6 +1055,23 @@ service cloud.firestore {
                       (isAdmin() &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['displayName']));
 
+      // Aria (PlajahAgent) conversation history. The owner may create and read their OWN sessions, and read
+      // their messages and daily usage counter. Every message and usage write is SERVER-ONLY (the service
+      // account in /api/agent/chat bypasses these rules), so a client can neither forge Aria's replies nor
+      // reset its own daily cap. Private: no admin read access (same stance as Ora).
+      match /muse_sessions/{sessionId} {
+        allow read, create: if isOwner(userId);
+        allow update, delete: if false;
+        match /messages/{messageId} {
+          allow read: if isOwner(userId);
+          allow write: if false;
+        }
+      }
+      match /muse_usage/{day} {
+        allow read: if isOwner(userId);
+        allow write: if false;
+      }
+
       // Private user data — only the account owner can read
       match /private/{docId} {
         allow read, write: if isOwner(userId);
