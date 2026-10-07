@@ -11290,7 +11290,9 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       let dailyMessages = 0;
       let dailySearches = 0;
       try {
-        const usageSnap = await fetch(usageUrl);
+        // Service-account credentials: unauthenticated REST evaluates as request.auth == null and is denied by the rules.
+        const usageSnap = await fetch(usageUrl, { headers: await firestoreAuthHeaders() });
+        if (!usageSnap.ok && usageSnap.status !== 404) console.error('[Aria] usage read failed:', usageSnap.status);
         if (usageSnap.ok) {
           const usageData = await usageSnap.json();
           dailyMessages = parseInt(usageData.fields?.dailyMessages?.integerValue ?? '0', 10);
@@ -11346,7 +11348,8 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
         { role: 'system', content: ARIA_SYSTEM_PROMPT },
       ];
       try {
-        const hSnap = await fetch(histUrl);
+        const hSnap = await fetch(histUrl, { headers: await firestoreAuthHeaders() });
+        if (!hSnap.ok && hSnap.status !== 404) console.error('[Aria] history read failed (Aria will not remember this conversation):', hSnap.status);
         if (hSnap.ok) {
           const hData = await hSnap.json();
           const docs = (hData.documents || []).reverse();
@@ -11652,15 +11655,18 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       const baseUrl = `https://firestore.googleapis.com/v1/projects/gen-lang-client-0665118474/databases/plajah-prod/documents`;
       const msgBase = `users/${uid}/muse_sessions/${sessionId}/messages`;
 
-      const persistMsg = async (role: string, content: string, extra: any = {}) => {
-        await fetch(`${baseUrl}/${msgBase}`, {
+      // Every write below uses service-account credentials (firestoreAuthHeaders) and reports whether it
+      // actually landed. A rejected write used to be swallowed silently — the message simply vanished.
+      const persistMsg = async (role: string, content: string, extra: any = {}, at: number = now): Promise<boolean> => {
+        try {
+        const r = await fetch(`${baseUrl}/${msgBase}`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: await firestoreAuthHeaders(),
           body: JSON.stringify({
             fields: {
               role:      { stringValue: role },
               content:   { stringValue: content },
-              timestamp: { integerValue: String(now) },
+              timestamp: { integerValue: String(at) },
               ...( extra.buildOutput ? { buildOutput: { stringValue: JSON.stringify(extra.buildOutput) } } : {} ),
               ...( extra.toolCalls?.length ? { toolCalls: { stringValue: JSON.stringify(extra.toolCalls) } } : {} ),
               ...( extra.error ? { error: { booleanValue: true } } : {} ),
@@ -11668,11 +11674,16 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
               ...( attachments.length ? { attachmentNames: { stringValue: JSON.stringify(attachments.map((a: any) => a.name)) } } : {} ),
             },
           }),
-        }).catch(() => {});
+        });
+        if (!r.ok) console.error('[Aria] message write rejected:', r.status, 'path', msgBase);
+        return r.ok;
+        } catch (e: any) { console.error('[Aria] message write failed:', e?.message); return false; }
       };
 
-      await persistMsg('user', message);
-      await persistMsg('muse', cleanReply, { buildOutput, toolCalls: toolCalls.length ? toolCalls : undefined, error: replyError, councilSession });
+      // user = now, reply = now+1 so they order correctly (they used to share one timestamp)
+      const userSaved = await persistMsg('user', message, {}, now);
+      const replySaved = await persistMsg('muse', cleanReply, { buildOutput, toolCalls: toolCalls.length ? toolCalls : undefined, error: replyError, councilSession }, now + 1);
+      const persisted = userSaved && replySaved;
 
       // ── Update daily usage counters ──
       // On-device turns are free — don't count them against the daily cap.
@@ -11680,7 +11691,7 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
       const newSearches = dailySearches + (usedSearch ? 1 : 0);
       await fetch(usageUrl, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await firestoreAuthHeaders(),
         body: JSON.stringify({
           fields: {
             dailyMessages: { integerValue: String(newDaily) },
@@ -11688,12 +11699,12 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
             resetDate:     { stringValue: todayKey },
           },
         }),
-      }).catch(() => {});
+      }).then(r => { if (!r.ok) console.error('[Aria] usage counter write rejected:', r.status); }).catch(() => {});
 
       // ── Update session metadata ──
       await fetch(`${baseUrl}/users/${uid}/muse_sessions/${sessionId}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: await firestoreAuthHeaders(),
         body: JSON.stringify({
           fields: {
             updatedAt:    { integerValue: String(now) },
@@ -11704,6 +11715,9 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
 
       return res.json({
         reply: cleanReply,
+        // false = Firestore did not accept the messages, so the client must show this exchange itself.
+        persisted,
+        replyError,
         toolCalls: toolCalls.length ? toolCalls : undefined,
         buildOutput: buildOutput || undefined,
         actionCalls: actionCalls.length ? actionCalls : undefined,

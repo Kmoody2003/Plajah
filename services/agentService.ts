@@ -479,6 +479,10 @@ export interface SendMessageOptions {
 
 export interface SendMessageResult {
   reply: string;
+  /** false = the server could not store the exchange in Firestore; the UI must show it itself. */
+  persisted?: boolean;
+  /** the reply is an error/fallback message rather than a real answer */
+  replyError?: boolean;
   toolCalls?: AgentToolCall[];
   buildOutput?: AgentBuildOutput;
   actionCalls?: AriaActionCall[];

@@ -15,7 +15,7 @@
  */
 
 import React, {
-  useState, useEffect, useRef, useCallback, useId,
+  useState, useEffect, useRef, useCallback, useId, useMemo,
 } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -311,6 +311,13 @@ const PlajahAgent: React.FC<Props> = ({
   const [sessions, setSessions] = useState<AgentSession[]>([]);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<AgentMessage[]>([]);
+  // Exchanges the server could not store (or a request that failed outright) are shown from here, so the
+  // user's message and Aria's reply — or the error — never silently vanish. Cleared on session change.
+  const [ephemeral, setEphemeral] = useState<AgentMessage[]>([]);
+  const shownMessages = useMemo(
+    () => (ephemeral.length ? [...messages, ...ephemeral].sort((a, b) => a.timestamp - b.timestamp) : messages),
+    [messages, ephemeral],
+  );
   const [usage, setUsage] = useState<AgentUsage>({ dailyMessages: 0, dailySearches: 0, monthlyModules: 0, monthlyGalleries: 0, monthlyVoiceChars: 0, monthlyImages: 0, monthlyTranscriptionMinutes: 0, resetDate: '' });
   const [input, setInput] = useState('');
   const [isThinking, setIsThinking] = useState(false);
@@ -362,7 +369,9 @@ const PlajahAgent: React.FC<Props> = ({
       if (list.length > 0 && !sessionId) {
         setSessionId(list[0].id);
       } else if (list.length === 0) {
-        createSession(uid).then(id => { setSessionId(id); setSessions([{ id, title: 'New Conversation', createdAt: Date.now(), updatedAt: Date.now(), messageCount: 0, lastSnippet: '' }]); });
+        createSession(uid)
+          .then(id => { setSessionId(id); setSessions([{ id, title: 'New Conversation', createdAt: Date.now(), updatedAt: Date.now(), messageCount: 0, lastSnippet: '' }]); })
+          .catch(e => { console.error('[Aria] could not create a conversation:', e?.code || e?.message || e); setLimitBanner("Aria couldn't start a conversation yet. Check your connection, then close and reopen this panel."); });
       }
     });
     if (uid) getAgentUsage(uid).then(setUsage);
@@ -371,6 +380,7 @@ const PlajahAgent: React.FC<Props> = ({
   // Subscribe to messages for current session
   useEffect(() => {
     if (!uid || !sessionId) return;
+    setEphemeral([]);
     // Auto-read: the first snapshot is history and is never spoken; only replies that
     // arrive afterwards are, and only if the user turned the voice on.
     let first = true;
@@ -397,7 +407,7 @@ const PlajahAgent: React.FC<Props> = ({
   // Auto-scroll
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isThinking]);
+  }, [shownMessages, isThinking]);
 
   // Focus input when opened
   useEffect(() => {
@@ -458,7 +468,12 @@ const PlajahAgent: React.FC<Props> = ({
   };
 
   const handleSend = useCallback(async () => {
-    if (!canSend || !uid || !sessionId) return;
+    if (!canSend || !uid) return;
+    if (!sessionId) {
+      // Never fail silently: this used to just do nothing when the conversation could not be created.
+      setLimitBanner("Aria couldn't start a conversation yet. Check your connection, then close and reopen this panel.");
+      return;
+    }
     const text = input.trim();
     setInput('');
     setIsThinking(true);
@@ -483,7 +498,7 @@ const PlajahAgent: React.FC<Props> = ({
         const out = await ariaLocalModel.chat(
           buildLocalChatMessages({
             snapshot: getActiveAriaContext(),
-            history: messages.map(m => ({ role: m.role, content: m.content })),
+            history: shownMessages.map(m => ({ role: m.role, content: m.content })),
             userMessage: text,
           }),
           { maxNewTokens: 512 },
@@ -512,6 +527,24 @@ const PlajahAgent: React.FC<Props> = ({
     setAttachments([]);
     setIsThinking(false);
 
+    // If the server could not store this exchange, or the request failed, show it here rather than letting
+    // the user's message disappear. (When it was stored, the Firestore listener delivers it as usual.)
+    if (result.persisted === false || result.error) {
+      const t = Date.now();
+      const failed = !!(result.error || result.replyError);
+      setEphemeral(prev => [
+        ...prev,
+        { id: `local-u-${t}`, role: 'user', content: text, timestamp: t },
+        {
+          id: `local-a-${t}`, role: 'muse', timestamp: t + 1, error: failed,
+          content: result.reply || result.error || 'Aria could not answer just now. Please try again.',
+          toolCalls: result.toolCalls, buildOutput: result.buildOutput,
+        } as AgentMessage,
+      ]);
+      // The Firestore listener won't deliver this reply, so honour the Voice toggle here too.
+      if (!failed && result.reply && autoReadRef.current) ariaVoice.speak(`local-a-${t}`, result.reply);
+    }
+
     // Execute any actions Aria decided to perform on the active surface. Handlers
     // were registered by the surface via useAriaSurface(); failures are non-fatal.
     if (result.actionCalls?.length) {
@@ -525,7 +558,7 @@ const PlajahAgent: React.FC<Props> = ({
       setLimitBanner(result.error || 'Limit reached.');
     }
     if (result.usage) setUsage(result.usage);
-  }, [canSend, uid, sessionId, input, attachments, tier, context, onDevice, messages]);
+  }, [canSend, uid, sessionId, input, attachments, tier, context, onDevice, shownMessages]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
@@ -754,7 +787,7 @@ const PlajahAgent: React.FC<Props> = ({
             <div className="flex-1 overflow-y-auto custom-scrollbar px-4 py-3 space-y-4 min-h-0">
 
               {/* Empty state / capabilities */}
-              {messages.length === 0 && !isThinking && (
+              {shownMessages.length === 0 && !isThinking && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4 pt-4">
                   <div className="text-center">
                     <AriaMark size={56} className="mx-auto mb-3" />
@@ -791,7 +824,7 @@ const PlajahAgent: React.FC<Props> = ({
               )}
 
               {/* Messages */}
-              {messages.map(msg => (
+              {shownMessages.map(msg => (
                 <MessageBubble key={msg.id} msg={msg} onApplyBuild={onApplyBuild} />
               ))}
 
