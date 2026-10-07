@@ -18,6 +18,8 @@ const sources: SourceRef[] = [
   { id: 's-blight', kind: 'scholarly', citation: 'David W. Blight, Frederick Douglass: Prophet of Freedom (New York: Simon & Schuster, 2018).' },
   { id: 's-mcfeely', kind: 'scholarly', citation: 'William S. McFeely, Frederick Douglass (New York: W. W. Norton, 1991).' },
   { id: 's-nps', kind: 'archive', citation: 'National Park Service, Frederick Douglass National Historic Site (Cedar Hill), Washington, D.C.', url: 'https://www.nps.gov/frdo/' },
+  { id: 's-census', kind: 'archive', citation: 'Campbell Gibson and Kay Jung, Historical Census Statistics on Population Totals by Race, 1790 to 1990, U.S. Census Bureau Population Division Working Paper No. 56 (Washington, D.C., September 2002), Table 1, "United States: Race and Hispanic Origin: 1790 to 1990" (Black population split into free and slave, 1790-1860, from the decennial census reports).', url: 'https://www.census.gov/content/dam/Census/library/working-papers/2002/demo/POP-twps0056.pdf' },
+  { id: 's-twospeeches', kind: 'primary', citation: 'Frederick Douglass, "West India Emancipation", speech at the Ontario County fairgrounds, Canandaigua, New York, 3 August 1857, printed in Two Speeches by Frederick Douglass (Rochester: C. P. Dewey, 1857); text read as transcribed on Wikisource, "West India Emancipation".', url: 'https://en.wikisource.org/wiki/West_India_Emancipation' },
   { id: 's-loc', kind: 'archive', citation: 'Library of Congress, Frederick Douglass Papers.', url: 'https://www.loc.gov/collections/frederick-douglass-papers/' },
 ];
 
@@ -39,6 +41,8 @@ const claims: Claim[] = [
   { id: 'c-northstar', text: 'In December 1847 he founded the abolitionist newspaper The North Star in Rochester, New York, later renamed Frederick Douglass\' Paper.', when: '1847-12', where: 'Rochester, New York', confidence: 'established', sourceIds: ['s-bondage', 's-blight'] },
   { id: 'c-seneca', text: 'In July 1848 he attended the Seneca Falls Convention and spoke in support of the resolution calling for women\'s right to vote.', when: '1848-07', where: 'Seneca Falls, New York', confidence: 'established', sourceIds: ['s-lifetimes', 's-blight'] },
   { id: 'c-fourth', text: 'On 5 July 1852 he delivered "What to the Slave Is the Fourth of July?" in Rochester, contrasting the nation\'s celebration of liberty with the continued enslavement of millions.', when: '1852-07-05', where: 'Rochester, New York', confidence: 'established', sourceIds: ['s-fourth', 's-blight'] },
+  { id: 'c-census', text: 'The U.S. census counted 3,204,313 enslaved and 434,495 free Black people in 1850, and 3,953,760 enslaved and 488,070 free Black people in 1860; in 1840 it had counted 2,487,355 enslaved people.', when: '1840-1860', confidence: 'established', sourceIds: ['s-census'], note: 'Census Bureau Working Paper 56, Table 1, whose Black totals are 3,638,808 (1850) and 4,441,830 (1860). Enumeration was imperfect, and the 1850 and 1860 schedules counted people by legal status, not by how they described themselves.' },
+  { id: 'c-struggle', text: 'In his West India Emancipation speech at Canandaigua on 3 August 1857 Douglass said: "If there is no struggle there is no progress", adding that "Power concedes nothing without a demand. It never did and it never will."', when: '1857-08-03', where: 'Canandaigua, New York', confidence: 'established', sourceIds: ['s-twospeeches'], note: 'Wording follows the 1857 pamphlet text as transcribed on Wikisource, which has no comma after "struggle"; some later reprints add one. The Library of Congress and Teaching American History copies could not be reached in this session, so the transcription was not checked against a page image.' },
   { id: 'c-constitution', text: 'In 1851 he broke with William Lloyd Garrison, rejecting the view that the Constitution was a pro-slavery document and arguing instead that it could be read as an anti-slavery instrument.', when: '1851', confidence: 'established', sourceIds: ['s-blight', 's-mcfeely'] },
   { id: 'c-brown', text: 'He knew the abolitionist John Brown, but in 1859 he declined to join the raid on Harpers Ferry, judging it doomed.', when: '1859', confidence: 'established', sourceIds: ['s-lifetimes', 's-blight'] },
   { id: 'c-soldiers', text: 'During the Civil War he recruited Black soldiers, including for the 54th Massachusetts Infantry, in which two of his sons served.', when: '1863', confidence: 'established', sourceIds: ['s-lifetimes', 's-blight'] },
@@ -136,7 +140,7 @@ const rooms: Room[] = [
     id: 'r3', title: 'The North Star', years: '1847–1861',
     nodes: [
       {
-        id: 'n-r3-story', title: 'Editor, Orator, Independent Thinker', kind: 'story',
+        id: 'n-r3-story', title: 'Editor, Orator, Independent Thinker', kind: 'story', experience: 'douglass-composing-stick',
         claimIds: ['c-northstar', 'c-seneca', 'c-constitution', 'c-brown'],
         assetIds: ['ref-1855-younger'],
         text: {

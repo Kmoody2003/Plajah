@@ -384,7 +384,7 @@ const rooms: Room[] = [
     id: 'r5', title: 'The Line', years: 'June – August 1947',
     nodes: [
       {
-        id: 'n-r5-story', title: 'Five weeks to draw a border', kind: 'story',
+        id: 'n-r5-story', title: 'Five weeks to draw a border', kind: 'story', experience: 'partition-pen',
         claimIds: ['c-commission-members', 'c-terms', 'c-radcliffe-india', 'c-no-sittings', 'c-award-dates', 'c-delay-reason', 'c-bengal-line', 'c-gurdaspur', 'c-radcliffe-papers', 'c-lahore-amritsar'],
         assetIds: ['a-radcliffe-portrait', 'a-radcliffe-punjab-map', 'a-radcliffe-bengal-map', 'a-punjab-gsgs-map-1947'],
         text: {

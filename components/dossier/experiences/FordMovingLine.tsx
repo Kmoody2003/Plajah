@@ -86,7 +86,7 @@ export default function FordMovingLine({ dossier }: { dossier: Dossier }) {
   const chassisW = Math.min(230, Math.max(140, railW * 0.24));
   const left = 10 + t * Math.max(0, railW - chassisW - 20);
   const hoursPct = (minutes / CHASSIS_BEFORE_MIN) * 100;
-  const claimChips = [fig.time, fig.price, fig.launch].filter(Boolean) as Claim[];
+  const claimChips = [fig.start, fig.time, fig.price, fig.launch].filter(Boolean) as Claim[];
 
   return (
     <div className="fml" style={{ ['--fml-run' as string]: running && !reduced ? 'running' : 'paused' } as React.CSSProperties}>
@@ -141,12 +141,12 @@ export default function FordMovingLine({ dossier }: { dossier: Dossier }) {
       </div>
 
       <p className="fml-note">
-        The two chassis times are the documented ends ({formatMinutes(CHASSIS_BEFORE_MIN)} to {formatMinutes(CHASSIS_AFTER_MIN)}); the scrub fills in between
-        evenly for illustration. The price bars are a separate story on a longer clock: the Model T launched at about $825 in 1908 and fell to about $260 by the
+        The two chassis times are the documented ends: {formatMinutes(CHASSIS_BEFORE_MIN)}, the best stationary average Ford himself reported, to {formatMinutes(CHASSIS_AFTER_MIN)}{' '}
+        once the line was raised to waist height in early 1914. The scrub fills in between evenly for illustration; Ford also reported a rough rope-and-windlass test at 5 h 50 min. The price bars are a separate story on a longer clock: the Model T launched at about $825 in 1908 and fell to about $260 by the
         mid-1920s, and the sources differ on both ends ($825 or $850; $260 or $265). Stations are illustrative: the ledger records only that flywheel magnetos moved
         onto a line around 1 April 1913 and that by August the line reached complete chassis.
       </p>
-      {fig.timeNote && <p className="fml-note warn">{fig.timeNote}</p>}
+      {fig.timeNote && <p className="fml-note">{fig.timeNote}</p>}
       {!fig.sourced && <p className="fml-note warn">Some figures here are not backed by a ledger claim and are illustrative only.</p>}
     </div>
   );

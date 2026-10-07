@@ -93,7 +93,7 @@ export const DOSSIERS: DossierEntry[] = [
     theme: DOSSIER_THEMES['henry-ford'],
     title: 'Henry Ford',
     kind: 'biography',
-    tagline: 'He put America on wheels. He also put hatred in print.',
+    tagline: 'He put America on wheels and made Detroit the capital of the machine age.',
     years: '1863 — 1947',
     heroUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Henry_Ford%2C_head-and-shoulders_portrait%2C_facing_slightly_left%29_-_Hartsook_photo_LCCN94506959_Trim.jpg/960px-Henry_Ford%2C_head-and-shoulders_portrait%2C_facing_slightly_left%29_-_Hartsook_photo_LCCN94506959_Trim.jpg',
     load: () => Promise.all([import('./ford'), import('./fordScenes'), import('./fordRecon.json')])

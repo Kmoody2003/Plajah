@@ -214,7 +214,7 @@ export function buildFordCouncilFilm(opts: { narration?: BeatTimings; width?: nu
   });
   const voiced = !!n && shots.every(s => (s.beats ?? []).every(b => b.audio));
   const council: CouncilFilm = {
-    id: 'ford-council', title: 'Henry Ford', dates: '1863 — 1947', tagline: 'He put America on wheels. He also put hatred in print.',
+    id: 'ford-council', title: 'Henry Ford', dates: '1863 — 1947', tagline: 'He put America on wheels and made Detroit the capital of the machine age.',
     theme: councilTheme(DOSSIER_THEMES['henry-ford'], { titleGesture: 'stamp' }),
     exhibitRoomCount: 8, rooms: ROOMS, titlePlate: titlePlate(), shots,
     endCard: endCard(voiced),

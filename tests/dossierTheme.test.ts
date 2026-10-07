@@ -55,16 +55,17 @@ test('hero title size steps down with length and never exceeds 14vw', () => {
 });
 
 test('Moving Line: documented chassis times at the ends, linear between, formatted plainly', () => {
-  assert.equal(CHASSIS_BEFORE_MIN, 728);
+  assert.equal(CHASSIS_BEFORE_MIN, 748, "Ford's own 12 h 28 min (My Life and Work), not the secondary 12 h 8 min");
   assert.equal(CHASSIS_AFTER_MIN, 93);
-  assert.equal(chassisMinutes(0), 728);
+  assert.equal(chassisMinutes(0), 748);
   assert.equal(chassisMinutes(1), 93);
   assert.equal(chassisMinutes(5), 93, 'clamped');
-  assert.equal(chassisMinutes(NaN), 728);
+  assert.equal(chassisMinutes(NaN), 748);
+  assert.equal(formatMinutes(748), '12 h 28 min');
   assert.equal(formatMinutes(728), '12 h 8 min');
   assert.equal(formatMinutes(93), '1 h 33 min');
   assert.equal(formatMinutes(45), '45 min');
-  assert.ok(Math.abs(speedUp(1) - 7.83) < 0.01);
+  assert.ok(Math.abs(speedUp(1) - 8.04) < 0.01);
   assert.equal(periodLabel(0), 'Oct 1913');
   assert.equal(periodLabel(1), 'Early 1914');
   assert.deepEqual(stationsPassed(0), []);
@@ -76,6 +77,12 @@ test('Moving Line reads its figures from the Ford ledger and is wired into room 
   assert.ok(fig.time && fig.price && fig.launch, 'ledger has c-93min, c-price, c-modelt');
   assert.equal(fig.sourced, true);
   assert.match(fig.time!.text, /93 minutes/);
+  assert.match(fig.start!.text, /twelve hours and twenty-eight minutes/);
+  assert.deepEqual(fig.start!.sourceIds, ['s-mylife'], 'the start figure is Ford own words');
+  assert.equal(fig.alt!.confidence, 'contested', 'the 728-minute figure is secondary and flagged');
+  assert.ok(fig.alt!.note && /748/.test(fig.alt!.note));
+  assert.match(fig.timeNote, /12 h 28 min/);
+  assert.ok(fordDossier.rooms.find(r => r.id === 'r3')!.nodes.some(n => n.claimIds.includes('c-chassis-1228') && n.claimIds.includes('c-chassis-728')), 'room 3 cites both');
   assert.match(fig.price!.text, /\$260/);
   assert.match(fig.launch!.text, /\$825/);
   assert.equal(lineFigures([]).sourced, false, 'no ledger, no sourced numbers');

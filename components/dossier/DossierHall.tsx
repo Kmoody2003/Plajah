@@ -14,6 +14,8 @@ const ModelTExploded = React.lazy(() => import('./ModelTExploded'));
 const FordMovingLine = React.lazy(() => import('./experiences/FordMovingLine'));
 const PersiaRoad = React.lazy(() => import('./experiences/PersiaRoad'));
 const FoundingTimeline = React.lazy(() => import('./experiences/FoundingTimeline'));
+const DouglassComposingStick = React.lazy(() => import('./experiences/DouglassComposingStick'));
+const PartitionPen = React.lazy(() => import('./experiences/PartitionPen'));
 
 interface Props {
   dossier?: Dossier;
@@ -485,6 +487,20 @@ function HallInner({ dossier, entry, onBack, backLabel = 'Back' }: { dossier: Do
                   <div className="dh-exp">
                     <React.Suspense fallback={<p className="dh-banner-cap">Opening the road…</p>}>
                       <PersiaRoad />
+                    </React.Suspense>
+                  </div>
+                )}
+                {n.experience === 'douglass-composing-stick' && (
+                  <div className="dh-exp">
+                    <React.Suspense fallback={<p className="dh-banner-cap">Opening the case…</p>}>
+                      <DouglassComposingStick />
+                    </React.Suspense>
+                  </div>
+                )}
+                {n.experience === 'partition-pen' && (
+                  <div className="dh-exp">
+                    <React.Suspense fallback={<p className="dh-banner-cap">Unrolling the map…</p>}>
+                      <PartitionPen />
                     </React.Suspense>
                   </div>
                 )}
