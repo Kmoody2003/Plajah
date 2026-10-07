@@ -46,6 +46,10 @@ async function shrink(file: string) {
   const sharp = (await import('sharp')).default;
   const img = sharp(fs.readFileSync(file)), meta = await img.metadata();
   const long = Math.max(meta.width ?? 0, meta.height ?? 0);
+  if (meta.format && meta.format !== 'jpeg') {   // a PNG or other scan is stored as JPEG (4:4:4, q93) so every plate is one format
+    const buf = await img.resize({ width: meta.width! >= meta.height! ? Math.min(2600, meta.width!) : undefined, height: meta.height! > meta.width! ? Math.min(2600, meta.height!) : undefined, kernel: 'lanczos3', withoutEnlargement: true }).jpeg({ quality: 93, chromaSubsampling: '4:4:4' }).toBuffer();
+    fs.writeFileSync(file, buf); console.log(`  converted ${path.basename(file)} ${meta.format} -> jpeg`); return;
+  }
   if (long <= 2600) return;
   const buf = await img.resize({ width: meta.width! >= meta.height! ? 2600 : undefined, height: meta.height! > meta.width! ? 2600 : undefined, kernel: 'lanczos3', withoutEnlargement: true }).jpeg({ quality: 93, chromaSubsampling: '4:4:4' }).toBuffer();
   fs.writeFileSync(file, buf);
@@ -56,12 +60,15 @@ async function archival() {
   const dir = path.join(PUB, 'archival');
   fs.mkdirSync(dir, { recursive: true });
   const assets: Array<{ id: string; url: string }> = JSON.parse(fs.readFileSync(path.join(ROOT, `data/dossier/${SLUG}Assets.json`), 'utf8'));
+  // Film-only plates the exhibit's own ledger does not list (data/dossier/<slug>FilmAssets.json, same shape plus a credit for the film).
+  const extra = path.join(ROOT, `data/dossier/${SLUG}FilmAssets.json`);
+  if (fs.existsSync(extra)) assets.push(...JSON.parse(fs.readFileSync(extra, 'utf8')));
   for (const a of assets) {
     if (!a.url?.startsWith('http') || (ONLY && !ONLY.includes(a.id))) continue;
     try {
       const dest = path.join(dir, `${a.id}.jpg`);
       console.log(`archival ${a.id}: ${await download(commonsThumb(a.url), dest)}`);
-      if (SLUG !== 'douglass') await shrink(dest);
+      if (SLUG !== 'douglass' || a.id.startsWith('film-')) await shrink(dest);
     }
     catch (e) { console.warn(`archival ${a.id}: FAILED ${(e as Error).message}`); }
   }

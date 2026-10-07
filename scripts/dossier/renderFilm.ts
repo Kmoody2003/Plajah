@@ -1,7 +1,7 @@
 /**
  * Exports a Dossier film to MP4 by driving the exact renderer the app uses.
  *
- *   npx tsx scripts/dossier/renderFilm.ts [--film=douglass|ford|founding-battle] [--out=path.mp4] [--from=0] [--to=end] [--fps=30] [--w=1920 --h=1080]
+ *   npx tsx scripts/dossier/renderFilm.ts [--film=douglass|ford|persia|partition|founding-battle|douglass-legacy] [--out=path.mp4] [--from=0] [--to=end] [--fps=30] [--w=1920 --h=1080]
  *   npx tsx scripts/dossier/renderFilm.ts --film=ford --stills=5,30,62      # review stills → .film-work/stills/*.jpg
  *   npx tsx scripts/dossier/renderFilm.ts --film=ford --verify               # build gates only (PSNR, caption fit), no render
  *   npx tsx scripts/dossier/renderFilm.ts --film=founding-battle             # the animated-painting demo -> docs/dossier/founding-battle-demo.mp4
@@ -29,7 +29,8 @@ const arg = (k: string, d?: string) => process.argv.find(a => a.startsWith(`--${
 const flag = (k: string) => process.argv.includes(`--${k}`);
 const W = Number(arg('w', '1920')), H = Number(arg('h', '1080'));
 const FILM = arg('film', 'douglass')!;
-const COUNCIL = FILM !== 'douglass';
+/** The original (pre-council) Douglass film is --film=douglass-legacy; every other film is in the council style. */
+const COUNCIL = FILM !== 'douglass-legacy';
 const WORK = path.join(ROOT, '.film-work');
 fs.mkdirSync(WORK, { recursive: true });
 
@@ -55,6 +56,12 @@ function foleySamples(): Record<string, string> {
     thunk: { expr: '0.9*sin(2*PI*82*t)*exp(-13*t)+0.3*sin(2*PI*205*t)*exp(-30*t)+0.12*(random(0)*2-1)*exp(-60*t)', d: 0.7 },
     tick: { expr: '0.7*sin(2*PI*3300*t)*exp(-260*t)', d: 0.1 },
     // A distant musket report: a low thump and a puff of noise, low-passed and given a faint echo off the hill.
+    // Type landing in a composing stick: a small dry metal click.
+    click: { expr: '0.6*sin(2*PI*1900*t)*exp(-220*t)+0.3*(random(0)*2-1)*exp(-420*t)', d: 0.08 },
+    // One plucked string: a decaying tone with a soft attack, a little below middle register.
+    pluck: { expr: '0.7*sin(2*PI*196*t)*exp(-3.2*t)+0.35*sin(2*PI*392*t)*exp(-5*t)+0.15*sin(2*PI*588*t)*exp(-8*t)', d: 1.6 },
+    // Pencil on paper: band-limited noise with a slow swell.
+    scratch: { expr: '0.9*(random(0)*2-1)*sin(PI*t/0.6)', d: 0.6, af: 'highpass=f=1800,lowpass=f=7000' },
     musket: { expr: '0.9*sin(2*PI*66*t)*exp(-20*t)+0.5*(random(0)*2-1)*exp(-34*t)', d: 0.9, af: 'lowpass=f=520,aecho=0.5:0.4:120|260:0.35|0.2' },
   };
   const out: Record<string, string> = {};
@@ -178,7 +185,7 @@ async function main() {
     events.forEach(e => {
       inputs.push('-i', samples[e.kind]);
       const ms = Math.round((e.at - from) * 1000);
-      fo.push(`[${next}:a]adelay=${ms}|${ms},volume=${e.kind === 'tick' ? 0.05 : e.kind === 'musket' ? 0.55 * ((e as { gain?: number }).gain ?? 1) : 0.13},aformat=sample_rates=48000:channel_layouts=stereo[f${next}]`);
+      fo.push(`[${next}:a]adelay=${ms}|${ms},volume=${e.kind === 'tick' ? 0.05 : e.kind === 'musket' ? 0.55 * ((e as { gain?: number }).gain ?? 1) : e.kind === 'click' ? 0.05 : e.kind === 'pluck' ? 0.09 : e.kind === 'scratch' ? 0.06 : 0.13},aformat=sample_rates=48000:channel_layouts=stereo[f${next}]`);
       next++;
     });
     if (fo.length) graph += `;${fo.join(';')};${fo.map((_, k) => `[f${next - fo.length + k}]`).join('')}amix=inputs=${fo.length}:normalize=0:dropout_transition=0,apad,atrim=0:${len}[foley]`;
@@ -199,7 +206,7 @@ async function main() {
     graph = graph.replace('[mix0]', '[mix1]').replace(/$/, ';[mix1]alimiter=limit=0.95[mix]');
     map = '[mix]';
   }
-  const out = arg('out', path.join(ROOT, 'docs', 'dossier', FILM === 'founding-battle' ? 'founding-battle-demo.mp4' : COUNCIL ? 'ford-explainer-council.mp4' : 'douglass-film.mp4'))!;
+  const out = arg('out', path.join(ROOT, 'docs', 'dossier', FILM === 'founding-battle' ? 'founding-battle-demo.mp4' : COUNCIL ? `${FILM}-explainer-council.mp4` : 'douglass-film.mp4'))!;
   ffmpeg([...inputs, '-filter_complex', graph, '-map', '0:v', '-map', map, '-c:v', 'copy', '-c:a', 'aac', '-b:a', '192k', '-shortest', out]);
 
   // ── Captions: the same chunking as the on-screen captions ──

@@ -141,9 +141,8 @@ export const DOUGLASS_FILM_SCENES: FilmScene[] = [
     ],
     note: 'Nearly four million people by 1860.', source: 'U.S. Census, 1790\u20131860',
     narration: { text: 'The fight was enormous. When he escaped, about two and a half million people were enslaved in the United States. By 1860, nearly four million.' },
-    // The chart's own figures are cited on screen (U.S. Census). The ledger has no census claim; the nearest real claim is
-    // c-fourth ("the continued enslavement of millions"). Add a census claim to douglass.ts to cite the numbers directly.
-    claimIds: ['c-fourth'] },
+    // The chart's figures are the ledger's c-census claim (Census Bureau Working Paper 56, Table 1; 1840: 2,487,355, 1850: 3,204,313, 1860: 3,953,760).
+    claimIds: ['c-census', 'c-fourth'] },
   { kind: 'painting', id: 'fourth', min: 6.5, transition: 'fade', asset: 'recon-fourth', depth: .035, reconstruction: true, atmosphere: 'lamplight', grade: 'warm',
     title: 'July 5, 1852', caption: 'Reconstruction · Corinthian Hall, Rochester, 1852',
     cam: [{ t: 0, x: .5, y: .55, zoom: 1.02 }, { t: 1, x: .52, y: .4, zoom: 1.24, ease: 'inOut' }],
@@ -210,9 +209,8 @@ export const DOUGLASS_FILM_SCENES: FilmScene[] = [
     text: 'If there is no struggle there is no progress.', emphasis: ['struggle', 'progress.'],
     cite: 'West India Emancipation speech, Canandaigua, N.Y., August 3, 1857',
     narration: { text: 'If there is no struggle, there is no progress.' },
-    // The 1857 West India Emancipation speech has no claim in the ledger yet; c-fourth is the nearest real claim about his
-    // oratory. TODO(ledger): add a claim for the 1857 speech to douglass.ts and cite it here.
-    claimIds: ['c-fourth'] },
+    // The 1857 West India Emancipation speech is the ledger's c-struggle claim.
+    claimIds: ['c-struggle'] },
   { kind: 'credits', id: 'credits', min: 16, transition: 'fade', blocks: [
     { head: 'A Plajah Dossier', lines: ['Frederick Douglass', 'Written, researched and animated in code'] },
     { head: 'Sources', lines: ['Narrative of the Life of Frederick Douglass (1845)', 'My Bondage and My Freedom (1855)', 'Life and Times of Frederick Douglass (1881, rev. 1892)', 'David W. Blight, Frederick Douglass: Prophet of Freedom (2018)', 'U.S. Census Bureau, 1790\u20131860 · National Park Service'] },

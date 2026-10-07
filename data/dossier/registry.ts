@@ -86,7 +86,7 @@ export const DOSSIERS: DossierEntry[] = [
     load: () => import('./douglass').then(m => m.douglassDossier),
     telaTimeline: () => import('./douglassTimeline.tela.json').then(m => m.default),
     fabulaFilm: () => import('./douglassFabula.json').then(m => m.default),
-    film: (w, h) => import('./douglassFilm').then(m => m.loadDouglassFilm(w, h)),
+    film: (w, h) => import('./douglassFilmCouncil').then(m => m.loadDouglassCouncilFilm(w, h)),
   },
   {
     id: 'henry-ford',
@@ -114,6 +114,7 @@ export const DOSSIERS: DossierEntry[] = [
       .then(([m, s, r]) => applyReconstructions(m.persiaDossier, s.persiaScenes as any, r.default)),
     telaTimeline: () => import('./persiaTimeline.tela.json').then(m => m.default),
     fabulaFilm: () => import('./persiaFabula.json').then(m => m.default),
+    film: (w, h) => import('./persiaFilmCouncil').then(m => m.loadPersiaCouncilFilm(w, h)),
   },
   {
     id: 'partition-1947',
@@ -124,6 +125,7 @@ export const DOSSIERS: DossierEntry[] = [
     years: '1857 — Today',
     heroUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/06/Map_of_the_partition_boundaries_in_the_Punjab%2C_Research_Dept.%2C_F.O.%2C_September%2C_1948.jpg/1280px-Map_of_the_partition_boundaries_in_the_Punjab%2C_Research_Dept.%2C_F.O.%2C_September%2C_1948.jpg',
     artPending: true,
+    film: (w, h) => import('./partitionFilmCouncil').then(m => m.loadPartitionCouncilFilm(w, h)),
     load: () => Promise.all([import('./partition'), import('./partitionScenes'), import('./partitionRecon.json')])
       .then(([m, s, r]) => applyReconstructions(m.partitionDossier, s.partitionScenes as any, r.default)),
   },

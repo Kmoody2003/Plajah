@@ -1,0 +1,44 @@
+[
+  {
+    "id": "film-1845-title-page",
+    "title": "Narrative of the Life of Frederick Douglass, an American Slave. Written by Himself. Boston: Anti-Slavery Office, 1845 (title page)",
+    "date": "1845",
+    "url": "https://tile.loc.gov/image-services/iiif/service:rbc:rbc0001:2023:2023gen03386:0010/full/full/0/default.jpg",
+    "recordUrl": "https://www.loc.gov/item/14003386/",
+    "rights": {
+      "status": "public-domain",
+      "credit": "Library of Congress, Rare Book and Special Collections Division",
+      "verifiedAt": "2026-10-07"
+    },
+    "width": 1797,
+    "height": 2600
+  },
+  {
+    "id": "film-1845-frontispiece",
+    "title": "Frederick Douglass, engraved frontispiece of the Narrative (1845)",
+    "date": "1845",
+    "url": "https://tile.loc.gov/image-services/iiif/service:rbc:rbc0001:2023:2023gen03386:0009/full/full/0/default.jpg",
+    "recordUrl": "https://www.loc.gov/item/14003386/",
+    "rights": {
+      "status": "public-domain",
+      "credit": "Library of Congress, Rare Book and Special Collections Division",
+      "verifiedAt": "2026-10-07"
+    },
+    "width": 1766,
+    "height": 2600
+  },
+  {
+    "id": "film-1848-north-star",
+    "title": "The North Star, front page, 2 June 1848",
+    "date": "1848-06-02",
+    "url": "https://upload.wikimedia.org/wikipedia/commons/0/0c/The_North_Star_june_2_1848.png",
+    "recordUrl": "https://commons.wikimedia.org/wiki/File:The_North_Star_june_2_1848.png",
+    "rights": {
+      "status": "public-domain",
+      "credit": "Frederick Douglass and Martin R. Delany, eds., via Library of Congress and Wikimedia Commons",
+      "verifiedAt": "2026-10-07"
+    },
+    "width": 1763,
+    "height": 2448
+  }
+]

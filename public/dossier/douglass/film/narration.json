@@ -1,0 +1,57 @@
+{
+  "map-birth": {
+    "audio": "/dossier/douglass/film/voice/map-birth.m4a",
+    "duration": 15.7,
+    "voice": "Gacrux"
+  },
+  "shipyard": {
+    "audio": "/dossier/douglass/film/voice/shipyard.m4a",
+    "duration": 19.4,
+    "voice": "Gacrux"
+  },
+  "q-pathway": {
+    "audio": "/dossier/douglass/film/voice/q-pathway.m4a",
+    "duration": 6.4,
+    "voice": "Alnilam"
+  },
+  "covey": {
+    "audio": "/dossier/douglass/film/voice/covey.m4a",
+    "duration": 14.7,
+    "voice": "Gacrux"
+  },
+  "q-man": {
+    "audio": "/dossier/douglass/film/voice/q-man.m4a",
+    "duration": 8.4,
+    "voice": "Alnilam"
+  },
+  "escape": {
+    "audio": "/dossier/douglass/film/voice/escape.m4a",
+    "duration": 12.7,
+    "voice": "Gacrux"
+  },
+  "map-escape": {
+    "audio": "/dossier/douglass/film/voice/map-escape.m4a",
+    "duration": 15.1,
+    "voice": "Gacrux"
+  },
+  "map-newbedford": {
+    "audio": "/dossier/douglass/film/voice/map-newbedford.m4a",
+    "duration": 15.9,
+    "voice": "Gacrux"
+  },
+  "nantucket": {
+    "audio": "/dossier/douglass/film/voice/nantucket.m4a",
+    "duration": 15.4,
+    "voice": "Gacrux"
+  },
+  "narrative": {
+    "audio": "/dossier/douglass/film/voice/narrative.m4a",
+    "duration": 12.8,
+    "voice": "Gacrux"
+  },
+  "map-britain": {
+    "audio": "/dossier/douglass/film/voice/map-britain.m4a",
+    "duration": 12.6,
+    "voice": "Gacrux"
+  }
+}

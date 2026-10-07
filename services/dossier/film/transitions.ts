@@ -17,7 +17,7 @@ export interface KitEntry {
   /** Seconds into the transition when the incoming shot replaces the outgoing one. */
   swap: number;
   /** Foley the transition owns, on its impact frame (placed on the hold frame, not the first frame of the move). */
-  foley?: { at: number; kind: 'tap' | 'thunk' };
+  foley?: { at: number; kind: 'tap' | 'thunk' | 'pluck' | 'scratch' };
 }
 
 export const KIT: Record<TransitionName, KitEntry> = {
@@ -26,8 +26,10 @@ export const KIT: Record<TransitionName, KitEntry> = {
   stampSlam: { dur: 16 * F, swap: 7 * F, foley: { at: 6 * F, kind: 'tap' } },
   // Four hairlines close over 10 frames, hold 6, open over 10; old plate drops out on frame 5.
   formeLock: { dur: 26 * F, swap: 5 * F, foley: { at: 10 * F, kind: 'thunk' } },
-  roadLine: { dur: 24 * F, swap: 12 * F },
-  madderRule: { dur: 24 * F, swap: 9 * F },
+  // A single plucked string at the start of the line only.
+  roadLine: { dur: 24 * F, swap: 12 * F, foley: { at: 0, kind: 'pluck' } },
+  // Pencil scratch while the line is drawn, otherwise silence.
+  madderRule: { dur: 24 * F, swap: 9 * F, foley: { at: 1 * F, kind: 'scratch' } },
   // Bare ground 10 frames, the stamp is set first (identical thunk every time), the painting fades up over 12.
   reconGate: { dur: 22 * F, swap: 0, foley: { at: 3 * F, kind: 'thunk' } },
   silenceHold: { dur: 0, swap: 0 },
@@ -50,6 +52,10 @@ export interface TrCtx {
   /** Text set in the Stamp Slam bar. */
   label?: string;
   seed: number;
+  /** Madder Rule: x where the line is drawn (the margin hairline's own x), default the frame's centre. */
+  lineX?: number;
+  /** Road Line: the ghost script behind the seam (the stele's characters, drifting slower than the images). */
+  ghost?: { text: string; font: string; size: number };
 }
 
 /** Draws the transition frame. The caller has already cleared to the ground colour. */
@@ -126,6 +132,13 @@ function roadLine(c: TrCtx) {
   ctx.beginPath(); ctx.rect(seam, 0, DW - seam, DH); ctx.clip();
   ctx.translate(seam, 0); c.drawIn();
   ctx.restore();
+  if (c.ghost) {   // the stele's characters drift at 0.3 of the seam's speed, in the empty third only, under the line
+    ctx.save(); ctx.beginPath(); ctx.rect(1344, 0, DW - 1344, DH); ctx.clip();
+    ctx.globalAlpha = 0.10; ctx.fillStyle = theme.ink; ctx.font = `400 ${Math.round(c.ghost.size * 0.8)}px ${c.ghost.font}`;
+    const drift = (DW - seam) * 0.3 - 120;
+    Array.from(c.ghost.text).forEach((ch, i) => ctx.fillText(ch, 1420 + drift, 380 + i * 330));
+    ctx.restore();
+  }
   ctx.save(); ctx.strokeStyle = theme.accent; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(seam, 0); ctx.lineTo(seam, DH); ctx.stroke(); ctx.restore();
 }
@@ -134,7 +147,7 @@ function madderRule(c: TrCtx) {
   const { ctx, theme, local } = c;
   const f = local / F;
   // The image on the left of the line changes first; the right side follows 6 frames later.
-  const x = DW / 2;
+  const x = c.lineX ?? DW / 2;
   ctx.save(); ctx.beginPath(); ctx.rect(0, 0, x, DH); ctx.clip();
   f < 9 ? c.drawOut() : c.drawIn(); ctx.restore();
   ctx.save(); ctx.beginPath(); ctx.rect(x, 0, DW - x, DH); ctx.clip();

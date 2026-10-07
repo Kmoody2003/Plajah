@@ -1,0 +1,16 @@
+{
+  "film": "partition",
+  "timing": "estimated",
+  "note": "timing: estimated, silent",
+  "duration": 211.25199999999984,
+  "silences": [
+    {
+      "from": 39.92600000000001,
+      "to": 55.37800000000001
+    },
+    {
+      "from": 102.25333333333332,
+      "to": 124.00533333333331
+    }
+  ]
+}

@@ -4,6 +4,7 @@ import { DEPTH_LEVELS, DEPTH_LABEL, type Claim, type DepthLevel, type Dossier, t
 import { pickVariant } from '../../services/dossier/characterGateway';
 import { commonsThumb } from '../../services/dossier/sourceAdapters';
 import { DEFAULT_THEME, heroTitleVw, themeVars } from '../../services/dossier/dossierTheme';
+import DossierBoundary from './DossierBoundary';
 import { DOSSIERS, takeRequestedDossier, type DossierEntry } from '../../data/dossier/registry';
 import DossierEntrance from './DossierEntrance';
 import DossierLobby from './DossierLobby';
@@ -227,7 +228,11 @@ export default function DossierHall(props: Props) {
   if (!loaded) return <div className="dh" style={{ padding: 40, color: 'rgba(242,236,246,.6)', background: '#121014' }}>Opening exhibit…</div>;
   const hasLobby = DOSSIERS.length > 1 && !props.dossier;
   const toLobby = hasLobby ? () => setChosen(null) : props.onBack;
-  return <HallInner key={loaded.id} dossier={loaded} entry={entry ?? DOSSIERS[0]} onBack={toLobby} backLabel={hasLobby ? 'Exhibition Hall' : 'Back'} />;
+  return (
+    <DossierBoundary key={loaded.id} scope="exhibit" onBack={toLobby}>
+      <HallInner dossier={loaded} entry={entry ?? DOSSIERS[0]} onBack={toLobby} backLabel={hasLobby ? 'Exhibition Hall' : 'Back'} />
+    </DossierBoundary>
+  );
 }
 
 /** Keys a TV remote, browser or phone sends for "Back". */
@@ -471,6 +476,7 @@ function HallInner({ dossier, entry, onBack, backLabel = 'Back' }: { dossier: Do
                 <div className="dh-kind">{n.kind === 'source-reading' ? 'Primary source' : 'Story'}</div>
                 <h3 className="dh-disp">{n.title}</h3>
                 <p className={`dh-body ${depth}`}>{n.text[depth]}</p>
+                <DossierBoundary key={n.id} scope="experience">
                 {n.experience === 'model-t-exploded' && (
                   <React.Suspense fallback={<p className="dh-banner-cap">Opening the workshop…</p>}>
                     <ModelTExploded />
@@ -511,6 +517,7 @@ function HallInner({ dossier, entry, onBack, backLabel = 'Back' }: { dossier: Do
                     </React.Suspense>
                   </div>
                 )}
+                </DossierBoundary>
                 {n.assetIds.map(id => assetById.get(id)).filter((a): a is DossierAsset => !!a && a.kind === 'recreation' && a.id !== bannerAsset?.id).map(a => (
                   <figure key={a.id} className="dh-recon">
                     <span className="dh-recon-tag">Reconstruction</span>

@@ -1,0 +1,12 @@
+{
+  "film": "douglass",
+  "timing": "estimated",
+  "note": "timing: estimated, silent",
+  "duration": 217.74533333333326,
+  "silences": [
+    {
+      "from": 42.23533333333334,
+      "to": 53.412666666666674
+    }
+  ]
+}

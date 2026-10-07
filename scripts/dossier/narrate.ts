@@ -1,7 +1,7 @@
 /**
  * Voices the Dossier film narration with Gemini TTS and writes the timing file the film uses.
  *
- *   npx tsx scripts/dossier/narrate.ts [--film=douglass|ford] [--force] [--only=sceneId,sceneId]
+ *   npx tsx scripts/dossier/narrate.ts [--film=douglass|ford|douglass-council|persia|partition] [--force] [--only=sceneId,sceneId]
  *
  * Output: public/dossier/douglass/film/voice/<sceneId>.m4a + public/dossier/douglass/film/narration.json
  *         (--film=ford, council style: public/dossier/ford/film/council/voice/<beatId>.m4a + narration.json keyed by beat id;
@@ -16,11 +16,20 @@ import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { DOUGLASS_FILM_SCENES } from '../../data/dossier/douglassFilm';
 import { FORD_COUNCIL_SHOTS } from '../../data/dossier/fordFilmCouncil';
+import { DOUGLASS_COUNCIL_SHOTS } from '../../data/dossier/douglassFilmCouncil';
+import { PERSIA_COUNCIL_SHOTS } from '../../data/dossier/persiaFilmCouncil';
+import { PARTITION_COUNCIL_SHOTS } from '../../data/dossier/partitionFilmCouncil';
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1')), '..', '..');
 const FILM = process.argv.find(a => a.startsWith('--film='))?.slice(7) ?? 'douglass';
-const OUT = FILM === 'ford' ? path.join(ROOT, 'public', 'dossier', 'ford', 'film', 'council') : path.join(ROOT, 'public', 'dossier', 'douglass', 'film');
-const PUBLIC_VOICE = FILM === 'ford' ? '/dossier/ford/film/council/voice' : '/dossier/douglass/film/voice';
+/** Council-style films (one voiced line per beat): ford, douglass-council, persia, partition. `--film=douglass` is the earlier scene-keyed film; `--film=douglass-council` voices the council film. */
+const COUNCIL_SHOTS: Record<string, { slug: string; shots: Array<{ beats?: Array<{ id: string; text: string }> }> }> = {
+  ford: { slug: 'ford', shots: FORD_COUNCIL_SHOTS }, 'douglass-council': { slug: 'douglass', shots: DOUGLASS_COUNCIL_SHOTS },
+  persia: { slug: 'persia', shots: PERSIA_COUNCIL_SHOTS }, partition: { slug: 'partition', shots: PARTITION_COUNCIL_SHOTS },
+};
+const COUNCIL = COUNCIL_SHOTS[FILM];
+const OUT = COUNCIL ? path.join(ROOT, 'public', 'dossier', COUNCIL.slug, 'film', 'council') : path.join(ROOT, 'public', 'dossier', 'douglass', 'film');
+const PUBLIC_VOICE = COUNCIL ? `/dossier/${COUNCIL.slug}/film/council/voice` : '/dossier/douglass/film/voice';
 const VOICE_DIR = path.join(OUT, 'voice');
 const FFDIR = process.env.FFMPEG_DIR || 'C:\\Users\\Kenne\\tools\\ffmpeg\\ffmpeg-9.0.2-essentials_build\\bin';
 const FFMPEG = path.join(FFDIR, 'ffmpeg.exe'), FFPROBE = path.join(FFDIR, 'ffprobe.exe');
@@ -98,8 +107,8 @@ const timingPath = path.join(OUT, 'narration.json');
 const timings: Record<string, { audio: string; duration: number; voice: string }> = fs.existsSync(timingPath) ? JSON.parse(fs.readFileSync(timingPath, 'utf8')) : {};
 
 type Item = { id: string; text: string; who: typeof NARRATOR };
-const items: Item[] = FILM === 'ford'
-  ? FORD_COUNCIL_SHOTS.flatMap(s => (s.beats ?? []).map(b => ({ id: b.id, text: b.text, who: FORD_NARRATOR })))
+const items: Item[] = COUNCIL
+  ? COUNCIL.shots.flatMap(s => (s.beats ?? []).map(b => ({ id: b.id, text: b.text, who: FORD_NARRATOR })))
   : DOUGLASS_FILM_SCENES.filter(s => s.narration).map(s => ({ id: s.id, text: s.narration!.text, who: s.kind === 'quote' && s.narration!.text === s.text ? ORATOR : NARRATOR }));
 
 for (const it of items) {
@@ -116,7 +125,7 @@ for (const it of items) {
   // narration is sped up with atempo (pitch preserved) when the raw read is slower than 135 wpm, capped at 1.3x.
   const raw = duration(tmp);
   const wpm = words / (raw / 60);
-  const tempo = FILM === 'ford' && wpm < 135 ? Math.min(1.3, 144 / wpm) : 1;
+  const tempo = COUNCIL && wpm < 135 ? Math.min(1.3, 144 / wpm) : 1;
   execFileSync(FFMPEG, ['-y', '-v', 'error', '-i', tmp, '-af',
     `${tempo > 1 ? `atempo=${tempo.toFixed(3)},` : ''}silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.05,areverse,silenceremove=start_periods=1:start_threshold=-50dB:start_silence=0.1,areverse,loudnorm=I=-18:TP=-2:LRA=9`,
     '-ar', '48000', '-c:a', 'aac', '-b:a', '160k', m4a]);

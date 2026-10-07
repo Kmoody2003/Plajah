@@ -109,7 +109,7 @@ export class FilmRenderer {
     jobs.push((async () => {
       try {
         await fontSheet();
-        if (this.council) await Promise.all(this.council.painter.fontLoads.map(f => document.fonts.load(f)));
+        if (this.council) await Promise.all(this.council.painter.fontLoads.map(([f, text]) => document.fonts.load(f, text)));
         else await Promise.all([
           document.fonts.load(`italic 40px 'IM Fell English'`), document.fonts.load(`40px 'IM Fell English'`),
           document.fonts.load(`900 40px 'Playfair Display'`), document.fonts.load(`italic 400 40px 'Playfair Display'`),

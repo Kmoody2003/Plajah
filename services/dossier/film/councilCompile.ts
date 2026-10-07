@@ -10,7 +10,7 @@ import type {
 } from './councilTypes';
 import { DH, DW, GEO, intersects } from './councilTypes';
 import { buildCues, estimateWords, markAccents, MAX_CAPTION_CHARS } from './captions';
-import { CouncilGateError, labelGate } from './provenance';
+import { CouncilGateError, labelGate, nonLatinGate } from './provenance';
 import { GATE, KIT } from './transitions';
 import { animatedPaintingIssues, layoutPainting, paintingFoley, resolveCam } from './animatedPainting';
 
@@ -63,7 +63,7 @@ export function layoutPlates(plates: PlateSpec[]): { laid: LaidPlate[]; slateBox
 const wordIndex = (words: Array<{ text: string }>, anchor: string) => words.findIndex(w => strip(w.text).toLowerCase() === anchor.toLowerCase());
 
 export function compileCouncil(film: CouncilFilm): CouncilTimeline {
-  const issues: string[] = [...labelGate(film), ...animatedPaintingIssues(film)];
+  const issues: string[] = [...labelGate(film), ...nonLatinGate(film), ...animatedPaintingIssues(film)];
   const warnings: string[] = [];
   const shots: TShot[] = [];
   const cues: CouncilTimeline['cues'] = [];
@@ -74,9 +74,16 @@ export function compileCouncil(film: CouncilFilm): CouncilTimeline {
   const titleLaid = layoutPlates([film.titlePlate]);
   shots.push({
     spec: { id: 'title', room: -1, plates: [film.titlePlate] }, index: 0, start: 0, end: TITLE_LEN, kind: 'title', transition: 'breath', trDur: 0,
-    voiceAt: TITLE_LEN, beats: [], plates: titleLaid.laid, slateBox: titleLaid.slateBox, anchors: {}, room: -1,
+    voiceAt: TITLE_LEN, beats: [], plates: titleLaid.laid, slateBox: titleLaid.slateBox, anchors: {}, room: -1, marks: [],
   });
-  foley.push({ at: 2.2, kind: 'tap' }, { at: 2.2 + 8 / FPS, kind: 'tap' });
+  // Title foley by the exhibit's gesture: two dry taps (Ford), type clicking into the stick (Douglass), one plucked string (Persia), pencil on paper (Partition).
+  const gesture = film.theme.titleGesture;
+  if (gesture === 'composing') {
+    const n = film.title.replace(/\s/g, '').length;
+    for (let i = 0; i < n; i++) foley.push({ at: 2.2 + i * (18 / FPS) / n, kind: 'click' });
+  } else if (gesture === 'road') foley.push({ at: 2.2, kind: 'pluck' });
+  else if (gesture === 'line') foley.push({ at: 2.2, kind: 'scratch' });
+  else foley.push({ at: 2.2, kind: 'tap' }, { at: 2.2 + 8 / FPS, kind: 'tap' });
 
   let t = TITLE_LEN;
   film.shots.forEach((spec, k) => {
@@ -86,11 +93,14 @@ export function compileCouncil(film: CouncilFilm): CouncilTimeline {
     const start = t;
     if (spec.kind === 'card') {
       const end = start + Math.max(CARD_LEN, spec.minHold ?? 0);   // a card may be held longer than 45 frames to be read
-      shots.push({ spec, index, start, end, kind: 'card', transition: tr, trDur: 0, voiceAt: start, beats: [], plates: [], anchors: {}, room: spec.room });
+      shots.push({ spec, index, start, end, kind: 'card', transition: tr, trDur: 0, voiceAt: start, beats: [], plates: [], anchors: {}, room: spec.room, marks: [] });
       t = end; return;
     }
     const anim = spec.kind === 'animatedPainting' && spec.painting ? spec.painting : undefined;
-    const plates = anim ? { laid: [] as LaidPlate[], slateBox: undefined } : layoutPlates(spec.plates ?? []);
+    const isGraphic = spec.kind === 'graphic';
+    const plates = anim ? { laid: [] as LaidPlate[], slateBox: undefined }
+      : isGraphic ? { laid: [] as LaidPlate[], slateBox: { x: GEO.field.x, y: GEO.field.y + GEO.field.h + 16, w: GEO.field.w, h: GEO.slateH } as Box }
+      : layoutPlates(spec.plates ?? []);
     // Beats: clock the narration. First beat starts after padIn; later beats follow after a gap.
     const timed = (spec.beats ?? []).map(b => ({ b, ...estimateWords(b.text, b.duration) }));
     let padIn = DEFAULT_PAD_IN;
@@ -125,7 +135,25 @@ export function compileCouncil(film: CouncilFilm): CouncilTimeline {
       anchors[key] = allWords[i].a;
     };
     const g = spec.graphic;
-    if (g?.kind === 'dateStack') g.items.forEach(it => findAnchor(it.anchor)); else if (g) { findAnchor(g.anchor); if (g.kind === 'wage') findAnchor(g.anchor2); }
+    if (g?.kind === 'dateStack' || g?.kind === 'handbill') g.items.forEach(it => findAnchor(it.anchor));
+    else if (g?.kind === 'route') g.anchors.forEach(findAnchor);
+    else if (g?.kind === 'roadMap') g.stops.forEach(st => findAnchor(st.anchor));
+    else if (g) { findAnchor(g.anchor); if (g.kind === 'wage') findAnchor(g.anchor2); }
+    if (g?.kind === 'handbill') { const last = Math.max(...g.items.map(it => anchors[it.anchor] ?? 0)); end = Math.max(end, last + 2.2); }
+    if (g?.kind === 'pullQuote' && anchors[g.anchor] !== undefined) end = Math.max(end, anchors[g.anchor] + 2.6);
+    if (g?.kind === 'roadMap') { const last = Math.max(...g.stops.map(st => anchors[st.anchor] ?? 0)); end = Math.max(end, last + 2.6); }
+    if (g?.kind === 'isoLine' && anchors[g.anchor] !== undefined) end = Math.max(end, anchors[g.anchor] + 6.6);   // the line is drawn over about 6 s as the narrator reads
+    if (g?.kind === 'rangeBar' && anchors[g.anchor] !== undefined) end = Math.max(end, anchors[g.anchor] + 3.8);
+    if (g?.kind === 'steleScript' && anchors[g.anchor] !== undefined) end = Math.max(end, anchors[g.anchor] + 2.6);
+    if (g?.kind === 'route') { const last = Math.max(...g.anchors.map(a => anchors[a] ?? 0)); end = Math.max(end, last + 2.2); }
+    const marks: TShot['marks'] = [];
+    for (const m of spec.marks ?? []) {
+      const i = wordIndex(allWords, m.anchor);
+      if (i < 0) { issues.push(`${spec.id}: mark anchor "${m.anchor}" is not a spoken word`); continue; }
+      const at = allWords[i].a;
+      marks.push({ mark: m, at });
+      end = Math.max(end, at + (m.kind === 'underline' ? 14 / FPS + 1.4 : (m.dur ?? 1.4) + 1.6));
+    }
     if (g?.kind === 'counter' && anchors[g.anchor] !== undefined) end = Math.max(end, anchors[g.anchor] + 2.6);
     if (g?.kind === 'clock' && anchors[g.anchor] !== undefined) end = Math.max(end, anchors[g.anchor] + 2.4);   // 93 held 2 s
     if (g?.kind === 'clock' && anchors[g.anchor] !== undefined) {
@@ -149,7 +177,7 @@ export function compileCouncil(film: CouncilFilm): CouncilTimeline {
       foley.push(...pf.events);
       if (pf.wind) ambience.push({ ...pf.wind, kind: 'wind' });
     }
-    const shot: TShot = { spec, index, start, end, kind: anim ? 'animated' : 'plates', transition: tr, trDur: kit.dur, voiceAt, beats, plates: plates.laid, slateBox: anim ? laidAnim!.slateBox : plates.slateBox, lowerThird, anchors, room: spec.room, anim: laidAnim };
+    const shot: TShot = { spec, index, start, end, kind: anim ? 'animated' : isGraphic ? 'graphic' : 'plates', transition: tr, trDur: kit.dur, voiceAt, beats, plates: plates.laid, slateBox: anim ? laidAnim!.slateBox : plates.slateBox, lowerThird, anchors, room: spec.room, anim: laidAnim, marks };
     shots.push(shot);
     beats.forEach(b => cues.push(...buildCues(index, b.words, FPS)));
     t = end;
@@ -158,7 +186,7 @@ export function compileCouncil(film: CouncilFilm): CouncilTimeline {
   // End card.
   const endStart = t;
   const endLen = film.endLen ?? END_LEN;
-  shots.push({ spec: { id: 'end', room: -1 }, index: shots.length, start: endStart, end: endStart + endLen, kind: 'end', transition: 'groundDip', trDur: KIT.groundDip.dur, voiceAt: endStart, beats: [], plates: [], anchors: {}, room: -1 });
+  shots.push({ spec: { id: 'end', room: -1 }, index: shots.length, start: endStart, end: endStart + endLen, kind: 'end', transition: 'groundDip', trDur: KIT.groundDip.dur, voiceAt: endStart, beats: [], plates: [], anchors: {}, room: -1, marks: [] });
   const duration = endStart + endLen;
 
   // Rooms.
@@ -177,8 +205,11 @@ export function compileCouncil(film: CouncilFilm): CouncilTimeline {
   for (const s of shots) {
     if (s.kind !== 'card' || s.transition !== 'silenceHold') continue;
     const room = rooms[s.room];
-    skips.push({ from: s.start, to: room.end, label: 'Skip this section' });
-    silences.push({ from: Math.max(0, s.start - 30 / FPS), to: room.end });
+    const until = s.spec.holdUntil ? shots.find(x => x.spec.id === s.spec.holdUntil) : undefined;
+    if (s.spec.holdUntil && !until) issues.push(`${s.spec.id}: holdUntil "${s.spec.holdUntil}" is not a shot`);
+    const to = until ? until.end : room.end;
+    skips.push({ from: s.start, to, label: 'Skip this section' });
+    silences.push({ from: Math.max(0, s.start - 30 / FPS), to });
   }
 
   // ── Gates that need timing ──
@@ -188,6 +219,11 @@ export function compileCouncil(film: CouncilFilm): CouncilTimeline {
       const { win, slateBox } = s.anim;
       if (intersects(win, cap) || intersects(slateBox, cap)) issues.push(`${s.spec.id}: the painting or its slate overlaps the caption band`);
       if (win.x < 0 || win.y < 0 || win.x + win.w > DW || win.y + win.h > DH) issues.push(`${s.spec.id}: the painting leaves the frame`);
+      for (const b of s.beats) if (!b.claimIds.length) issues.push(`${s.spec.id}/${b.id}: factual narration cites no claim`);
+    }
+    if (s.kind === 'graphic') {
+      if (s.slateBox && intersects(s.slateBox, cap)) issues.push(`${s.spec.id}: provenance slate overlaps the caption band`);
+      if (!s.spec.groupSlate) issues.push(`${s.spec.id}: a graphic shot needs its source slate (groupSlate)`);
       for (const b of s.beats) if (!b.claimIds.length) issues.push(`${s.spec.id}/${b.id}: factual narration cites no claim`);
     }
     if (s.kind === 'plates') {

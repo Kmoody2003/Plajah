@@ -68,10 +68,39 @@ export function labelGate(film: CouncilFilm): string[] {
     }
     if (tr === 'silenceHold' && s.kind !== 'card') issues.push(`${s.id}: Silence Hold must be a content card`);
     if (s.kind === 'card' && !s.card?.lines.length) issues.push(`${s.id}: card has no text`);
-    if (s.kind !== 'card' && s.kind !== 'animatedPainting' && !(s.plates?.length)) issues.push(`${s.id}: shot has no plate`);
+    if (s.kind !== 'card' && s.kind !== 'animatedPainting' && s.kind !== 'graphic' && !(s.plates?.length)) issues.push(`${s.id}: shot has no plate`);
+    if (s.kind === 'graphic' && !s.graphic) issues.push(`${s.id}: graphic shot has no graphic`);
+    for (const p of s.plates ?? []) if (p.treatment && !/isolat/i.test(p.slate.title ?? '')) issues.push(`${s.id}: a colour-isolated plate must say so in its slate title`);
     if (tr === 'stampSlam' && !s.stamp) issues.push(`${s.id}: Stamp Slam needs the spoken year or number it lands on`);
   });
   if (fullBleed > 1) issues.push(`${fullBleed} full-bleed reconstructions; the owner allows exactly one per film`);
   if (!slateComplete(film.titlePlate)) issues.push('title plate lacks its slate');
+  return issues;
+}
+
+
+/** Runs of non-Latin script (Syriac, Arabic/Urdu, Devanagari, Gurmukhi and the other Indic scripts, CJK, Hangul). */
+const NON_LATIN = /[\u0590-\u08FF\u0900-\u0DFF\u2E80-\u9FFF\uA000-\uFDFF\uFE70-\uFEFF]+/g;
+
+const collectStrings = (v: unknown, out: string[], skip: Set<string>) => {
+  if (typeof v === 'string') out.push(v);
+  else if (Array.isArray(v)) v.forEach(x => collectStrings(x, out, skip));
+  else if (v && typeof v === 'object') for (const [k, x] of Object.entries(v as Record<string, unknown>)) if (!skip.has(k)) collectStrings(x, out, skip);
+};
+
+/**
+ * Non-Latin gate: the film may set only the non-Latin strings the exhibit's own data or theme carries (film.allowedScripts, each
+ * naming its source file). Anything else, in any caption, card, slate or end-card string, refuses to compile: a wrong
+ * Urdu, Devanagari, Gurmukhi, Syriac or Chinese string shipped unproofed is worse than none.
+ */
+export function nonLatinGate(film: CouncilFilm): string[] {
+  const allowed = (film.allowedScripts ?? []).map(a => a.text);
+  const strings: string[] = [];
+  collectStrings(film, strings, new Set(['allowedScripts', 'titleScripts', 'theme']));
+  const issues: string[] = [];
+  for (const t of strings) for (const run of t.match(NON_LATIN) ?? []) {
+    if (!allowed.some(a => a.includes(run))) issues.push(`non-Latin gate: "${run}" is not one of the exhibit's own strings (film.allowedScripts)`);
+  }
+  for (const a of film.titleScripts ?? []) if (!allowed.includes(a.text)) issues.push(`non-Latin gate: title string "${a.text}" is not in allowedScripts`);
   return issues;
 }
