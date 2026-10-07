@@ -119,6 +119,8 @@ export interface ExhibitNode {
   /** Fabula project id / Tela doc id once produced. */
   fabulaProjectId?: string;
   telaDocId?: string;
+  /** Optional interactive experience rendered inside the node card (lazy-loaded). */
+  experience?: 'model-t-exploded';
 }
 
 export interface Room {
@@ -148,6 +150,8 @@ export interface Dossier {
   assets: DossierAsset[];
   characters: CharacterBible[];
   entrance?: DossierEntrance;
+  /** Optional named groups of rooms, shown as headings in the hall's plan strip. Rooms not listed sit after the last wing. */
+  wings?: Array<{ id: string; title: string; roomIds: readonly string[] }>;
 }
 
 // ── Validation ────────────────────────────────────────────────────────────

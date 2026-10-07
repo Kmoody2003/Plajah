@@ -533,5 +533,77 @@
     "model": "eleven_v3 voice Willa Ashford",
     "via": "magnific-mcp",
     "credits": 50
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-piquette-third-floor",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 1
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-model-t-street",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-rouge-1927",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-ford-trimotor-1927",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-greenfield-1929",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-v8-test-cell-1932",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-eagle-boat-hall-1918",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-jeep-line-1942",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-willow-village-1943",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T03:07:40.000Z",
+    "scene": "recon-fair-lane-1947",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
   }
 ]

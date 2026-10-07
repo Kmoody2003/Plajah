@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { validateDossier, DEPTH_LEVELS } from '../services/dossier/dossierTypes';
 import { buildImageRequest } from '../services/dossier/characterGateway';
 import { placeMilestones, W as TL_W, CARD_W } from '../services/dossier/timelineDoc';
-import { fordDossier } from '../data/dossier/ford';
+import { fordDossier, fordWings } from '../data/dossier/ford';
 import { fordScenes } from '../data/dossier/fordScenes';
 import { fordMilestones, fordPortraits } from '../data/dossier/fordTimeline';
 
@@ -15,8 +15,8 @@ test('Ford dossier passes every publishing rule', () => {
 });
 
 test('Ford: size and structure targets are met', () => {
-  assert.ok(fordDossier.ledger.claims.length >= 45, 'at least 45 claims');
-  assert.ok(fordDossier.rooms.length >= 6 && fordDossier.rooms.length <= 7, '6-7 rooms');
+  assert.ok(fordDossier.ledger.claims.length >= 100, 'at least 100 claims');
+  assert.ok(fordDossier.rooms.length === 8, 'eight rooms: five Motor City, War Effort, Beliefs and Morals, Legacy');
   for (const r of fordDossier.rooms) assert.ok(r.nodes.length >= 1, r.id);
   for (const r of fordDossier.rooms) for (const n of r.nodes) {
     assert.ok(n.claimIds.length >= 2, `${n.id} cites at least two claims`);
@@ -42,7 +42,7 @@ test('Ford: every node has five depths, different texts, and listed assets resol
     assert.equal(new Set(texts).size, 5, `${n.id} depths must differ`);
     assert.ok(n.text.early.length < n.text.university.length, `${n.id} grows in depth`);
     for (const a of n.assetIds) assert.ok(assetIds.has(a), `${n.id} -> ${a}`);
-    if (n.id !== 'n-r5-mylife') assert.ok(n.assetIds.length >= 1, `${n.id} lists assets`);
+    if (n.id !== 'n-r7-mylife') assert.ok(n.assetIds.length >= 1, `${n.id} lists assets`);
   }
 });
 
@@ -73,7 +73,7 @@ test('Ford: ages below the earliest photograph never produce a visible face', ()
 });
 
 test('Ford: reconstruction scenes are valid, period-safe, and obey the likeness rules', () => {
-  assert.ok(fordScenes.length >= 6 && fordScenes.length <= 8);
+  assert.ok(fordScenes.length >= 16 && fordScenes.length <= 20);
   const claimIds = new Set(fordDossier.ledger.claims.map(c => c.id));
   const roomIds = new Set(fordDossier.rooms.map(r => r.id));
   const earliest = Math.min(...fordDossier.characters[0].variants.map(v => v.ageRange[0]));
@@ -86,6 +86,30 @@ test('Ford: reconstruction scenes are valid, period-safe, and obey the likeness 
     assert.ok(!/(swastika|violence|blood)/i.test(s.spec.action + s.spec.setting), s.id);
   }
   assert.equal(new Set(fordScenes.map(s => s.id)).size, fordScenes.length);
+});
+
+test('Ford: the hall is organised in wings and the Dearborn Independent sits in Beliefs and Morals, not in the headline', () => {
+  const room = (id: string) => fordDossier.rooms.find(r => r.id === id)!;
+  const hasClaim = (id: string, c: string) => room(id).nodes.some(n => n.claimIds.includes(c));
+  assert.ok(hasClaim('r7', 'c-series') && hasClaim('r7', 'c-retraction') && hasClaim('r7', 'c-eagle'));
+  assert.ok(hasClaim('r6', 'c-willow') && hasClaim('r6', 'c-ww1-ford') && hasClaim('r2', 'c-piquette-plant'));
+  for (const r of ['r1', 'r2', 'r3', 'r4', 'r5', 'r6', 'r8']) assert.ok(!hasClaim(r, 'c-series'), `${r} must not carry the series`);
+  assert.ok(!/hatred|antisemit|Jew/i.test(fordDossier.entrance!.tagline), 'entrance tagline leads with the cars and Detroit');
+  assert.ok(/Detroit/.test(fordDossier.entrance!.tagline));
+  const titles = fordDossier.rooms.map(r => r.title).join('|');
+  assert.ok(/Beliefs and Morals/.test(titles) && /War Effort/.test(titles));
+  const ids = new Set(fordDossier.rooms.map(r => r.id));
+  for (const w of fordWings) for (const id of w.roomIds) assert.ok(ids.has(id));
+  // every existing scene id from the first build is still present (fordRecon.json depends on them)
+  for (const id of ['recon-ford-road-engine', 'recon-ford-watch-table', 'recon-ford-quadricycle', 'recon-ford-highland-line', 'recon-fiveday-gate', 'recon-ford-peaceship', 'recon-independent-press', 'recon-willow-run'])
+    assert.ok(fordScenes.some(s => s.id === id), id);
+});
+
+test('Ford: printed pages shown as evidence are real documents with clearly sourced claims', () => {
+  for (const id of ['doc-1920-international-jew-titlepage', 'doc-1921-dearborn-independent-cover', 'doc-1927-dearborn-independent-cover']) {
+    const a = fordDossier.assets.find(x => x.id === id)!;
+    assert.ok(a && a.kind === 'document' && a.rights.status === 'public-domain', id);
+  }
 });
 
 test('Ford timeline: placement succeeds, no overlaps, stays inside the frame', () => {

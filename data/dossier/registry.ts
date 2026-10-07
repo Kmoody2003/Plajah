@@ -17,6 +17,8 @@ export interface DossierEntry {
   /** Optional deliverables the hall can hand off. */
   telaTimeline?: () => Promise<any>;
   fabulaFilm?: () => Promise<any>;
+  /** True while the planned reconstruction paintings (and the film) have not been produced yet. */
+  artPending?: boolean;
 }
 
 export const DOSSIERS: DossierEntry[] = [
@@ -54,6 +56,17 @@ export const DOSSIERS: DossierEntry[] = [
       .then(([m, s, r]) => applyReconstructions(m.persiaDossier, s.persiaScenes as any, r.default)),
     telaTimeline: () => import('./persiaTimeline.tela.json').then(m => m.default),
     fabulaFilm: () => import('./persiaFabula.json').then(m => m.default),
+  },
+  {
+    id: 'partition-1947',
+    title: 'The Partition of India, 1947',
+    kind: 'topic',
+    tagline: 'A line drawn in five weeks, and the lives it divided.',
+    years: '1857 — Today',
+    heroUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/0/06/Map_of_the_partition_boundaries_in_the_Punjab%2C_Research_Dept.%2C_F.O.%2C_September%2C_1948.jpg/1280px-Map_of_the_partition_boundaries_in_the_Punjab%2C_Research_Dept.%2C_F.O.%2C_September%2C_1948.jpg',
+    artPending: true,
+    load: () => Promise.all([import('./partition'), import('./partitionScenes'), import('./partitionRecon.json')])
+      .then(([m, s, r]) => applyReconstructions(m.partitionDossier, s.partitionScenes as any, r.default)),
   },
 ];
 

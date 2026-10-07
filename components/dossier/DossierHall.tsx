@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, BookOpen, ShieldCheck, AlertTriangle, ScrollText } from 'lucide-react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, ArrowRight, BookOpen, ShieldCheck, AlertTriangle, ScrollText, MoreHorizontal } from 'lucide-react';
 import { DEPTH_LEVELS, DEPTH_LABEL, type Claim, type DepthLevel, type Dossier, type DossierAsset } from '../../services/dossier/dossierTypes';
 import { pickVariant } from '../../services/dossier/characterGateway';
 import { commonsThumb } from '../../services/dossier/sourceAdapters';
@@ -8,6 +8,7 @@ import DossierEntrance from './DossierEntrance';
 import DossierLobby from './DossierLobby';
 
 const DossierFilmPlayer = React.lazy(() => import('./DossierFilmPlayer'));
+const ModelTExploded = React.lazy(() => import('./ModelTExploded'));
 const loadDouglassFilm = (w: number, h: number) => import('../../data/dossier/douglassFilm').then(m => m.loadDouglassFilm(w, h));
 
 interface Props {
@@ -65,12 +66,28 @@ const CSS = `
 .dh *{box-sizing:border-box}
 .dh-serif{font-family:'Fraunces',Georgia,'Times New Roman',serif}
 .dh-top{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--dh-line);position:sticky;top:0;z-index:5;background:rgba(13,11,16,.92);backdrop-filter:blur(10px)}
+.dh-crumbs{font-size:13px;color:var(--dh-mute);white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.dh-crumbs b{font-size:18px;color:var(--dh-ink);font-weight:500}
+.dh-tools{position:relative}
+.dh-tools summary{list-style:none;display:inline-flex;align-items:center;gap:6px;cursor:pointer;color:var(--dh-mute);font-size:12px;padding:6px 10px;border:1px solid var(--dh-line);border-radius:999px}
+.dh-tools summary::-webkit-details-marker{display:none}
+.dh-tools[open] summary,.dh-tools summary:hover{color:var(--dh-ink);border-color:rgba(255,255,255,.35)}
+.dh-tools-menu{position:absolute;right:0;top:calc(100% + 8px);z-index:20;min-width:230px;display:grid;gap:2px;padding:6px;background:#17131d;border:1px solid var(--dh-line);border-radius:12px;box-shadow:0 18px 50px rgba(0,0,0,.6)}
+.dh-tools-menu button{text-align:left;background:none;border:0;color:var(--dh-ink);font-size:13px;padding:9px 12px;border-radius:8px;cursor:pointer}
+.dh-tools-menu button:hover,.dh-tools-menu button:focus-visible{background:rgba(255,255,255,.08);outline:none}
+.dh-pager{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:34px 0 0}
+.dh-pager button{display:flex;align-items:center;gap:12px;width:100%;text-align:left;background:var(--dh-panel);border:1px solid var(--dh-line);border-radius:12px;padding:16px 18px;color:var(--dh-ink);cursor:pointer;font-family:'Fraunces',Georgia,serif;font-size:16px;line-height:1.3;transition:border-color .25s,transform .25s}
+.dh-pager button:hover,.dh-pager button:focus-visible{border-color:rgba(240,201,135,.6);transform:translateY(-2px);outline:none}
+.dh-pager button.next{justify-content:space-between;text-align:right}
+.dh-pager small{display:block;font-family:'Inter',system-ui,sans-serif;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dh-mute);margin-bottom:3px}
 .dh-back{display:inline-flex;align-items:center;gap:6px;color:var(--dh-mute);background:none;border:0;cursor:pointer;font-size:13px}
 .dh-back:hover{color:var(--dh-ink)}
 .dh-lens{margin-left:auto;display:flex;gap:4px;padding:3px;border:1px solid var(--dh-line);border-radius:999px;background:rgba(255,255,255,.04)}
 .dh-lens button{border:0;background:none;color:var(--dh-mute);font-size:12px;padding:6px 11px;border-radius:999px;cursor:pointer;white-space:nowrap}
 .dh-lens button[aria-pressed=true]{background:var(--pj-grad-brand,linear-gradient(135deg,#6B0099,#D40055));color:#fff}
 .dh-wrap{display:grid;grid-template-columns:260px minmax(0,1fr);gap:0;max-width:1240px;margin:0 auto}
+.dh-wing{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--dh-mute);margin:18px 0 6px 4px;white-space:nowrap}
+.dh-wing:first-child{margin-top:0}
 .dh-rail{padding:24px 16px 24px 20px;border-right:1px solid var(--dh-line);position:sticky;top:57px;align-self:start;height:calc(100vh - 57px);overflow:auto}
 .dh-room{display:block;width:100%;text-align:left;background:none;border:0;border-left:2px solid var(--dh-line);color:var(--dh-mute);padding:10px 12px;cursor:pointer;margin-left:6px}
 .dh-room small{display:block;font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.7}
@@ -151,6 +168,9 @@ const CSS = `
  .dh-banner-text{max-width:92%}
  .dh-lens{margin-left:0;overflow-x:auto;max-width:100%}
  .dh-top{flex-wrap:wrap}
+ .dh-crumbs{flex:1 1 0}
+ .dh-crumbs b{font-size:16px}
+ .dh-pager{grid-template-columns:1fr}
 }
 @media(prefers-reduced-motion:reduce){.dh-banner-img{animation:none}.dh-reveal{display:none}}
 @media(prefers-reduced-motion:no-preference){.dh-node{animation:dhIn .35s ease both}@keyframes dhIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}}
@@ -173,11 +193,13 @@ export default function DossierHall(props: Props) {
   }, [entry, props.dossier]);
   if (!entry && !props.dossier) return <DossierLobby onChoose={setChosen} onBack={props.onBack} />;
   if (!loaded) return <div className="dh" style={{ padding: 40, color: 'rgba(242,236,246,.6)' }}>Opening exhibit…</div>;
-  const toLobby = DOSSIERS.length > 1 && !props.dossier ? () => setChosen(null) : props.onBack;
-  return <HallInner key={loaded.id} dossier={loaded} entry={entry ?? DOSSIERS[0]} onBack={toLobby} />;
+  const hasLobby = DOSSIERS.length > 1 && !props.dossier;
+  const toLobby = hasLobby ? () => setChosen(null) : props.onBack;
+  return <HallInner key={loaded.id} dossier={loaded} entry={entry ?? DOSSIERS[0]} onBack={toLobby} backLabel={hasLobby ? 'Exhibition Hall' : 'Back'} />;
 }
 
-function HallInner({ dossier, entry, onBack }: { dossier: Dossier; entry: DossierEntry; onBack?: () => void }) {
+function HallInner({ dossier, entry, onBack, backLabel = 'Back' }: { dossier: Dossier; entry: DossierEntry; onBack?: () => void; backLabel?: string }) {
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const [depth, setDepth] = useState<DepthLevel>(readDepth);
   const [roomId, setRoomId] = useState(dossier.rooms[0].id);
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -192,6 +214,10 @@ function HallInner({ dossier, entry, onBack }: { dossier: Dossier; entry: Dossie
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   }, [zoom]);
+  const goRoom = (id: string) => {
+    setRoomId(id);
+    window.requestAnimationFrame(() => rootRef.current?.scrollIntoView({ block: 'start' }));
+  };
   const finishIntro = () => { setIntro(false); setReveal(true); window.setTimeout(() => setReveal(false), 1400); };
 
   useEffect(() => {
@@ -211,6 +237,24 @@ function HallInner({ dossier, entry, onBack }: { dossier: Dossier; entry: Dossie
     : [0, 0];
 
   const roomNumber = dossier.rooms.findIndex(r => r.id === room.id) + 1;
+  const prevRoom = dossier.rooms[roomNumber - 2];
+  const nextRoom = dossier.rooms[roomNumber];
+  // Keep the active room visible in the rail (a sideways strip on phones).
+  useEffect(() => {
+    rootRef.current?.querySelector('.dh-room[aria-current="true"]')?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }, [room.id]);
+  // Arrow keys move between rooms (not while typing, in the opening, or with the viewer open).
+  useEffect(() => {
+    const k = (e: KeyboardEvent) => {
+      if (intro || zoom || e.altKey || e.ctrlKey || e.metaKey) return;
+      const t = e.target as HTMLElement | null;
+      if (t && /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) return;
+      if (e.key === 'ArrowRight' && nextRoom) goRoom(nextRoom.id);
+      if (e.key === 'ArrowLeft' && prevRoom) goRoom(prevRoom.id);
+    };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [intro, zoom, nextRoom?.id, prevRoom?.id]);
   // Age of the person in the middle of this room's years (null for topic dossiers or undated rooms).
   const roomAge = useMemo(() => {
     const m = room.years?.match(/(\d{4})\D+(\d{4})/);
@@ -235,7 +279,7 @@ function HallInner({ dossier, entry, onBack }: { dossier: Dossier; entry: Dossie
   }, [room, portrait, assetById, depth]);
 
   return (
-    <div className="dh">
+    <div className="dh" ref={rootRef}>
       <style>{CSS}</style>
       {intro && <DossierEntrance dossier={dossier} onEnter={finishIntro} />}
       {film && (
@@ -258,28 +302,42 @@ function HallInner({ dossier, entry, onBack }: { dossier: Dossier; entry: Dossie
       )}
       <header className="dh-top">
         {onBack && (
-          <button className="dh-back" onClick={onBack} aria-label="Back"><ArrowLeft size={16} /> Back</button>
+          <button className="dh-back" onClick={onBack} aria-label={backLabel === 'Back' ? 'Back' : `Back to ${backLabel}`}><ArrowLeft size={16} /> {backLabel}</button>
         )}
-        <span className="dh-serif" style={{ fontSize: 18 }}>{dossier.subject}</span>
-        {dossier.entrance && <button className="dh-replay" onClick={() => setIntro(true)}>Replay opening</button>}
-        {dossier.id === 'frederick-douglass' && <button className="dh-replay" onClick={() => setFilm(true)}>▶ Watch the film</button>}
-        {entry.telaTimeline && <button className="dh-replay" onClick={() => { openTimelineInTela(entry).catch(() => {}); }}>Open timeline in Tela</button>}
-        {entry.fabulaFilm && <button className="dh-replay" onClick={() => { openFilmInFabula(entry).catch(() => {}); }}>Open film in Fabula</button>}
+        <nav className="dh-crumbs" aria-label="You are here">
+          <b className="dh-serif">{dossier.subject}</b>
+          <span className="dh-crumb-room"> · Room {roomNumber} of {dossier.rooms.length}</span>
+        </nav>
         <div className="dh-lens" role="group" aria-label="Reading level">
           {DEPTH_LEVELS.map(d => (
             <button key={d} aria-pressed={d === depth} onClick={() => setDepth(d)}>{DEPTH_LABEL[d]}</button>
           ))}
         </div>
+        <details className="dh-tools">
+          <summary aria-label="More: replay the opening, watch the film, open in Tela or Fabula"><MoreHorizontal size={16} /> More</summary>
+          <div className="dh-tools-menu">
+            {dossier.entrance && <button onClick={e => { setIntro(true); (e.currentTarget.closest('details') as HTMLDetailsElement).open = false; }}>Replay the opening</button>}
+            {dossier.id === 'frederick-douglass' && <button onClick={e => { setFilm(true); (e.currentTarget.closest('details') as HTMLDetailsElement).open = false; }}>▶ Watch the film</button>}
+            {entry.telaTimeline && <button onClick={e => { openTimelineInTela(entry).catch(() => {}); (e.currentTarget.closest('details') as HTMLDetailsElement).open = false; }}>Open the timeline in Tela</button>}
+            {entry.fabulaFilm && <button onClick={e => { openFilmInFabula(entry).catch(() => {}); (e.currentTarget.closest('details') as HTMLDetailsElement).open = false; }}>Open the film in Fabula</button>}
+          </div>
+        </details>
       </header>
 
       <div className="dh-wrap">
         <nav className="dh-rail" aria-label="Rooms">
-          {dossier.rooms.map((r, i) => (
-            <button key={r.id} className="dh-room" aria-current={r.id === room.id} onClick={() => setRoomId(r.id)}>
-              <small>Room {i + 1}{r.years ? ` · ${r.years}` : ''}</small>
-              <span className="dh-serif">{r.title}</span>
-            </button>
-          ))}
+          {dossier.rooms.map((r, i) => {
+            const wing = dossier.wings?.find(w => w.roomIds[0] === r.id);
+            return (
+              <React.Fragment key={r.id}>
+                {wing && <div className="dh-wing" role="presentation">{wing.title}</div>}
+                <button className="dh-room" aria-current={r.id === room.id} onClick={() => goRoom(r.id)}>
+                  <small>Room {i + 1}{r.years ? ` · ${r.years}` : ''}</small>
+                  <span className="dh-serif">{r.title}</span>
+                </button>
+              </React.Fragment>
+            );
+          })}
         </nav>
 
         <main className="dh-main">
@@ -322,6 +380,11 @@ function HallInner({ dossier, entry, onBack }: { dossier: Dossier; entry: Dossie
                 <div className="dh-kind">{n.kind === 'source-reading' ? 'Primary source' : 'Story'}</div>
                 <h3 className="dh-serif">{n.title}</h3>
                 <p className={`dh-body ${depth}`}>{n.text[depth]}</p>
+                {n.experience === 'model-t-exploded' && (
+                  <React.Suspense fallback={<p className="dh-banner-cap">Opening the workshop…</p>}>
+                    <ModelTExploded />
+                  </React.Suspense>
+                )}
                 {n.assetIds.map(id => assetById.get(id)).filter((a): a is DossierAsset => !!a && a.kind === 'recreation' && a.id !== bannerAsset?.id).map(a => (
                   <figure key={a.id} className="dh-recon">
                     <span className="dh-recon-tag">Reconstruction</span>
@@ -382,6 +445,17 @@ function HallInner({ dossier, entry, onBack }: { dossier: Dossier; entry: Dossie
               ))}
             </ul>
           </footer>
+
+          <nav className="dh-pager" aria-label="Move between rooms">
+            {prevRoom ? (
+              <button onClick={() => goRoom(prevRoom.id)}><ArrowLeft size={16} /><span><small>Previous room</small>{prevRoom.title}</span></button>
+            ) : <span />}
+            {nextRoom ? (
+              <button className="next" onClick={() => goRoom(nextRoom.id)}><span><small>Next room</small>{nextRoom.title}</span><ArrowRight size={16} /></button>
+            ) : onBack ? (
+              <button className="next" onClick={onBack}><span><small>You have reached the end</small>{backLabel === 'Back' ? 'Leave the exhibit' : 'Back to the Exhibition Hall'}</span><ArrowRight size={16} /></button>
+            ) : <span />}
+          </nav>
         </main>
       </div>
     </div>

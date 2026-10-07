@@ -7135,7 +7135,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             )}
             {view === 'DOSSIER' && (
               <Suspense fallback={<div className="flex-1 flex items-center justify-center text-white/20 text-sm">Opening exhibit…</div>}>
-                <DossierHall onBack={() => setView('LEARN')} />
+                <DossierHall onBack={() => goBack('CLASSROOMS')} />
               </Suspense>
             )}
             {view === 'TELA_EMBED_DEMO' && (

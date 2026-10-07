@@ -59,12 +59,13 @@ Make your proposal. Return JSON exactly in this shape:
 }
 
 export function disputeUser(self: CouncilDirectorId, proposals: DirectorProposal[]): string {
-  const others = proposals.filter(p => p.directorId !== self).map(p => `${COUNCIL_DIRECTORS[p.directorId].name}: "${p.title}" — ${p.idea} Geometry: ${p.geometry}. Type: ${p.typography}. Image: ${p.imageLogic}. Texture: ${p.texture}. Motion: ${p.motion}. Human trace: ${p.humanTrace}.`).join('\n');
+  const others = proposals.filter(p => p.directorId !== self).map(p => `${COUNCIL_DIRECTORS[p.directorId].name} [id: ${p.directorId}]: "${p.title}" — ${p.idea} Geometry: ${p.geometry}. Type: ${p.typography}. Image: ${p.imageLogic}. Texture: ${p.texture}. Motion: ${p.motion}. Human trace: ${p.humanTrace}.`).join('\n');
   return `The other proposals on the table:
 ${others}
 
 Choose the ONE you most disagree with and say why — about the work, specifically, not about the person. Then concede one thing in it that is right. Return JSON:
-{"against":"directorId","objection":"two or three sentences in your voice","concession":"one sentence"}`;
+{"against":"directorId","objection":"two or three sentences in your voice","concession":"one sentence"}
+"against" must be exactly one of these ids, spelled exactly: ${proposals.filter(p => p.directorId !== self).map(p => p.directorId).join(', ')}.`;
 }
 
 /** Aria, synthesising. She is the only one who speaks to the user. */

@@ -147,7 +147,7 @@ export default function DossierEntrance({ dossier, onEnter }: Props) {
   }, [leaving, onEnter, sound, ramp]);
 
   useEffect(() => {
-    const k = (e: KeyboardEvent) => { if (e.key === 'Escape' || e.key === 'Enter') enter(); };
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') enter(); };
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   }, [enter]);
