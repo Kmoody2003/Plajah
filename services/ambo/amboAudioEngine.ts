@@ -446,14 +446,18 @@ export function installRemoteAmboAnalyser(): () => void {
   try { ch = new BroadcastChannel(AMBO_AUDIO_CHANNEL); } catch { return () => {}; }
   const freq = new Uint8Array(256), wave = new Uint8Array(256).fill(128);
   let last = 0;
+  // Consumers (Flux, Typo, Pixels) read `analyser.context.sampleRate`; a real AnalyserNode has it, so the stand-in must too.
+  const context = { sampleRate: 48000, currentTime: 0 };
   ch.onmessage = (e) => {
     const m = e.data;
     if (m?.t !== 'spectrum') return;
+    if (typeof m.sr === 'number' && m.sr > 8000) context.sampleRate = m.sr;
     freq.set(m.freq.subarray ? m.freq.subarray(0, 256) : m.freq);
     wave.set(m.wave.subarray ? m.wave.subarray(0, 256) : m.wave);
     last = Date.now();
   };
   const fake = {
+    context,
     fftSize: 512,
     frequencyBinCount: 256,
     getByteFrequencyData(arr: Uint8Array) {
