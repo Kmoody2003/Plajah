@@ -72,9 +72,13 @@ export function buildImageRequest(
     const bible = byId.get(c.characterId);
     if (!bible) throw new Error(`Unknown character "${c.characterId}" — add a CharacterBible before depicting them`);
     const v = pickVariant(bible, c.age);
+    const refUrls = v.referenceAssetIds.map(id => assetById.get(id)?.url).filter((u): u is string => !!u);
     // No photograph exists below the earliest documented variant: never invent a face.
+    // Exception (owner-approved, see CharacterBible.paintedLikeness): an adult with surviving PAINTED portraits may be
+    // shown with a face, but only when the nearest variant really resolves to a reference image.
     const earliest = Math.min(...bible.variants.map(x => x.ageRange[0]));
-    if (c.age < earliest) {
+    const paintedOk = !!bible.paintedLikeness && c.age >= 18 && refUrls.length > 0;
+    if (c.age < earliest && !paintedOk) {
       parts.push(`${bible.name} as a ${c.age}-year-old, shown only from behind, in silhouette, or by hands and posture; face not visible`);
       forbid.add('visible face of the child or youth');
       bible.forbidden.forEach(f => forbid.add(f));
@@ -82,12 +86,14 @@ export function buildImageRequest(
       continue;
     }
     const wardrobe = c.eraKey ? bible.wardrobe?.[c.eraKey] : undefined;
-    parts.push(`${bible.name}, ${bible.coreDescriptor}, ${v.descriptor}${wardrobe ? `, wearing ${wardrobe}` : ''}`);
+    const off = dist(c.age, v.ageRange);
+    const compromise = bible.paintedLikeness && off > 0
+      ? `; shown at age ${c.age}, ${off} years ${c.age < v.ageRange[0] ? 'younger' : 'older'} than the painted reference portrait, keeping the same bone structure, nose, brow and eye shape with age-appropriate skin and hair`
+      : '';
+    parts.push(`${bible.name}, ${bible.coreDescriptor}, ${v.descriptor}${wardrobe ? `, wearing ${wardrobe}` : ''}${compromise}`);
     bible.forbidden.forEach(f => forbid.add(f));
-    for (const id of v.referenceAssetIds) {
-      const a = assetById.get(id);
-      if (a) refs.push(a.url);
-    }
+    if (bible.paintedLikeness) ['photograph', 'photorealistic modern face', 'invented likeness of a different person'].forEach(f => forbid.add(f));
+    refs.push(...refUrls);
     if (bible.providerCharacterId) pcids.push(bible.providerCharacterId);
     seed = seed ^ bible.seed; // stable for a given cast
   }

@@ -6,6 +6,7 @@ import { placeMilestones, buildTimelineDoc, W as TL_W, CARD_W } from '../service
 import { contrastRatio } from '../services/dossier/dossierTheme';
 import { foundingDossier, foundingWings } from '../data/dossier/founding';
 import { foundingScenes } from '../data/dossier/foundingScenes';
+import { buildImageRequest } from '../services/dossier/characterGateway';
 import {
   CENSUS_POINTS, FOUNDING_RANGE, PRESIDENCIES, SLAVERY_NOTE, foundingBoardMilestones, foundingMilestones, foundingPortraits,
 } from '../data/dossier/foundingTimeline';
@@ -22,10 +23,18 @@ test('Founding dossier passes every publishing rule with zero errors', () => {
   assert.deepEqual(validateDossier(d).filter(i => i.severity === 'error'), []);
 });
 
-test('Founding is a topic exhibit with no characters, 14 to 18 rooms and real research depth', () => {
+test('Founding is a topic exhibit with seven painted-likeness founders, 14 to 18 rooms and real research depth', () => {
   assert.equal(d.id, 'founding-era');
   assert.equal(d.kind, 'topic');
-  assert.deepEqual(d.characters, []);
+  // Only the seven named founders with surviving painted portraits have a CharacterBible, each gated by paintedLikeness.
+  assert.deepEqual(d.characters.map(c => c.id).sort(), ['abigail-adams', 'adams', 'franklin', 'hamilton', 'jefferson', 'madison', 'washington']);
+  for (const c of d.characters) {
+    assert.equal(c.paintedLikeness, true, c.id);
+    for (const v of c.variants) for (const rid of v.referenceAssetIds) {
+      const a = d.assets.find(x => x.id === rid)!;
+      assert.ok(a && (a.rights.status === 'public-domain' || a.rights.status === 'cc0') && a.kind !== 'recreation', `${c.id} reference ${rid} must be a real public-domain portrait`);
+    }
+  }
   assert.ok(d.rooms.length >= 14 && d.rooms.length <= 18, `rooms: ${d.rooms.length}`);
   assert.ok(d.ledger.claims.length >= 120, `claims: ${d.ledger.claims.length}`);
   assert.ok(d.ledger.sources.length >= 50, `sources: ${d.ledger.sources.length}`);
@@ -216,7 +225,7 @@ test('Founding: all assets are real, publishable, credited, record a Commons URL
     assert.ok(PUBLISHABLE.includes(a.rights.status) && a.rights.status !== 'generated' && a.rights.status !== 'unknown', a.id);
     assert.ok(a.rights.credit && a.rights.credit.length > 15, a.id);
     assert.ok(a.rights.verifiedAt?.startsWith('https://commons.wikimedia.org/wiki/File:'), a.id);
-    assert.ok(a.url.startsWith('https://upload.wikimedia.org/'), a.id);
+    assert.ok(a.url.startsWith('/dossier/founding/archival/'), `${a.id}: the image is mirrored into the app (see dossierMirror.test.ts)`);
     assert.ok(a.claimIds.length >= 1 && a.claimIds.every(x => claimIds.has(x)), `${a.id} cites unknown claim`);
     assert.ok(!a.reconstruction && a.kind !== 'recreation', a.id);
   }
@@ -256,13 +265,14 @@ test('Founding: images of violence or the slave trade are gated and the opening 
   assert.ok(e.epigraph.cite.includes('Madison'));
 });
 
-test('Founding scenes: places and objects only, no cast, no people, no violence, each cites existing claims in an existing room', () => {
-  assert.ok(foundingScenes.length >= 8 && foundingScenes.length <= 12, `${foundingScenes.length}`);
+test('Founding scenes: the eleven place scenes have no cast, no people, no violence, and each cites existing claims in an existing room', () => {
+  const placeScenes = foundingScenes.filter(s => s.spec.cast.length === 0);
+  assert.equal(placeScenes.length, 11);
+  assert.equal(foundingScenes.length, 23);
   const roomIds = new Set(d.rooms.map(r => r.id));
   const ids = foundingScenes.map(s => s.id);
   assert.equal(new Set(ids).size, ids.length);
-  for (const s of foundingScenes) {
-    assert.deepEqual(s.spec.cast, [], s.id);
+  for (const s of placeScenes) {
     assert.ok(roomIds.has(s.roomId), s.id);
     assert.ok(s.claimIds.length >= 1 && s.claimIds.every(x => claimIds.has(x)), s.id);
     assert.ok(s.basis.length > 60, s.id);
@@ -273,18 +283,66 @@ test('Founding scenes: places and objects only, no cast, no people, no violence,
       assert.ok(!text.includes(banned), `${s.id}: ${banned}`);
   }
   // The scene ids a painter will need.
-  assert.deepEqual(foundingScenes.map(s => s.id).sort(), [
+  assert.deepEqual(placeScenes.map(s => s.id).sort(), [
     'recon-assembly-room', 'recon-burned-presidents-house', 'recon-capitol-construction', 'recon-keelboat-journal', 'recon-mulberry-row',
     'recon-philadelphia-street', 'recon-printing-shop', 'recon-rice-field', 'recon-survey-table', 'recon-tea-wharf', 'recon-tobacco-barn',
   ]);
-  // All eleven are painted (Nano Banana Pro via Magnific): the manifest lists one existing JPEG per scene, and the entry stays flagged.
+  // All 23 are painted (Nano Banana Pro via Magnific): the manifest lists one existing JPEG per scene, and the entry stays flagged.
   const recon = JSON.parse(fs.readFileSync('data/dossier/foundingRecon.json', 'utf8')) as { id: string; file: string; generator: string }[];
-  assert.equal(recon.length, 11);
+  assert.equal(recon.length, 23);
   assert.deepEqual(recon.map(r => r.id).sort(), foundingScenes.map(s => s.id).sort());
   for (const r of recon) {
     assert.ok(fs.existsSync('public' + r.file), `${r.id} image missing`);
     assert.ok(/Nano Banana Pro/.test(r.generator), r.id);
   }
+});
+
+test('Founding scenes: twelve named-founder reconstructions show exactly one face, from painted portraits, with the compromises stated', () => {
+  const founder = foundingScenes.filter(s => s.spec.cast.length > 0);
+  assert.deepEqual(founder.map(s => s.id).sort(), [
+    'recon-abigail-adams-letter-1776', 'recon-adams-congress-1776', 'recon-adams-quincy-1801', 'recon-franklin-paris-court-1778', 'recon-hamilton-treasury-1790',
+    'recon-jefferson-graff-house-1776', 'recon-jefferson-louisiana-1803', 'recon-madison-1814', 'recon-madison-convention-1787',
+    'recon-washington-farewell-1796', 'recon-washington-federal-hall-1789', 'recon-washington-valley-forge-1778',
+  ]);
+  const roomIds = new Set(d.rooms.map(r => r.id));
+  const bibles = new Map(d.characters.map(c => [c.id, c]));
+  const ages: Record<string, number> = {
+    'recon-franklin-paris-court-1778': 72, 'recon-jefferson-graff-house-1776': 33, 'recon-adams-congress-1776': 40, 'recon-washington-valley-forge-1778': 46,
+    'recon-madison-convention-1787': 36, 'recon-hamilton-treasury-1790': 35, 'recon-abigail-adams-letter-1776': 31, 'recon-washington-federal-hall-1789': 57,
+    'recon-washington-farewell-1796': 64, 'recon-jefferson-louisiana-1803': 60, 'recon-madison-1814': 63, 'recon-adams-quincy-1801': 65,
+  };
+  for (const s of founder) {
+    assert.equal(s.spec.cast.length, 1, `${s.id}: one named face per scene`);
+    const c = s.spec.cast[0];
+    assert.ok(bibles.has(c.characterId), s.id);
+    assert.equal(c.age, ages[s.id], s.id);
+    assert.ok(roomIds.has(s.roomId), s.id);
+    assert.ok(s.claimIds.length >= 2 && s.claimIds.every(x => claimIds.has(x)), s.id);
+    assert.ok(s.basis.length > 200 && /generic staging/.test(s.basis), `${s.id}: basis must state what is staging`);
+    assert.ok(/no other person is shown|the other delegates are shown only from behind|crowd below is an anonymous mass/i.test(s.basis), `${s.id}: basis must say how others are shown`);
+    const text = `${s.spec.setting} ${s.spec.action}`.toLowerCase();
+    for (const banned of ['slave', 'enslaved', 'native', 'indian', 'corpse', 'blood', 'dead', 'musket', 'cannon', 'sword', 'whip', 'shackle'])
+      assert.ok(!text.includes(banned), `${s.id}: ${banned}`);
+    assert.ok(/no flags/i.test(s.spec.style), s.id);
+    assert.ok(/no readable text/i.test(s.spec.style), s.id);
+    // The era guard still applies: each scene is dated before 1890, so candles and no electric items.
+    const req = buildImageRequest(s.spec, d.characters, d.assets);
+    assert.match(req.prompt, /candles for light/, s.id);
+    assert.ok(req.negativePrompt.includes('electric lamp') && req.negativePrompt.includes('light bulb'), s.id);
+    assert.equal(req.aspect, '16:9');
+    // The painted-likeness gate lets the face through (never a silhouette) and attaches the real portrait reference.
+    assert.ok(!/face not visible/.test(req.prompt), s.id);
+    assert.ok(req.referenceUrls.length >= 1 && req.referenceUrls.every(u => u.startsWith('https://upload.wikimedia.org/') || u.startsWith('/dossier/founding/archival/')), s.id);
+  }
+  // Honest age compromises are stated in the prompt for ages outside the portrait variants, and in the basis where the portrait is much older.
+  assert.match(buildImageRequest(foundingScenes.find(s => s.id === 'recon-washington-valley-forge-1778')!.spec, d.characters, d.assets).prompt, /11 years younger than the painted reference portrait/);
+  assert.match(foundingScenes.find(s => s.id === 'recon-jefferson-graff-house-1776')!.basis, /1786, when he was 43/);
+  assert.match(foundingScenes.find(s => s.id === 'recon-jefferson-graff-house-1776')!.spec.action, /face is turned away/);
+  assert.match(foundingScenes.find(s => s.id === 'recon-hamilton-treasury-1790')!.basis, /less certainty/);
+  assert.match(foundingScenes.find(s => s.id === 'recon-abigail-adams-letter-1776')!.basis, /nine years older than the pastel/);
+  // Crowds and delegates are never individuals.
+  assert.match(foundingScenes.find(s => s.id === 'recon-washington-federal-hall-1789')!.spec.setting, /no individual faces/);
+  assert.match(foundingScenes.find(s => s.id === 'recon-adams-congress-1776')!.spec.setting, /no faces visible/);
 });
 
 test('Founding timeline: pins cite real claims in real rooms, cover every presidency, and are dated inside the axis', () => {
@@ -373,7 +431,7 @@ test('Founding is registered with a lazy loader, a distinct theme, lobby years a
   assert.ok(t.fonts.some(f => f.startsWith('Libre Caslon')));
   const loaded = await entry.load();
   assert.equal(loaded.id, 'founding-era');
-  assert.equal(loaded.assets.filter(a => a.kind === 'recreation').length, 11, 'the eleven reconstruction paintings are registered');
+  assert.equal(loaded.assets.filter(a => a.kind === 'recreation').length, 23, 'the eleven place paintings and twelve named-founder paintings are registered');
   assert.deepEqual(validateDossier(loaded).filter(i => i.severity === 'error'), []);
 });
 

@@ -102,6 +102,16 @@ export interface CharacterBible {
   providerCharacterId?: string;
   /** Wardrobe/props per scene era, so clothing stays period-correct and stable. */
   wardrobe?: Record<string, string>;
+  /**
+   * Owner-approved option for people who left no photograph but DO have surviving period PAINTED portraits
+   * (Founding Era statesmen). When true, the gateway's "no photograph -> silhouette, face not visible" rule is
+   * bypassed for adult ages younger than the earliest reference variant: the face is allowed, built from the
+   * nearest painted-portrait variant and stated in the prompt as younger than the reference. It is gated:
+   * every variant must cite a real, publishable (not generated) reference asset, validateDossier errors otherwise,
+   * and the gateway falls back to the silhouette if a variant resolves to no reference image. Never set it for
+   * anyone whose only references are generated images, and it never unlocks a child's face (under 18).
+   */
+  paintedLikeness?: boolean;
 }
 
 // ── Exhibit structure ─────────────────────────────────────────────────────
@@ -200,6 +210,12 @@ export function validateDossier(d: Dossier): DossierIssue[] {
     for (const a of n.assetIds) if (!assetIds.has(a)) issues.push({ severity: 'error', where: n.id, message: `unknown asset ${a}` });
   }
   for (const ch of d.characters) {
+    if (ch.paintedLikeness) for (const v of ch.variants) for (const rid of v.referenceAssetIds) {
+      const ra = d.assets.find(a => a.id === rid);
+      if (!ra) issues.push({ severity: 'error', where: `${ch.id}/${v.id}`, message: `paintedLikeness reference ${rid} is not a listed asset` });
+      else if (ra.rights.status === 'generated' || ra.kind === 'recreation' || !PUBLISHABLE.includes(ra.rights.status))
+        issues.push({ severity: 'error', where: `${ch.id}/${v.id}`, message: `paintedLikeness reference ${rid} must be a real, publishable period portrait` });
+    }
     if (!ch.variants.length) issues.push({ severity: 'error', where: ch.id, message: 'character bible has no variants' });
     for (const v of ch.variants) if (!v.referenceAssetIds.length)
       issues.push({ severity: 'error', where: `${ch.id}/${v.id}`, message: 'variant has no real reference asset' });

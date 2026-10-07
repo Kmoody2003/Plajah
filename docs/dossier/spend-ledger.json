@@ -773,5 +773,131 @@
     "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
     "via": "magnific-mcp",
     "credits": 75
+  },
+  {
+    "at": "2026-10-07T14:10:00.000Z",
+    "scene": "recon-franklin-paris-court-1778",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:11:00.000Z",
+    "scene": "recon-jefferson-graff-house-1776",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 2,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:12:00.000Z",
+    "scene": "recon-adams-congress-1776 (rejected: delegates' faces in profile; superseded by regen)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:13:00.000Z",
+    "scene": "recon-adams-congress-1776 (regen 1, used; two foreground delegates show a sliver of rear three-quarter cheek)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:14:00.000Z",
+    "scene": "recon-washington-valley-forge-1778",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:15:00.000Z",
+    "scene": "recon-madison-convention-1787",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 2,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:16:00.000Z",
+    "scene": "recon-hamilton-treasury-1790",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 2,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:17:00.000Z",
+    "scene": "recon-abigail-adams-letter-1776",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 1,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:18:00.000Z",
+    "scene": "recon-washington-federal-hall-1789 (rejected: individual faces in the crowd; superseded by regen)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 2,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:19:00.000Z",
+    "scene": "recon-washington-federal-hall-1789 (regen 2, used cropped to 2140x1204 to drop crowd faces at the lower edge)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 2,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:20:00.000Z",
+    "scene": "recon-washington-farewell-1796",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 2,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:21:00.000Z",
+    "scene": "recon-jefferson-louisiana-1803",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:22:00.000Z",
+    "scene": "recon-madison-1814",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 1,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
+  },
+  {
+    "at": "2026-10-07T14:23:00.000Z",
+    "scene": "recon-adams-quincy-1801",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 2,
+    "refsNote": "real public-domain painted portraits uploaded with creations_request_upload/finalize (cropped)"
   }
 ]

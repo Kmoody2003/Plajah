@@ -179,3 +179,63 @@ test('anachronism guard is era-aware: no electric light in 1847, electric light 
   assert.equal(sceneYear(mk('Ctesiphon in the fifth century')), null);
   assert.equal(sceneYear(mk('a caravan in 1289')), 1289);
 });
+
+// ── painted-likeness gate (Founding Era: statesmen with surviving painted portraits) ─────────────────────────
+const portrait: DossierAsset = {
+  id: 'portrait1', kind: 'illustration', title: 'Oil portrait, 1796', url: 'https://example.org/stuart.jpg',
+  rights: { status: 'public-domain', credit: 'Gilbert Stuart, via Wikimedia Commons' }, claimIds: ['c1'],
+};
+const painted: CharacterBible = {
+  id: 'gw', name: 'George Washington', coreDescriptor: 'a very tall man with a long face', seed: 77, birthYear: 1732,
+  forbidden: ['cartoon'], paintedLikeness: true,
+  variants: [{ id: 'president', ageRange: [57, 70], descriptor: 'in the manner of the Stuart portraits', referenceAssetIds: ['portrait1'] }],
+};
+const unpainted: CharacterBible = { ...painted, id: 'gw2', paintedLikeness: undefined };
+const sceneAt = (id: string, age: number) => ({ action: 'writes at a desk', setting: 'a study in 1778', style: 'oil painting', cast: [{ characterId: id, age }] });
+
+test('painted-likeness gate: an adult with painted portraits keeps a face below the earliest portrait, and the age compromise is stated', () => {
+  const req = buildImageRequest(sceneAt('gw', 46), [painted], [portrait]);
+  assert.ok(!req.prompt.includes('face not visible'), 'the silhouette rule is bypassed for portraitEra characters');
+  assert.ok(req.prompt.includes('George Washington, a very tall man with a long face'));
+  assert.match(req.prompt, /shown at age 46, 11 years younger than the painted reference portrait/);
+  assert.deepEqual(req.referenceUrls, ['https://example.org/stuart.jpg']);
+  assert.ok(req.negativePrompt.includes('photograph'), 'painted manner, never a photograph');
+  assert.ok(!req.negativePrompt.includes('visible face of the child or youth'));
+});
+
+test('painted-likeness gate: the same age WITHOUT the flag still yields the silhouette with no face and no reference', () => {
+  const req = buildImageRequest(sceneAt('gw2', 46), [unpainted], [portrait]);
+  assert.ok(req.prompt.includes('face not visible'));
+  assert.ok(req.negativePrompt.includes('visible face of the child or youth'));
+  assert.deepEqual(req.referenceUrls, []);
+});
+
+test('painted-likeness gate never unlocks a minor, and never works without a real reference image', () => {
+  const child = buildImageRequest(sceneAt('gw', 12), [painted], [portrait]);
+  assert.ok(child.prompt.includes('face not visible'), 'under 18 stays a silhouette even with the flag');
+  assert.deepEqual(child.referenceUrls, []);
+  // the variant cites an asset that is not supplied, so there is no real portrait to paint from
+  const noRef = buildImageRequest(sceneAt('gw', 46), [painted], []);
+  assert.ok(noRef.prompt.includes('face not visible'), 'no resolvable portrait -> never invent a face');
+});
+
+test('painted-likeness gate: ages inside the variant carry no compromise note, and older ages say older', () => {
+  const inside = buildImageRequest(sceneAt('gw', 64), [painted], [portrait]);
+  assert.ok(!inside.prompt.includes('than the painted reference portrait'));
+  const older = buildImageRequest(sceneAt('gw', 75), [painted], [portrait]);
+  assert.match(older.prompt, /5 years older than the painted reference portrait/);
+});
+
+test('painted-likeness gate: validateDossier refuses it unless every reference is a real, publishable, non-generated asset', () => {
+  const base = (assets: DossierAsset[], b: CharacterBible): Dossier => ({
+    id: 'x', subject: 's', kind: 'topic', rooms: [], ledger: { subjectId: 'x', sources: [], claims: [] }, assets, characters: [b],
+  });
+  assert.deepEqual(validateDossier(base([portrait], painted)).filter(i => i.severity === 'error'), []);
+  const missing = validateDossier(base([], painted)).filter(i => i.severity === 'error');
+  assert.ok(missing.some(i => /not a listed asset/.test(i.message)));
+  const generated: DossierAsset = { ...portrait, kind: 'recreation', rights: { status: 'generated', credit: 'AI' }, reconstruction: { characterIds: ['gw'], basis: 'b', generator: 'g' } };
+  const gen = validateDossier(base([generated], painted)).filter(i => i.severity === 'error');
+  assert.ok(gen.some(i => /real, publishable period portrait/.test(i.message)), 'a generated image can never anchor a painted likeness');
+  // the same generated reference is only checked for characters that use the flag
+  assert.ok(!validateDossier(base([generated], unpainted)).some(i => /painted/.test(i.message)));
+});

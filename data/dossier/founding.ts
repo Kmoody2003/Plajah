@@ -17,12 +17,14 @@
  *      Wikisource (Dunmore's Proclamation, Constitution, Washington's will, Jefferson's letter to Banneker, Notes on the
  *      State of Virginia), the Massachusetts Historical Society (Abigail and John Adams, 1776), the Lewis and Clark Journals,
  *      Mount Vernon (Washington's letters as printed there) and Monticello (Jefferson to Brissot as printed there);
- *  - this is a topic dossier: `characters` is empty and no identifiable person is invented; there are no photographs from
- *    this era, every image is a period painting, engraving, map or document, and images that depict violence or the
- *    slave trade are gated by minDepth;
+ *  - this is a topic dossier, and no photographs exist from this era: every image is a period painting, engraving, map or
+ *    document, and images that depict violence or the slave trade are gated by minDepth. `characters` holds seven
+ *    CharacterBibles (Franklin, Washington, Adams, Jefferson, Madison, Hamilton, Abigail Adams) with `paintedLikeness: true`:
+ *    the owner decided these named founders, who have surviving PAINTED portraits, may be shown with faces in the
+ *    reconstruction scenes when the references are those portraits (see foundingScenes.ts); nobody else is given a face;
  *  - the evidence behind each source is recorded in docs/dossier/founding-research-notes.md.
  */
-import type { Claim, Dossier, DossierAsset, Room, SourceRef } from '../../services/dossier/dossierTypes';
+import type { CharacterBible, Claim, Dossier, DossierAsset, Room, SourceRef } from '../../services/dossier/dossierTypes';
 import rawAssets from './foundingAssets.json';
 
 const sources: SourceRef[] = [
@@ -938,6 +940,49 @@ export const foundingWings: Array<{ id: string; title: string; roomIds: readonly
   { id: 'voices', title: 'How we know / Voices', roomIds: ['r16', 'r17', 'r18'] },
 ];
 
+// Faces are allowed ONLY for these seven, because each has surviving period painted portraits (the references below) and
+// the owner approved it (paintedLikeness). Extra references used to generate the images (not exhibit assets): Peale's 1772
+// Washington (Washington and Lee University) and c.1779 Washington at Princeton, Peale's 1783 Madison miniature (LOC),
+// Blyth's 1766 pastel of John Adams (MHS), Mather Brown's 1786 Jefferson and 1788 Adams, Trumbull's 1788 Jefferson
+// miniature and 1792 Hamilton: all public domain on Wikimedia Commons.
+const foundingCharacters: CharacterBible[] = [
+  { id: 'franklin', name: 'Benjamin Franklin', birthYear: 1706, seed: 1706, paintedLikeness: true,
+    coreDescriptor: 'a stout elderly man with a broad full face, heavy-lidded calm eyes, a high forehead and long thin straight grey hair worn unpowdered to the shoulders, without a wig',
+    forbidden: ['powdered wig', 'bald cartoon caricature', 'kite or lightning in the scene', 'spectacles perched as a gimmick'],
+    variants: [{ id: 'elder-paris', ageRange: [65, 84], descriptor: 'seventy-two years old, in the manner of the Duplessis portrait', referenceAssetIds: ['a-franklin-duplessis'] }],
+    wardrobe: { '1778': 'a plain brown cloth coat and plain linen with no lace, as he dressed in France' } },
+  { id: 'washington', name: 'George Washington', birthYear: 1732, seed: 1732, paintedLikeness: true,
+    coreDescriptor: 'a very tall broad-shouldered man with a long face, a strong straight nose, deep-set eyes, a firm closed mouth and light brown-grey hair worn back and lightly powdered',
+    forbidden: ['wooden teeth shown', 'dollar-bill pose', 'cartoon', 'a crown or regal costume'],
+    variants: [{ id: 'president-stuart', ageRange: [57, 70], descriptor: 'in the manner of the Stuart portraits of 1796', referenceAssetIds: ['a-washington-stuart'] }],
+    wardrobe: { '1778': 'the plain blue coat with buff facings of a Continental general and a buff waistcoat', '1789': 'a plain dark brown suit of American broadcloth with white silk stockings and silver shoe buckles', '1796': 'a plain dark coat and waistcoat and a white stock, with steel spectacles' } },
+  { id: 'adams', name: 'John Adams', birthYear: 1735, seed: 1735, paintedLikeness: true,
+    coreDescriptor: 'a short stout man with a round full face, a high forehead, a direct gaze and thinning hair',
+    forbidden: ['wearing a crown', 'caricature of a stout man', 'cartoon'],
+    variants: [{ id: 'elder-stuart', ageRange: [60, 75], descriptor: 'in the manner of the Stuart portrait, white hair', referenceAssetIds: ['a-adams-stuart'] }],
+    wardrobe: { '1776': 'a plain dark broadcloth coat, waistcoat and white neckcloth, hair lightly powdered', '1801': 'a plain dark coat and waistcoat with white linen' } },
+  { id: 'jefferson', name: 'Thomas Jefferson', birthYear: 1743, seed: 1743, paintedLikeness: true,
+    coreDescriptor: 'a tall lean angular man with a long face, a prominent chin, deep-set eyes and sandy-red hair going grey',
+    forbidden: ['cartoon', 'a wig of full powder', 'slave or servant in the scene'],
+    variants: [{ id: 'president-peale', ageRange: [55, 70], descriptor: 'in the manner of the Rembrandt Peale portrait of 1800', referenceAssetIds: ['a-jefferson-peale'] }],
+    wardrobe: { '1776': 'shirtsleeves, a plain waistcoat and breeches', '1803': 'a plain, slightly worn dark coat and waistcoat, with unpowdered hair' } },
+  { id: 'madison', name: 'James Madison', birthYear: 1751, seed: 1751, paintedLikeness: true,
+    coreDescriptor: 'a small slight pale man with a high domed forehead, a thin face, a long nose and a quiet watchful expression',
+    forbidden: ['cartoon', 'tall heroic stature', 'military uniform'],
+    variants: [{ id: 'president-stuart', ageRange: [54, 66], descriptor: 'in the manner of the Gilbert Stuart portrait', referenceAssetIds: ['a-madison-stuart'] }],
+    wardrobe: { '1787': 'a plain black coat and breeches with white stock, hair lightly powdered', '1814': 'a plain black coat and white neckcloth' } },
+  { id: 'hamilton', name: 'Alexander Hamilton', birthYear: 1755, seed: 1755, paintedLikeness: true,
+    coreDescriptor: 'a slight, upright man with fine regular features, a high forehead, a straight nose, bright eyes and powdered hair tied back',
+    forbidden: ['cartoon', 'dueling pistols in the scene', 'stage costume'],
+    variants: [{ id: 'treasury-trumbull', ageRange: [45, 52], descriptor: 'in the manner of the Trumbull portrait of 1806', referenceAssetIds: ['a-hamilton-trumbull'] }],
+    wardrobe: { '1790': 'a plain dark blue coat, buff waistcoat and white neckcloth' } },
+  { id: 'abigail-adams', name: 'Abigail Adams', birthYear: 1744, seed: 1744, paintedLikeness: true,
+    coreDescriptor: 'a young woman with a calm oval face, dark brown hair drawn back, dark intelligent eyes and a direct level look',
+    forbidden: ['cartoon', 'modern make-up', 'a servant or enslaved person in the scene'],
+    variants: [{ id: 'young-blyth', ageRange: [20, 35], descriptor: 'in the manner of the Blyth pastel of about 1766', referenceAssetIds: ['a-abigail-adams'] }],
+    wardrobe: { '1776': 'a plain dark gown with a white linen fichu and a white linen cap' } },
+];
+
 export const foundingDossier: Dossier = {
   id: 'founding-era',
   subject: 'The Founding Era: from the colonies to the first four presidents',
@@ -945,7 +990,7 @@ export const foundingDossier: Dossier = {
   rooms,
   ledger: { subjectId: 'founding-era', sources, claims },
   assets,
-  characters: [],
+  characters: foundingCharacters,
   wings: foundingWings.map(w => ({ ...w })),
   entrance: {
     tagline: 'And the people the story left out.',
