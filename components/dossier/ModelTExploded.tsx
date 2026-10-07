@@ -6,18 +6,18 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
-import { MODEL_T_DISCLAIMER, MODEL_T_PARTS, type ModelTPartId } from '../../data/dossier/modelTParts';
-import { ModelTScene, Ticker, type SceneCtx } from './ModelTScene';
+import { MODEL_T_DISCLAIMER, MODEL_T_GROUP_LABELS, MODEL_T_PARTS, type ModelTGroup, type ModelTPartId } from '../../data/dossier/modelTParts';
+import { MODEL_T_VIEWS, ModelTScene, Ticker, type SceneCtx, type ViewName } from './ModelTScene';
 
 const FPS = 16;
-const GRADE = 'grayscale(1) sepia(.5) contrast(1.22) brightness(1.12)';
+const GRADE = 'grayscale(1) sepia(.5) contrast(1.18) brightness(.86)';
 
 const CSS = `
 .mt{container-type:inline-size;margin:18px 0 22px;color:var(--dh-ink,#f2ecf6)}
 .mt-grid{display:grid;grid-template-columns:minmax(0,1fr) 290px;gap:14px}
 @container (max-width:680px){.mt-grid{grid-template-columns:1fr}}
 .mt-stage{position:relative;overflow:hidden;border-radius:8px;border:1px solid var(--dh-line,rgba(255,255,255,.1));background:#b2ada1;aspect-ratio:16/10;min-height:300px;outline:none}
-@container (max-width:680px){.mt-stage{aspect-ratio:1/1;min-height:300px}}
+@container (max-width:680px){.mt-stage{aspect-ratio:4/3;min-height:260px}.mt-tag{font-size:10px;padding:3px 8px}}
 .mt-stage:focus-visible{box-shadow:0 0 0 2px #FF8C00}
 .mt-weave{position:absolute;inset:-6px;will-change:transform,filter}
 .mt-film .mt-weave{filter:${GRADE}}
@@ -39,9 +39,13 @@ const CSS = `
 .mt-claim{border-left:3px solid var(--pj-success,#06D6A0);padding-left:10px;font-size:13px;line-height:1.5}
 .mt-claim.none{border-left-color:var(--pj-warning,#F59E0B);color:var(--dh-mute,rgba(242,236,246,.7))}
 .mt-claim b{display:block;font-size:10px;letter-spacing:.1em;text-transform:uppercase;opacity:.75;margin-bottom:2px}
-.mt-list{display:flex;flex-wrap:wrap;gap:6px;max-height:220px;overflow:auto;padding:2px}
+.mt-list{display:flex;flex-direction:column;gap:8px;max-height:340px;overflow:auto;padding:2px}
 @container (max-width:680px){.mt-list{max-height:none}}
 .mt-list .mt-btn{padding:5px 10px}
+.mt-grp{display:flex;flex-wrap:wrap;gap:6px}
+.mt-grp h5{flex:0 0 100%;margin:2px 0 0;font-size:10px;letter-spacing:.1em;text-transform:uppercase;opacity:.65;font-weight:600}
+.mt-views{display:flex;flex-wrap:wrap;align-items:center;gap:6px}
+.mt-views>span{font-size:11px;letter-spacing:.08em;text-transform:uppercase;opacity:.65;margin-right:2px}
 .mt-note{font-size:12px;line-height:1.5;color:var(--dh-mute,rgba(242,236,246,.65));margin:8px 0 0}
 @media(prefers-reduced-motion:reduce){.mt-weave{will-change:auto}}
 `;
@@ -120,7 +124,7 @@ function useFilmOverlay(canvasRef: React.RefObject<HTMLCanvasElement | null>, we
         wx = wx * 0.6 + (Math.random() - 0.5) * 3.2; wy = wy * 0.6 + (Math.random() - 0.5) * 3.2; wr = wr * 0.6 + (Math.random() - 0.5) * 0.25;
         flick = 0.94 + Math.random() * 0.12;
         wv.style.transform = `translate(${wx.toFixed(2)}px,${wy.toFixed(2)}px) rotate(${wr.toFixed(3)}deg)`;
-        wv.style.filter = `grayscale(1) sepia(.55) contrast(1.22) brightness(${(1.12 * flick).toFixed(3)})`;
+        wv.style.filter = `grayscale(1) sepia(.55) contrast(1.18) brightness(${(0.86 * flick).toFixed(3)})`;
       }
     };
     draw();
@@ -152,8 +156,11 @@ export default function ModelTExploded() {
   const [hovered, setHovered] = useState<ModelTPartId | null>(null);
   const [idle, setIdle] = useState(true);
   const [visible, setVisible] = useState(true);
+  const [showTop, setShowTop] = useState(false);
   const target = useRef(0);
   const smooth = useRef(0);
+  const bounds = useRef(new THREE.Box3());
+  const viewReq = useRef<{ id: ViewName; n: number }>({ id: '3q', n: 0 });
   const stage = useRef<HTMLDivElement>(null);
   const weave = useRef<HTMLDivElement>(null);
   const overlay = useRef<HTMLCanvasElement>(null);
@@ -181,7 +188,27 @@ export default function ModelTExploded() {
     idleTimer.current = window.setTimeout(() => setIdle(true), 4000);
   }, []);
 
-  const ctx = useMemo<SceneCtx>(() => ({ target, smooth, selected, hovered, onSelect: setSelected, onHover: setHovered }), [selected, hovered]);
+  const ctx = useMemo<SceneCtx>(() => ({ target, smooth, bounds, view: viewReq, showTop, selected, hovered, onSelect: setSelected, onHover: setHovered }), [selected, hovered, showTop]);
+
+  const goView = useCallback((id: ViewName) => {
+    viewReq.current = { id, n: viewReq.current.n + 1 };
+    setIdle(false); // a chosen view stays put until the viewer drags and lets go
+    window.clearTimeout(idleTimer.current);
+  }, []);
+  const toggleTop = () => setShowTop(v => {
+    if (v) setSelected(sel => (sel === 'top-bows' || sel === 'top-cover' ? null : sel));
+    return !v;
+  });
+  const shownParts = useMemo(() => MODEL_T_PARTS.filter(p => !p.optional || showTop), [showTop]);
+  const groups = useMemo(() => {
+    const out: Array<{ id: ModelTGroup; parts: typeof MODEL_T_PARTS }> = [];
+    for (const p of shownParts) {
+      let g = out.find(x => x.id === p.group);
+      if (!g) { g = { id: p.group, parts: [] }; out.push(g); }
+      g.parts.push(p);
+    }
+    return out;
+  }, [shownParts]);
 
   useFilmOverlay(overlay, weave, film, film && !reduced, visible);
 
@@ -214,7 +241,7 @@ export default function ModelTExploded() {
               <Boundary>
                 <Canvas
                   shadows frameloop={frameloop} dpr={[1, small ? 1.5 : 2]}
-                  camera={{ position: [270, 140, 330], fov: 34, near: 5, far: 3000 }}
+                  camera={{ position: [300, 170, 330], fov: 34, near: 5, far: 6000 }}
                   gl={{ antialias: true, powerPreference: 'high-performance' }}
                   onCreated={({ gl }) => { gl.shadowMap.type = THREE.BasicShadowMap; }}
                   onPointerMissed={() => setSelected(null)}
@@ -242,6 +269,13 @@ export default function ModelTExploded() {
             </label>
             <button className="mt-btn" onClick={() => setLevel(explode > 0.5 ? 0 : 1)}>{explode > 0.5 ? 'Assemble' : 'Explode'}</button>
             <button className="mt-btn" aria-pressed={film} onClick={() => setFilm(f => !f)} title="Old-footage look on or off">Film look</button>
+            <button className="mt-btn" aria-pressed={showTop} onClick={toggleTop} title="Show the folding top and its bows">Folding top</button>
+          </div>
+          <div className="mt-controls mt-views" role="group" aria-label="Camera views">
+            <span>View</span>
+            {MODEL_T_VIEWS.map(v => (
+              <button key={v.id} className="mt-btn" onClick={() => goView(v.id)}>{v.label}</button>
+            ))}
           </div>
         </div>
 
@@ -258,24 +292,29 @@ export default function ModelTExploded() {
             ) : (
               <>
                 <h4>Take it apart</h4>
-                <p>Drag the slider, then tap a part on the car or in the list to see what it does. Wheelbase 100 in; introduced 1 October 1908; a 177-cubic-inch four-cylinder engine of about 20 horsepower.</p>
+                <p>Drag the slider, then tap a part on the car or in the list to see what it does. Use the view buttons to look from the side, front, top or three-quarters. Wheelbase 100 in; introduced 1 October 1908; a 177-cubic-inch four-cylinder engine of about 20 horsepower.</p>
               </>
             )}
           </div>
           <div className="mt-list" role="group" aria-label="Parts">
-            {MODEL_T_PARTS.map(p => (
-              <button
-                key={p.id} className="mt-btn" aria-pressed={selected === p.id}
-                onClick={() => setSelected(s => (s === p.id ? null : p.id))}
-                onMouseEnter={() => setHovered(p.id)} onMouseLeave={() => setHovered(null)}
-                onFocus={() => setHovered(p.id)} onBlur={() => setHovered(null)}
-              >{p.label}</button>
+            {groups.map(g => (
+              <div key={g.id} className="mt-grp">
+                <h5>{MODEL_T_GROUP_LABELS[g.id]}</h5>
+                {g.parts.map(p => (
+                  <button
+                    key={p.id} className="mt-btn" aria-pressed={selected === p.id}
+                    onClick={() => setSelected(sel => (sel === p.id ? null : p.id))}
+                    onMouseEnter={() => setHovered(p.id)} onMouseLeave={() => setHovered(null)}
+                    onFocus={() => setHovered(p.id)} onBlur={() => setHovered(null)}
+                  >{p.label}</button>
+                ))}
+              </div>
             ))}
           </div>
         </div>
       </div>
       <p className="mt-note">
-        {MODEL_T_DISCLAIMER}. Built from simple shapes to the 100-inch wheelbase; part shapes, sizes and the 1909-1926 touring layout are approximate.
+        {MODEL_T_DISCLAIMER}. Built from simple shapes to the 100-inch wheelbase; part shapes, sizes, colours and the 1909-1926 touring layout are approximate (the real car was black).
         Statements marked "Sourced" come from the evidence list below.{film ? ' Turn "Film look" off to inspect the parts clearly.' : ''}
       </p>
     </section>
