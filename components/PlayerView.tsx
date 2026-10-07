@@ -19,6 +19,9 @@ import AlbumTvView from './tv/AlbumTvView';
 import PaintPoolVisualizer from './PaintPoolVisualizer';
 import FxStageVisualizers, { type FxEngine, fxPresetName, FX_ENGINE_PRESETS, loadMilkdropNames, loadShaderNames } from './FxStageVisualizers';
 import Logo from './Logo';
+import { probeShaderGpu } from '../services/shaders/shaderGate';
+import LookedCover from './chora/looks/LookedCover';
+const LooksCouncilPanel = React.lazy(() => import('./chora/looks/LooksCouncilPanel'));
 import { publishToCloud, postComment, subscribeToComments, updateAlbum, updatePersonalAlbum, updatePersonalTrack, uploadFile, fetchWorldCharacters, fetchWorldContentByWorldId, assignTrackAsHnsSlot, saveHideNSeekConfig, createPost, auth, loginWithGoogle, fetchPersonalPlaylists, addTracksToPlaylist } from '../services/backendService';
 import ShareButton from './ShareButton';
 import ArtistSupportSheet, { musicOffers, type SupportTab } from './ArtistSupportSheet';
@@ -653,6 +656,10 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const [fxEngine, setFxEngine] = useState<'FLOW' | 'PAINT' | FxEngine>('FLUX');
   const [fxPresetIndex, setFxPresetIndex] = useState(0);
   const [fxMenuOpen, setFxMenuOpen] = useState(false);
+  // Looks engine = open-source WebGPU library; only offered where WebGPU actually works (hidden on TVs / older browsers).
+  const [looksAvailable, setLooksAvailable] = useState(false);
+  const [looksCouncilOpen, setLooksCouncilOpen] = useState(false);
+  useEffect(() => { let dead = false; probeShaderGpu().then(g => { if (!dead) setLooksAvailable(g.reason === 'ok'); }); return () => { dead = true; }; }, []);
 
   const selectGatefoldStage = useCallback((mode: GatefoldStageMode, deliberate = true) => {
     if (deliberate) setIsStageCycling(false);
@@ -684,11 +691,12 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   const [milkdropNames, setMilkdropNames] = useState<string[]>([]);
   const [shaderNames, setShaderNames] = useState<string[]>([]);
   const [fxSearch, setFxSearch] = useState('');
-  const isPixelsEngine = fxEngine === 'MILKDROP' || fxEngine === 'SHADER' || fxEngine === 'GENERATOR' || fxEngine === 'FLUX' || fxEngine === 'TYPO' || fxEngine === 'KAIJU';
+  const isPixelsEngine = fxEngine === 'MILKDROP' || fxEngine === 'SHADER' || fxEngine === 'GENERATOR' || fxEngine === 'FLUX' || fxEngine === 'TYPO' || fxEngine === 'KAIJU' || fxEngine === 'LOOKS';
   const FX_OPTIONS = [
     { id: 'FLOW' as const, label: 'Flow' }, { id: 'PAINT' as const, label: 'Paint' },
     { id: 'FLUX' as const, label: 'Flux 3D' }, { id: 'TYPO' as const, label: 'Typo' }, { id: 'KAIJU' as const, label: 'Kaiju' },
     { id: 'SHADER' as const, label: 'Shaders' }, { id: 'GENERATOR' as const, label: 'Generators' }, { id: 'MILKDROP' as const, label: 'MilkDrops' },
+    ...(looksAvailable ? [{ id: 'LOOKS' as const, label: 'Looks' }] : []),
   ];
   // Lazily fetch each async engine's full preset name list the first time it's used —
   // butterchurn's presets, and the Signature Series shader library.
@@ -718,9 +726,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
   // Selector: the three types stay separate (pills); the active pixels type gets its own
   // dropdown listing ALL its Plajah Pixels presets, plus ◀ ▶ to step through them.
   const fxSelectorEl = (
-    <div className="flex items-center gap-2 shrink-0 min-w-0">
+    <div className="flex flex-wrap items-center justify-center gap-2 min-w-0 max-w-full">
       {/* Type pills — Flow / Paint / MilkDrops / Shaders / Generators */}
-      <div className="flex items-center gap-0.5 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full p-1 shrink-0">
+      <div className="flex items-center gap-0.5 bg-black/50 backdrop-blur-xl border border-white/10 rounded-full p-1 max-w-full overflow-x-auto no-scrollbar">
         {FX_OPTIONS.map(opt => (
           <button key={opt.id} onClick={() => selectFxEngine(opt.id)}
             className={`shrink-0 px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all ${fxEngine === opt.id ? 'bg-white text-black' : 'text-white/40 hover:text-white'}`}>
@@ -741,12 +749,16 @@ const PlayerView: React.FC<PlayerViewProps> = ({
           </button>
           <button onClick={() => cycleFxPreset(1)} aria-label="Next preset"
             className="shrink-0 w-7 h-7 flex items-center justify-center rounded-full bg-black/50 border border-white/10 text-white/60 hover:text-white transition-all cursor-pointer"><ChevronRight size={14} /></button>
+          {fxEngine === 'LOOKS' && (
+            <button onClick={() => setLooksCouncilOpen(true)} aria-label="Ask the Art Council for a look"
+              className="shrink-0 h-7 px-3 rounded-full bg-small-orange text-black text-[9px] font-black uppercase tracking-widest cursor-pointer">Council</button>
+          )}
           {fxMenuOpen && (
             <>
               <div className="fixed inset-0 z-40" onClick={() => setFxMenuOpen(false)} />
               <div className="absolute top-full right-0 mt-2 w-64 max-h-80 overflow-hidden flex flex-col rounded-2xl bg-[#141418] border border-white/15 shadow-2xl z-50 p-2">
                 <div className="px-2 pt-1 pb-2 flex items-center justify-between text-[9px] font-black uppercase tracking-[0.15em] text-white/40 border-b border-white/5">
-                  <span>{fxEngine === 'MILKDROP' ? 'MilkDrops' : fxEngine === 'SHADER' ? 'Shaders' : fxEngine === 'FLUX' ? 'Flux 3D' : fxEngine === 'TYPO' ? 'Typography' : fxEngine === 'KAIJU' ? 'Kaiju Dance Party' : 'Generators'}</span>
+                  <span>{fxEngine === 'MILKDROP' ? 'MilkDrops' : fxEngine === 'SHADER' ? 'Shaders' : fxEngine === 'FLUX' ? 'Flux 3D' : fxEngine === 'TYPO' ? 'Typography' : fxEngine === 'KAIJU' ? 'Kaiju Dance Party' : fxEngine === 'LOOKS' ? 'Looks' : 'Generators'}</span>
                   <span>{fxPresetList.length || 0}</span>
                 </div>
                 {fxPresetList.length > 8 && (
@@ -781,6 +793,9 @@ const PlayerView: React.FC<PlayerViewProps> = ({
             </>
           )}
         </div>
+      )}
+      {looksCouncilOpen && fxEngine === 'LOOKS' && (
+        <React.Suspense fallback={null}><LooksCouncilPanel onClose={() => setLooksCouncilOpen(false)} /></React.Suspense>
       )}
     </div>
   );
@@ -1685,8 +1700,11 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                 </div>
               ) : (
                 /* Cover Art */
-                <img
+                <LookedCover
                   src={thumb((currentTrack?.images?.[0]) || album.coverImage, THUMB.large) || undefined}
+                  textureSrc={(currentTrack?.images?.[0]) || album.coverImage}
+                  trackId={currentTrack?.id} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal}
+                  controls="bottom-right"
                   alt={currentTrack?.title || album.title}
                   loading="lazy"
                   decoding="async"
@@ -3131,7 +3149,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                     </motion.div>
                   ) : (
                     <motion.div key="art-gatefold" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.6, type: 'spring', damping: 20 }} className="absolute inset-0 overflow-hidden group flex items-center justify-center">
-                      <img src={thumb(album.coverImage, THUMB.large) || undefined} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="max-w-full max-h-full object-contain transition-transform duration-700 group-hover:scale-105" />
+                      <LookedCover src={thumb(album.coverImage, THUMB.large) || undefined} textureSrc={album.coverImage} trackId={currentTrack?.id} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="max-w-full max-h-full object-contain transition-transform duration-700 group-hover:scale-105" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                       {album.worldId && <div className="absolute bottom-4 left-4 right-4"><WorldBadge worldId={album.worldId} contentTitle={album.title} contentType="album" onNavigate={onNavigateToWorld} /></div>}
                       <div className="pointer-events-none absolute top-4 left-4 right-4 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-300"><h2 className="text-lg font-black uppercase tracking-tight drop-shadow-lg text-white">{album.title}</h2><p className="text-[10px] font-bold text-white/70 uppercase tracking-widest drop-shadow-md">{album.artist}</p></div>
@@ -3234,7 +3252,7 @@ const PlayerView: React.FC<PlayerViewProps> = ({
                  <div className="flex-1 flex flex-col items-center justify-center gap-5 px-8 pt-8 relative z-10">
                    <AnimatePresence mode="wait" initial={false}>
                      <motion.div key="art" initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ opacity: 0, scale: 1.02 }} transition={{ duration: 0.6, type: 'spring', damping: 20 }} className="relative w-[min(460px,48vh)] max-w-full aspect-square rounded-[2rem] overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.6)] border border-white/10 group">
-                       <img src={thumb(album.coverImage, THUMB.large) || undefined} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
+                       <LookedCover src={thumb(album.coverImage, THUMB.large) || undefined} textureSrc={album.coverImage} trackId={currentTrack?.id} analyser={globalAnalyser} isPlaying={globalIsPlaying && isCurrentTrackGlobal} alt={album.title} loading="lazy" decoding="async" onError={onThumbError(album.coverImage)} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
                        {album.worldId && <div className="absolute bottom-4 left-4 right-4"><WorldBadge worldId={album.worldId} contentTitle={album.title} contentType="album" onNavigate={onNavigateToWorld} /></div>}
                        <div className="pointer-events-none absolute top-4 left-4 right-4 flex flex-col opacity-0 group-hover:opacity-100 transition-opacity duration-300"><h2 className="text-lg font-black uppercase tracking-tight drop-shadow-lg text-white">{album.title}</h2><p className="text-[10px] font-bold text-white/70 uppercase tracking-widest drop-shadow-md">{album.artist}</p></div>

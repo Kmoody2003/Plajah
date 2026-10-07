@@ -10,6 +10,7 @@ import React, { Suspense, useEffect, useMemo, useState } from 'react';
 import { VisualizerMode, type VisualizationConfig, isStudioMode } from './plajahPixels/types';
 import { FLUX_PLATFORM_MODES } from './plajahPixels/engine/fluxPlatformCatalog';
 import { getPlatformInfo } from '../hooks/usePlatform';
+import { getLookLibrary, onLooksChanged } from '../services/shaders/looksLibrary';
 import { useGlobalPlayer } from '../contexts/GlobalPlayerContext';
 
 const ButterchurnLayer = React.lazy(() => import('./plajahPixels/components/ButterchurnLayer'));
@@ -19,8 +20,9 @@ const StudioStage = React.lazy(() => import('./plajahPixels/components/StudioSta
 const FluxStage = React.lazy(() => import('./plajahPixels/components/FluxStage'));
 const TypoStage = React.lazy(() => import('./ChoraTypoVisualizer'));
 const KaijuStage = React.lazy(() => import('./kaiju/KaijuFxStage'));
+const LooksStage = React.lazy(() => import('./chora/looks/LooksStage'));
 
-export type FxEngine = 'MILKDROP' | 'SHADER' | 'GENERATOR' | 'FLUX' | 'TYPO' | 'KAIJU';
+export type FxEngine = 'MILKDROP' | 'SHADER' | 'GENERATOR' | 'FLUX' | 'TYPO' | 'KAIJU' | 'LOOKS';
 
 /**
  * Frames per second the Pixels engines should target on this device. 0 = uncapped.
@@ -146,7 +148,11 @@ export const FX_ENGINE_PRESETS: Record<FxEngine, string[]> = {
   FLUX: FLUX_MODES.map(f => f.name),
   TYPO: TYPO_MODES.map(t => t.name),
   KAIJU: KAIJU_MODES,
+  // Looks (open-source WebGPU `shaders` library): house set + saved/council looks. Names only — the library itself
+  // is lazy-loaded by LooksStage. Refreshed in place when a look is saved so the preset list stays current.
+  LOOKS: getLookLibrary().map(l => l.name),
 };
+onLooksChanged(() => { FX_ENGINE_PRESETS.LOOKS = getLookLibrary().map(l => l.name); });
 
 /** `names` supplies the runtime list for the async engines (MilkDrops, Shaders); the
  *  already-loaded FX_ENGINE_PRESETS entry is used when a caller doesn't hold one. */
@@ -269,6 +275,11 @@ export default function FxStageVisualizers({
       )}
       {engine === 'KAIJU' && (
         <KaijuStage preset={presetIndex} analyser={analyser} isPlaying={isPlaying} fpsCap={fps} />
+      )}
+      {engine === 'LOOKS' && (
+        <LooksStage presetIndex={presetIndex} analyser={analyser} isPlaying={isPlaying} fpsCap={fps}
+          coverUrl={(gp?.currentAlbum as any)?.coverArt || (gp?.currentAlbum as any)?.coverUrl || gp?.currentTrack?.images?.[0]}
+          trackId={gp?.currentTrack?.id} />
       )}
     </Suspense>
   );

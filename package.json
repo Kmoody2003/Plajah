@@ -138,6 +138,7 @@
     "stripe": "^22.1.1",
     "styled-components": "^6.4.2",
     "tailwindcss": "^4.2.2",
+    "shaders": "4.0.0",
     "tesseract.js": "^7.0.0",
     "three": "^0.184.0",
     "uuid": "^14.0.0",
