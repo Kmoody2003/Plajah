@@ -1177,6 +1177,21 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
   const [isProjectTrayOpen, setIsProjectTrayOpen] = useState(false);
   const [editingAlbum, setEditingAlbum] = useState<Album | null>(null);
   const [dashboardInitialTab, setDashboardInitialTab] = useState<string | undefined>(undefined);
+  // The phone's fixed bottom tab bar paints above every full-screen surface (z-150), so anything
+  // pinned to the bottom of the screen — Live TV+'s channel guide — ended up underneath it. Publish
+  // the bar's real height as --pj-mobile-nav-h so such surfaces can stop above it instead of
+  // guessing (safe-area inset, persona tab count and font scaling all change it).
+  const [mobileNavEl, setMobileNavEl] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    const root = document.documentElement;
+    if (!mobileNavEl) { root.style.removeProperty('--pj-mobile-nav-h'); return; }
+    const publish = () => root.style.setProperty('--pj-mobile-nav-h', `${Math.round(mobileNavEl.getBoundingClientRect().height)}px`);
+    publish();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(publish) : null;
+    ro?.observe(mobileNavEl);
+    window.addEventListener('resize', publish);
+    return () => { ro?.disconnect(); window.removeEventListener('resize', publish); root.style.removeProperty('--pj-mobile-nav-h'); };
+  }, [mobileNavEl]);
   const [isLoading, setIsLoading] = useState(true);
   const [wcMobileBannerDismissed, setWcMobileBannerDismissed] = useState(() => !!localStorage.getItem('wc26_mobile_banner_dismissed'));
   const [isPublicView, setIsPublicView] = useState(false);
@@ -5297,6 +5312,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
             <>
               {/* Fixed bottom tab bar — 5 primary destinations + narrow More trigger */}
               <nav
+                ref={setMobileNavEl}
                 onTouchStart={onNavTouchStart}
                 onTouchEnd={onNavTouchEnd}
                 className={`fixed bottom-0 left-0 right-0 z-[150] glass-nav gpu transition-all duration-300 ${DEFAULT_PERSONAS[activePersonaKey]?.haloClass || ''}`}
