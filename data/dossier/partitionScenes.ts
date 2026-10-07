@@ -29,11 +29,11 @@ export const partitionScenes: DossierScene[] = [
       action: 'no figures; the table is laid for a meeting that has just ended in disagreement, papers pushed away from the middle', cast: [] },
   },
   {
-    id: 'recon-radcliffe-desk', roomId: 'r5', title: 'A map and a pencil line, New Delhi, August 1947',
+    id: 'recon-radcliffe-desk', roomId: 'r5', title: 'A map and a desk, New Delhi, August 1947',
     basis: 'Radcliffe awards dated 12 and 13 August 1947 and published in the Gazette of India Extraordinary on 17 August 1947; the Foreign Office boundary maps of September 1948 (generic staging of a desk in a hot New Delhi summer)',
     claimIds: ['c-radcliffe-india', 'c-award-dates', 'c-radcliffe-quote'],
-    spec: { style: STYLE, aspect: '16:9', setting: 'a hot New Delhi government study in August 1947, a heavy desk with a large unrolled map of a province whose coloured district shading is abstract and not legible, a single hand-drawn pencil line crossing it, a set square and ruler, a stack of district gazetteers, an inkwell, a ceiling fan turning above, closed shutters and a bar of white light',
-      action: 'no figures; the pencil rests on the line where it ended', cast: [] },
+    spec: { style: STYLE, aspect: '16:9', setting: 'a hot New Delhi government study in August 1947, a heavy desk with a large unrolled map of a province whose coloured district shading is abstract and not legible, a set square and ruler, a stack of district gazetteers, an inkwell, a ceiling fan turning above, closed shutters and a bar of white light',
+      action: 'no figures; a closed set square and a pen rest on the unrolled map', cast: [] },
   },
   {
     id: 'recon-empty-platform', roomId: 'r7', title: 'An empty platform at dawn',
@@ -57,17 +57,17 @@ export const partitionScenes: DossierScene[] = [
       action: 'no figures; the household has gone, the tea cups still set out, the door open to the lane', cast: [] },
   },
   {
-    id: 'recon-boundary-pillar', roomId: 'r9', title: 'A boundary pillar and a fence in the wheat',
+    id: 'recon-boundary-pillar', roomId: 'r9', title: 'A boundary pillar in the wheat',
     basis: 'The Radcliffe line as a modern international border (Radcliffe report; the Attari-Wagah crossing); generic staging, with no flags and no legible lettering',
     claimIds: ['c-line-effect', 'c-wagah'],
-    spec: { style: STYLE, aspect: '16:9', setting: 'a flat Punjab landscape of ripe wheat fields at sunrise, a low whitewashed concrete border pillar with no legible lettering beside a long double line of barbed-wire fencing and floodlight poles running to the horizon, a dirt track on each side, a few trees and a distant village roofline on both sides of the fence',
+    spec: { style: STYLE, aspect: '16:9', setting: 'a flat Punjab landscape of ripe wheat fields at sunrise, a single plain unmarked stone pillar standing in the wheat with no lettering, no fence and no flag, a dirt track, a few trees and a distant mud-walled village roofline',
       action: 'no figures; wind moves through the wheat on both sides of the line', cast: [] },
   },
   {
     id: 'recon-kartarpur-dawn', roomId: 'r9', title: 'A gurdwara dome seen across the fields at dawn',
     basis: 'The Kartarpur Corridor, opened 9 November 2019, linking Dera Baba Nanak with Gurdwara Darbar Sahib Kartarpur about four kilometres away (press and encyclopaedia sources); a generic view across open fields, with no people',
     claimIds: ['c-kartarpur'],
-    spec: { style: STYLE, aspect: '16:9', setting: 'open fields of flowering mustard in Punjab at dawn, a long straight pale path running across them toward a distant white gurdwara with a golden dome and a saffron flag with no emblem visible, a low fence at the near edge, mist over the river plain, soft rose-gold light',
+    spec: { style: STYLE, aspect: '16:9', setting: 'open fields of flowering mustard in Punjab at dawn, a long straight pale path running across them toward a distant white gurdwara with a golden dome, no flag or banner anywhere, a low field edge at the near side, mist over the river plain, soft rose-gold light',
       action: 'no figures; light reaches the dome across the fields', cast: [] },
   },
 ];

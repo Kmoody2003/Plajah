@@ -26,6 +26,7 @@ export function applyReconstructions(dossier: Dossier, scenes: ReconScene[], man
       reconstruction: { characterIds: s.spec.cast.map(c => c.characterId), basis: s.basis, generator: m.generator },
     }];
   });
+  // Faceless scenes lead a room, so the banner is a place or an object before it is a painted person.
   const roomOf = (assetId: string) => byId.get(assetId)?.roomId;
   return {
     ...dossier,
@@ -33,7 +34,7 @@ export function applyReconstructions(dossier: Dossier, scenes: ReconScene[], man
     rooms: dossier.rooms.map(room => ({
       ...room,
       nodes: room.nodes.map((n, i) => i === 0
-        ? { ...n, assetIds: [...n.assetIds, ...recon.filter(a => roomOf(a.id) === room.id).map(a => a.id)] }
+        ? { ...n, assetIds: [...n.assetIds, ...recon.filter(a => roomOf(a.id) === room.id).sort((a, b) => (a.reconstruction?.characterIds.length ? 1 : 0) - (b.reconstruction?.characterIds.length ? 1 : 0)).map(a => a.id)] }
         : n),
     })),
   };
