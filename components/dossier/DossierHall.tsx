@@ -375,7 +375,7 @@ function HallInner({ dossier, entry, onBack, backLabel = 'Back' }: { dossier: Do
   const visibleAt = (a?: DossierAsset): a is DossierAsset => !!a && (!a.minDepth || depthRank(depth) >= depthRank(a.minDepth));
   // Topic exhibits have no portrait: the first archival image in the room becomes the banner.
   const artifactBanner = bannerAsset || (portrait && !noPhotoEra) ? undefined
-    : room.nodes.flatMap(n => n.assetIds).map(id => assetById.get(id)).find(a => visibleAt(a) && a.kind !== 'recreation' && /^https?:/.test(a.url));
+    : room.nodes.flatMap(n => n.assetIds).map(id => assetById.get(id)).find(a => visibleAt(a) && a.kind !== 'recreation' && /^(https?:|\/dossier\/[^/]+\/archival\/)/.test(a.url));
 
   const usedAssets = useMemo(() => {
     const ids = new Set<string>(room.nodes.flatMap(n => n.assetIds));

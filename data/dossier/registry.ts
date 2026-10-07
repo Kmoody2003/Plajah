@@ -82,7 +82,7 @@ export const DOSSIERS: DossierEntry[] = [
     kind: 'biography',
     tagline: "Born enslaved. Became the nation's conscience.",
     years: '1818 — 1895',
-    heroUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Samuel_J._Miller_-_Frederick_Douglass_-_Google_Art_Project.jpg/960px-Samuel_J._Miller_-_Frederick_Douglass_-_Google_Art_Project.jpg',
+    heroUrl: '/dossier/douglass/archival/ref-1847-miller-hero.jpg',
     load: () => import('./douglass').then(m => m.douglassDossier),
     telaTimeline: () => import('./douglassTimeline.tela.json').then(m => m.default),
     fabulaFilm: () => import('./douglassFabula.json').then(m => m.default),
@@ -95,7 +95,7 @@ export const DOSSIERS: DossierEntry[] = [
     kind: 'biography',
     tagline: 'He put America on wheels and made Detroit the capital of the machine age.',
     years: '1863 — 1947',
-    heroUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Henry_Ford%2C_head-and-shoulders_portrait%2C_facing_slightly_left%29_-_Hartsook_photo_LCCN94506959_Trim.jpg/960px-Henry_Ford%2C_head-and-shoulders_portrait%2C_facing_slightly_left%29_-_Hartsook_photo_LCCN94506959_Trim.jpg',
+    heroUrl: '/dossier/ford/archival/ref-1919-hartsook.jpg',
     load: () => Promise.all([import('./ford'), import('./fordScenes'), import('./fordRecon.json')])
       .then(([m, s, r]) => applyReconstructions(m.fordDossier, s.fordScenes as any, r.default)),
     telaTimeline: () => import('./fordTimeline.tela.json').then(m => m.default),
@@ -109,7 +109,7 @@ export const DOSSIERS: DossierEntry[] = [
     kind: 'topic',
     tagline: 'Two thousand years of faith on the roads of Persia.',
     years: 'c. 33 — Today',
-    heroUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Stele_of_the_Spread_of_the_Assyrian_Teachings_of_the_Great_Qin_to_the_Central_States_WDL3047.jpg/1280px-Stele_of_the_Spread_of_the_Assyrian_Teachings_of_the_Great_Qin_to_the_Central_States_WDL3047.jpg',
+    heroUrl: '/dossier/persia/archival/a-stele-wdl.jpg',
     load: () => Promise.all([import('./persia'), import('./persiaScenes'), import('./persiaRecon.json')])
       .then(([m, s, r]) => applyReconstructions(m.persiaDossier, s.persiaScenes as any, r.default)),
     telaTimeline: () => import('./persiaTimeline.tela.json').then(m => m.default),
@@ -136,7 +136,7 @@ export const DOSSIERS: DossierEntry[] = [
     kind: 'topic',
     tagline: 'From thirteen colonies to four presidents, and the people the story left out.',
     years: '1754 — 1817',
-    heroUrl: 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Declaration_of_Independence_%281819%29%2C_by_John_Trumbull.jpg/1280px-Declaration_of_Independence_%281819%29%2C_by_John_Trumbull.jpg',
+    heroUrl: '/dossier/founding/archival/a-declaration-trumbull.jpg',
     artPending: true,
     load: () => Promise.all([import('./founding'), import('./foundingScenes'), import('./foundingRecon.json')])
       .then(([m, s, r]) => applyReconstructions(m.foundingDossier, s.foundingScenes as any, r.default)),

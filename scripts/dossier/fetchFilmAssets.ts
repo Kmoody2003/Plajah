@@ -59,15 +59,17 @@ async function shrink(file: string) {
 async function archival() {
   const dir = path.join(PUB, 'archival');
   fs.mkdirSync(dir, { recursive: true });
-  const assets: Array<{ id: string; url: string }> = JSON.parse(fs.readFileSync(path.join(ROOT, `data/dossier/${SLUG}Assets.json`), 'utf8'));
+  const assets: Array<{ id: string; url: string; originalUrl?: string }> = JSON.parse(fs.readFileSync(path.join(ROOT, `data/dossier/${SLUG}Assets.json`), 'utf8'));
   // Film-only plates the exhibit's own ledger does not list (data/dossier/<slug>FilmAssets.json, same shape plus a credit for the film).
   const extra = path.join(ROOT, `data/dossier/${SLUG}FilmAssets.json`);
   if (fs.existsSync(extra)) assets.push(...JSON.parse(fs.readFileSync(extra, 'utf8')));
   for (const a of assets) {
-    if (!a.url?.startsWith('http') || (ONLY && !ONLY.includes(a.id))) continue;
+    // scripts/dossier/mirrorAssets.ts rewrites url to the local copy and keeps the Commons URL as originalUrl: re-fetch from that.
+    const src = a.originalUrl ?? a.url;
+    if (!src?.startsWith('http') || (ONLY && !ONLY.includes(a.id))) continue;
     try {
       const dest = path.join(dir, `${a.id}.jpg`);
-      console.log(`archival ${a.id}: ${await download(commonsThumb(a.url), dest)}`);
+      console.log(`archival ${a.id}: ${await download(commonsThumb(src), dest)}`);
       if (SLUG !== 'douglass' || a.id.startsWith('film-')) await shrink(dest);
     }
     catch (e) { console.warn(`archival ${a.id}: FAILED ${(e as Error).message}`); }

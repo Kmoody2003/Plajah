@@ -66,7 +66,7 @@ test('Persia: all assets are publishable, credited and carry a record URL; none 
     assert.ok(PUBLISHABLE.includes(a.rights.status) && a.rights.status !== 'generated', a.id);
     assert.ok(a.rights.credit, a.id);
     assert.ok(a.rights.verifiedAt?.startsWith('https://commons.wikimedia.org/'), a.id);
-    assert.ok(a.url.startsWith('https://upload.wikimedia.org/'), a.id);
+    assert.ok(a.url.startsWith('/dossier/persia/archival/'), `${a.id}: the image is mirrored into the app (see dossierMirror.test.ts)`);
     assert.ok(a.claimIds.every(c => claimIds.has(c)), `${a.id} cites unknown claim`);
     assert.ok(!a.reconstruction, a.id);
   }
