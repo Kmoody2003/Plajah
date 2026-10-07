@@ -12,6 +12,7 @@ import { accountFlagUpdate, hasCapability, capabilitiesFor, ACCOUNT_TYPE_META, t
 import FastChannelManager from './FastChannelManager';
 import LinkedStationsManager from './radio/LinkedStationsManager';
 import BroadcastMultiview from './radio/BroadcastMultiview';
+import ChannelLogoManager from './broadcast/ChannelLogoManager';
 import BroadcastDestinations from './radio/BroadcastDestinations';
 
 // Human labels for the capabilities shown in the "your account unlocks" panel.
@@ -1753,6 +1754,9 @@ const UserDashboard: React.FC<UserDashboardProps> = ({ user, onBack, currentThem
                   Open Scheduler
                 </button>
               </div>
+
+              {/* Channel logos — one per channel in the TV+ guide (default: profile photo, then the Plajah chevron). */}
+              <ChannelLogoManager profile={profile} />
 
               {/* Linked internet-radio stations — bring-your-station-by-link management. */}
               <LinkedStationsManager uid={profile.uid} ownerName={profile.displayName} ownerAvatar={profile.photoURL || undefined} />

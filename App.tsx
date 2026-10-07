@@ -1970,7 +1970,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } else if (target === 'CLUBS') {
       setView('CLUBS');
     } else if (target === 'LIVE_HUB') {
+      // A favorite (or any deep link) can name the exact channel to tune.
+      if (params?.focus) setLiveChannelFocus(params.focus);
       setView('LIVE_HUB');
+    } else if (target === 'MASTER_CONTROL') {
+      // Channel quick-settings → the account's Settings › Master Control (Broadcast) tab.
+      if (!user) { loginWithGoogle(); return; }
+      setDashboardInitialTab('BROADCAST');
+      setView('CREATOR');
     }
   };
 

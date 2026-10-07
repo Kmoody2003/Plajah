@@ -1378,6 +1378,19 @@ export interface BroadcastDestination {
   createdAt: number;
 }
 
+/** A TV+ channel a viewer starred. `key` is stable across sessions (see services/fast/channelBranding.favoriteKey);
+    the rest is a snapshot so the profile row can render without loading the guide. */
+export interface FavoriteChannel {
+  key: string;
+  name: string;
+  number?: string;
+  logoUrl?: string;
+  ownerId?: string;
+  plajahId?: string;
+  sourceId?: string;
+  addedAt: number;
+}
+
 export interface RadioPreset {
   id: string;              // station id (e.g. 'plajah-fm', 'artist-<uid>', or Radio Browser uuid)
   name: string;            // station name
@@ -1397,6 +1410,7 @@ export interface UserProfile {
   photoURL: string;
   email: string;
   radioPresets?: RadioPreset[];
+  favoriteChannels?: FavoriteChannel[];
   bio?: string;
   /** Public destinations shown in the profile's “Find me online” row. OAuth tokens
    *  never belong here; these are public profile, artist, channel, and storefront URLs. */
@@ -4257,6 +4271,8 @@ export interface FastChannel {
   /** Per-sub-channel names the owner chose in the guide, keyed by the guide's sub-channel id
    *  (`fast_<ownerId>`, `live_<feedId>`). Independent of `name`, so renaming N.1 never renames N.2. */
   subNames?: Record<string, string>;
+  /** Per-sub-channel logo URLs, same keys as `subNames`. `logoUrl` is the account default; a profile photo and then the Plajah chevron sit behind it. */
+  subLogos?: Record<string, string>;
   number?: number;       // LCN — the channel number in a guide
   category?: FastChannelCategory;
   logoUrl?: string;
