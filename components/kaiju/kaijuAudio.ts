@@ -261,7 +261,7 @@ export class KaijuAudio {
       };
       const prior = hints.genre ? GENRE_PRIORS.find(([re]) => re.test(hints.genre!))?.[1] : undefined;
       if (prior) raw[prior] += 0.8;
-      if (import.meta.env?.DEV) (globalThis as any).__kaijuDbg = { E, density, kickRate, longE: this.longE.v, shortE: this.shortE.v, reg, perc, allF, tonal, flat: f.flat.v, bassR, trebR, midR, swell, bpm, raw };
+      if (import.meta.env.DEV) (globalThis as any).__kaijuDbg = { E, density, kickRate, longE: this.longE.v, shortE: this.shortE.v, reg, perc, allF, tonal, flat: f.flat.v, bassR, trebR, midR, swell, bpm, raw };
       for (const s of Object.keys(raw) as KaijuStyle[]) this.scores[s].step(raw[s], dt, 2.5);
 
       let lead: KaijuStyle = this.style;
