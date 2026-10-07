@@ -277,8 +277,14 @@ test('Founding scenes: places and objects only, no cast, no people, no violence,
     'recon-assembly-room', 'recon-burned-presidents-house', 'recon-capitol-construction', 'recon-keelboat-journal', 'recon-mulberry-row',
     'recon-philadelphia-street', 'recon-printing-shop', 'recon-rice-field', 'recon-survey-table', 'recon-tea-wharf', 'recon-tobacco-barn',
   ]);
-  // None has been painted: the manifest is empty and the entry is flagged.
-  assert.deepEqual(JSON.parse(fs.readFileSync('data/dossier/foundingRecon.json', 'utf8')), []);
+  // All eleven are painted (Nano Banana Pro via Magnific): the manifest lists one existing JPEG per scene, and the entry stays flagged.
+  const recon = JSON.parse(fs.readFileSync('data/dossier/foundingRecon.json', 'utf8')) as { id: string; file: string; generator: string }[];
+  assert.equal(recon.length, 11);
+  assert.deepEqual(recon.map(r => r.id).sort(), foundingScenes.map(s => s.id).sort());
+  for (const r of recon) {
+    assert.ok(fs.existsSync('public' + r.file), `${r.id} image missing`);
+    assert.ok(/Nano Banana Pro/.test(r.generator), r.id);
+  }
 });
 
 test('Founding timeline: pins cite real claims in real rooms, cover every presidency, and are dated inside the axis', () => {
@@ -367,7 +373,7 @@ test('Founding is registered with a lazy loader, a distinct theme, lobby years a
   assert.ok(t.fonts.some(f => f.startsWith('Libre Caslon')));
   const loaded = await entry.load();
   assert.equal(loaded.id, 'founding-era');
-  assert.equal(loaded.assets.filter(a => a.kind === 'recreation').length, 0, 'no painting exists yet');
+  assert.equal(loaded.assets.filter(a => a.kind === 'recreation').length, 11, 'the eleven reconstruction paintings are registered');
   assert.deepEqual(validateDossier(loaded).filter(i => i.severity === 'error'), []);
 });
 

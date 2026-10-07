@@ -1,6 +1,6 @@
 /**
- * Planned reconstruction scenes for the Founding Era dossier. NONE HAS BEEN PAINTED YET: the registry entry is
- * flagged artPending until the owner approves the spend and the images exist (see foundingRecon.json, empty).
+ * Planned reconstruction scenes for the Founding Era dossier. The eleven paintings now exist (foundingRecon.json, Nano Banana Pro via Magnific, reviewed 2026-10-07); the registry entry
+ * stays flagged artPending until the film and the rest of the exhibit are finished.
  * Each scene is a labelled reconstruction, never a photograph, and cites the claims it illustrates.
  *
  * This is a topic dossier with no characters, and no photographs exist for this period, so every scene shows a
@@ -28,7 +28,7 @@ export const foundingScenes: DossierScene[] = [
     id: 'recon-tea-wharf', roomId: 'r2', title: 'Griffin\'s Wharf at dusk, December 1773',
     basis: 'The Boston Tea Party of 16 December 1773, at Griffin\'s Wharf, where about 340 chests of tea were thrown into the harbour (Middlekauff; Taylor); generic staging, shown empty on the evening before or after, with no protest, no crowd and no people',
     claimIds: ['c-tea-party', 'c-coercive'],
-    spec: { style: STYLE, aspect: '16:9', setting: 'a Boston wharf in December 1773 at dusk, three tall merchant ships moored with furled sails and bare rigging, wooden crates and chests stacked in a neat pile on the planks, a rope coil, a lantern on a post, cold grey-blue harbour water with small floating ice, the brick and shingle roofs of the town behind',
+    spec: { style: STYLE, aspect: '16:9', setting: 'a Boston wharf in December 1773 at dusk, two tall merchant ships moored with furled sails and bare rigging, wooden crates and chests stacked in a neat pile on the planks (the crates carry faint illegible stencil marks), a rope coil, a lantern on a post, cold grey-blue harbour water with small floating ice and a dusting of snow on the planks, the brick and shingle roofs of the town behind',
       action: 'no figures; a stack of chests stands at the wharf edge in the last light and the water is still', cast: [] },
   },
   {
@@ -56,14 +56,14 @@ export const foundingScenes: DossierScene[] = [
     id: 'recon-philadelphia-street', roomId: 'r8', title: 'A Philadelphia street, summer 1787',
     basis: 'Philadelphia in 1787 was the largest city in the United States, a brick city on a grid, hot and crowded during the Convention (Beeman); generic staging after Birch\'s Views of Philadelphia (1798, shown in the exhibit) of a street of brick row houses, with the State House steeple in the distance; no people, carriages or animals',
     claimIds: ['c-convention'],
-    spec: { style: STYLE, aspect: '16:9', setting: 'a Philadelphia street in July 1787, rows of red brick three-storey houses with white marble steps and wooden shutters, a cobbled roadway with a drainage gutter down the middle, a tall tree-lined brick footpath on both sides, an iron pump and a street lamp on a post, the white steeple of the State House in the distance, dry heat haze and shade under the trees',
+    spec: { style: STYLE, aspect: '16:9', setting: 'a Philadelphia street in July 1787, rows of red brick three-storey houses with white marble steps, cellar hatches and green wooden shutters, a cobbled roadway with a drainage gutter down the middle, a brick footpath lined with trees on both sides, a street pump and a lamp on a post, the State House tower far down the street (painted with the white wooden steeple of the 1828 restoration; the tower in 1787 carried a low hipped roof, so this is a known anachronism), dry heat haze and shade under the trees',
       action: 'no figures; shutters are closed against the heat and the street is empty and quiet', cast: [] },
   },
   {
     id: 'recon-survey-table', roomId: 'r7', title: 'A surveyor\'s table and chain, 1785',
     basis: 'The Land Ordinance of 1785 laid out the lands north of the Ohio River in square townships by survey, and the Northwest Ordinance followed in 1787 (Wood; the Avalon Project text); generic staging with a Gunter\'s chain and compass and a blank, abstract plat, with no map detail that could be read as Native or American claims',
     claimIds: ['c-land-ord', 'c-nw-art3'],
-    spec: { style: STYLE, aspect: '16:9', setting: 'a rough wooden table in a log survey office in 1785, a long measuring chain of brass links coiled beside a brass compass with a sighting vane on a wooden staff, a large paper plat with abstract grid squares and soft watercolour wash that is not legible, a dip pen and an inkwell, red-and-white marking poles leaning in the corner, low light through a small window',
+    spec: { style: STYLE, aspect: '16:9', setting: 'a rough wooden table in a log survey office in 1785, a long measuring chain of iron and brass links partly coiled on the table and trailing over its edge, a brass pocket compass and a wooden sighting rule lying on a large paper plat with abstract grid squares and soft watercolour wash that is not legible, a quill and an inkwell, two candles, red-and-white marking poles leaning against the log walls, low light through a small window',
       action: 'no figures; the measuring chain lies half uncoiled across the unfinished plat', cast: [] },
   },
   {
@@ -77,7 +77,7 @@ export const foundingScenes: DossierScene[] = [
     id: 'recon-keelboat-journal', roomId: 'r13', title: 'A keelboat and a field journal on the Missouri, 1804',
     basis: 'The Corps of Discovery ascended the Missouri in a keelboat and pirogues from May 1804, and the captains kept journals, among them an elkskin-bound journal (the Lewis and Clark Journals, ed. Moulton); generic staging of the boat and a writing desk, shown empty, with no member of the expedition and no Native person depicted',
     claimIds: ['c-lewis-clark', 'c-louisiana'],
-    spec: { style: STYLE, aspect: '16:9', setting: 'the muddy bank of the Missouri River at dawn in 1804, a long covered keelboat with a single square sail and a mast moored to a cottonwood, two small open canoes drawn up on the gravel, a wooden field desk on the bank holding an open leather-bound journal with abstract ink lines that are not legible, a quill and a brass compass, tall prairie grass and cottonwoods beyond the broad brown river, pale morning mist',
+    spec: { style: STYLE, aspect: '16:9', setting: 'the muddy bank of the Missouri River at dawn in May 1804, a long keelboat with a raised plank deck, a small cabin at the stern, a single mast with a furled square sail and long oars laid along the deck, moored by a rope to a cottonwood in fresh spring leaf, one small wooden pirogue drawn up on the gravel, a rough wooden field table on the bank holding an open leather-bound journal whose faint ink lines are not legible, a quill, a brass compass and a brass sextant, green willows and prairie grass beside the broad brown river, pale morning mist',
       action: 'no figures; the journal lies open on the field desk with the quill beside it and the river runs on', cast: [] },
   },
   {

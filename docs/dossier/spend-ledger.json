@@ -689,5 +689,89 @@
     "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
     "via": "magnific-mcp",
     "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:41:00.000Z",
+    "scene": "recon-printing-shop",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:42:00.000Z",
+    "scene": "recon-tea-wharf",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:43:00.000Z",
+    "scene": "recon-tobacco-barn",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:44:00.000Z",
+    "scene": "recon-rice-field",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:45:00.000Z",
+    "scene": "recon-assembly-room",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:46:00.000Z",
+    "scene": "recon-philadelphia-street",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:47:00.000Z",
+    "scene": "recon-survey-table",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:48:00.000Z",
+    "scene": "recon-capitol-construction",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:49:00.000Z",
+    "scene": "recon-keelboat-journal (rejected: open boat not a keelboat, bare winter trees; superseded by regen)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:50:00.000Z",
+    "scene": "recon-keelboat-journal (regen 1, used)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:51:00.000Z",
+    "scene": "recon-mulberry-row",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T01:52:00.000Z",
+    "scene": "recon-burned-presidents-house",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
   }
 ]
