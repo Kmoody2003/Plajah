@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { canModerateMeeting, changeMeeting, meetingRoomFor, newMeeting } from '../services/meetingCore';
+import { canModerateMeeting, changeMeeting, meetingRoomFor, meetingPeerAllowed, newMeeting } from '../services/meetingCore';
 const members = ['host', 'mod', 'guest'];
 test('only the host can appoint moderators; regular and removed members cannot govern', () => {
   const base = newMeeting('host');
@@ -16,10 +16,13 @@ test('room assignment and closing rooms return everyone to main without mutating
   const withRoom = changeMeeting(base, 'host', members, { type: 'create-room', id: 'breakout_a', name: ' Design ' });
   const assigned = changeMeeting(withRoom, 'host', members, { type: 'assign', uid: 'guest', roomId: 'breakout_a' });
   assert.equal(meetingRoomFor(assigned, 'guest'), 'breakout_a');
+  assert.equal(meetingPeerAllowed(assigned, 'host', 'guest'), false);
+  assert.equal(meetingPeerAllowed(assigned, 'host', 'mod'), true);
   assert.equal(meetingRoomFor(withRoom, 'guest'), 'main');
   assert.deepEqual(base.breakoutRooms, {});
   const closed = changeMeeting(assigned, 'host', members, { type: 'close-rooms' });
   assert.equal(meetingRoomFor(closed, 'guest'), 'main');
+  assert.equal(meetingPeerAllowed(closed, 'host', 'guest'), true);
   assert.equal(closed.revision, 3);
   assert.equal(meetingRoomFor(null, 'guest'), 'main');
 });
@@ -38,6 +41,7 @@ test('host cannot be removed, rejoin clears removal, and mute requests remain mo
   assert.throws(() => changeMeeting(base, 'host', members, { type: 'remove', uid: 'host', removed: true }));
   const removed = changeMeeting(base, 'host', members, { type: 'remove', uid: 'guest', removed: true });
   assert.deepEqual(removed.removedIds, ['guest']);
+  assert.equal(meetingPeerAllowed(removed, 'host', 'guest'), false);
   assert.deepEqual(changeMeeting(removed, 'host', members, { type: 'remove', uid: 'guest', removed: false }).removedIds, []);
   const muted = changeMeeting(base, 'host', members, { type: 'mute', uid: 'guest' });
   assert.equal(changeMeeting(muted, 'host', members, { type: 'mute', uid: 'guest' }).muteRequests.guest, 2);

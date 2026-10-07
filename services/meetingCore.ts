@@ -14,6 +14,9 @@ export function meetingRoomFor(state: MeetingControl | null, uid: string): strin
   const assigned = state?.assignments[uid];
   return assigned && state?.breakoutRooms[assigned] ? assigned : 'main';
 }
+export function meetingPeerAllowed(state: MeetingControl | null, selfId: string, peerId: string): boolean {
+  return !state?.removedIds.includes(selfId) && !state?.removedIds.includes(peerId) && meetingRoomFor(state, selfId) === meetingRoomFor(state, peerId);
+}
 export type MeetingAction =
   | { type: 'create-room'; id: string; name: string }
   | { type: 'close-rooms' }
@@ -41,4 +44,7 @@ export function changeMeeting(state: MeetingControl, actor: string, members: str
       if (action.uid === state.hostId || action.uid === actor) throw new Error('The host and acting moderator cannot be removed.');
       next.removedIds = next.removedIds.filter(id => id !== action.uid);
       if (action.removed) next.removedIds.push(action.uid); break;
-    case 'mute': next.muteRequests[action.uid] = (next.muteRequests[action.uid] ||
+    case 'mute': next.muteRequests[action.uid] = (next.muteRequests[action.uid] || 0) + 1; break;
+  }
+  return next;
+}

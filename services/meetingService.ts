@@ -20,6 +20,7 @@ export async function updateMeeting(roomId: string, action: MeetingAction) {
 }
 export function watchMeetingMessages(roomId: string, sessionId: string, receive: (messages: MeetingMessage[]) => void, fail: (error: Error) => void) {
   let generation = 0;
+  let active = true;
   const unsubscribe = onSnapshot(query(collection(db, 'chat_rooms', roomId, 'meeting_rtc', sessionId, 'messages'), orderBy('timestamp', 'desc'), limit(100)), async snap => {
     const version = ++generation;
     try {
@@ -29,8 +30,8 @@ export function watchMeetingMessages(roomId: string, sessionId: string, receive:
       }));
       if (version === generation) receive(messages.reverse());
     } catch (error) { if (version === generation) fail(error as Error); }
-  }, fail);
-  return () => { generation++; unsubscribe(); };
+  }, error => { if (active) fail(error); });
+  return () => { active = false; generation++; unsubscribe(); };
 }
 export async function sendMeetingMessage(roomId: string, sessionId: string, text: string) {
   const user = auth.currentUser;
