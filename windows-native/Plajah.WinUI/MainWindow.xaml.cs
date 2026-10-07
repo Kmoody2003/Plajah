@@ -91,22 +91,10 @@ public sealed partial class MainWindow : Window
         };
         if (_appWindow != null)
         {
-            _appWindow.Closing += (_, _) =>
-            {
-                // Each step is isolated: one failing must never keep the X button from closing the app.
-                try { _studioBridge.ShutdownCompositor(); } catch (Exception ex) { CrashLog.Write("Close.Compositor", ex); }
-                try { _studioBridge.CloseAllOutputWindows(); } catch (Exception ex) { CrashLog.Write("Close.Outputs", ex); }
-                try { _studioBridge.CloseCleanFeed(); } catch (Exception ex) { CrashLog.Write("Close.CleanFeed", ex); }
-                try { SaveWindowBounds(); } catch (Exception ex) { CrashLog.Write("Close.Bounds", ex); }
-                // Background work (NDI/OMT discovery, compositor child, WebView2) can keep the process alive
-                // after the window is gone, so the app looks like it ignored the X. End the process shortly after.
-                var killer = new System.Threading.Thread(() =>
-                {
-                    System.Threading.Thread.Sleep(1500);
-                    Environment.Exit(0);
-                }) { IsBackground = false, Name = "PlajahForceExit" };
-                killer.Start();
-            };
+            _appWindow.Closing += (_, _) => BeginShutdown();
+            // Any other way the window can go away (Closed without a Closing, the last window of a
+            // multi-window session) must also end the process, not leave it in Task Manager.
+            this.Closed += (_, _) => BeginShutdown();
         }
 
         // Hybrid CPU: interactive shell on performance cores; see PowerQos / UpdatePowerMode.
@@ -120,6 +108,37 @@ public sealed partial class MainWindow : Window
         }
 
         _ = InitWebViewAsync();
+    }
+
+    private int _shuttingDown;
+
+    /// <summary>
+    /// Ends the process whatever happens. The watchdog starts FIRST, on its own thread: every cleanup
+    /// step below runs on the UI thread and any one of them can block (compositor child, output
+    /// windows, NDI), and a watchdog started after them would never run. A closed-but-alive process
+    /// also keeps the single-instance key, which made the next launch hand off to it and exit —
+    /// "Plajah won't open until I end the task in Task Manager".
+    /// </summary>
+    private void BeginShutdown()
+    {
+        if (System.Threading.Interlocked.Exchange(ref _shuttingDown, 1) == 1) return;
+        App.IsShuttingDown = true;
+
+        var watchdog = new System.Threading.Thread(() =>
+        {
+            System.Threading.Thread.Sleep(1500);
+            try { Environment.Exit(0); } catch { /* fall through to the hard kill */ }
+            System.Threading.Thread.Sleep(1500);
+            try { System.Diagnostics.Process.GetCurrentProcess().Kill(); } catch { }
+        }) { IsBackground = false, Name = "PlajahForceExit" };
+        watchdog.Start();
+
+        // Cheap and important first, so bounds survive even if a later step hangs.
+        try { SaveWindowBounds(); } catch (Exception ex) { CrashLog.Write("Close.Bounds", ex); }
+        // Each step is isolated: one failing must never keep the X button from closing the app.
+        try { _studioBridge.CloseAllOutputWindows(); } catch (Exception ex) { CrashLog.Write("Close.Outputs", ex); }
+        try { _studioBridge.ShutdownCompositor(); } catch (Exception ex) { CrashLog.Write("Close.Compositor", ex); }
+        try { _studioBridge.CloseCleanFeed(); } catch (Exception ex) { CrashLog.Write("Close.CleanFeed", ex); }
     }
 
     private bool _ecoMode;

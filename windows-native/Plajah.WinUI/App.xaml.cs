@@ -9,6 +9,8 @@ namespace Plajah.WinUI;
 public partial class App : Application
 {
     private static App? _instance;
+    /// <summary>Set once the main window is closing: this process is on its way out and must not claim new launches.</summary>
+    internal static volatile bool IsShuttingDown;
     private MainWindow? _window;
 
     public App()
@@ -55,6 +57,19 @@ public partial class App : Application
     /// <summary>Another launch was redirected to this (primary) instance. Raised on a background thread.</summary>
     internal static void OnRedirectedActivation(AppActivationArguments args)
     {
+        if (IsShuttingDown)
+        {
+            // A launch landed on an instance that is closing. Release the key so the relaunch becomes
+            // the primary instead of redirecting back here, then start it and let this process end.
+            try { AppInstance.GetCurrent().UnregisterKey(); } catch { }
+            try
+            {
+                var exe = Environment.ProcessPath;
+                if (!string.IsNullOrEmpty(exe)) System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(exe) { UseShellExecute = true });
+            }
+            catch (Exception ex) { CrashLog.Write("Relaunch", ex); }
+            return;
+        }
         var window = _instance?._window;
         window?.DispatcherQueue.TryEnqueue(() =>
         {
