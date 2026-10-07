@@ -14,30 +14,16 @@
  * those fields are self-asserted and prove nothing.
  */
 
-/** The owner's account — always full access so the experience can be tested over time. */
-export const OWNER_EMAIL = 'kmoody2003@gmail.com';
+import { OWNER_EMAIL, isVerifiedAdmin, type AdminFacts } from '../platformAdmin';
+
+// Platform-admin identity lives in services/platformAdmin.ts; re-exported for existing importers.
+export { OWNER_EMAIL, isVerifiedAdmin };
 
 export type VerifiedAgentTier = 'FREE' | 'PLAJAH_PLUS' | 'PRO';
 
-export interface VerifiedFacts {
-  /** From the verified token, never from the profile doc. */
-  email?: string;
-  emailVerified?: boolean;
-  /** `admins/{uid}` exists. */
-  isAdminDoc: boolean;
+export interface VerifiedFacts extends AdminFacts {
   /** An active/trialing Plajah+ subscription doc exists for this uid. */
   hasActiveSubscription: boolean;
-  /** Comma-separated extra admin emails (env ARIA_VOICE_ADMIN_EMAILS). */
-  extraAdminEmails?: string;
-}
-
-/** Owner (verified email) or a member of the server-managed admins collection. */
-export function isVerifiedAdmin(f: Pick<VerifiedFacts, 'email' | 'emailVerified' | 'isAdminDoc' | 'extraAdminEmails'>): boolean {
-  if (f.isAdminDoc) return true;
-  const email = (f.email || '').trim().toLowerCase();
-  if (!f.emailVerified || !email) return false;
-  const admins = [OWNER_EMAIL, ...(f.extraAdminEmails || '').split(',')].map(s => s.trim().toLowerCase()).filter(Boolean);
-  return admins.includes(email);
 }
 
 export function decideVerifiedAgentTier(f: VerifiedFacts): VerifiedAgentTier {

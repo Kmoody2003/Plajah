@@ -49,6 +49,7 @@ import { academiaIntegrityRouter } from './routes/academiaIntegrity';
 import { kithSightingsRouter } from './routes/kithSightings';
 import { createAriaSpeakRouter, decideAriaVoiceAccess } from './routes/ariaSpeak';
 import { decideVerifiedAgentTier, type VerifiedAgentTier, type VerifiedFacts } from './services/aria/ariaTier';
+import { isVerifiedAdmin } from './services/platformAdmin';
 import { socialServerRouter } from './routes/socialServer';
 import { veoRouter } from './routes/veo';
 import { taleoRouter, enqueueIfReady as taleoEnqueueIfReady } from './routes/taleo';
@@ -398,10 +399,9 @@ const cxRand = () => `${Date.now()}_${Math.random().toString(36).slice(2)}`;
 // Free-tier conversion cap (admins/staff unlimited). Plajah+ unlimited is a
 // future step — add the plan check here AND in services/crossoverUsage.ts together.
 const CX_FREE_LIMIT = 3;
-async function cxUsage(uid: string): Promise<{ isAdmin: boolean; used: number }> {
+async function cxUsage(uid: string, isAdmin: boolean): Promise<{ isAdmin: boolean; used: number }> {
   const u = await firestoreRead('users', uid);
-  const role = u?.role;
-  const isAdmin = role === 'admin' || role === 'staff';
+  // `isAdmin` comes from isPlatformAdminReq (verified), never from the editable profile role.
   return { isAdmin, used: Number(u?.crossoverConversions || 0) };
 }
 
@@ -1180,6 +1180,28 @@ function requireRegisteredUser(req: any, res: any, next: any) {
       code: 'ANONYMOUS_NOT_ALLOWED'
     });
   }
+  next();
+}
+
+/**
+ * PLATFORM admin check (owner + staff only — never org/business admins). Uses ONLY facts a
+ * client cannot write: the verified token email and the server-only `admins/{uid}` collection.
+ * It must never read users/{uid}.role|isAdmin|email — that profile is owner-writable, so a user
+ * could simply write role:"admin" onto themselves. See services/platformAdmin.ts.
+ */
+async function isPlatformAdminReq(req: any): Promise<boolean> {
+  try {
+    return isVerifiedAdmin({
+      email: req.email, emailVerified: req.emailVerified === true,
+      isAdminDoc: !!(await fetchFirebaseDoc('admins', req.uid)),
+      extraAdminEmails: process.env.PLATFORM_ADMIN_EMAILS || process.env.ARIA_VOICE_ADMIN_EMAILS,
+    });
+  } catch { return false; }
+}
+
+/** Express gate: must follow authMiddleware. */
+async function requireVerifiedAdmin(req: any, res: any, next: any) {
+  if (!(await isPlatformAdminReq(req))) return res.status(403).json({ error: 'Platform admin access required' });
   next();
 }
 
@@ -7143,9 +7165,7 @@ Rules:
   // Admin broadcast — push to ONE user (by uid) or to ALL users. Firebase ID token +
   // admin check required. Reuses the same FCM multicast + channel routing as /api/push.
   app.post('/api/push/admin', express.json(), authMiddleware, async (req: any, res) => {
-    const me = decodeFirestoreFields(((await fetchFirebaseDoc('users', req.uid)) || {}).fields || {});
-    const isAdmin = me.role === 'admin' || me.role === 'staff' || me.email === 'kmoody2003@gmail.com';
-    if (!isAdmin) return res.status(403).json({ error: 'Admin access required' });
+    if (!(await isPlatformAdminReq(req))) return res.status(403).json({ error: 'Admin access required' });
 
     const { mode, uid, title, body, link } = req.body || {};
     if (!title || !body) return res.status(400).json({ error: 'title and body are required' });
@@ -7182,8 +7202,7 @@ Rules:
   // subcollections (collection-group scan the client can't do), and (b) ANY user's content,
   // not just the caller's own. Requires an admin Firebase ID token.
   app.post('/api/admin/resync-display-name', express.json(), authMiddleware, async (req: any, res: any) => {
-    const me = decodeFirestoreFields(((await fetchFirebaseDoc('users', req.uid)) || {}).fields || {});
-    const isAdmin = me.role === 'admin' || me.role === 'staff' || me.email === 'kmoody2003@gmail.com';
+    const isAdmin = await isPlatformAdminReq(req);
 
     const targetUid = String((req.body || {}).uid || '').trim();
     const newName = String((req.body || {}).newName || '').trim();
@@ -7857,7 +7876,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
 
     // Free-tier gate: block once the cap is hit (admins/staff bypass).
     const cxUid = req.uid as string;
-    const cxUse = await cxUsage(cxUid);
+    const cxUse = await cxUsage(cxUid, await isPlatformAdminReq(req));
     if (!cxUse.isAdmin && cxUse.used >= CX_FREE_LIMIT) {
       return res.status(429).json({ error: 'Free conversion limit reached', limit: CX_FREE_LIMIT, used: cxUse.used });
     }
@@ -11170,7 +11189,7 @@ audio{width:100%;margin-top:2px;accent-color:#ff8c00;height:34px;}
       };
       verifiedFactsCache.set(req.uid, { at: Date.now(), facts: base });
     }
-    return { ...base, email: req.email, emailVerified: req.emailVerified, extraAdminEmails: process.env.ARIA_VOICE_ADMIN_EMAILS };
+    return { ...base, email: req.email, emailVerified: req.emailVerified, extraAdminEmails: process.env.PLATFORM_ADMIN_EMAILS || process.env.ARIA_VOICE_ADMIN_EMAILS };
   };
   const resolveVerifiedAgentTier = async (req: any): Promise<VerifiedAgentTier> => {
     try { return decideVerifiedAgentTier(await resolveVerifiedFacts(req)); } catch { return 'FREE'; }
@@ -11873,7 +11892,9 @@ TONE: Creative, concise, direct, genuinely helpful. Never sycophantic. If a requ
   app.use('/api/fse', express.json({ limit: '64kb' }), fseGamesRouter);
 
   // ── Advance Threat Protection & Chief Security Officer (CSO) ────────────────
-  app.use('/api/security/threat-protection', express.json({ limit: '1mb' }), threatProtectionRouter);
+  // Platform-admin only. This API used to be completely unauthenticated (its requireAdmin was never applied),
+  // which let anyone email arbitrary addresses (dispatch-alert) or push a fake security warning to any uid (warn-user).
+  app.use('/api/security/threat-protection', authMiddleware, requireVerifiedAdmin, express.json({ limit: '1mb' }), threatProtectionRouter);
 
   // ── Plajah Home (Real Matter & LAN Device Discovery) ────────────────────────
   app.use(homeDiscoveryRouter);

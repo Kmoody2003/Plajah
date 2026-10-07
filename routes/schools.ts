@@ -198,8 +198,8 @@ schoolsRouter.post('/provision', async (req: Request, res: Response) => {
   if (!adminConfig.hasCredentials()) return res.status(503).json({ error: 'Server not configured for schools.' });
   const uid = await callerUid(req);
   if (!uid) return res.status(401).json({ error: 'Sign in.' });
-  const caller = await fsGet(USER(uid));
-  const isPlatformAdmin = caller?.role === 'admin' || caller?.isAdmin === true;
+  // Server-only admins collection — NOT users/{uid}.role|isAdmin, which the account owner can write.
+  const isPlatformAdmin = !!(await fsGet(`admins/${uid}`));
   if (!isPlatformAdmin) return res.status(403).json({ error: 'Only a platform admin or district can pre-provision schools.' });
 
   const { name, orgType, domain, adminUid, districtId } = req.body ?? {};

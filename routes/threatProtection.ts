@@ -4,16 +4,11 @@ import { CsoAgentService, ADMIN_PRIMARY_EMAIL } from '../services/csoAgentServic
 
 export const threatProtectionRouter = Router();
 
-// Middleware: verify admin role or primary admin email
-const requireAdmin = (req: any, res: Response, next: any) => {
-  // If request has verified admin or matches primary admin email, allow
-  const user = req.user || {};
-  const isAdmin = user.role === 'admin' || user.role === 'staff' || user.email === ADMIN_PRIMARY_EMAIL || req.headers['x-admin-bypass'] === 'true';
-  if (!isAdmin && process.env.NODE_ENV === 'production') {
-    return res.status(403).json({ error: 'Administrative security access required.' });
-  }
-  next();
-};
+// AUTH: this router is mounted in server.ts behind authMiddleware + requireVerifiedAdmin
+// (platform admins only). Do not mount it anywhere without that gate — the endpoints below
+// email arbitrary addresses and push security warnings to any uid.
+// (An earlier requireAdmin lived here but was never applied, and also trusted an
+//  `x-admin-bypass` request header and self-editable profile fields; it has been removed.)
 
 /**
  * GET /api/security/threat-protection/stats

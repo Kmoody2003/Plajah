@@ -40,12 +40,11 @@ async function callerUid(req: Request): Promise<string | null> {
   return verifyIdToken(auth.slice(7));
 }
 
+// Platform admin = a doc in the server-only `admins` collection. NOT users/{uid}.role, which the
+// account owner can write themselves (see services/platformAdmin.ts).
 async function isCallerAdmin(uid: string): Promise<boolean> {
   try {
-    const adminDoc = await fsGet(`admins/${uid}`);
-    if (adminDoc) return true;
-    const user = await fsGet(`users/${uid}`);
-    return user?.role === 'admin' || user?.role === 'staff';
+    return !!(await fsGet(`admins/${uid}`));
   } catch {
     return false;
   }

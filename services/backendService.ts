@@ -2781,8 +2781,10 @@ export const updateAppStats = async (appId: string, field: 'installCount' | 'pla
 
 export const syncUserProfile = async (user: User) => {
   const userRef = doc(db, 'users', user.uid);
-  const isAdminEmail = user.email === 'kmoody2003@gmail.com';
-  
+  // NOTE: `role` is never written from the client. It is the platform-admin flag, and
+  // firestore.rules forbids owners from setting or changing it (the owner is recognised by
+  // verified email in rules/server; staff are added in the server-only `admins` collection).
+
   try {
     const docSnap = await getDoc(userRef);
     if (!docSnap.exists()) {
@@ -2799,7 +2801,7 @@ export const syncUserProfile = async (user: User) => {
         followerCount: 0,
         followingCount: 0,
         createdAt: Date.now(),
-        role: isAdminEmail ? 'admin' : 'user',
+        role: 'user',
         tier: isPioneer ? 'PIONEER' : 'FREE',
         isPioneer: isPioneer,
         storageLimit: isPioneer ? 0 : 5 * 1024 * 1024 * 1024, // Pioneer gets unlimited (0)
@@ -2818,8 +2820,7 @@ export const syncUserProfile = async (user: User) => {
         uid: user.uid,
         displayName: user.displayName || d.displayName || 'Anonymous Artist',
         photoURL: (user.photoURL ?? d.photoURL ?? '') as string,
-        email: user.email || d.email || '',
-        ...(isAdminEmail ? { role: 'admin' } : {})
+        email: user.email || d.email || ''
       };
       await updateDoc(userRef, updates);
     }
@@ -12189,9 +12190,20 @@ export const fetchImportedEpisodes = async (uid: string): Promise<ImportedRssEpi
    ADVANCE THREAT PROTECTION & CHIEF SECURITY OFFICER (CSO) CLIENT HELPERS
    ═══════════════════════════════════════════════════════════════════════════ */
 
+// The threat-protection API is platform-admin only (server: authMiddleware + requireVerifiedAdmin),
+// so every call must carry the signed-in user's ID token.
+const threatFetch = async (path: string, init: RequestInit = {}): Promise<Response> => {
+  let token: string | null = null;
+  try { token = (await auth.currentUser?.getIdToken()) || null; } catch { /* unauthenticated → server answers 401 */ }
+  return fetch(`/api/security/threat-protection/${path}`, {
+    ...init,
+    headers: { ...(init.headers as Record<string, string> | undefined), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+  });
+};
+
 export const fetchThreatStats = async (): Promise<SecurityPlatformStats | null> => {
   try {
-    const res = await fetch('/api/security/threat-protection/stats');
+    const res = await threatFetch('stats');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     return await res.json();
   } catch (err) {
@@ -12203,7 +12215,7 @@ export const fetchThreatStats = async (): Promise<SecurityPlatformStats | null> 
 
 export const fetchThreatEvents = async (): Promise<SecurityThreatEvent[]> => {
   try {
-    const res = await fetch('/api/security/threat-protection/events');
+    const res = await threatFetch('events');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data.events || [];
@@ -12215,7 +12227,7 @@ export const fetchThreatEvents = async (): Promise<SecurityThreatEvent[]> => {
 
 export const fetchThreatMapData = async (): Promise<SecurityGeoPing[]> => {
   try {
-    const res = await fetch('/api/security/threat-protection/map-data');
+    const res = await threatFetch('map-data');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data.pings || [];
@@ -12227,7 +12239,7 @@ export const fetchThreatMapData = async (): Promise<SecurityGeoPing[]> => {
 
 export const fetchCsoAssessment = async (refresh: boolean = false): Promise<CsoAssessment | null> => {
   try {
-    const res = await fetch(`/api/security/threat-protection/assessment?refresh=${refresh}`);
+    const res = await threatFetch(`assessment?refresh=${refresh}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data.assessment || null;
@@ -12239,7 +12251,7 @@ export const fetchCsoAssessment = async (refresh: boolean = false): Promise<CsoA
 
 export const simulateThreatAttack = async (isMalicious: boolean, targetUserUid?: string): Promise<SecurityThreatEvent | null> => {
   try {
-    const res = await fetch('/api/security/threat-protection/simulate-attack', {
+    const res = await threatFetch('simulate-attack', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ isMalicious, targetUserUid })
@@ -12255,7 +12267,7 @@ export const simulateThreatAttack = async (isMalicious: boolean, targetUserUid?:
 
 export const dispatchThreatAlert = async (eventId?: string, email?: string): Promise<{ ok: boolean; emailSent?: boolean; chatDelivered?: boolean }> => {
   try {
-    const res = await fetch('/api/security/threat-protection/dispatch-alert', {
+    const res = await threatFetch('dispatch-alert', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ eventId, email })
@@ -12277,7 +12289,7 @@ export const dispatchThreatAlert = async (eventId?: string, email?: string): Pro
 
 export const warnUserThreat = async (uid: string, vector?: string, details?: string): Promise<UserThreatWarning | null> => {
   try {
-    const res = await fetch('/api/security/threat-protection/warn-user', {
+    const res = await threatFetch('warn-user', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ uid, vector, details })

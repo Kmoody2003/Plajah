@@ -20,11 +20,26 @@ service cloud.firestore {
       return isAuthenticated() && request.auth.uid == resource.data.ownerId;
     }
 
+    // PLATFORM admin = the owner and designated staff ONLY. Org / business / school admins
+    // (organizations/{id}.admins, orgMemberships, business staff roles …) are separate and
+    // never make someone a platform admin.
+    // Trusted sources: the admins/{uid} collection (no client rule → console / service account
+    // only) and the owner's VERIFIED sign-in email. Deliberately NOT users/{uid}.role — an owner
+    // can write their own profile, so reading it here let any signed-in user make themselves admin.
     function isAdmin() {
       return isAuthenticated() && (
         exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role in ['admin', 'staff']
+        (request.auth.token.email == 'kmoody2003@gmail.com' && request.auth.token.email_verified == true)
       );
+    }
+
+    // Profile fields that carry platform privilege. Never settable or changeable by the account owner.
+    function noPlatformPrivilegeGrab(newData) {
+      return newData.get('role', 'user') == 'user' && newData.get('isAdmin', false) == false;
+    }
+    function platformPrivilegeUnchanged(newData, oldData) {
+      return newData.get('role', null) == oldData.get('role', null)
+          && newData.get('isAdmin', null) == oldData.get('isAdmin', null);
     }
 
     function canAccessDigitalWorksheet(data) {
@@ -1007,7 +1022,8 @@ service cloud.firestore {
       // field (set via the service account, which bypasses these rules). A client may never
       // self-grant it on create or change it on update, or the provisioning gate is bypassable.
       allow create: if (isOwner(userId) && isValidUserProfile(request.resource.data) &&
-                       request.resource.data.get('teacherVerification', 'UNVERIFIED') == 'UNVERIFIED') ||
+                       request.resource.data.get('teacherVerification', 'UNVERIFIED') == 'UNVERIFIED' &&
+                       noPlatformPrivilegeGrab(request.resource.data)) ||
                       (isAuthenticated() &&
                        request.resource.data.isChild == true &&
                        request.resource.data.guardianUid == request.auth.uid) ||
@@ -1017,7 +1033,8 @@ service cloud.firestore {
                        request.resource.data.isEmployee == true &&
                        request.resource.data.managedByUid == request.auth.uid);
       allow update: if (isOwner(userId) && isValidUserProfile(request.resource.data) &&
-                       request.resource.data.get('teacherVerification', 'UNVERIFIED') == resource.data.get('teacherVerification', 'UNVERIFIED')) ||
+                       request.resource.data.get('teacherVerification', 'UNVERIFIED') == resource.data.get('teacherVerification', 'UNVERIFIED') &&
+                       platformPrivilegeUnchanged(request.resource.data, resource.data)) ||
                       (isAuthenticated() &&
                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['followerCount']) &&
                        math.abs(request.resource.data.followerCount - resource.data.followerCount) == 1) ||
