@@ -203,6 +203,7 @@ const DesktopLauncherOverlay = retryLazy(() => import('./components/DesktopLaunc
 // Tela reference-embed demo (P2b — live/follow-latest/pinned, lock→propagate)
 const TelaEmbedDemo = retryLazy(() => import('./components/tela/TelaEmbedDemo'));
 const DossierHall = retryLazy(() => import('./components/dossier/DossierHall'));
+import { requestDossier } from './data/dossier/registry';
 const EventPhotoPoolView = retryLazy(() => import('./components/EventPhotoPoolView'));
 import LandingPage from './components/LandingPage';
 import { isEducationAccount } from './services/intimateGating';
@@ -942,7 +943,7 @@ const App: React.FC = () => {
 
   // Open a Dossier (museum/biography experience) from anywhere.
   useEffect(() => {
-    const h = () => setView('DOSSIER');
+    const h = (e: Event) => { requestDossier((e as CustomEvent)?.detail?.id); setView('DOSSIER'); };
     window.addEventListener('plajah:openDossier', h as EventListener);
     return () => window.removeEventListener('plajah:openDossier', h as EventListener);
   }, [setView]);
@@ -2554,7 +2555,14 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     } else if (target === 'CLUBS') {
       setView('CLUBS');
     } else if (target === 'LIVE_HUB') {
+      // A favorite (or any deep link) can name the exact channel to tune.
+      if (params?.focus) setLiveChannelFocus(params.focus);
       setView('LIVE_HUB');
+    } else if (target === 'MASTER_CONTROL') {
+      // Channel quick-settings → the account's Settings › Master Control (Broadcast) tab.
+      if (!user) { loginWithGoogle(); return; }
+      setDashboardInitialTab('BROADCAST');
+      setView('CREATOR');
     }
   };
 

@@ -125,6 +125,7 @@ import WorldBadge from './WorldBadge';
 import PodcastEpisodeList from './PodcastEpisodeList';
 import FollowedPodcastsCarousel from './FollowedPodcastsCarousel';
 import RadioPresetsRow from './radio/RadioPresetsRow';
+import FavoriteChannelsRow from './radio/FavoriteChannelsRow';
 import RssFeedViewer from './RssFeedViewer';
 import { getFollowedPodcasts, subscribePodcastLibrary, type FollowedPodcast } from '../services/podcastLibraryService';
 import WorldsView from './WorldsView';
@@ -1433,6 +1434,9 @@ const UserProfileView: React.FC<UserProfileViewProps> = ({
           isOwnProfile={isOwnProfile}
           onOpenRadio={() => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'RADIO', artistId: profile.uid, params: { artistId: profile.uid } } }))}
         />
+
+        {/* Favorite Live TV+ channels — same area as the radio presets */}
+        <FavoriteChannelsRow favorites={profile.favoriteChannels} isOwnProfile={isOwnProfile} ownerUid={profile.uid} />
 
         {/* Latest Releases Highlight Section */}
         <div className="mt-12">

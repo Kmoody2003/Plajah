@@ -8,10 +8,10 @@
 // channels into one numbered lineup.
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, ChevronDown, LayoutGrid, Maximize2, Minimize2, Pencil, Check, X } from 'lucide-react';
+import { ArrowLeft, Radio, Volume2, VolumeX, ExternalLink, Play, Tv, ChevronUp, ChevronDown, LayoutGrid, Maximize2, Minimize2, Pencil, Check, X, Heart, ImagePlus, Settings2, Link2, Star } from 'lucide-react';
 import type { LiveFeed, UserProfile, FastChannelSchedule, FastChannelSlot } from '../types';
 import { ACTIVE_SCIENCE_STREAMS } from './scienceStreams';
-import { fetchChannelNumberRegistry, fetchFastChannelSchedule, fetchFastChannelVideos, setChannelSubName, type FastChannelListing } from '../services/backendService';
+import { fetchChannelNumberRegistry, fetchFastChannelSchedule, fetchFastChannelVideos, setChannelSubName, setChannelSubLogo, uploadChannelLogo, fetchFastChannelMeta, type FastChannelListing } from '../services/backendService';
 import { slotDurationSec, resolveSlotMedia, activeDaySlots, dayAnchoredPosition, linearPositionMidnight, backfillScheduleDurations, backfillScheduleDurationsByUrl, unresolvedDurationUrls, FM_FILL_THRESHOLD_SEC, hasPlayableProgramme, sanitizeScheduleForPlayout, nextPlayableSlotIndex, isPlayableProgrammeSlot } from '../services/fastChannelTimeline';
 import { exactDurationSec } from '../services/mediaTimebase';
 import { probeDurations } from '../services/mediaProbe';
@@ -33,6 +33,11 @@ import { isChannelFeed } from '../services/fast/guideLineup';
 import ShareButton from './ShareButton';
 import { buildShareUrl } from '../services/deepLinkService';
 import { createPost } from '../services/backendService';
+import ChannelLogo from './tv/ChannelLogo';
+import { useContextMenu } from './ui';
+import { subKeyFor, favoriteKey, resolveChannelLogo, type OwnerBranding } from '../services/fast/channelBranding';
+import { getFavoriteChannels, subscribeFavoriteChannels, toggleFavoriteChannel, syncFavoriteChannelsFromProfile } from '../services/favoriteChannelsService';
+import type { FavoriteChannel } from '../types';
 
 export interface TvChannel {
   id: string;
@@ -52,6 +57,10 @@ export interface TvChannel {
   feed?: any;            // original LiveFeed for the webrtc viewer handoff
   startOffset?: number;  // FAST: seconds to seek into the current programme (terrestrial mid-join)
   plajahId?: string;     // first-party channel in the reserved band — no owner account behind it
+  /** Stable key a custom name / logo hangs off (see services/fast/channelBranding). */
+  subKey?: string;
+  /** Resolved logo: custom → account logo → profile photo. Undefined → the UI draws the Plajah chevron. */
+  logo?: string;
 }
 
 const BRAND = '#FF8C00';
@@ -311,7 +320,9 @@ const ChannelDial: React.FC<{
                 border: selected ? 'none' : '1px solid rgba(255,255,255,0.08)',
               }}
             >
-              <span className="text-[15px] leading-none font-black">{ch.emoji || ch.number}</span>
+              {ch.emoji
+                ? <span className="text-[15px] leading-none font-black">{ch.emoji}</span>
+                : <ChannelLogo src={ch.logo} size={22} className={selected ? 'border-white/40' : ''} />}
               <span className="text-[7px] font-black uppercase tracking-wider leading-none">{ch.number}</span>
             </button>
           );
@@ -368,16 +379,39 @@ const LiveTvPlus: React.FC<{
     return () => { alive = false; };
   }, []);
 
+  // Branding (custom names + logos) per account. FAST listings already carry it; an account that is
+  // only live has no listing, so its fast_channels doc is fetched once. Local overrides apply
+  // instantly after a save, before the next listing refresh.
+  const [extraBranding, setExtraBranding] = useState<Record<string, OwnerBranding>>({});
+  const [localLogos, setLocalLogos] = useState<Record<string, string>>({});   // subKey → url ('' = cleared)
+  const ownerBranding = useMemo(() => {
+    const m = new Map<string, OwnerBranding>();
+    Object.entries(extraBranding).forEach(([k, v]) => m.set(k, v));
+    (fastChannels || []).forEach(fc => m.set(fc.ownerId, { logoUrl: fc.accountLogo, subLogos: fc.subLogos, subNames: fc.subNames, photoURL: fc.photoURL }));
+    return m;
+  }, [fastChannels, extraBranding]);
+  const fetchedBrandingRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    const have = new Set((fastChannels || []).map(fc => fc.ownerId));
+    (feeds || []).filter(isChannelFeed).forEach(f => {
+      const ownerId = (f as any).ownerId as string | undefined;
+      if (!ownerId || have.has(ownerId) || fetchedBrandingRef.current.has(ownerId)) return;
+      fetchedBrandingRef.current.add(ownerId);
+      void fetchFastChannelMeta(ownerId).then(m => {
+        if (!m) return;
+        setExtraBranding(prev => ({ ...prev, [ownerId]: { logoUrl: m.logoUrl || undefined, subLogos: m.subLogos, subNames: m.subNames } }));
+      }).catch(() => {});
+    });
+  }, [feeds, fastChannels]);
+
   // Build the lineup by USER ACCOUNT: each account is a channel (a bound "major" number) and its
   // individual live feeds + FAST channel are SUB-CHANNELS (42.1, 42.2, …) like an over-the-air
   // station's virtual sub-channels. So a creator running two live streams shows as N.1 and N.2 —
   // nothing disappears — and their FAST channel is another sub. Then curated Science channels.
   const channels: TvChannel[] = useMemo(() => {
-    type Sub = Omit<TvChannel, 'number'>;
+    type Sub = Omit<TvChannel, 'number'> & { photo?: string };
     interface Owner { ownerId: string; name: string; bound?: number; subs: Sub[]; }
     const owners = new Map<string, Owner>();
-    const subNamesByOwner = new Map<string, Record<string, string>>();
-    (fastChannels || []).forEach(fc => { if (fc.subNames) subNamesByOwner.set(fc.ownerId, fc.subNames); });
     const ensure = (ownerId: string, name: string): Owner => {
       let o = owners.get(ownerId);
       if (!o) { o = { ownerId, name, subs: [] }; owners.set(ownerId, o); }
@@ -397,7 +431,7 @@ const LiveTvPlus: React.FC<{
         o.subs.push({
           id: `live_${f.id}`, name: f.title, sub: 'Live', accent: BRAND, badge: 'LIVE',
           kind: isHlsUrl(url) ? 'hls' : isEmbeddableUrl(url) ? 'embed' : 'webrtc',
-          playUrl: url, now: f.title, ownerId, isLive: true, feed: f,
+          playUrl: url, now: f.title, ownerId, isLive: true, feed: f, photo: (f as any).ownerPhoto || undefined,
         });
       });
 
@@ -408,7 +442,7 @@ const LiveTvPlus: React.FC<{
       if (typeof fc.number === 'number') o.bound = fc.number;
       o.subs.push({
         id: `fast_${fc.ownerId}`, name: fc.name || `${o.name} (FAST)`, sub: 'FAST Channel', accent: '#36c5f0', badge: 'FAST',
-        kind: 'fast', playUrl: '', now: 'Scheduled programming', ownerId: fc.ownerId, scheduleOwner: fc.ownerId,
+        kind: 'fast', playUrl: '', now: 'Scheduled programming', ownerId: fc.ownerId, scheduleOwner: fc.ownerId, photo: fc.photoURL,
       });
     });
 
@@ -437,8 +471,13 @@ const LiveTvPlus: React.FC<{
           ? UNNUMBERED
           : o.subs.length > 1 ? `${major}.${j + 1}` : `${major}`;
         // A name the owner gave THIS sub-channel wins, and only for it — siblings keep their own.
-        const custom = renamedSubs[s.id] ?? subNamesByOwner.get(o.ownerId)?.[s.id];
-        out.push({ ...s, number, name: custom || (o.subs.length > 1 ? `${o.name} · ${s.badge === 'FAST' ? 'FAST' : s.name}` : o.name) });
+        const { photo, ...sub } = s;
+        const subKey = subKeyFor({ id: s.id, ownerId: o.ownerId, playUrl: s.playUrl });
+        const branding = ownerBranding.get(o.ownerId);
+        const custom = renamedSubs[subKey] ?? branding?.subNames?.[subKey];
+        const localLogo = localLogos[subKey];
+        const logo = localLogo !== undefined ? (localLogo || resolveChannelLogo({ ...branding, subLogos: {} }, subKey, photo)) : resolveChannelLogo(branding, subKey, photo);
+        out.push({ ...sub, number, subKey, logo, name: custom || (o.subs.length > 1 ? `${o.name} · ${s.badge === 'FAST' ? 'FAST' : s.name}` : o.name) });
       });
     });
 
@@ -473,7 +512,7 @@ const LiveTvPlus: React.FC<{
     // unnumbered entries collect at the bottom instead of pushing everyone else around.
     out.sort((a, b) => guideSortKey(a.number) - guideSortKey(b.number));
     return out;
-  }, [feeds, fastChannels, registry, renamedSubs]);
+  }, [feeds, fastChannels, registry, renamedSubs, ownerBranding, localLogos]);
 
   // Per-program EPG for the selected channel (fetched once per owner, cached, refreshed each 30s).
   const [epg, setEpg] = useState<EpgProgram[]>([]);
@@ -610,7 +649,7 @@ const LiveTvPlus: React.FC<{
   const beginRename = useCallback((channel: TvChannel) => {
     const ownerId = channel.scheduleOwner || channel.ownerId;
     if (!ownerId || ownerId !== currentUser?.uid) return;
-    setEditingSubId(channel.id);
+    setEditingSubId(channel.subKey || channel.id);
     setChannelNameDraft(channel.name);
     setRenameError('');
   }, [currentUser?.uid]);
@@ -633,6 +672,82 @@ const LiveTvPlus: React.FC<{
       setSavingName(false);
     }
   }, [channelNameDraft, currentUser?.uid, editingSubId, savingName]);
+
+  // ── Favorites ─────────────────────────────────────────────────────────────────
+  // Starred channels live in localStorage and mirror to the profile (so they show in the profile's
+  // presets area). `favOnly` turns the guide into the viewer's favorites list.
+  const [favs, setFavs] = useState<FavoriteChannel[]>(() => getFavoriteChannels(currentUser?.uid));
+  const [favOnly, setFavOnly] = useState(false);
+  useEffect(() => {
+    const off = subscribeFavoriteChannels(setFavs, currentUser?.uid);
+    if (currentUser?.uid) void syncFavoriteChannelsFromProfile(currentUser.uid);
+    return off;
+  }, [currentUser?.uid]);
+  const favKeys = useMemo(() => new Set(favs.map(f => f.key)), [favs]);
+  const isFav = useCallback((ch: TvChannel) => favKeys.has(favoriteKey(ch)), [favKeys]);
+  const toggleFav = useCallback((ch: TvChannel) => {
+    void toggleFavoriteChannel({
+      key: favoriteKey(ch), name: ch.name, number: ch.number, logoUrl: ch.logo,
+      ownerId: ch.scheduleOwner || ch.ownerId, plajahId: ch.plajahId, sourceId: ch.id,
+    }, currentUser?.uid);
+  }, [currentUser?.uid]);
+
+  // ── Channel logo (owner only) ─────────────────────────────────────────────────
+  // Click the logo (or right-click → Change logo) → pick an image → it is uploaded to the owner's
+  // storage and saved against THIS sub-channel only. Clearing falls back to the account logo, then
+  // the profile photo, then the Plajah chevron.
+  const logoInputRef = useRef<HTMLInputElement>(null);
+  const logoTargetRef = useRef<TvChannel | null>(null);
+  const [logoBusy, setLogoBusy] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState('');
+  const pickLogo = useCallback((ch: TvChannel) => {
+    if (!canManageChannel(ch, currentUser)) return;
+    logoTargetRef.current = ch;
+    setLogoError('');
+    logoInputRef.current?.click();
+  }, [currentUser]);
+  const onLogoFile = useCallback(async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';                       // let the same file be picked again later
+    const ch = logoTargetRef.current;
+    if (!file || !ch?.subKey || !currentUser?.uid) return;
+    setLogoBusy(ch.subKey); setLogoError('');
+    try {
+      const url = await uploadChannelLogo(currentUser.uid, file);
+      await setChannelSubLogo(currentUser.uid, ch.subKey, url);
+      setLocalLogos(prev => ({ ...prev, [ch.subKey!]: url }));
+    } catch (err: any) {
+      setLogoError(err?.message || 'Could not update the logo. Try again.');
+    } finally { setLogoBusy(null); }
+  }, [currentUser?.uid]);
+  const clearLogo = useCallback(async (ch: TvChannel) => {
+    if (!ch.subKey || !currentUser?.uid) return;
+    try { await setChannelSubLogo(currentUser.uid, ch.subKey, null); setLocalLogos(prev => ({ ...prev, [ch.subKey!]: '' })); }
+    catch { setLogoError('Could not remove the logo. Try again.'); }
+  }, [currentUser?.uid]);
+
+  // ── Right-click / long-press quick settings (the canonical context-menu primitive) ──────
+  const channelLink = useCallback((ch: TvChannel) => {
+    const owner = ch.scheduleOwner || ch.ownerId;
+    const id = ch.plajahId ? `plajah:${ch.plajahId}` : owner ? `owner:${owner}` : `source:${ch.id}`;
+    return buildShareUrl('channel', id, { n: ch.number, source: ch.id });
+  }, []);
+  const channelMenu = useContextMenu<TvChannel>((ch) => {
+    const mine = canManageChannel(ch, currentUser);
+    const hasCustomLogo = !!ch.subKey && !!ownerBranding.get(ch.scheduleOwner || ch.ownerId || '')?.subLogos?.[ch.subKey];
+    return [
+      { kind: 'header', label: `CH ${ch.number} · ${ch.name}` },
+      { id: 'fav', label: isFav(ch) ? 'Remove from favorites' : 'Add to favorites', icon: <Heart size={14} />, onSelect: () => toggleFav(ch) },
+      { id: 'link', label: 'Copy channel link', icon: <Link2 size={14} />, onSelect: () => { void navigator.clipboard?.writeText(channelLink(ch)).catch(() => {}); } },
+      ...(mine ? [
+        { kind: 'separator' as const },
+        { id: 'rename', label: 'Rename channel…', icon: <Pencil size={14} />, onSelect: () => { setIdx(channels.findIndex(c => c.id === ch.id)); beginRename(ch); } },
+        { id: 'logo', label: 'Change logo…', icon: <ImagePlus size={14} />, onSelect: () => pickLogo(ch) },
+        { id: 'logo-clear', label: 'Remove custom logo', icon: <X size={14} />, disabled: !hasCustomLogo, onSelect: () => { void clearLogo(ch); } },
+        { id: 'settings', label: 'Channel settings (Master Control)', icon: <Settings2 size={14} />, onSelect: () => window.dispatchEvent(new CustomEvent('NAVIGATE', { detail: { target: 'MASTER_CONTROL' } })) },
+      ] : []),
+    ];
+  });
 
   // ── Sharing the channel that's on the dial right now ──────────────────────────
   // A stable key the /share route and the deep-link both understand: `plajah:<id>` for a
@@ -1024,6 +1139,7 @@ const LiveTvPlus: React.FC<{
         {/* Now-playing overlay (top-left) */}
         {selected && (!compact || immersive) && (
           <div className="absolute top-4 left-4 z-20 max-w-[60%]">
+            <ChannelLogo src={selected.logo} name={selected.name} size={44} className="mb-2 shadow-lg" />
             <div className="inline-flex items-center gap-2 mb-2">
               <span className="text-[10px] font-black px-2 py-0.5 rounded-md" style={{ background: selected.badge === 'LIVE' ? '#e11' : selected.badge === 'FAST' ? '#36c5f0' : selected.accent, color: '#000' }}>
                 {selected.badge === 'LIVE' ? '● LIVE' : selected.badge}
@@ -1058,16 +1174,26 @@ const LiveTvPlus: React.FC<{
       >
         {/* Phone: what's on, right under the picture (the desktop layout overlays this on the video). */}
         {compact && selected && (
-          <div className="mb-3">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-[10px] font-black px-2 py-0.5 rounded-md" style={{ background: selected.badge === 'LIVE' ? '#e11' : selected.badge === 'FAST' ? '#36c5f0' : selected.accent, color: '#000' }}>
-                {selected.badge === 'LIVE' ? '● LIVE' : selected.badge}
-              </span>
-              <span className="text-[11px] font-black text-white/60">CH {selected.number}</span>
-              {loadedIndex !== index && <span className="text-[10px] font-bold text-white/40">tuning…</span>}
+          <div className="mb-3 flex items-start gap-3">
+            <ChannelLogo src={selected.logo} name={selected.name} size={52} />
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-[10px] font-black px-2 py-0.5 rounded-md" style={{ background: selected.badge === 'LIVE' ? '#e11' : selected.badge === 'FAST' ? '#36c5f0' : selected.accent, color: '#000' }}>
+                  {selected.badge === 'LIVE' ? '● LIVE' : selected.badge}
+                </span>
+                <span className="text-[11px] font-black text-white/60">CH {selected.number}</span>
+                {loadedIndex !== index && <span className="text-[10px] font-bold text-white/40">tuning…</span>}
+              </div>
+              <h2 className="text-lg font-black leading-tight line-clamp-2">{selected.name}</h2>
+              <p className="text-[12px] text-white/60 font-bold mt-0.5 truncate">{selected.sub} · Now: {selected.now}</p>
             </div>
-            <h2 className="text-lg font-black leading-tight line-clamp-2">{selected.name}</h2>
-            <p className="text-[12px] text-white/60 font-bold mt-0.5 truncate">{selected.sub} · Now: {selected.now}</p>
+            <button
+              type="button"
+              aria-pressed={isFav(selected)}
+              aria-label={isFav(selected) ? 'Remove from favorites' : 'Add to favorites'}
+              onClick={() => toggleFav(selected)}
+              className={`shrink-0 w-10 h-10 rounded-full grid place-items-center bg-white/10 ${isFav(selected) ? 'text-[#FF8C00]' : 'text-white/70'}`}
+            ><Heart size={18} fill={isFav(selected) ? 'currentColor' : 'none'} /></button>
           </div>
         )}
         {/* Per-program schedule for the selected channel (real times, from the FAST schedule). */}
@@ -1098,15 +1224,34 @@ const LiveTvPlus: React.FC<{
         )}
         <div className="flex items-center gap-2 mb-2">
           <span className="text-[9px] font-black uppercase tracking-[0.3em] text-white/40">Channels</span>
-          <span className="text-[9px] font-bold text-white/30">{channels.length} channels</span>
+          <span className="text-[9px] font-bold text-white/30">{favOnly ? `${channels.filter(isFav).length} favorites` : `${channels.length} channels`}</span>
+          <button
+            type="button"
+            aria-pressed={favOnly}
+            onClick={() => setFavOnly(v => !v)}
+            title={favOnly ? 'Show every channel' : 'Show only my favorites'}
+            className={`ml-auto inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[9px] font-black uppercase tracking-widest border transition-colors ${favOnly ? 'bg-[#FF8C00] border-[#FF8C00] text-black' : 'bg-white/5 border-white/10 text-white/60 hover:text-white'}`}
+          >
+            <Star size={11} fill={favOnly ? 'currentColor' : 'none'} /> Favorites{favs.length > 0 ? ` · ${favs.length}` : ''}
+          </button>
         </div>
+        {logoError && <p role="alert" className="mb-2 text-[10px] font-bold text-red-400">{logoError}</p>}
+        {favOnly && !channels.some(isFav) && (
+          <p className="mb-2 rounded-xl border border-dashed border-white/10 px-3 py-4 text-center text-[11px] text-white/45">
+            No favorites yet — tap the heart on any channel, or right-click it, to keep it here.
+          </p>
+        )}
         <div ref={guideRef} className={compact ? 'flex flex-col gap-2 pb-2' : 'flex gap-2 overflow-x-auto no-scrollbar pb-1'}>
           {channels.map((ch, i) => {
             const on = i === index;
+            if (favOnly && !isFav(ch)) return null;
+            const mine = canManageChannel(ch, currentUser);
+            const fav = isFav(ch);
             return (
               <div
                 key={ch.id}
                 data-ch={i}
+                {...channelMenu.bind(ch)}
                 onClick={() => setIdx(i)}
                 role="button"
                 tabIndex={0}
@@ -1114,54 +1259,89 @@ const LiveTvPlus: React.FC<{
                 className={`${compact ? 'w-full min-h-[64px]' : 'shrink-0 w-52'} text-left rounded-xl border p-2.5 transition-colors cursor-pointer`}
                 style={{ borderColor: on ? BRAND : 'rgba(255,255,255,0.08)', background: on ? `${BRAND}1f` : 'rgba(255,255,255,0.03)' }}
               >
-                <div className="flex items-center gap-1.5 mb-1">
-                  <span className="text-[9px] font-black" style={{ color: on ? BRAND : 'rgba(255,255,255,0.4)' }}>CH {ch.number}</span>
-                  <span className="text-[8px] font-black px-1.5 py-0.5 rounded" style={{ background: ch.badge === 'LIVE' ? '#e11' : ch.badge === 'FAST' ? '#36c5f0' : ch.accent, color: '#000' }}>{ch.badge === 'LIVE' ? 'LIVE' : ch.badge}</span>
-                  {canManageChannel(ch, currentUser) && editingSubId !== ch.id && (
+                <div className="flex items-start gap-2.5">
+                  {/* Channel logo — the owner clicks it to change it. */}
+                  {mine ? (
                     <button
                       type="button"
-                      aria-label={`Rename ${ch.name}`}
-                      title="Edit my channel name"
-                      onClick={(e) => { e.stopPropagation(); setIdx(i); beginRename(ch); }}
-                      className="ml-auto w-7 h-7 -my-1 rounded-lg grid place-items-center text-white/55 hover:text-white hover:bg-white/10"
+                      aria-label={`Change logo for ${ch.name}`}
+                      title="Change channel logo"
+                      onClick={(e) => { e.stopPropagation(); pickLogo(ch); }}
+                      className="group relative shrink-0 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-[#FF8C00]"
                     >
-                      <Pencil size={12} />
+                      <ChannelLogo src={ch.logo} name={ch.name} size={compact ? 44 : 38} />
+                      <span className="absolute inset-0 grid place-items-center rounded-lg bg-black/60 text-white opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100 transition-opacity">
+                        {logoBusy === ch.subKey ? <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <ImagePlus size={15} />}
+                      </span>
                     </button>
+                  ) : (
+                    <ChannelLogo src={ch.logo} name={ch.name} size={compact ? 44 : 38} />
                   )}
-                </div>
-                {!!currentUser && editingSubId === ch.id && on ? (
-                  <div onClick={e => e.stopPropagation()} className="mt-1">
-                    <div className="flex items-center gap-1">
-                      <input
-                        autoFocus
-                        value={channelNameDraft}
-                        maxLength={60}
-                        aria-label="Channel name"
-                        onChange={e => setChannelNameDraft(e.target.value)}
-                        onKeyDown={e => {
-                          e.stopPropagation();
-                          if (e.key === 'Enter') { e.preventDefault(); void saveRename(); }
-                          if (e.key === 'Escape') setEditingSubId(null);
-                        }}
-                        className="min-w-0 flex-1 rounded-md border border-white/20 bg-black/50 px-2 py-1 text-[12px] font-black text-white outline-none focus:border-[#FF8C00]"
-                      />
-                      <button type="button" disabled={savingName} aria-label="Save channel name" onClick={() => void saveRename()}
-                        className="w-7 h-7 rounded-md grid place-items-center bg-[#FF8C00] text-black disabled:opacity-50"><Check size={13} /></button>
-                      <button type="button" disabled={savingName} aria-label="Cancel renaming" onClick={() => setEditingSubId(null)}
-                        className="w-7 h-7 rounded-md grid place-items-center bg-white/10 text-white"><X size={13} /></button>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="text-[9px] font-black" style={{ color: on ? BRAND : 'rgba(255,255,255,0.4)' }}>CH {ch.number}</span>
+                      <span className="text-[8px] font-black px-1.5 py-0.5 rounded" style={{ background: ch.badge === 'LIVE' ? '#e11' : ch.badge === 'FAST' ? '#36c5f0' : ch.accent, color: '#000' }}>{ch.badge === 'LIVE' ? 'LIVE' : ch.badge}</span>
+                      <button
+                        type="button"
+                        aria-label={fav ? `Remove ${ch.name} from favorites` : `Add ${ch.name} to favorites`}
+                        aria-pressed={fav}
+                        title={fav ? 'Remove from favorites' : 'Add to favorites'}
+                        onClick={(e) => { e.stopPropagation(); toggleFav(ch); }}
+                        className={`ml-auto w-7 h-7 -my-1 rounded-lg grid place-items-center hover:bg-white/10 ${fav ? 'text-[#FF8C00]' : 'text-white/45 hover:text-white'}`}
+                      >
+                        <Heart size={13} fill={fav ? 'currentColor' : 'none'} />
+                      </button>
+                      {mine && editingSubId !== (ch.subKey || ch.id) && (
+                        <button
+                          type="button"
+                          aria-label={`Rename ${ch.name}`}
+                          title="Edit my channel name"
+                          onClick={(e) => { e.stopPropagation(); setIdx(i); beginRename(ch); }}
+                          className="w-7 h-7 -my-1 rounded-lg grid place-items-center text-white/55 hover:text-white hover:bg-white/10"
+                        >
+                          <Pencil size={12} />
+                        </button>
+                      )}
                     </div>
-                    {renameError && <p role="alert" className="mt-1 text-[9px] font-bold text-red-400">{renameError}</p>}
+                    {!!currentUser && editingSubId === (ch.subKey || ch.id) && on ? (
+                      <div onClick={e => e.stopPropagation()} className="mt-1">
+                        <div className="flex items-center gap-1">
+                          <input
+                            autoFocus
+                            value={channelNameDraft}
+                            maxLength={60}
+                            aria-label="Channel name"
+                            onChange={e => setChannelNameDraft(e.target.value)}
+                            onKeyDown={e => {
+                              e.stopPropagation();
+                              if (e.key === 'Enter') { e.preventDefault(); void saveRename(); }
+                              if (e.key === 'Escape') setEditingSubId(null);
+                            }}
+                            className="min-w-0 flex-1 rounded-md border border-white/20 bg-black/50 px-2 py-1 text-[12px] font-black text-white outline-none focus:border-[#FF8C00]"
+                          />
+                          <button type="button" disabled={savingName} aria-label="Save channel name" onClick={() => void saveRename()}
+                            className="w-7 h-7 rounded-md grid place-items-center bg-[#FF8C00] text-black disabled:opacity-50"><Check size={13} /></button>
+                          <button type="button" disabled={savingName} aria-label="Cancel renaming" onClick={() => setEditingSubId(null)}
+                            className="w-7 h-7 rounded-md grid place-items-center bg-white/10 text-white"><X size={13} /></button>
+                        </div>
+                        {renameError && <p role="alert" className="mt-1 text-[9px] font-bold text-red-400">{renameError}</p>}
+                      </div>
+                    ) : (
+                      <p className="text-[12px] font-black leading-tight truncate">{ch.name}</p>
+                    )}
+                    <p className="text-[10px] text-white/45 truncate">Now: {ch.now}</p>
                   </div>
-                ) : (
-                  <p className="text-[12px] font-black leading-tight truncate">{ch.name}</p>
-                )}
-                <p className="text-[10px] text-white/45 truncate">Now: {ch.now}</p>
+                </div>
               </div>
             );
           })}
         </div>
       </div>
       )}
+
+      {/* Owner-only logo picker (opened from the logo button or the right-click menu). */}
+      <input ref={logoInputRef} type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" className="hidden" onChange={onLogoFile} />
+      {channelMenu.node}
 
       {/* Full-screen: a quiet hint that any press brings the guide back. */}
       {immersive && (

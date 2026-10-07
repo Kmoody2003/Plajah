@@ -8814,6 +8814,7 @@ export const saveFastChannelMeta = async (channel: Partial<FastChannel> & { owne
       ownerId: channel.ownerId,
       name: channel.name ?? existing?.name ?? 'My Channel',
       subNames: channel.subNames ?? existing?.subNames,
+      subLogos: channel.subLogos ?? existing?.subLogos,
       number: channel.number ?? existing?.number,
       category: channel.category ?? existing?.category,
       logoUrl: channel.logoUrl ?? existing?.logoUrl,
@@ -9100,6 +9101,31 @@ export const setChannelSubName = async (uid: string, subId: string, name: string
   const clean = (name || '').trim().slice(0, 60);
   if (clean) subNames[subId] = clean; else delete subNames[subId];
   await saveFastChannelMeta({ ownerId: uid, subNames });
+};
+
+/** Upload a channel logo to the owner's own storage folder; returns its URL. */
+export const uploadChannelLogo = async (uid: string, file: File | Blob): Promise<string> => {
+  if (!uid) throw new Error('Sign in to change a channel logo.');
+  const type = (file as any).type || '';
+  if (!/^image\/(png|jpe?g|webp|gif|svg\+xml)$/i.test(type)) throw new Error('Choose a PNG, JPG, WebP or SVG image.');
+  if (file.size > 5 * 1024 * 1024) throw new Error('Logo must be under 5 MB.');
+  const ext = type.split('/')[1].replace('jpeg', 'jpg').replace('svg+xml', 'svg');
+  return uploadFile(`users/${uid}/channel-logos/${Date.now()}.${ext}`, file);
+};
+
+/** Set (or clear, with null) the logo of ONE sub-channel without touching the others. */
+export const setChannelSubLogo = async (uid: string, subKey: string, url: string | null): Promise<void> => {
+  if (!uid || !subKey) return;
+  const existing = await fetchFastChannelMeta(uid).catch(() => null);
+  const subLogos = { ...(existing?.subLogos || {}) };
+  if (url) subLogos[subKey] = url; else delete subLogos[subKey];
+  await saveFastChannelMeta({ ownerId: uid, subLogos });
+};
+
+/** The account-wide default logo (every channel of the account that has no logo of its own). */
+export const setChannelAccountLogo = async (uid: string, url: string | null): Promise<void> => {
+  if (!uid) return;
+  await saveFastChannelMeta({ ownerId: uid, logoUrl: url || '' });
 };
 
 export const scheduleLiveInterrupt = async (uid: string, scheduledAt: number, maxDurationSeconds: number, membersOnly = false): Promise<void> => {
@@ -9677,6 +9703,11 @@ export interface FastChannelListing {
   logoUrl?: string;
   /** Owner-chosen names for individual sub-channels, keyed by sub-channel id. */
   subNames?: Record<string, string>;
+  /** Raw account logo (fast_channels.logoUrl) — `logoUrl` above already falls back to the profile photo. */
+  accountLogo?: string;
+  subLogos?: Record<string, string>;
+  /** The owner's own profile photo — the next fallback after a custom logo. */
+  photoURL?: string;
   /** When the channel was created. The guide allocates unclaimed numbers oldest-first, so this
    *  is what keeps a channel on the number it already has — see fast/channelNumbers.ts. */
   createdAt?: number;
@@ -9707,6 +9738,9 @@ export const fetchAllFastChannels = async (max = 300): Promise<FastChannelListin
         number: m?.number,
         category: m?.category,
         subNames: m?.subNames,
+        accountLogo: m?.logoUrl || undefined,
+        subLogos: m?.subLogos,
+        photoURL: (p as any).photoURL || undefined,
         logoUrl: m?.logoUrl || (p as any).photoURL || (p as any).headerImage,
         // Fall back to the account's own creation time: a channel doc written before createdAt
         // was recorded is still older than one written today, and the account age says so.
