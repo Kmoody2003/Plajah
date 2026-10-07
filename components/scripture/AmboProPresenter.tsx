@@ -2056,6 +2056,25 @@ useEffect(() => {
     return () => { root?.removeEventListener('scroll', reset); window.removeEventListener('scroll', reset); window.removeEventListener('resize', reset); };
   }, []);
 
+  // Transport-bar changes (loop / volume / mute) are written back, so the next take and any re-render
+  // keep what the operator set instead of reverting to the clip's original settings.
+  const patchVideoContent = (src: string, patch: Record<string, unknown>) => {
+    const apply = (c: any) => (c && c.kind === 'VIDEO' && c.src === src ? { ...c, ...patch } : c);
+    setLive(prev => {
+      let changed = false;
+      const next: any = { ...prev };
+      for (const slot of Object.keys(prev) as LayerSlot[]) {
+        const l: any = (prev as any)[slot];
+        if (l && l.content?.kind === 'VIDEO' && l.content.src === src) { next[slot] = { ...l, content: apply(l.content) }; changed = true; }
+      }
+      return changed ? next : prev;
+    });
+    setLibrary(libs => libs.map(sh => sh.id !== activeShow.id ? sh : {
+      ...sh,
+      slides: sh.slides.map(sl => sl.id !== liveSlideId ? sl : { ...sl, layers: sl.layers.map(ly => ({ ...ly, content: apply(ly.content) })) }),
+    }));
+  };
+
   // Auto scripture (speech → verse) delivers through the same paths as the operator's hands.
   const autoScriptureActions = useRef({ fire: fireScripture, cue: cueScriptureToPreview, clear: clearScripture });
   autoScriptureActions.current = { fire: fireScripture, cue: cueScriptureToPreview, clear: clearScripture };
@@ -3550,6 +3569,7 @@ useEffect(() => {
                   videoContent={programVideo}
                   label={liveSlideObj?.label || 'Program Video'}
                   isLive
+                  onUpdateContent={patch => patchVideoContent(programVideo.src, patch)}
                 />
               </div>
             )}

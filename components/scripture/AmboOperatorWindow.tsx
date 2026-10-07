@@ -8,10 +8,61 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { SessionSync, type OperatorRole, type SessionSnapshot, type Peer } from '../../services/ambo/sessionSync';
 import { getRoutineEngine } from '../../services/ambo/routineHost';
+import { setVideoSyncRole, command as videoCommand, remoteVideos, subscribeRemoteVideos, type RemoteVideo } from '../../services/ambo/videoSync';
+import { predictedPosition } from '../../services/ambo/videoSyncMath';
 
 const CYAN = '#00DAF3';
 const ORANGE = '#FF8C00';
 const btn = 'px-3 py-2 rounded-lg text-[12px] font-bold border border-white/15 bg-white/5 hover:bg-white/15 text-white disabled:opacity-40';
+
+const mmss = (s: number) => `${Math.floor(Math.max(0, s) / 60)}:${String(Math.floor(Math.max(0, s) % 60)).padStart(2, '0')}`;
+
+/** Program video, as the main window reports it. Commands go to the main window, which drives the real element. */
+function ProgramVideo() {
+  const [vids, setVids] = useState<RemoteVideo[]>([]);
+  const [, tick] = useState(0);
+  useEffect(() => {
+    setVideoSyncRole('operator');
+    const refresh = () => setVids(remoteVideos());
+    refresh();
+    const off = subscribeRemoteVideos(refresh);
+    const t = setInterval(() => { refresh(); tick(n => n + 1); }, 400);   // also ages out a clip that left Program
+    return () => { off(); clearInterval(t); };
+  }, []);
+  if (!vids.length) return null;
+  return (
+    <div className="space-y-2">
+      <div className="text-[9px] uppercase text-white/40">Program video</div>
+      {vids.map(v => {
+        const t = v.transport;
+        const pos = predictedPosition(t, Date.now());
+        const live = !t.duration;
+        const name = decodeURIComponent(v.key.split('?')[0].split('/').pop() || v.key);
+        const send = (cmd: Parameters<typeof videoCommand>[1]) => videoCommand(v.id, cmd);
+        return (
+          <div key={v.id} className="rounded-xl border border-white/10 p-3 bg-white/[0.03] space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-[12px] font-bold truncate flex-1" title={v.key}>{name}</span>
+              <span className="font-mono text-[11px] text-white/60">{live ? 'LIVE' : `${mmss(pos)} / ${mmss(t.duration)}`}</span>
+            </div>
+            {!live && (
+              <input type="range" min={0} max={t.duration} step={0.1} value={Math.min(pos, t.duration)}
+                onChange={e => send({ type: 'seek', sec: Number(e.target.value) })} className="w-full accent-[#00DAF3]" aria-label="Seek" />
+            )}
+            <div className="flex flex-wrap gap-2">
+              <button className={btn} onClick={() => send({ type: 'toggle' })}>{t.playing ? 'Pause' : 'Play'}</button>
+              {!live && <button className={btn} onClick={() => send({ type: 'restart' })}>Restart</button>}
+              {!live && <button className={btn} onClick={() => send({ type: 'skip', delta: -10 })}>−10 s</button>}
+              {!live && <button className={btn} onClick={() => send({ type: 'skip', delta: 10 })}>+10 s</button>}
+              {!live && <button className={btn} style={t.loop ? { borderColor: CYAN, color: CYAN } : undefined} onClick={() => send({ type: 'loop', on: !t.loop })}>Loop</button>}
+              <button className={btn} style={t.muted ? { borderColor: ORANGE, color: ORANGE } : undefined} onClick={() => send({ type: 'mute', muted: !t.muted })}>{t.muted ? 'Unmute' : 'Mute'}</button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function AmboOperatorWindow() {
   const params = new URLSearchParams(typeof location !== 'undefined' ? location.search : '');
@@ -59,6 +110,8 @@ export default function AmboOperatorWindow() {
         </div>
         {snap?.scriptureRef && <div className="text-[12px]" style={{ color: '#E3C57E' }}>{snap.scriptureRef}</div>}
       </div>
+
+      {(role === 'all' || role === 'media') && <ProgramVideo />}
 
       <div className="flex flex-wrap gap-2">
         {(role === 'all' || role === 'lyrics') && (<>

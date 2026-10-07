@@ -225,6 +225,16 @@ function runtimeFor(host: SlideHost, s: VideoSettings): Runtime | null {
   };
   v.addEventListener('loadedmetadata', () => { if (s.inSec > 0 && v.currentTime < s.inSec - .05) { try { v.currentTime = s.inSec; } catch { /* */ } } });
   v.addEventListener('ended', () => { if (r.ev.endAt === null) r.ev.endAt = nowSec(); });
+  // The ending is not one-way: a transport Restart, a scrub back, or Play after the end puts the clip
+  // back on air, so the slide must leave its ended/returning/done phase and expand again.
+  const reopen = () => {
+    if (runtimes.get(host.id) !== r || r.ev.endAt === null) return;
+    const end = s.outSec > 0 ? s.outSec : v.duration;
+    if (Number.isFinite(end) && !v.paused && v.currentTime < end - 0.3) { r.ev.endAt = null; r.ev.expandAt = nowSec(); }
+  };
+  v.addEventListener('play', reopen);
+  v.addEventListener('playing', reopen);
+  v.addEventListener('seeked', reopen);
   v.addEventListener('error', () => {
     if (runtimes.get(host.id) !== r) return;
     // A cross-origin host without CORS: retry through the same-origin proxy.

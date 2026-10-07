@@ -17,21 +17,25 @@ import {
   applyCommand, driftDecision, predictedPosition, signedDrift, DEFAULT_DRIFT,
   type VideoCommand, type VideoTransport,
 } from './videoSyncMath';
+import { ClockEstimator, clockNow, setClockOffset } from './clockSync';
 
 export const VIDEO_SYNC_CHANNEL = 'ambo-video-sync-v1';
 export type VideoScope = 'program' | 'preview';
 export const videoId = (scope: VideoScope, key: string) => `${scope}:${key}`;
 
-export type VideoRole = 'studio' | 'follower';
+/** 'operator' = a console window with no video elements: it sees Program video state and relays commands. */
+export type VideoRole = 'studio' | 'follower' | 'operator';
 let role: VideoRole = 'studio';
 /** Output windows call this once, before any renderer is built. */
-export function setVideoSyncRole(r: VideoRole) { role = r; if (r === 'follower') ensureChannel(); }
+export function setVideoSyncRole(r: VideoRole) { role = r; if (r === 'follower' || r === 'operator') ensureChannel(); }
 export const getVideoSyncRole = () => role;
 
 type Wire =
   | { type: 'VSYNC'; at: number; items: VideoTransport[] }
   | { type: 'VHELLO' }
-  | { type: 'VCMD'; id: string; cmd: VideoCommand };
+  | { type: 'VCMD'; id: string; cmd: VideoCommand }
+  | { type: 'CPING'; from: string; t0: number }
+  | { type: 'CPONG'; to: string; t0: number; t1: number; t2: number };
 
 interface Reg { el: HTMLVideoElement; key: string; origMuted: boolean; origVolume: number }
 
@@ -48,7 +52,8 @@ const listeners = new Map<string, Set<(t: VideoTransport | null) => void>>();
 let ch: BroadcastChannel | null = null;
 let tick: ReturnType<typeof setInterval> | null = null;
 
-const now = () => Date.now();
+/** The shared timebase (the master's clock). On one machine this is exactly Date.now(). */
+const now = () => clockNow();
 const num = (n: number, d = 0) => (Number.isFinite(n) ? n : d);
 
 export function snapshot(el: HTMLVideoElement, key: string): VideoTransport {
@@ -74,7 +79,7 @@ function ensureChannel() {
     ch = new BroadcastChannel(VIDEO_SYNC_CHANNEL);
     (ch as any).unref?.();   // node: never keep the process alive
     ch.addEventListener('message', (e: MessageEvent) => onWire(e.data as Wire));
-    if (role === 'follower') post({ type: 'VHELLO' });
+    if (role === 'follower') { post({ type: 'VHELLO' }); startClockSync(); }
   } catch { ch = null; }
 }
 function post(m: Wire) { try { ch?.postMessage(m); } catch { /* */ } }
@@ -83,6 +88,17 @@ function onWire(m: Wire) {
   if (!m) return;
   if (m.type === 'VHELLO') { if (role === 'studio') publishAll(); return; }
   if (m.type === 'VCMD') { if (role === 'studio') command(m.id, m.cmd); return; }
+  if (m.type === 'CPING') { if (role === 'studio') { const t1 = Date.now(); post({ type: 'CPONG', to: m.from, t0: m.t0, t1, t2: Date.now() }); } return; }
+  if (m.type === 'CPONG') { if (m.to === clientId) onPong(m); return; }
+  if (m.type === 'VSYNC' && role === 'operator') {
+    // An operator console keeps the newest Program video state for display and relays commands.
+    const rx = Date.now();
+    for (const t of m.items) {
+      latest.set(videoId('program', t.key), { t, rxAt: rx });
+    }
+    for (const cb of remoteListeners) { try { cb(); } catch { /* */ } }
+    return;
+  }
   if (m.type === 'VSYNC' && role === 'follower') {
     const rx = now();
     for (const t of m.items) {
@@ -92,6 +108,38 @@ function onWire(m: Wire) {
       if (set) for (const el of set) follow(el, t, id);
     }
   }
+}
+
+// ── clock sync (follower) ────────────────────────────────────────────────────
+
+const clientId = Math.random().toString(36).slice(2, 10);
+const estimator = new ClockEstimator();
+let clockTimer: ReturnType<typeof setInterval> | null = null;
+function ping() { post({ type: 'CPING', from: clientId, t0: Date.now() }); }
+function onPong(m: { t0: number; t1: number; t2: number }) {
+  if (estimator.add({ t0: m.t0, t1: m.t1, t2: m.t2, t3: Date.now() })) setClockOffset(estimator.applied());
+}
+function startClockSync() {
+  if (clockTimer) return;
+  // A quick burst to converge, then a slow refresh (clocks drift).
+  for (let i = 0; i < 5; i++) setTimeout(ping, i * 120);
+  clockTimer = setInterval(ping, 15000);
+  (clockTimer as any).unref?.();
+}
+
+// ── operator side: read-only view of Program video + command relay ───────────
+
+const remoteListeners = new Set<() => void>();
+export interface RemoteVideo { id: string; key: string; transport: VideoTransport; ageMs: number }
+/** Program videos an operator console can see (state newer than 2 s). */
+export function remoteVideos(): RemoteVideo[] {
+  const t = Date.now(), out: RemoteVideo[] = [];
+  for (const [id, v] of latest) if (id.startsWith('program:') && t - v.rxAt < 2000) out.push({ id, key: v.t.key, transport: v.t, ageMs: t - v.rxAt });
+  return out;
+}
+export function subscribeRemoteVideos(cb: () => void): () => void {
+  remoteListeners.add(cb);
+  return () => { remoteListeners.delete(cb); };
 }
 
 // ── master side ──────────────────────────────────────────────────────────────
@@ -277,7 +325,7 @@ export function subscribe(id: string, cb: (t: VideoTransport | null) => void): (
 
 /** Route a command to the clip. In the studio this drives the element(s) directly; elsewhere it is relayed. */
 export function command(id: string, cmd: VideoCommand): boolean {
-  if (role !== 'studio') { post({ type: 'VCMD', id, cmd }); return true; }
+  if (role !== 'studio') { ensureChannel(); post({ type: 'VCMD', id, cmd }); return true; }
   const els = elementsFor(id);
   if (!els.length) return false;
   const isProgram = id.startsWith('program:');
@@ -307,4 +355,6 @@ export function _resetVideoSyncForTests() {
   if (tick) { clearInterval(tick); tick = null; }
   try { ch?.close(); } catch { /* */ }
   ch = null; role = 'studio';
+  remoteListeners.clear(); estimator.reset(); setClockOffset(0);
+  if (clockTimer) { clearInterval(clockTimer); clockTimer = null; }
 }
