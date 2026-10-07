@@ -134,5 +134,404 @@
     "taskId": "7003f1f6-3345-4e9e-8159-5191e75cf812",
     "refs": 3,
     "resolution": "1k"
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "recon-printing-office",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "recon-fourth",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "recon-anteroom",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "recon-cedarhill",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 2
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "recon-escape",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 0
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "narration-beat-0",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 28
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "narration-beat-1",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 38
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "narration-beat-2",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 30
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "narration-beat-3",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 26
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "narration-beat-4",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 18
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "narration-beat-5",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 26
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "narration-beat-6",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 26
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "narration-beat-7",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 30
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "narration-beat-8",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 32
+  },
+  {
+    "at": "2026-10-06T23:54:11.346Z",
+    "scene": "score-douglass",
+    "model": "google-lyria-3-pro 90s requested (174s returned)",
+    "via": "magnific-mcp",
+    "credits": 160
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-ford-road-engine",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-ford-watch-table",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-ford-quadricycle",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-fiveday-gate",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-independent-press",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-willow-run",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-willow-run (regenerated as B-24)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-ford-highland-line",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-ford-peaceship",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75,
+    "refs": 3
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-syriac-lectern",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-ctesiphon-vault",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-synod-hall",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-stele-courtyard",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-silk-road-caravan",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-silk-road-caravan (regen 1)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-silk-road-caravan (regen 2, used)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-arghun-letter",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-julfa-lane",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "recon-urmia-press",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "score-ford",
+    "model": "google-lyria-3-pro 90s",
+    "via": "magnific-mcp",
+    "credits": 160
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "score-persia",
+    "model": "google-lyria-3-pro 90s",
+    "via": "magnific-mcp",
+    "credits": 160
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-0",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 30
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-1",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 30
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-2",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 26
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-3",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 38
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-4",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 34
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-5",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 44
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-6",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 34
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-7",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 32
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-8",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 38
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-ford-9",
+    "model": "eleven_v3 voice Desmond Kingsley",
+    "via": "magnific-mcp",
+    "credits": 36
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-0",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 40
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-1",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 24
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-2",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 24
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-3",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 48
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-4",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 36
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-5",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 22
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-6",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 32
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-7",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 38
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-8",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 34
+  },
+  {
+    "at": "2026-10-07T00:41:47.439Z",
+    "scene": "narration-persia-9",
+    "model": "eleven_v3 voice Willa Ashford",
+    "via": "magnific-mcp",
+    "credits": 50
   }
 ]

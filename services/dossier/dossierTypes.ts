@@ -71,6 +71,8 @@ export interface DossierAsset {
   claimIds: string[];
   /** Recreated or AI-generated depictions must say so on screen. */
   reconstruction?: { characterIds: string[]; basis: string; generator: string };
+  /** Hide this image below this reading level (e.g. distressing historical photographs). */
+  minDepth?: DepthLevel;
 }
 
 // ── Character consistency ─────────────────────────────────────────────────
@@ -94,6 +96,8 @@ export interface CharacterBible {
   variants: LikenessVariant[];
   /** Fixed generation seed so repeat renders start from the same point. */
   seed: number;
+  /** Lets the hall match a room's years to the person's age (and say when no photograph exists yet). */
+  birthYear?: number;
   /** Provider-side trained character/reference id, once created (e.g. Magnific custom character). */
   providerCharacterId?: string;
   /** Wardrobe/props per scene era, so clothing stays period-correct and stable. */

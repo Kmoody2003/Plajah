@@ -1,0 +1,37 @@
+{
+  "id": "persia-explainer",
+  "title": "Christianity in Persia: A Journey in Brief",
+  "displayTitle": "Christianity in Persia",
+  "subtitle": "Two thousand years of faith on the roads of Persia.",
+  "level": "middle",
+  "voice": "Microsoft Zira Desktop",
+  "creditsLines": [
+    "Images",
+    "Public-domain and openly licensed archive images via Wikimedia Commons;",
+    "paintings marked Reconstruction are generated places and objects, never real people.",
+    "Text checked against: Acts 2; Legge, The Nestorian Monument (1888); Perkins, A Residence of Eight Years in Persia (1843);",
+    "scholarship by Brock and Wilmshurst. Narration: synthetic voice (ElevenLabs via Magnific)."
+  ],
+  "beats": [
+    { "recon": "recon-syriac-lectern", "claims": ["c-acts-list", "c-acts-seed"], "caption": "Reconstruction: a Syriac gospel by lamplight",
+      "text": "The book of Acts says that people from Parthia, Media and Mesopotamia were among those who heard the apostles at Pentecost. Later tradition says this planted the first seed of Christianity in Persia." },
+    { "recon": "recon-ctesiphon-vault", "claims": ["c-sasanian-span"], "caption": "Reconstruction: the great vault at Ctesiphon",
+      "text": "The Sasanian Empire ruled Persia from two twenty-four until the Arab conquest, and Christian communities grew within it." },
+    { "recon": "recon-synod-hall", "claims": ["c-synod-410"], "caption": "Reconstruction: a hall prepared for the bishops, 410",
+      "text": "In four ten, about forty bishops met at Seleucia-Ctesiphon, and accepted the decisions of the Council of Nicaea." },
+    { "asset": "a-cross-seal", "claims": ["c-simeon", "c-sozomen"], "caption": "Stamp seal with a cross, Sasanian period, British Museum",
+      "text": "The Persian church also suffered. In the fourth century, the church leader Simeon bar Sabbae was executed after refusing to collect a double tax, and many Christians were remembered as martyrs. Historians still debate how many, and why." },
+    { "recon": "recon-stele-courtyard", "claims": ["c-alopen", "c-stele781"], "caption": "Reconstruction: the stele in a Tang monastery court",
+      "text": "In six thirty-five, a Church of the East missionary named Olopun reached the Chinese capital. In seven eighty-one, a stone monument, the Xi'an Stele, was raised to tell the story." },
+    { "recon": "recon-silk-road-caravan", "claims": ["c-central-asia"], "caption": "Reconstruction: a caravan on the road east",
+      "text": "Along the Silk Road, Church of the East missionaries and traders carried the faith deep into Central Asia." },
+    { "recon": "recon-arghun-letter", "claims": ["c-arghun-letter", "c-barsauma"], "caption": "Reconstruction: a letter for the king of France, 1289",
+      "text": "In twelve eighty-nine, a Mongol ruler wrote to the king of France. His letter named the envoy: Rabban Bar Sauma, a Church of the East monk born in China." },
+    { "recon": "recon-julfa-lane", "claims": ["c-abbas-resettle", "c-silk", "c-julfa-churches"], "caption": "Reconstruction: a lane in New Julfa",
+      "text": "In the early sixteen hundreds, Shah Abbas the First settled Armenians from Julfa at New Julfa, beside Isfahan. They built a famous silk-trade network, and their churches still stand." },
+    { "recon": "recon-urmia-press", "claims": ["c-press-urmia"], "caption": "Reconstruction: the first press at Urmia",
+      "text": "In eighteen forty, American missionaries at Urmia set a printing press to work, and printed the Lord's Prayer in ancient Syriac. Later they printed whole Testaments." },
+    { "asset": "a-sarkis-tehran", "claims": ["c-constitution-1979", "c-armenian-reps", "c-apostasy", "c-pop-estimates"], "caption": "Saint Sarkis Cathedral, Tehran",
+      "text": "Today, Iran's constitution recognizes Christians as a protected minority, and Armenians hold reserved seats in parliament. But people who convert from Islam are not legally recognized, and estimates of how many Christians live in Iran vary widely." }
+  ]
+}

@@ -3,28 +3,42 @@ import { ArrowLeft, BookOpen, ShieldCheck, AlertTriangle, ScrollText } from 'luc
 import { DEPTH_LEVELS, DEPTH_LABEL, type Claim, type DepthLevel, type Dossier, type DossierAsset } from '../../services/dossier/dossierTypes';
 import { pickVariant } from '../../services/dossier/characterGateway';
 import { commonsThumb } from '../../services/dossier/sourceAdapters';
-import { douglassDossier } from '../../data/dossier/douglass';
+import { DOSSIERS, takeRequestedDossier, type DossierEntry } from '../../data/dossier/registry';
 import DossierEntrance from './DossierEntrance';
+import DossierLobby from './DossierLobby';
 
 const DossierFilmPlayer = React.lazy(() => import('./DossierFilmPlayer'));
 const loadDouglassFilm = (w: number, h: number) => import('../../data/dossier/douglassFilm').then(m => m.loadDouglassFilm(w, h));
 
 interface Props {
   dossier?: Dossier;
+  /** Registry id; defaults to the one requested by the app event, else the first dossier. */
+  dossierId?: string;
   onBack?: () => void;
 }
 
 /** Saves the generated timeline as a real Tela document and opens it in Tela. */
-async function openTimelineInTela(): Promise<void> {
-  const [{ default: raw }, { saveTelaDoc }, { auth }] = await Promise.all([
-    import('../../data/dossier/douglassTimeline.tela.json'),
+async function openTimelineInTela(entry: DossierEntry): Promise<void> {
+  if (!entry.telaTimeline) return;
+  const [raw, { saveTelaDoc }, { auth }] = await Promise.all([
+    entry.telaTimeline(),
     import('../../services/telaStore'),
     import('../../services/backendService'),
   ]);
   const now = Date.now();
-  const doc = { ...(raw as any), ownerId: auth.currentUser?.uid || 'local', createdAt: now, updatedAt: now };
+  const doc = { ...raw, ownerId: auth.currentUser?.uid || 'local', createdAt: now, updatedAt: now };
   await saveTelaDoc(doc);
   window.dispatchEvent(new CustomEvent('plajah:openTela', { detail: { docId: doc.id } }));
+}
+
+/** Opens the generated documentary as an editable Fabula production. */
+async function openFilmInFabula(entry: DossierEntry): Promise<void> {
+  if (!entry.fabulaFilm) return;
+  const [prod, { openProductionInFabula }] = await Promise.all([
+    entry.fabulaFilm(),
+    import('../../services/dossier/openInFabula'),
+  ]);
+  await openProductionInFabula(prod);
 }
 
 const DEPTH_KEY = 'plajah:dossier:depth';
@@ -107,6 +121,20 @@ const CSS = `
 .dh-badge{display:inline-flex;align-items:center;gap:4px;font-size:10px;letter-spacing:.08em;text-transform:uppercase;margin-right:8px;color:var(--dh-mute)}
 .dh-note{display:block;margin-top:4px;color:var(--dh-mute);font-size:13px}
 .dh-src{font-size:12px;color:var(--dh-mute);margin-top:4px}
+.dh-banner-img.artifact{filter:sepia(.35) brightness(.62) saturate(.9);object-position:50% 40%}
+.dh-artifacts{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:14px;margin:4px 0 20px}
+.dh-art{margin:0;background:#0f0c13;border:1px solid var(--dh-line);border-radius:8px;overflow:hidden}
+.dh-art-btn{display:block;width:100%;border:0;padding:0;background:#000;cursor:zoom-in}
+.dh-art img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;transition:transform .5s,filter .3s;filter:sepia(.2)}
+.dh-art-btn:hover img,.dh-art-btn:focus-visible img{transform:scale(1.05);filter:none}
+.dh-art figcaption{font-size:11px;line-height:1.4;color:var(--dh-mute);padding:8px 10px}
+.dh-art figcaption b{color:var(--dh-ink);font-weight:600}
+.dh-zoom{position:fixed;inset:0;z-index:80;background:rgba(5,4,8,.92);display:flex;align-items:center;justify-content:center;padding:24px;cursor:zoom-out}
+.dh-zoom figure{margin:0;max-width:min(1100px,100%);max-height:100%;display:flex;flex-direction:column;gap:10px;cursor:default}
+.dh-zoom img{max-width:100%;max-height:78vh;object-fit:contain;border-radius:6px;background:#000}
+.dh-zoom figcaption{font-size:13px;color:rgba(242,236,246,.8);line-height:1.5}
+.dh-zoom a{color:var(--pj-cyan,#00DAF3)}
+.dh-zoom-x{align-self:flex-start;border:1px solid rgba(255,255,255,.3);background:none;color:#fff;border-radius:999px;padding:6px 16px;font-size:12px;cursor:pointer}
 .dh-recon{position:relative;margin:0 0 18px;border:1px solid var(--dh-line);border-radius:8px;overflow:hidden;background:#000}
 .dh-recon img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
 .dh-recon figcaption{font-size:12px;color:var(--dh-mute);padding:8px 12px;line-height:1.45}
@@ -128,7 +156,28 @@ const CSS = `
 @media(prefers-reduced-motion:no-preference){.dh-node{animation:dhIn .35s ease both}@keyframes dhIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}}
 `;
 
-export default function DossierHall({ dossier = douglassDossier, onBack }: Props) {
+export default function DossierHall(props: Props) {
+  // Which exhibit: explicit prop, else what the app requested, else (single exhibit) that one, else the lobby.
+  const [chosen, setChosen] = useState<string | null>(
+    () => props.dossierId ?? takeRequestedDossier() ?? (DOSSIERS.length === 1 ? DOSSIERS[0].id : null),
+  );
+  const entry = useMemo(() => DOSSIERS.find(d => d.id === chosen) ?? null, [chosen]);
+  const [loaded, setLoaded] = useState<Dossier | null>(props.dossier ?? null);
+  useEffect(() => {
+    if (props.dossier) { setLoaded(props.dossier); return; }
+    if (!entry) { setLoaded(null); return; }
+    let live = true;
+    setLoaded(null);
+    entry.load().then(d => { if (live) setLoaded(d); }).catch(() => {});
+    return () => { live = false; };
+  }, [entry, props.dossier]);
+  if (!entry && !props.dossier) return <DossierLobby onChoose={setChosen} onBack={props.onBack} />;
+  if (!loaded) return <div className="dh" style={{ padding: 40, color: 'rgba(242,236,246,.6)' }}>Opening exhibit…</div>;
+  const toLobby = DOSSIERS.length > 1 && !props.dossier ? () => setChosen(null) : props.onBack;
+  return <HallInner key={loaded.id} dossier={loaded} entry={entry ?? DOSSIERS[0]} onBack={toLobby} />;
+}
+
+function HallInner({ dossier, entry, onBack }: { dossier: Dossier; entry: DossierEntry; onBack?: () => void }) {
   const [depth, setDepth] = useState<DepthLevel>(readDepth);
   const [roomId, setRoomId] = useState(dossier.rooms[0].id);
   const [open, setOpen] = useState<Record<string, boolean>>({});
@@ -136,6 +185,13 @@ export default function DossierHall({ dossier = douglassDossier, onBack }: Props
   const [intro, setIntro] = useState(true);
   const [reveal, setReveal] = useState(false);
   const [film, setFilm] = useState(false);
+  const [zoom, setZoom] = useState<DossierAsset | null>(null);
+  useEffect(() => {
+    if (!zoom) return;
+    const k = (e: KeyboardEvent) => { if (e.key === 'Escape') setZoom(null); };
+    window.addEventListener('keydown', k);
+    return () => window.removeEventListener('keydown', k);
+  }, [zoom]);
   const finishIntro = () => { setIntro(false); setReveal(true); window.setTimeout(() => setReveal(false), 1400); };
 
   useEffect(() => {
@@ -155,13 +211,28 @@ export default function DossierHall({ dossier = douglassDossier, onBack }: Props
     : [0, 0];
 
   const roomNumber = dossier.rooms.findIndex(r => r.id === room.id) + 1;
+  // Age of the person in the middle of this room's years (null for topic dossiers or undated rooms).
+  const roomAge = useMemo(() => {
+    const m = room.years?.match(/(\d{4})\D+(\d{4})/);
+    return m && figure?.birthYear ? Math.round((Number(m[1]) + Number(m[2])) / 2 - figure.birthYear) : null;
+  }, [room, figure]);
+  useEffect(() => {
+    if (roomAge != null) setAge(Math.min(ageBounds[1], Math.max(ageBounds[0], roomAge)));
+  }, [roomAge, ageBounds[0], ageBounds[1]]);
+  // Before the earliest surviving photograph, do not dress a boyhood room in an adult face.
+  const noPhotoEra = roomAge != null && figure ? roomAge < ageBounds[0] - 2 : false;
   const bannerAsset = room.nodes.flatMap(n => n.assetIds).map(id => assetById.get(id)).find(a => a?.kind === 'recreation');
+  const depthRank = (d: DepthLevel) => DEPTH_LEVELS.indexOf(d);
+  const visibleAt = (a?: DossierAsset): a is DossierAsset => !!a && (!a.minDepth || depthRank(depth) >= depthRank(a.minDepth));
+  // Topic exhibits have no portrait: the first archival image in the room becomes the banner.
+  const artifactBanner = bannerAsset || (portrait && !noPhotoEra) ? undefined
+    : room.nodes.flatMap(n => n.assetIds).map(id => assetById.get(id)).find(a => visibleAt(a) && a.kind !== 'recreation' && /^https?:/.test(a.url));
 
   const usedAssets = useMemo(() => {
     const ids = new Set<string>(room.nodes.flatMap(n => n.assetIds));
     if (portrait) ids.add(portrait.id);
-    return [...ids].map(id => assetById.get(id)).filter(Boolean) as DossierAsset[];
-  }, [room, portrait, assetById]);
+    return [...ids].map(id => assetById.get(id)).filter(a => visibleAt(a)) as DossierAsset[];
+  }, [room, portrait, assetById, depth]);
 
   return (
     <div className="dh">
@@ -173,6 +244,18 @@ export default function DossierHall({ dossier = douglassDossier, onBack }: Props
         </React.Suspense>
       )}
       {reveal && <div className="dh-reveal" aria-hidden><i /><i /></div>}
+      {zoom && (
+        <div className="dh-zoom" role="dialog" aria-label={zoom.title} onClick={() => setZoom(null)}>
+          <figure onClick={e => e.stopPropagation()}>
+            <img src={commonsThumb(zoom.url, 1280)} alt={zoom.title} />
+            <figcaption>
+              <b>{zoom.title}</b>. {zoom.rights.credit}; {zoom.rights.status.replace('-', ' ')}.
+              {zoom.rights.verifiedAt && <> <a href={zoom.rights.verifiedAt} target="_blank" rel="noreferrer noopener">Record</a></>}
+            </figcaption>
+            <button className="dh-zoom-x" onClick={() => setZoom(null)}>Close</button>
+          </figure>
+        </div>
+      )}
       <header className="dh-top">
         {onBack && (
           <button className="dh-back" onClick={onBack} aria-label="Back"><ArrowLeft size={16} /> Back</button>
@@ -180,7 +263,8 @@ export default function DossierHall({ dossier = douglassDossier, onBack }: Props
         <span className="dh-serif" style={{ fontSize: 18 }}>{dossier.subject}</span>
         {dossier.entrance && <button className="dh-replay" onClick={() => setIntro(true)}>Replay opening</button>}
         {dossier.id === 'frederick-douglass' && <button className="dh-replay" onClick={() => setFilm(true)}>▶ Watch the film</button>}
-        {dossier.id === 'frederick-douglass' && <button className="dh-replay" onClick={() => { openTimelineInTela().catch(() => {}); }}>Open timeline in Tela</button>}
+        {entry.telaTimeline && <button className="dh-replay" onClick={() => { openTimelineInTela(entry).catch(() => {}); }}>Open timeline in Tela</button>}
+        {entry.fabulaFilm && <button className="dh-replay" onClick={() => { openFilmInFabula(entry).catch(() => {}); }}>Open film in Fabula</button>}
         <div className="dh-lens" role="group" aria-label="Reading level">
           {DEPTH_LEVELS.map(d => (
             <button key={d} aria-pressed={d === depth} onClick={() => setDepth(d)}>{DEPTH_LABEL[d]}</button>
@@ -202,8 +286,10 @@ export default function DossierHall({ dossier = douglassDossier, onBack }: Props
           <section className="dh-banner" key={room.id}>
             {bannerAsset ? (
               <img className="dh-banner-img" src={bannerAsset.url} alt={bannerAsset.title} />
-            ) : portrait ? (
+            ) : portrait && !noPhotoEra ? (
               <img className="dh-banner-img portrait" src={commonsThumb(portrait.url, 1280)} alt={portrait.title} />
+            ) : artifactBanner ? (
+              <img className="dh-banner-img artifact" src={commonsThumb(artifactBanner.url, 1280)} alt={artifactBanner.title} />
             ) : null}
             <div className="dh-banner-scrim" />
             {bannerAsset && <span className="dh-recon-tag">Reconstruction</span>}
@@ -212,7 +298,10 @@ export default function DossierHall({ dossier = douglassDossier, onBack }: Props
               <div className="dh-years">{room.years}</div>
               <h1 className="dh-h1 dh-serif">{room.title}</h1>
             </div>
-            {figure && variant && portrait && (
+            {noPhotoEra && (
+              <aside className="dh-medal"><label><span>No photograph of {dossier.subject.split(' ').slice(-1)[0]} survives from this period.</span></label></aside>
+            )}
+            {figure && variant && portrait && !noPhotoEra && (
               <aside className="dh-medal">
                 <img src={commonsThumb(portrait.url, 330)} alt={portrait.title} />
                 <label>
@@ -222,6 +311,7 @@ export default function DossierHall({ dossier = douglassDossier, onBack }: Props
               </aside>
             )}
           </section>
+          {artifactBanner && <p className="dh-banner-cap">{artifactBanner.title}. {artifactBanner.rights.credit}.</p>}
           {bannerAsset && <p className="dh-banner-cap">{bannerAsset.title}. Imagined from: {bannerAsset.reconstruction?.basis}. {bannerAsset.rights.credit}.</p>}
 
           {room.nodes.map(n => {
@@ -239,6 +329,22 @@ export default function DossierHall({ dossier = douglassDossier, onBack }: Props
                     <figcaption>{a.title}. Imagined from: {a.reconstruction?.basis}. {a.rights.credit}.</figcaption>
                   </figure>
                 ))}
+                {(() => {
+                  const arts = n.assetIds.map(id => assetById.get(id))
+                    .filter((a): a is DossierAsset => visibleAt(a) && a.kind !== 'recreation' && a.id !== artifactBanner?.id && a.id !== portrait?.id);
+                  return arts.length ? (
+                    <div className="dh-artifacts">
+                      {arts.map(a => (
+                        <figure key={a.id} className="dh-art">
+                          <button className="dh-art-btn" onClick={() => setZoom(a)} aria-label={`View ${a.title}`}>
+                            <img src={commonsThumb(a.url, 500)} alt={a.title} loading="lazy" />
+                          </button>
+                          <figcaption><b>{a.title}</b><br />{a.rights.credit}</figcaption>
+                        </figure>
+                      ))}
+                    </div>
+                  ) : null;
+                })()}
                 <button className="dh-ev-btn" aria-expanded={isOpen} onClick={() => setOpen(o => ({ ...o, [n.id]: !o[n.id] }))}>
                   <ShieldCheck size={14} /> Evidence ({claims.length})
                 </button>

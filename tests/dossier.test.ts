@@ -132,3 +132,50 @@ test('every timeline milestone cites a real ledger claim', () => {
   const ids = new Set(douglassDossier.ledger.claims.map(c => c.id));
   for (const m of douglassMilestones) for (const c of [m.claimId, ...(m.extraClaimIds ?? [])]) assert.ok(ids.has(c), c);
 });
+
+import fabulaProd from '../data/dossier/douglassFabula.json';
+import douglassFilm from '../data/dossier/douglassFilm.json';
+
+test('Fabula production: every clip resolves, tracks exist, no overlaps within a track', () => {
+  const prod: any = fabulaProd;
+  const media = new Set(prod.mediaPool.map((m: any) => m.id));
+  const tracks = new Set(prod.tracks.map((t: any) => t.id));
+  const clips = prod.edits[0].timeline.clips;
+  for (const c of clips) {
+    assert.ok(tracks.has(c.trackId), `track ${c.trackId}`);
+    if (c.kind === 'media') assert.ok(media.has(c.assetId), `asset ${c.assetId}`);
+    if (c.kind === 'subtitle') assert.ok(c.text && c.text.length > 5);
+    assert.ok(c.duration > 0 && c.start >= 0);
+  }
+  for (const tr of ['s1', 'v1', 'a1']) {
+    const on = clips.filter((c: any) => c.trackId === tr).sort((a: any, b: any) => a.start - b.start);
+    for (let i = 1; i < on.length; i++) assert.ok(on[i].start >= on[i - 1].start + on[i - 1].duration - 0.02, `overlap on ${tr}: ${on[i - 1].id}/${on[i].id}`);
+  }
+  // subtitle text equals the film script, word for word
+  const subs = clips.filter((c: any) => c.kind === 'subtitle').map((c: any) => c.text);
+  assert.deepEqual(subs, (douglassFilm as any).beats.map((b: any) => b.text));
+});
+
+import { persiaDossier } from '../data/dossier/persia';
+
+test('distressing Persia photographs are hidden at the youngest reading levels', () => {
+  const byId = new Map(persiaDossier.assets.map(a => [a.id, a]));
+  for (const id of ['a-refugees-1915', 'a-genocide-memorial-tehran', 'a-urmia-gate-1904']) {
+    const a = byId.get(id)!;
+    assert.ok(a.minDepth && a.minDepth !== 'early' && a.minDepth !== 'elementary', `${id} must be gated above elementary`);
+  }
+  assert.match(byId.get('a-urmia-gate-1904')!.title, /bodies/, 'caption must say what the photograph shows');
+});
+
+import { sceneYear } from '../services/dossier/characterGateway';
+
+test('anachronism guard is era-aware: no electric light in 1847, electric light allowed in 1913', () => {
+  const mk = (setting: string) => ({ action: 'a', setting, style: 's', cast: [] });
+  const old = buildImageRequest(mk('a Rochester printing office in 1847'), [bible], [ref]);
+  const mod = buildImageRequest(mk('the Highland Park factory floor in 1913'), [bible], [ref]);
+  assert.ok(old.negativePrompt.includes('electric lamp') && old.prompt.includes('oil lamps and candles'));
+  assert.ok(!mod.negativePrompt.includes('electric lamp') && !mod.prompt.includes('oil lamps and candles'));
+  assert.ok(mod.prompt.includes('existed in 1913'));
+  assert.equal(sceneYear(mk('Ctesiphon in the fifth century')), null);
+  assert.equal(sceneYear(mk('a caravan in 1289')), 1289);
+});

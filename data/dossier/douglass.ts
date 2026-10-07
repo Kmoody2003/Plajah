@@ -86,6 +86,7 @@ const characters: CharacterBible[] = [
       'Black man of tall, powerful build with a high broad forehead, strong straight dark brows, deep-set intense direct eyes, a firm closed mouth, and a thick full head of hair; complexion exactly as in the reference portraits, neither lightened nor darkened; a serious, commanding, dignified bearing',
     forbidden: ['smiling', 'cartoonish features', 'caricature', 'darkened or lightened complexion', 'modern hairstyle', 'clean-shaven elder', 'glasses'],
     seed: 18180214,
+    birthYear: 1818,
     variants: [
       { id: 'young', ageRange: [24, 36], descriptor: 'young man, thick dark curly hair swept up and back from the forehead, clean-shaven apart from a small chin beard, direct unwavering gaze', referenceAssetIds: ['ref-1847-miller', 'ref-1855-younger'] },
       { id: 'mid', ageRange: [37, 55], descriptor: 'mature man, voluminous mostly dark hair with only slight gray at the temples, short chin beard with moustache, intense measured stare', referenceAssetIds: ['ref-1855-younger', 'ref-1860s-merrill-crosby', 'ref-1866-nyhs'] },

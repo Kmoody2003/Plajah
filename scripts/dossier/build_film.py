@@ -1,9 +1,10 @@
 """
 Builds a short documentary from a dossier film script using only real, rights-cleared images.
 
-  python scripts/dossier/build_film.py [workdir]
+  python scripts/dossier/build_film.py [workdir] [--slug=douglass|ford|persia] [--audio-dir=<dir of beat_N.mp3>]
 
-Inputs : data/dossier/douglassFilm.json (beats), data/dossier/douglassAssets.json (credits)
+Inputs : data/dossier/<slug>Film.json (beats), data/dossier/<slug>Assets.json, public/dossier/<slug>/recon/*.png, score.mp3
+Beats use either {"asset": archive id} or {"recon": reconstruction id}.
 Needs  : ffmpeg/ffprobe (set FFMPEG_DIR or default tools folder), Pillow, Windows SAPI voices.
 Output : <workdir>/out/<id>.mp4 plus .srt (accessibility, and importable into Fabula).
 
@@ -23,12 +24,14 @@ GEORGIA_B = r"C:\Windows\Fonts\georgiab.ttf"
 
 args = [a for a in sys.argv[1:] if not a.startswith("--")]
 SKIP_TTS = "--skip-tts" in sys.argv
+SLUG = next((a.split("=", 1)[1] for a in sys.argv if a.startswith("--slug=")), "douglass")
+AUDIO_DIR = next((a.split("=",1)[1] for a in sys.argv if a.startswith("--audio-dir=")), None)
 work = os.path.abspath(args[0]) if args else os.path.join(ROOT, ".film-work")
 for d in ("img", "audio", "seg", "ovl", "out"):
     os.makedirs(os.path.join(work, d), exist_ok=True)
 
-film = json.load(open(os.path.join(ROOT, "data/dossier/douglassFilm.json"), encoding="utf-8"))
-assets = {a["id"]: a for a in json.load(open(os.path.join(ROOT, "data/dossier/douglassAssets.json"), encoding="utf-8"))}
+film = json.load(open(os.path.join(ROOT, f"data/dossier/{SLUG}Film.json"), encoding="utf-8"))
+assets = {a["id"]: a for a in json.load(open(os.path.join(ROOT, f"data/dossier/{SLUG}Assets.json"), encoding="utf-8"))}
 
 
 def run(cmd, **kw):
@@ -120,12 +123,26 @@ t = 0.0
 srt = []
 for i, b in enumerate(film["beats"]):
     wav = os.path.join(work, "audio", f"beat_{i}.wav")
-    if not SKIP_TTS or not os.path.exists(wav):
+    if AUDIO_DIR:
+        # Pre-rendered narration (e.g. Magnific TTS): trim trailing silence, normalise to 48k stereo wav.
+        src = os.path.join(AUDIO_DIR, f"beat_{i}.mp3")
+        run([FFMPEG, "-y", "-loglevel", "error", "-i", src, "-af",
+             "areverse,silenceremove=start_periods=1:start_threshold=-42dB:start_silence=0.2,areverse",
+             "-ar", "48000", "-ac", "2", wav])
+    elif not SKIP_TTS or not os.path.exists(wav):
         tts(b["text"], wav, film["voice"])
-    dur = duration(wav) + 1.0
-    a = assets[b["asset"]]
-    fetch(commons_thumb(a["url"]), os.path.join(work, "img", f"{b['asset']}.jpg"))
-    segs.append((i, b, wav, dur))
+    dur = duration(wav) + 0.9
+    if "recon" in b:
+        key = b["recon"]
+        dst = os.path.join(work, "img", f"{key}.jpg")
+        if not os.path.exists(dst):
+            base = os.path.join(ROOT, "public", "dossier", SLUG, "recon", key)
+            src_img = base + ".jpg" if os.path.exists(base + ".jpg") else base + ".png"
+            run([FFMPEG, "-y", "-loglevel", "error", "-i", src_img, "-vf", "scale=1920:-2", "-q:v", "3", dst])
+    else:
+        key = b["asset"]
+        fetch(commons_thumb(assets[key]["url"]), os.path.join(work, "img", f"{key}.jpg"))
+    segs.append((i, b, wav, dur, key))
     srt.append((t + 0.15, t + dur - 0.5, b["text"]))
     t += dur
 
@@ -143,12 +160,11 @@ run([FFMPEG, "-y", "-loop", "1", "-t", "4.5", "-i", os.path.join(work, "ovl", "t
      "-vf", f"fade=t=in:st=0:d=0.8,fade=t=out:st=3.7:d=0.8", "-shortest"] + common_out(p))
 seg_files.append(p)
 
-for i, b, wav, dur in segs:
-    a = assets[b["asset"]]
-    img = os.path.join(work, "img", f"{b['asset']}.jpg")
+for i, b, wav, dur, key in segs:
+    img = os.path.join(work, "img", f"{key}.jpg")
     sub, cred = os.path.join(work, "ovl", f"sub_{i}.png"), os.path.join(work, "ovl", f"cred_{i}.png")
     subtitle_png(b["text"], sub)
-    credit_png(f"{b['caption']} · Public domain", cred)
+    credit_png(b['caption'] if b['caption'].lower().startswith('reconstruction') else f"{b['caption']} · {'Reconstruction' if 'recon' in b else 'Public domain'}", cred)
     with Image.open(img) as im:
         ar = im.width / im.height
     fh = 470
@@ -172,8 +188,10 @@ for i, b, wav, dur in segs:
 credits = ["Images", "Public-domain photographs, engravings and documents from library and museum",
            "collections, via Wikimedia Commons. Each credit appears on screen and in the exhibit.",
            "Text reviewed against: Narrative (1845); My Bondage and My Freedom (1855); Life and Times (1881/1892);",
-           "D. W. Blight, Frederick Douglass: Prophet of Freedom (2018). Draft narration: synthetic voice."]
-card_png(credits, os.path.join(work, "ovl", "credits.png"), [34, 22, 22, 20, 20])
+           "D. W. Blight, Frederick Douglass: Prophet of Freedom (2018). Narration: synthetic voice (ElevenLabs via Magnific)."]
+credits = film.get("creditsLines") or credits
+sizes = ([34, 22, 22] + [20] * 12)[:len(credits)]
+card_png(credits, os.path.join(work, "ovl", "credits.png"), sizes)
 p = os.path.join(work, "seg", "credits.mp4")
 run([FFMPEG, "-y", "-loop", "1", "-t", "7", "-i", os.path.join(work, "ovl", "credits.png"),
      "-f", "lavfi", "-t", "7", "-i", "anullsrc=r=48000:cl=stereo",
@@ -196,4 +214,14 @@ offset = 4.5
 with open(os.path.join(work, "out", f"{film['id']}.srt"), "w", encoding="utf-8") as f:
     for k, (a, z, text) in enumerate(srt, 1):
         f.write(f"{k}\n{ts(a + offset)} --> {ts(z + offset)}\n{text}\n\n")
+score = os.path.join(ROOT, "public", "dossier", SLUG, "score.mp3")
+if os.path.exists(score):
+    total = duration(out)
+    mixed = os.path.join(work, "out", f"{film['id']}-scored.mp4")
+    run([FFMPEG, "-y", "-loglevel", "error", "-i", out, "-stream_loop", "-1", "-i", score, "-filter_complex",
+         "[1:a]volume=0.55,afade=t=in:st=0:d=3,aformat=sample_rates=48000:channel_layouts=stereo[m];"
+         "[m][0:a]sidechaincompress=threshold=0.02:ratio=9:attack=25:release=500[duck];"
+         f"[0:a][duck]amix=inputs=2:duration=first:normalize=0,afade=t=out:st={total - 6.2:.2f}:d=6.2[a]",
+         "-map", "0:v", "-map", "[a]", "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-movflags", "+faststart", mixed])
+    out = mixed
 print(f"OK {out}  {duration(out):.1f}s  {os.path.getsize(out)/1e6:.1f} MB")
