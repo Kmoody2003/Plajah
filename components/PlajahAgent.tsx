@@ -491,27 +491,54 @@ const PlajahAgent: React.FC<Props> = ({
     const liveSurface = serializeAriaContextForWire(getActiveAriaContext());
 
     // On-device lane: generate the reply locally (free, private), then hand it to
-    // the server to persist + parse actions. Any failure falls through to cloud.
+    // the server only to persist + parse actions. When on-device mode is ON it is
+    // authoritative: the message NEVER silently goes to the cloud model instead.
+    // (Reference photos still need the vision-capable cloud model — the local text
+    // model must not answer from a filename while pretending it saw pixels.)
     let localReply: string | undefined;
-    // Reference photos require a vision-capable cloud model; the local text
-    // model must not answer from the filename while pretending it saw pixels.
-    if (onDevice && ariaLocalModel.ready && attachments.length === 0) {
+    if (onDevice && attachments.length === 0) {
+      let localFailure = '';
       try {
-        setThinkingLabel('Thinking on-device…');
-        const out = await ariaLocalModel.chat(
-          buildLocalChatMessages({
-            snapshot: getActiveAriaContext(),
-            // Error replies ("I'm having trouble…") are not part of the conversation the model should see.
-            history: shownMessages.filter(m => !m.error).map(m => ({ role: m.role, content: m.content })),
-            userMessage: text,
-          }),
-          { maxNewTokens: 512 },
-        );
-        if (out && out.trim()) localReply = out.trim();
-      } catch (e) {
-        console.warn('[Aria] on-device generation failed — using cloud:', e);
+        if (!ariaLocalModel.ready) {
+          // Still downloading / compiling: wait for it, and show the progress in the thinking bubble.
+          setThinkingLabel(localStatus || 'Getting Aria ready on this device…');
+          await ariaLocalModel.warm(s => { setLocalStatus(s); setThinkingLabel(s); });
+        }
+        if (ariaLocalModel.ready) {
+          setThinkingLabel(ariaLocalModel.engine === 'gemma4' ? 'Thinking on-device (Gemma 4)…' : 'Thinking on-device…');
+          const out = await ariaLocalModel.chat(
+            buildLocalChatMessages({
+              snapshot: getActiveAriaContext(),
+              // Error replies ("I'm having trouble…") are not part of the conversation the model should see.
+              history: shownMessages.filter(m => !m.error).map(m => ({ role: m.role, content: m.content })),
+              userMessage: text,
+            }),
+            { maxNewTokens: 512 },
+          );
+          if (out && out.trim()) localReply = out.trim();
+          else localFailure = 'the on-device model returned an empty answer';
+        } else {
+          localFailure = ariaLocalModel.lastError || 'the on-device model could not load';
+        }
+      } catch (e: any) {
+        localFailure = String(e?.message || e).slice(0, 200);
+        console.warn('[Aria] on-device generation failed:', e);
       } finally {
         setThinkingLabel(undefined);
+      }
+
+      if (!localReply) {
+        const t = Date.now();
+        setEphemeral(prev => [
+          ...prev,
+          { id: `local-u-${t}`, role: 'user', content: text, timestamp: t },
+          { id: `local-a-${t}`, role: 'muse', timestamp: t + 1, error: true,
+            content: `I couldn't answer on this device: ${localFailure}. Turn off "Local" in my header to use the cloud instead.` } as AgentMessage,
+        ]);
+        setAttachments([]);
+        setIsThinking(false);
+        setUsage(u => ({ ...u, dailyMessages: Math.max(0, u.dailyMessages - 1) })); // on-device turns are free
+        return;
       }
     }
 
@@ -535,18 +562,20 @@ const PlajahAgent: React.FC<Props> = ({
     // the user's message disappear. (When it was stored, the Firestore listener delivers it as usual.)
     if (result.persisted === false || result.error) {
       const t = Date.now();
-      const failed = !!(result.error || result.replyError);
+      // An on-device answer is real even if the server could not be reached to save it.
+      const replyText = result.reply || localReply || '';
+      const failed = !replyText || (!localReply && !!(result.error || result.replyError));
       setEphemeral(prev => [
         ...prev,
         { id: `local-u-${t}`, role: 'user', content: text, timestamp: t },
         {
           id: `local-a-${t}`, role: 'muse', timestamp: t + 1, error: failed,
-          content: result.reply || result.error || 'Aria could not answer just now. Please try again.',
+          content: replyText || result.error || 'Aria could not answer just now. Please try again.',
           toolCalls: result.toolCalls, buildOutput: result.buildOutput,
         } as AgentMessage,
       ]);
       // The Firestore listener won't deliver this reply, so honour the Voice toggle here too.
-      if (!failed && result.reply && autoReadRef.current) ariaVoice.speak(`local-a-${t}`, result.reply);
+      if (!failed && replyText && autoReadRef.current) ariaVoice.speak(`local-a-${t}`, replyText);
     }
 
     // Execute any actions Aria decided to perform on the active surface. Handlers
@@ -562,7 +591,7 @@ const PlajahAgent: React.FC<Props> = ({
       setLimitBanner(result.error || 'Limit reached.');
     }
     if (result.usage) setUsage(result.usage);
-  }, [canSend, uid, sessionId, input, attachments, tier, context, onDevice, shownMessages]);
+  }, [canSend, uid, sessionId, input, attachments, tier, context, onDevice, shownMessages, localStatus]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(); }
@@ -682,6 +711,8 @@ const PlajahAgent: React.FC<Props> = ({
                     setOnDevice(v => {
                       const next = !v;
                       try { localStorage.setItem('aria_on_device', next ? '1' : '0'); } catch {}
+                      // A failed load used to be sticky until reload — turning Local back on retries it.
+                      if (next && ariaLocalModel.status === 'unavailable') { ariaLocalModel.reset(); setLocalStatus(''); }
                       return next;
                     });
                   }}
@@ -856,10 +887,23 @@ const PlajahAgent: React.FC<Props> = ({
               {isThinking && <ThinkingBubble toolLabel={thinkingLabel} />}
 
               {/* On-device model progress (a first Gemma 4 download is ~3 GB, so say what is happening) */}
-              {onDevice && !ariaLocalModel.ready && localStatus && (
-                <div className="flex items-center gap-2 px-3 py-2 bg-sky-900/20 border border-sky-500/20 rounded-xl">
-                  <div className="w-3 h-3 border border-sky-400/40 border-t-sky-300 rounded-full animate-spin shrink-0" />
-                  <p className="text-[10px] text-sky-200/80 leading-snug">{localStatus}</p>
+              {onDevice && localStatus && (!ariaLocalModel.ready || ariaLocalModel.upgrading || ariaLocalModel.status === 'unavailable') && (
+                ariaLocalModel.status === 'unavailable' ? (
+                  <div className="flex items-start gap-2 px-3 py-2 bg-red-900/25 border border-red-500/30 rounded-xl">
+                    <AlertTriangle size={13} className="text-red-300 shrink-0 mt-0.5" />
+                    <p className="text-[10px] text-red-200/90 leading-snug">{localStatus}</p>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 px-3 py-2 bg-sky-900/20 border border-sky-500/20 rounded-xl">
+                    <div className="w-3 h-3 border border-sky-400/40 border-t-sky-300 rounded-full animate-spin shrink-0" />
+                    <p className="text-[10px] text-sky-200/80 leading-snug">{localStatus}</p>
+                  </div>
+                )
+              )}
+              {onDevice && ariaLocalModel.cacheWarning && (
+                <div className="flex items-start gap-2 px-3 py-2 bg-amber-900/25 border border-amber-500/30 rounded-xl">
+                  <AlertTriangle size={13} className="text-amber-300 shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-amber-200/90 leading-snug">{ariaLocalModel.cacheWarning}</p>
                 </div>
               )}
 
