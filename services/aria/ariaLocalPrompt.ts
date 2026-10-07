@@ -73,5 +73,14 @@ export function buildLocalChatMessages(opts: {
 
   const ctx = buildLocalContextBlock(snapshot);
   msgs.push({ role: 'user', content: ctx + userMessage });
-  return msgs;
+
+  // Strict chat templates (Gemma) want roles to alternate user/assistant after the system turn.
+  // A failed reply leaves two user turns side by side, so merge same-role neighbours.
+  const merged: LocalChatMessage[] = [];
+  for (const m of msgs) {
+    const prev = merged[merged.length - 1];
+    if (prev && prev.role === m.role && m.role !== 'system') prev.content = `${prev.content}\n\n${m.content}`;
+    else merged.push({ ...m });
+  }
+  return merged;
 }

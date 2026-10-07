@@ -341,6 +341,9 @@ const PlajahAgent: React.FC<Props> = ({
   });
   const [localStatus, setLocalStatus] = useState<string>('');
   const localSupported = AriaLocalModel.isSupported();
+  // Which on-device engine: light Qwen (default) or Gemma 4 E2B (opt-in, ~3 GB first download, WebGPU only).
+  const [localEngine, setLocalEngine] = useState<'qwen' | 'gemma4'>(() => AriaLocalModel.preferredEngine());
+  const gemmaSupported = AriaLocalModel.gemmaSupported();
   // Spoken replies — opt-in, remembered per browser; only offered when the server has a voice.
   const voice = useAriaVoice();
   const [autoRead, setAutoRead] = useState<boolean>(() => {
@@ -355,7 +358,7 @@ const PlajahAgent: React.FC<Props> = ({
     let alive = true;
     ariaLocalModel.warm(s => { if (alive) setLocalStatus(s); });
     return () => { alive = false; };
-  }, [onDevice]);
+  }, [onDevice, localEngine]);
 
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -498,7 +501,8 @@ const PlajahAgent: React.FC<Props> = ({
         const out = await ariaLocalModel.chat(
           buildLocalChatMessages({
             snapshot: getActiveAriaContext(),
-            history: shownMessages.map(m => ({ role: m.role, content: m.content })),
+            // Error replies ("I'm having trouble…") are not part of the conversation the model should see.
+            history: shownMessages.filter(m => !m.error).map(m => ({ role: m.role, content: m.content })),
             userMessage: text,
           }),
           { maxNewTokens: 512 },
@@ -698,6 +702,26 @@ const PlajahAgent: React.FC<Props> = ({
                 </button>
               )}
 
+              {/* Engine switch: Gemma 4 E2B instead of the light Qwen. Only offered where WebGPU can run it. */}
+              {localSupported && onDevice && gemmaSupported && (
+                <button
+                  onClick={() => {
+                    const next = localEngine === 'gemma4' ? 'qwen' : 'gemma4';
+                    AriaLocalModel.setPreferredEngine(next);
+                    ariaLocalModel.reset();        // unload so the next warm() loads the chosen engine
+                    setLocalStatus('');
+                    setLocalEngine(next);
+                  }}
+                  title={localEngine === 'gemma4'
+                    ? (ariaLocalModel.engine === 'gemma4' && ariaLocalModel.ready ? 'Running Gemma 4 E2B on-device — click to switch back to the lighter model' : 'Gemma 4 selected — click to switch back to the lighter model')
+                    : 'Try Gemma 4 E2B on-device: stronger, follows Aria’s persona and actions better. First use downloads about 3 GB (then cached).'}
+                  className={`flex items-center gap-1 px-2 py-1 rounded-full text-[7px] font-black uppercase tracking-widest border transition-all ${
+                    localEngine === 'gemma4' ? 'bg-sky-600/20 border-sky-500/40 text-sky-200' : 'bg-white/5 border-white/10 text-white/30'}`}
+                >
+                  {localEngine === 'gemma4' ? (ariaLocalModel.engine === 'gemma4' && ariaLocalModel.ready ? 'Gemma 4 ✓' : 'Gemma 4') : 'Gemma 4?'}
+                </button>
+              )}
+
               {/* Spoken replies — auto-read toggle (only when a voice is configured) */}
               {(voice.available === true && voice.eligible === true) && (
                 <button
@@ -830,6 +854,14 @@ const PlajahAgent: React.FC<Props> = ({
 
               {/* Thinking */}
               {isThinking && <ThinkingBubble toolLabel={thinkingLabel} />}
+
+              {/* On-device model progress (a first Gemma 4 download is ~3 GB, so say what is happening) */}
+              {onDevice && !ariaLocalModel.ready && localStatus && (
+                <div className="flex items-center gap-2 px-3 py-2 bg-sky-900/20 border border-sky-500/20 rounded-xl">
+                  <div className="w-3 h-3 border border-sky-400/40 border-t-sky-300 rounded-full animate-spin shrink-0" />
+                  <p className="text-[10px] text-sky-200/80 leading-snug">{localStatus}</p>
+                </div>
+              )}
 
               {/* Limit banner */}
               {limitBanner && (
