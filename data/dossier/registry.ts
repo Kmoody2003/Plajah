@@ -4,6 +4,7 @@
  */
 import type { Dossier } from '../../services/dossier/dossierTypes';
 import { applyReconstructions } from '../../services/dossier/reconAssets';
+import type { DossierTheme } from '../../services/dossier/dossierTheme';
 
 export interface DossierEntry {
   id: string;
@@ -19,11 +20,53 @@ export interface DossierEntry {
   fabulaFilm?: () => Promise<any>;
   /** True while the planned reconstruction paintings (and the film) have not been produced yet. */
   artPending?: boolean;
+  /** The exhibit's own look: display face, ink colour, ground. The hall turns it into CSS variables. */
+  theme?: DossierTheme;
 }
+
+const SERIF_BODY = "'Source Serif 4', Georgia, 'Times New Roman', serif";
+const SERIF_FONT = 'Source Serif 4:opsz,wght@8..60,400;8..60,600';
+
+/** One theme per exhibit: display face, ink on ground, and the real second script where the subject has one. */
+export const DOSSIER_THEMES: Record<string, DossierTheme> = {
+  'frederick-douglass': {
+    display: "'Abril Fatface', 'Playfair Display', Georgia, serif",
+    body: SERIF_BODY,
+    accent: '#d9b36a', bg: '#14110d', upper: true,
+    entranceAsset: 'ref-1866-nyhs',
+    fonts: ['Abril Fatface', 'Playfair Display:ital,wght@0,500;1,500', SERIF_FONT],
+  },
+  'henry-ford': {
+    display: "'Anton', 'Barlow Condensed', Impact, 'Arial Narrow', sans-serif",
+    body: SERIF_BODY,
+    accent: '#ff4b1f', bg: '#1a1411', upper: true,
+    heroTitle: 'Motor City',
+    entranceAsset: 'doc-1913-assembly-line',
+    fonts: ['Anton', SERIF_FONT],
+  },
+  'christianity-in-persia': {
+    display: "'Cormorant Garamond', Georgia, 'Times New Roman', serif",
+    body: SERIF_BODY,
+    accent: '#4f7cff', bg: '#0c1020', upper: false,
+    entranceAsset: 'a-stele-wdl',
+    script: { word: 'ܥܕܬܐ', font: "'Noto Sans Syriac', 'Estrangelo Edessa', serif", reading: 'Syriac, edta: “the church”', dir: 'rtl' },
+    fonts: ['Cormorant Garamond:ital,wght@0,500;0,700;1,500', 'Noto Sans Syriac', 'Noto Naskh Arabic:wght@500;700', 'Noto Serif SC:wght@700', SERIF_FONT],
+  },
+  'partition-1947': {
+    display: "'Fraunces', Georgia, 'Times New Roman', serif",
+    body: SERIF_BODY,
+    accent: '#e8553d', bg: '#120f0c', upper: false,
+    heroTitle: 'Five weeks, one line',
+    entranceAsset: 'a-radcliffe-punjab-map',
+    script: { word: 'تقسیمِ ہند', font: "'Noto Nastaliq Urdu', 'Fraunces', serif", reading: 'Urdu: “the partition of India”', dir: 'rtl' },
+    fonts: ['Fraunces:opsz,wght@9..144,400;9..144,800', 'Noto Nastaliq Urdu', SERIF_FONT],
+  },
+};
 
 export const DOSSIERS: DossierEntry[] = [
   {
     id: 'frederick-douglass',
+    theme: DOSSIER_THEMES['frederick-douglass'],
     title: 'Frederick Douglass',
     kind: 'biography',
     tagline: "Born enslaved. Became the nation's conscience.",
@@ -35,6 +78,7 @@ export const DOSSIERS: DossierEntry[] = [
   },
   {
     id: 'henry-ford',
+    theme: DOSSIER_THEMES['henry-ford'],
     title: 'Henry Ford',
     kind: 'biography',
     tagline: 'He put America on wheels. He also put hatred in print.',
@@ -47,6 +91,7 @@ export const DOSSIERS: DossierEntry[] = [
   },
   {
     id: 'christianity-in-persia',
+    theme: DOSSIER_THEMES['christianity-in-persia'],
     title: 'Christianity in Persia',
     kind: 'topic',
     tagline: 'Two thousand years of faith on the roads of Persia.',
@@ -59,6 +104,7 @@ export const DOSSIERS: DossierEntry[] = [
   },
   {
     id: 'partition-1947',
+    theme: DOSSIER_THEMES['partition-1947'],
     title: 'The Partition of India, 1947',
     kind: 'topic',
     tagline: 'A line drawn in five weeks, and the lives it divided.',

@@ -303,7 +303,7 @@ const rooms: Room[] = [
     id: 'r4', title: 'The Church of the East and the Silk Road', years: '431 – 845',
     nodes: [
       {
-        id: 'n-r4-label', title: 'A church by many names', kind: 'story',
+        id: 'n-r4-label', title: 'A church by many names', kind: 'story', experience: 'persia-road',
         claimIds: ['c-ephesus', 'c-misnomer', 'c-central-asia', 'c-timothy'],
         assetIds: [],
         text: {

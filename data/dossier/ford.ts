@@ -384,7 +384,7 @@ const rooms: Room[] = [
         },
       },
       {
-        id: 'n-r3-story', title: 'Highland Park and the Moving Line', kind: 'story',
+        id: 'n-r3-story', title: 'Highland Park and the Moving Line', kind: 'story', experience: 'ford-moving-line',
         claimIds: ['c-highland', 'c-highland-site', 'c-line-stages', 'c-93min', 'c-line-credit'],
         assetIds: ['doc-1913-assembly-line', 'ph-ford-plant-1910s', 'doc-highland-park-shift'],
         text: {

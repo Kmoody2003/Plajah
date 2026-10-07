@@ -109,6 +109,14 @@ export interface CharacterBible {
 /** Text for one node at every depth. All five must exist; they differ in depth, never in fact. */
 export type DepthText = Record<DepthLevel, string>;
 
+/** Interactive pieces a node can host. Only the ones DossierHall maps to a component render; the rest are reserved. */
+export type DossierExperience =
+  | 'model-t-exploded'
+  | 'ford-moving-line'
+  | 'douglass-composing-stick'
+  | 'persia-road'
+  | 'partition-pen';
+
 export interface ExhibitNode {
   id: string;
   title: string;
@@ -120,7 +128,7 @@ export interface ExhibitNode {
   fabulaProjectId?: string;
   telaDocId?: string;
   /** Optional interactive experience rendered inside the node card (lazy-loaded). */
-  experience?: 'model-t-exploded';
+  experience?: DossierExperience;
 }
 
 export interface Room {
