@@ -4,7 +4,12 @@ import Logo from '../Logo';
 /**
  * A channel's logo tile. Custom logo → account logo → the owner's profile photo (all resolved by the
  * caller into `src`); with none of those — or if the image fails to load — the Plajah chevron in
- * the brand gradient. Object-contain over a blurred self-fill so a wide logo is never cropped.
+ * the brand gradient.
+ *
+ * ONE image, drawn once. This used to stack a blurred, enlarged copy of the logo behind the sharp
+ * one to fill the letterbox; behind a transparent or non-square logo (and any profile photo) that
+ * blur read as a second, ghost copy of the icon. A plain dark tile with the logo contained inside
+ * it can't do that, and it needs nothing from the saved logo — nobody has to re-upload.
  */
 const ChannelLogo: React.FC<{ src?: string; name?: string; size?: number; className?: string }> = ({ src, name, size = 32, className = '' }) => {
   const [failed, setFailed] = useState(false);
@@ -17,10 +22,7 @@ const ChannelLogo: React.FC<{ src?: string; name?: string; size?: number; classN
       title={name}
     >
       {show ? (
-        <>
-          <img src={src} aria-hidden="true" alt="" className="absolute inset-0 w-full h-full object-cover scale-110 blur-md opacity-40" />
-          <img src={src} alt={name ? `${name} logo` : ''} onError={() => setFailed(true)} className="relative w-full h-full object-contain" draggable={false} />
-        </>
+        <img src={src} alt={name ? `${name} logo` : ''} onError={() => setFailed(true)} className="block w-full h-full object-contain" draggable={false} />
       ) : (
         <Logo size={Math.round(size * 0.72)} />
       )}
