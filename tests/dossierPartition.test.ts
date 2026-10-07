@@ -221,6 +221,6 @@ test('Partition is registered with a lazy loader, lobby years and a verified rea
   assert.ok(partitionDossier.assets.some(a => a.url === entry.heroUrl), 'hero URL must be one of the cleared assets');
   const d = await entry.load();
   assert.equal(d.id, 'partition-1947');
-  assert.equal(d.assets.filter(a => a.kind === 'recreation').length, 0, 'no paintings exist yet');
+  assert.equal(d.assets.filter(a => a.kind === 'recreation').length, 8, 'the eight people-free reconstructions are painted and registered');
   assert.deepEqual(validateDossier(d).filter(i => i.severity === 'error'), []);
 });

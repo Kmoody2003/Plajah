@@ -127,4 +127,11 @@ export const fordScenes: DossierScene[] = [
     spec: { style: STYLE, aspect: '16:9', setting: `Fair Lane, the Ford estate in Dearborn, Michigan, on an April evening in 1947, a large stone house with candlelight in a few windows, the swollen Rouge River glinting in the dusk beyond the lawn, bare spring trees, completely empty of people, no signs`,
       action: `the house stands quiet at dusk with the river high beyond the lawn`, cast: [] },
   },
+  // Faceless replacement for the folded-arms Highland Park painting: the old id above stays valid.
+  {
+    id: 'recon-highland-line-workers', roomId: 'r3', title: `Workers along the moving line, Highland Park, 1913`,
+    basis: `The Henry Ford, "Ford Methods and the Ford Shops"; My Life and Work (1922); generic staging with no person identifiable`, claimIds: ['c-line-stages', 'c-93min'],
+    spec: { style: STYLE, aspect: '16:9', setting: `a belt-driven machine shop at the Highland Park plant in 1913, a long moving assembly line carrying open Model T chassis on plain wooden floor, overhead line shafts with flat leather belts running down to the machines, large multi-pane factory windows and a glazed roof letting in daylight, a few bare incandescent bulbs hanging on cords, brick pillars, workers in flat caps and bib aprons seen only from behind or far away in shadow, none facing the viewer, no signs or lettering`,
+      action: `workers bend over the passing chassis from both sides of the line, each at his own station`, cast: [] },
+  },
 ];

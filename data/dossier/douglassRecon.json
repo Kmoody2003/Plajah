@@ -38,5 +38,15 @@
     "id": "recon-cedarhill",
     "file": "/dossier/douglass/recon/recon-cedarhill.png",
     "generator": "Google Nano Banana Pro via Magnific (real portraits as references)"
+  },
+  {
+    "id": "recon-lectern-empty",
+    "file": "/dossier/douglass/recon/recon-lectern-empty.png",
+    "generator": "Google Nano Banana Pro via Magnific"
+  },
+  {
+    "id": "recon-study-desk",
+    "file": "/dossier/douglass/recon/recon-study-desk.png",
+    "generator": "Google Nano Banana Pro via Magnific"
   }
 ]

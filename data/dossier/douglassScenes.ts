@@ -67,4 +67,17 @@ export const douglassScenes: DossierScene[] = [
     spec: { style: STYLE, aspect: '16:9', setting: 'a Victorian study at Cedar Hill in the 1880s, bookshelves, a writing desk, window overlooking Washington',
       action: 'sits at a writing desk, pen in hand, reflecting before writing', cast: [{ characterId: 'douglass', age: 66, eraKey: '1880s' }] },
   },
+  // Faceless replacements for the two scenes that showed Douglass's face: the old ids above stay valid.
+  {
+    id: 'recon-lectern-empty', roomId: 'r2', title: 'The lectern at Nantucket, 1841',
+    basis: 'Life and Times (1881): first public address at the Nantucket convention, August 1841; generic staging of an empty meeting hall, no person depicted', claimIds: ['c-nantucket'],
+    spec: { style: STYLE, aspect: '16:9', setting: 'the plain meeting hall of the Nantucket Atheneum in August 1841, rows of empty wooden benches, a simple wooden lectern on a low raised platform, whale-oil lamps with a warm glow, tall multi-pane windows, painted plaster walls, a bare wooden floor, completely empty of people, no banners, no signs, no lettering',
+      action: 'no figures; the hall stands quiet in lamplight, a folded paper resting on the lectern', cast: [] },
+  },
+  {
+    id: 'recon-study-desk', roomId: 'r5', title: 'The writing desk at Cedar Hill',
+    basis: 'National Park Service, Cedar Hill; Life and Times (revised 1892); generic staging of the study of the 1880s, no person depicted', claimIds: ['c-cedarhill', 'c-selfmade'],
+    spec: { style: STYLE, aspect: '16:9', setting: 'a Victorian study at Cedar Hill in 1885, wall-to-wall bookshelves, a heavy wooden writing desk with an open book, a steel-nibbed pen in an inkwell, a pair of wire spectacles and loose manuscript pages with no legible writing, a kerosene lamp, an empty leather chair pushed slightly back, a window overlooking the Anacostia hills and the Washington skyline, completely empty of people',
+      action: 'no figures; the pen rests across the page as if the writer has just stepped away', cast: [] },
+  },
 ];

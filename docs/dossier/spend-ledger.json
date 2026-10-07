@@ -605,5 +605,89 @@
     "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
     "via": "magnific-mcp",
     "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:10:00.000Z",
+    "scene": "recon-census-office",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:12:00.000Z",
+    "scene": "recon-simla-table",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:14:00.000Z",
+    "scene": "recon-radcliffe-desk",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:16:00.000Z",
+    "scene": "recon-empty-platform",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:18:00.000Z",
+    "scene": "recon-camp-tents",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:20:00.000Z",
+    "scene": "recon-vacant-house",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:22:00.000Z",
+    "scene": "recon-boundary-pillar",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:24:00.000Z",
+    "scene": "recon-kartarpur-dawn",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:26:00.000Z",
+    "scene": "recon-lectern-empty",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:28:00.000Z",
+    "scene": "recon-study-desk",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:30:00.000Z",
+    "scene": "recon-highland-line-workers (regen 1, rejected: workers shown in profile, superseded)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
+  },
+  {
+    "at": "2026-10-07T00:32:00.000Z",
+    "scene": "recon-highland-line-workers (used)",
+    "model": "imagen-nano-banana-2 (Nano Banana Pro) 2k",
+    "via": "magnific-mcp",
+    "credits": 75
   }
 ]
