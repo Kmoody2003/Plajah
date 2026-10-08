@@ -1,3 +1,4 @@
+import { thumb, onThumbError, THUMB } from '../../src/lib/imageThumb';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import {
@@ -193,7 +194,7 @@ export const ChoraPromoModal: React.FC<ChoraPromoModalProps> = ({
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#6b0099] via-[#d40055] to-[#ff8c00] p-0.5 shadow-lg flex-shrink-0">
               {album.coverImage ? (
-                <img src={album.coverImage} alt={album.title} className="w-full h-full object-cover rounded-[10px]" />
+                <img src={thumb(coverGridSrc(album), THUMB.card)} onError={onThumbError(album.coverImage)} decoding="async" loading="lazy" alt={album.title} className="w-full h-full object-cover rounded-[10px]" />
               ) : (
                 <div className="w-full h-full bg-[#100B17] rounded-[10px] flex items-center justify-center text-white/40">
                   <Music2 size={18} />

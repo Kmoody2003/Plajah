@@ -6,6 +6,7 @@
  * album's own artwork + description/liner notes captured at upload time.
  */
 
+import { thumb, onThumbError, THUMB } from '../../src/lib/imageThumb';
 import React, { useEffect, useMemo, useState } from 'react';
 import { cleanDescription } from '../../utils/description';
 import { motion } from 'motion/react';
@@ -118,7 +119,7 @@ export const MusicReleasesTab: React.FC<{ currentUser?: UserProfile | null }> = 
           return (
             <button key={a.id} onClick={() => setSelId(a.id)} className={`text-left rounded-2xl overflow-hidden border transition-all ${selId === a.id ? 'border-[#FF8C00]/60' : 'border-white/[0.06] hover:border-white/15'}`}>
               <div className="aspect-square bg-white/5 relative">
-                {a.coverImage ? <img src={a.coverImage} alt={a.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/15"><Music2 size={28} /></div>}
+                {a.coverImage ? <img src={thumb(coverGridSrc(a), THUMB.card)} onError={onThumbError(a.coverImage)} decoding="async" loading="lazy" alt={a.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-white/15"><Music2 size={28} /></div>}
                 <span className={`absolute top-2 left-2 text-[8px] font-black uppercase px-1.5 py-0.5 rounded-full backdrop-blur ${st.color}`}>{st.label}</span>
               </div>
               <div className="p-2.5"><p className="text-[11px] font-black text-white truncate">{a.title}</p><p className="text-[9px] text-white/40 truncate">{a.tracks?.length || 0} track{(a.tracks?.length || 0) !== 1 ? 's' : ''}{a.genre ? ` · ${a.genre}` : ''}</p></div>
@@ -179,7 +180,7 @@ const ReleaseCampaign: React.FC<{ album: Album }> = ({ album }) => {
       <div className={`${card} overflow-hidden`}>
         <div className="p-5 flex gap-4 items-center" style={{ background: `linear-gradient(135deg, ${album.themeColor || '#FF8C00'}22, transparent)` }}>
           {album.coverImage
-            ? <img src={album.coverImage} alt={album.title} className="w-20 h-20 rounded-xl object-cover shrink-0 shadow-lg" />
+            ? <img src={thumb(coverGridSrc(album), THUMB.small)} onError={onThumbError(album.coverImage)} decoding="async" loading="lazy" alt={album.title} className="w-20 h-20 rounded-xl object-cover shrink-0 shadow-lg" />
             : <div className="w-20 h-20 rounded-xl bg-white/5 flex items-center justify-center text-white/20 shrink-0"><Music2 size={26} /></div>}
           <div className="min-w-0">
             <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#FF8C00]">Release Campaign</p>

@@ -1,3 +1,4 @@
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import React, { useState, useEffect, useRef, useMemo, lazy, Suspense } from 'react';
 const GoLiveWizard = lazy(() => import('./GoLiveWizard'));
 import { checkPostRateLimit, recordPost, detectSpam } from '../src/lib/spamCheck';
@@ -417,7 +418,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
       {/* Hero */}
       <div className="relative h-64 md:h-80 overflow-hidden">
         {club.coverImage
-          ? <img src={club.coverImage} alt="" className="w-full h-full object-cover opacity-60" />
+          ? <img src={thumb(coverGridSrc(club), THUMB.card)} onError={onThumbError(club.coverImage)} decoding="async" loading="lazy" alt="" className="w-full h-full object-cover opacity-60" />
           : <div className="w-full h-full bg-gradient-to-br from-violet-900/60 to-indigo-900/60" />
         }
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/30 to-transparent" />
@@ -467,7 +468,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                         {/* Link preview card */}
                         <div className="rounded-xl border border-white/8 overflow-hidden bg-white/[0.03]">
                           {club.coverImage && (
-                            <img src={club.coverImage} alt="" className="w-full h-16 object-cover opacity-60" />
+                            <img src={thumb(coverGridSrc(club), THUMB.card)} onError={onThumbError(club.coverImage)} decoding="async" loading="lazy" alt="" className="w-full h-16 object-cover opacity-60" />
                           )}
                           <div className="px-3 py-2">
                             <p className="text-[8px] text-white/30 uppercase tracking-widest">plajah.com</p>
@@ -948,7 +949,7 @@ const ClubDetailView: React.FC<ClubDetailViewProps> = ({ club: initialClub, curr
                             {platformAlbums.map(album => (
                               <button key={album.id} onClick={() => addPlatformAlbum(album)}
                                 className="group rounded-xl overflow-hidden border border-white/5 hover:border-small-orange/50 transition-all">
-                                <img src={album.coverImage} className="w-full aspect-square object-cover group-hover:scale-110 transition-transform" loading="lazy" />
+                                <img src={thumb(coverGridSrc(album), THUMB.card)} onError={onThumbError(album.coverImage)} decoding="async" loading="lazy" className="w-full aspect-square object-cover group-hover:scale-110 transition-transform" loading="lazy" />
                                 <p className="text-[7px] font-black truncate px-1 py-1 opacity-60">{album.title}</p>
                               </button>
                             ))}

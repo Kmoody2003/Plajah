@@ -1,3 +1,4 @@
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Album, Track, Video, UserProfile } from '../types';
 import { fetchArtistAlbums, fetchUserVideos, fetchUserProfile, followUser, unfollowUser, isFollowing, auth, uploadImageWithDerivatives, updateUserProfile } from '../services/backendService';
@@ -320,7 +321,7 @@ const ChoraArtistPage: React.FC<Props> = ({ artistId, onBack, onSelectAlbum, onV
                       >
                         <span className="w-6 text-right text-sm font-bold tabular-nums text-white/30 group-hover:hidden">{i + 1}</span>
                         <span className="w-6 hidden group-hover:flex items-center justify-center"><Play size={14} className="text-white" fill="white" /></span>
-                        <img src={album.coverImage} alt="" className="w-10 h-10 rounded-md object-cover shrink-0" />
+                        <img src={thumb(coverGridSrc(album), THUMB.small)} onError={onThumbError(album.coverImage)} decoding="async" loading="lazy" alt="" className="w-10 h-10 rounded-md object-cover shrink-0" />
                         <div className="flex-1 min-w-0">
                           <span className="block truncate text-sm font-bold text-white">{track.title}</span>
                           <span className="block truncate text-[11px] text-white/40">{album.title}</span>
@@ -354,7 +355,7 @@ const ChoraArtistPage: React.FC<Props> = ({ artistId, onBack, onSelectAlbum, onV
                         style={{ backdropFilter: 'blur(12px)' }}
                       >
                         <div className={`aspect-square overflow-hidden ${isFeatured ? '' : ''}`}>
-                          <img src={album.coverImage} alt={album.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                          <img src={thumb(coverGridSrc(album), THUMB.card)} onError={onThumbError(album.coverImage)} decoding="async" loading="lazy" alt={album.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                         </div>
                         {/* Artist's Pick badge */}
                         {isFeatured && (

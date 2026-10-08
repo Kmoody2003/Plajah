@@ -1,3 +1,4 @@
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
@@ -181,7 +182,7 @@ export default function MusicDistributionHub({ user, onCreateAlbum }: Props) {
             {musicAlbums.slice(0, 8).map(a => (
               <div key={a.id} className="flex items-center gap-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
                 {a.coverImage ? (
-                  <img src={a.coverImage} alt={a.title} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
+                  <img src={thumb(coverGridSrc(a), THUMB.small)} onError={onThumbError(a.coverImage)} decoding="async" loading="lazy" alt={a.title} className="w-10 h-10 rounded-xl object-cover flex-shrink-0" />
                 ) : (
                   <div className="w-10 h-10 rounded-xl bg-white/8 flex items-center justify-center flex-shrink-0">
                     <Music2 size={14} className="text-white/20" />

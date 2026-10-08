@@ -1,3 +1,4 @@
+import { thumb, onThumbError, THUMB } from '../src/lib/imageThumb';
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import {
@@ -251,7 +252,7 @@ export default function FilmDistributionHub({ user, onDistributeFilm, onEditFilm
               >
                 <div className="relative aspect-video overflow-hidden bg-white/5">
                   {film.coverImage ? (
-                    <img src={film.coverImage} alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                    <img src={thumb(coverGridSrc(film), THUMB.card)} onError={onThumbError(film.coverImage)} decoding="async" loading="lazy" alt={film.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center"><Film size={24} className="text-white/15" /></div>
                   )}
