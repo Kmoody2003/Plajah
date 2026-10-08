@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Heart, Gift, VolumeX, Play, Pause } from 'lucide-react';
 import { UserAd, UserProfile } from '../types';
+import { attachSideAudio, createSideAudio, detachSideAudio } from '../services/sideAudioSignal';
 
 interface AdBillboardRendererProps {
   ad: UserAd;
@@ -24,21 +25,22 @@ const AdBillboardRenderer: React.FC<AdBillboardRendererProps> = ({
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const playTrack = (url: string, idx: number) => {
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ''; }
-    const a = new Audio(url);
+    if (audioRef.current) { detachSideAudio(audioRef.current); audioRef.current.pause(); audioRef.current.src = ''; }
+    const a = createSideAudio(url);
     a.volume = 0.7;
-    a.play().catch(() => {});
+    attachSideAudio(a); // the Chora kaiju nod to the pillar audio
+    a.play().catch(() => { detachSideAudio(a); });
     audioRef.current = a;
     setPlayingIdx(idx);
-    a.onended = () => setPlayingIdx(null);
+    a.onended = () => { detachSideAudio(a); setPlayingIdx(null); };
   };
 
   const stopTrack = () => {
-    if (audioRef.current) { audioRef.current.pause(); audioRef.current.src = ''; }
+    if (audioRef.current) { detachSideAudio(audioRef.current); audioRef.current.pause(); audioRef.current.src = ''; }
     setPlayingIdx(null);
   };
 
-  useEffect(() => () => { if (audioRef.current) audioRef.current.pause(); }, []);
+  useEffect(() => () => { if (audioRef.current) { detachSideAudio(audioRef.current); audioRef.current.pause(); } }, []);
 
   const dotTotal = Math.min(dotCount, 7);
   const activeDot = dotIdx % Math.max(dotTotal, 1);

@@ -5,9 +5,9 @@
 // All of it reads one mutable runtime object (`StageRuntime`, filled each frame by KaijuStage3D) so React
 // never re-renders per frame. Props glide in/out on the values the StageDirector produces.
 
-import React, { useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react';
 import * as THREE from 'three';
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { Sparkles } from '@react-three/drei';
 import type { KaijuFeatures, KaijuStyle } from '../kaijuAudio';
 import type { StageState } from './kaijuStageDirector';
@@ -39,6 +39,9 @@ export const BRAND = ['#6B0099', '#D40055', '#FF8C00'];
 
 const clamp = (x: number, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 const tmpC = new THREE.Color();
+const WHITE = new THREE.Color('#ffffff');   // shared lerp target — never allocate a Color per frame (GC hitches)
+const V_DOWN = new THREE.Vector3(0, -1, 0);
+const qScratch = new THREE.Quaternion(), vWp = new THREE.Vector3(), vDir = new THREE.Vector3();
 const mkO = () => new THREE.Object3D();   // one scratch object PER component — sharing one leaks scale/rotation between them
 const oFloor = mkO(), oWall = mkO(), oBall = mkO(), oConf = mkO();
 
@@ -123,7 +126,7 @@ export function DiscoFloor({ rt }: { rt: StageRuntime }) {
       for (let d = 0; d < 2; d++) { const fp = rt.foot[d]; const dd = Math.hypot(x - fp.x, z - fp.z); under = Math.max(under, Math.pow(clamp(1 - dd / 0.95), 2)); }
       if (under > 0.01) { v = Math.max(v, under * 0.95); tmpC.lerp(pal[(i + 1) % pal.length], under * 0.4); }
       const lit = 0.03 + v * 1.25 * bright;
-      m.setColorAt(i, tmpC.clone().multiplyScalar(lit));
+      tmpC.multiplyScalar(lit); m.setColorAt(i, tmpC);
     }
     if (m.instanceColor) m.instanceColor.needsUpdate = true;
   });
@@ -195,6 +198,7 @@ export function DiscoBall({ rt }: { rt: StageRuntime }) {
   const floorDots = useRef<THREE.InstancedMesh>(null);
   const wallDots = useRef<THREE.InstancedMesh>(null);
   const cable = useRef<THREE.Mesh>(null);
+  const ballLight = useRef<THREE.PointLight>(null);
   const dotTex = useMemo(() => dotTexture(), []);
   const R = 0.62;
   const normals = useMemo(() => {
@@ -220,6 +224,7 @@ export function DiscoBall({ rt }: { rt: StageRuntime }) {
     const g = group.current; if (!g) return;
     const { st, dt } = rt; const v = st.prop.ball;
     g.visible = v > 0.002;
+    if (ballLight.current) { ballLight.current.intensity = g.visible ? 0.6 : 0; ballLight.current.position.copy(g.position); }
     if (!g.visible) { if (floorDots.current) floorDots.current.count = 0; if (wallDots.current) wallDots.current.count = 0; return; }
     const e = v * v * (3 - 2 * v);
     g.position.set(0, 11 - 7.3 * e, -0.4); g.rotation.y += dt * (0.5 + 0.9 * st.eFast);
@@ -238,11 +243,11 @@ export function DiscoBall({ rt }: { rt: StageRuntime }) {
       if (kind === 1 && nf < 130) {
         const x = pW.x + refl.x * t, z = pW.z + refl.z * t; if (Math.abs(x) > 8 || Math.abs(z) > 8) continue;
         oBall.position.set(x, 0.06, z); oBall.rotation.set(-Math.PI / 2, 0, 0); oBall.scale.setScalar(0.22 + 0.08 * Math.sin(i + rt.clock * 5)); oBall.updateMatrix(); fd.setMatrixAt(nf, oBall.matrix);
-        tmpC.copy(rt.palette[i % rt.palette.length]).lerp(new THREE.Color('#ffffff'), 0.5).multiplyScalar(2.2 * alpha); fd.setColorAt(nf, tmpC); nf++;
+        tmpC.copy(rt.palette[i % rt.palette.length]).lerp(WHITE, 0.5).multiplyScalar(2.2 * alpha); fd.setColorAt(nf, tmpC); nf++;
       } else if (kind === 2 && nw < 130) {
         const x = pW.x + refl.x * t, y = pW.y + refl.y * t; if (y < 0.1 || y > 9 || Math.abs(x) > 14) continue;
         oBall.position.set(x, y, -7.0); oBall.rotation.set(0, 0, 0); oBall.scale.setScalar(0.3 + 0.1 * Math.sin(i * 1.7 + rt.clock * 4)); oBall.updateMatrix(); wd.setMatrixAt(nw, oBall.matrix);
-        tmpC.copy(rt.palette[(i + 2) % rt.palette.length]).lerp(new THREE.Color('#ffffff'), 0.4).multiplyScalar(2.0 * alpha); wd.setColorAt(nw, tmpC); nw++;
+        tmpC.copy(rt.palette[(i + 2) % rt.palette.length]).lerp(WHITE, 0.4).multiplyScalar(2.0 * alpha); wd.setColorAt(nw, tmpC); nw++;
       }
     }
     fd.count = nf; wd.count = nw;
@@ -256,8 +261,8 @@ export function DiscoBall({ rt }: { rt: StageRuntime }) {
         <instancedMesh ref={init} args={[facetGeo, undefined as any, FACETS]} frustumCulled={false}>
           <meshStandardMaterial metalness={1} roughness={0.06} envMapIntensity={2.2} color="#ffffff" />
         </instancedMesh>
-        <pointLight color="#ffffff" intensity={0.6} distance={5} />
       </group>
+      <pointLight ref={ballLight} color="#ffffff" intensity={0} distance={5} />
       <mesh ref={cable}><cylinderGeometry args={[0.012, 0.012, 1, 6]} /><meshBasicMaterial color="#9a9aa8" /></mesh>
       <instancedMesh ref={floorDots} args={[dotGeo, undefined as any, 130]} frustumCulled={false}>
         <meshBasicMaterial map={dotTex} transparent blending={THREE.AdditiveBlending} depthWrite={false} toneMapped={false} />
@@ -293,7 +298,8 @@ export function MovingHeads({ rt }: { rt: StageRuntime }) {
   useFrame(() => {
     const g = root.current; if (!g) return;
     const { st, f } = rt, v = st.prop.heads, tr = st.prop.truss;
-    g.visible = tr > 0.01; if (!g.visible) return;
+    g.visible = tr > 0.01;
+    if (!g.visible) { for (const L of spots.current) if (L) L.intensity = 0; return; }   // lights stay in the scene (see DiscoBall) — only their intensity goes to 0
     g.position.y = 9.4 - 4.4 * (tr * tr * (3 - 2 * tr));
     const beat = rt.beats, hit = f?.kick ?? 0;
     for (let i = 0; i < HEADS; i++) {
@@ -308,11 +314,19 @@ export function MovingHeads({ rt }: { rt: StageRuntime }) {
     for (let s = 0; s < 2; s++) {
       const L = spots.current[s], h = heads.current[s === 0 ? 0 : HEADS - 1]; if (!L || !h) continue;
       L.intensity = v * 55 * (1 - 0.8 * st.dim); L.color.copy(rt.palette[s * 2 % rt.palette.length]);
-      const wp = new THREE.Vector3(); h.getWorldPosition(wp); L.position.copy(wp);
-      const d = new THREE.Vector3(0, -1, 0).applyQuaternion(h.getWorldQuaternion(new THREE.Quaternion())); targets[s].position.copy(wp).addScaledVector(d, 6);
+      h.getWorldPosition(vWp); L.position.copy(vWp);
+      vDir.set(0, -1, 0).applyQuaternion(h.getWorldQuaternion(qScratch)); targets[s].position.copy(vWp).addScaledVector(vDir, 6);
     }
   });
   return (
+    <>
+    {/* the two real spot lights live OUTSIDE the truss group so they never leave the scene (light count must stay constant) */}
+    {[0, 1].map(s => (
+      <React.Fragment key={s}>
+        <spotLight ref={el => { spots.current[s] = el; }} angle={0.32} penumbra={0.9} intensity={0} distance={14} decay={1.6} target={targets[s]} />
+        <primitive object={targets[s]} />
+      </React.Fragment>
+    ))}
     <group ref={root} position={[0, 9.4, -0.5]}>
       <mesh><boxGeometry args={[9.6, 0.12, 0.12]} /><meshStandardMaterial color="#14141c" metalness={0.8} roughness={0.35} /></mesh>
       {[-4.7, 4.7].map(x => <mesh key={x} position={[x, 0.6, 0]}><boxGeometry args={[0.08, 1.2, 0.08]} /><meshStandardMaterial color="#14141c" metalness={0.8} roughness={0.35} /></mesh>)}
@@ -322,13 +336,8 @@ export function MovingHeads({ rt }: { rt: StageRuntime }) {
           <mesh geometry={coneGeo} material={mats[i]} position={[0, -0.28, 0]} />
         </group>
       ))}
-      {[0, 1].map(s => (
-        <React.Fragment key={s}>
-          <spotLight ref={el => { spots.current[s] = el; }} angle={0.32} penumbra={0.9} intensity={0} distance={14} decay={1.6} target={targets[s]} />
-          <primitive object={targets[s]} />
-        </React.Fragment>
-      ))}
     </group>
+    </>
   );
 }
 
@@ -442,8 +451,8 @@ export function Lighting({ rt }: { rt: StageRuntime }) {
     if (spot.current) { spot.current.intensity = 130 * s; spot.current.position.set(target.position.x * 0.4, 8.2, target.position.z + 1.5); }
     if (cone.current) {
       cone.current.visible = s > 0.01; cone.current.position.set(target.position.x * 0.4, 8.2, target.position.z + 1.5);
-      const dir = new THREE.Vector3().subVectors(target.position, cone.current.position).normalize();
-      cone.current.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir);
+      vDir.subVectors(target.position, cone.current.position).normalize();
+      cone.current.quaternion.setFromUnitVectors(V_DOWN, vDir);
       coneMat.uniforms.uAlpha.value = s * 0.5;
     }
   });
@@ -474,6 +483,26 @@ export function BlobShadow({ x, z, s = 1.0 }: { x: number; z: number; s?: number
       <meshBasicMaterial map={tex} color="#000000" transparent opacity={0.65} depthWrite={false} />
     </mesh>
   );
+}
+
+/**
+ * Compiles every shader program of the stage in parallel (KHR_parallel_shader_compile) BEFORE the first frame is drawn.
+ * Without this each program compiles on first use, and on Windows/ANGLE-D3D11 a lit PBR program takes 1–3 s of blocking
+ * main-thread time (measured: ~30 s of stalls in the first minute, incl. a 10 s freeze when the disco ball first came down).
+ * Mount it INSIDE the <Suspense> that holds the dancers so their materials are in the scene; `onReady` fires when done.
+ */
+export function Precompile({ onReady }: { onReady: () => void }) {
+  const gl = useThree(s => s.gl), scene = useThree(s => s.scene), camera = useThree(s => s.camera);
+  useEffect(() => {
+    let alive = true;
+    const done = () => { if (alive) onReady(); };
+    const r = gl as THREE.WebGLRenderer & { compileAsync?: (s: THREE.Object3D, c: THREE.Camera) => Promise<unknown> };
+    // let the other set pieces mount first (they are siblings in the same commit, so a microtask is enough)
+    Promise.resolve().then(() => (r.compileAsync ? r.compileAsync(scene, camera) : Promise.resolve(gl.compile(scene, camera)))).then(done, done);
+    const guard = window.setTimeout(done, 15000);   // never leave the stage blank if a driver never answers
+    return () => { alive = false; window.clearTimeout(guard); };
+  }, [gl, scene, camera]);   // eslint-disable-line react-hooks/exhaustive-deps
+  return null;
 }
 
 export type { KaijuStyle };

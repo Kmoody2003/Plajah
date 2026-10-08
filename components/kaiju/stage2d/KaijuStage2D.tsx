@@ -19,6 +19,7 @@ import { bakeKaijuSprites, KaijuCanvasFigure, type KaijuSprites } from './kaijuC
 import { CameraDirector2D } from './kaijuCamera2D';
 import { Dance2D, type Dances2D, loadDances2D, pickDance } from './kaijuDances2D';
 import { KaijuSet2D, PALETTES, W, H, type Set2DRuntime } from './kaijuSet2D';
+import { PerfGovernor, STAGE2D_LEVELS, startLevel } from '../kaijuPerfGovernor';
 
 export type LyricLine = { time: number; text: string };
 export interface KaijuStage2DProps {
@@ -31,7 +32,10 @@ export interface KaijuStage2DProps {
   style?: KaijuStyle | 'auto';
   forceVocal?: VocalMode | null;
   showHud?: boolean;
+  /** Frame-rate ceiling. Default 60 (so 120/144 Hz screens don't burn power); 0 = uncapped. */
   fpsCap?: number;
+  /** Trade resolution / reflections to hold the frame rate (default true); `quality` is the starting point. */
+  adaptive?: boolean;
   className?: string;
   quality?: 'high' | 'medium' | 'low';
   onFeatures?: (f: KaijuFeatures) => void;
@@ -59,14 +63,16 @@ export const KaijuStage2D: React.FC<KaijuStage2DProps> = (props) => {
     const canvas = canvasRef.current!, host = hostRef.current!;
     const ctx = canvas.getContext('2d', { alpha: false })!;
     let alive = true, raf = 0;
+    // adaptive quality: the governor walks STAGE2D_LEVELS (backing-store scale, floor reflections) to hold the frame rate
+    const gov = new PerfGovernor({ target: live.current.fpsCap && live.current.fpsCap > 0 ? Math.min(60, live.current.fpsCap) : 60, floor: 30, levels: STAGE2D_LEVELS.length, start: startLevel(quality, STAGE2D_LEVELS.length) });
+    let lvl = STAGE2D_LEVELS[gov.level], lastFrameAt = 0, nextAt = 0;
 
     // ---------------- sizing (backing store follows the element; world is fitted 'contain') ----------------
     let cw = 0, ch = 0, dpr = 1, fit = { s: 1, ox: 0, oy: 0 };
     let vignette: HTMLCanvasElement | null = null;
     const resize = () => {
       const r = host.getBoundingClientRect();
-      const maxDpr = quality === 'high' ? 2 : quality === 'medium' ? 1.5 : 1;
-      dpr = Math.min(window.devicePixelRatio || 1, maxDpr);
+      dpr = Math.min(window.devicePixelRatio || 1, lvl.dpr);
       const w = Math.max(2, Math.round(r.width * dpr)), h = Math.max(2, Math.round(r.height * dpr));
       if (w === cw && h === ch) return;
       cw = canvas.width = w; ch = canvas.height = h;
@@ -108,7 +114,7 @@ export const KaijuStage2D: React.FC<KaijuStage2DProps> = (props) => {
       t: 0, dt: 0.016, beats: 0, beatPhase: 0, beatCount: 0, beat: false, kick: 0, bass: 0, treble: 0, level: 0, onset: 0,
       bands: new Float32Array(32), palette: PALETTES.edm.map(c => [...c] as [number, number, number]), style: 'edm',
       st: stage.s as StageState, feet: [{ x: 560, y: FLOOR_Y }, { x: 1040, y: FLOOR_Y }], spot: { x: 800, y: 700 },
-      reduced: !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+      reduced: !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches, detail: lvl.detail,
     };
     const cur: Pose[] = [{ ...REST }, { ...REST }];
     const place = [{ x: 560, y: FLOOR_Y, s: FIG }, { x: 1040, y: FLOOR_Y, s: FIG }];
@@ -138,11 +144,16 @@ export const KaijuStage2D: React.FC<KaijuStage2DProps> = (props) => {
       return { idx: i, text, active: live.current.lyricsTimed ? !!text && t < Math.min(end, L[i].time + 9) : null };
     };
 
-    const frame = (now: number) => {
+    const frameInner = (now: number) => {
       raf = requestAnimationFrame(frame);
       const P = live.current;
-      if (P.fpsCap && P.fpsCap > 0 && now - lastDraw < 1000 / P.fpsCap - 1) return;
+      // exact frame cap (accumulated, so 144 Hz screens settle on ~60 instead of aliasing to 48)
+      const cap = P.fpsCap === undefined ? 60 : P.fpsCap, interval = cap > 0 ? 1000 / cap : 0;
+      if (interval) { if (now < nextAt - 1) return; nextAt += interval; if (now - nextAt > interval) nextAt = now + interval * 0.5; }
+      if (lastFrameAt && P.adaptive !== false && !(import.meta.env.DEV && (window as any).__kaijuNoAdapt)) { const c = gov.push(now - lastFrameAt); if (c !== null) { lvl = STAGE2D_LEVELS[c]; rt.detail = lvl.detail; resize(); } }
+      lastFrameAt = now;
       lastDraw = now;
+      if (import.meta.env.DEV) (window as any).__kaijuPerf = { level: gov.level, mean: gov.mean, dpr };
       const dt = Math.min(0.05, (now - last) / 1000); last = now; T += dt; rt.t = T; rt.dt = dt;
       resize();
       if (!baking && cw > 64) void bake();
@@ -298,7 +309,7 @@ export const KaijuStage2D: React.FC<KaijuStage2DProps> = (props) => {
       for (const i of order) {
         const p = cur[i], out = i === 0 ? p : mirrorPose(p);
         // glossy floor reflection (the figure upside-down under the feet)
-        if (quality !== 'low') {
+        if (quality !== 'low' && lvl.glow) {
           ctx.save(); ctx.translate(place[i].x, place[i].y + 6); ctx.scale(place[i].s, -place[i].s * 0.82); ctx.globalAlpha = 0.17 * (1 - 0.6 * st.dim);
           fig[i]!.draw(ctx, { ...out, y: Math.max(out.y, -140) }, { shadow: 'rgba(0,0,0,0)', aura: false }); ctx.restore();
         }
@@ -333,7 +344,7 @@ export const KaijuStage2D: React.FC<KaijuStage2DProps> = (props) => {
       }
 
       // ---- HUD (throttled React state)
-      if (now - hudAt > 300) {
+      if (P.showHud !== false && now - hudAt > 300) {
         hudAt = now;
         const who = idle ? (sleepy > 0.5 ? 'Napping… press play' : 'Waiting for music') : vocalNow ? (duet ? 'Duet!' : `${NAMES[singer]} sings · ${NAMES[1 - singer]} dances`) : 'Both dancing';
         const props = (['ball', 'heads', 'lasers', 'speakers'] as const).filter(k => st.prop[k] > 0.5).join(' · ') || (st.spot > 0.5 ? 'follow-spot' : '—');
@@ -341,6 +352,10 @@ export const KaijuStage2D: React.FC<KaijuStage2DProps> = (props) => {
       }
       (window as any).__kaiju2d && ((window as any).__kaiju2d.cam = cam);
     };
+    // DEV: how long the frame's JS takes (the rest of a slow frame is the browser rasterising the canvas)
+    const frame = import.meta.env.DEV ? (now: number) => {
+      const t0 = performance.now(); frameInner(now); const w = ((window as any).__kaijuWork ??= []) as number[]; w.push(performance.now() - t0); if (w.length > 600) w.shift();
+    } : frameInner;
     (window as any).__kaiju2d = { camera, stage, rt, place, cur, set };
     raf = requestAnimationFrame(frame);
     return () => { alive = false; cancelAnimationFrame(raf); ro.disconnect(); };

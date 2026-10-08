@@ -51,7 +51,7 @@
     "test:academia": "npx tsx --test tests/academiaIntegrity.test.ts",
     "test:taste": "npx tsx --test tests/videoTaste.test.ts",
     "test:transcode": "npx tsx --test tests/choraTranscodeWorker.test.ts",
-    "test:kaiju": "npx tsx --test tests/kaijuStageDirector.test.ts tests/kaiju2dDirector.test.ts tests/kaijuFace.test.ts tests/kaijuFaceMap.test.ts tests/kaijuFaceDecals.test.ts",
+    "test:kaiju": "npx tsx --test tests/kaijuStageDirector.test.ts tests/kaiju2dDirector.test.ts tests/kaijuFace.test.ts tests/kaijuFaceMap.test.ts tests/kaijuFaceDecals.test.ts tests/kaijuFaceConform.test.ts tests/sideAudioSignal.test.ts tests/kaijuPerfGovernor.test.ts",
     "test:playback":"npx tsx --test tests/playbackHealth.test.ts tests/playbackAdvanceGuard.test.ts",
     "test:melos": "npx tsx --test tests/melosArp.test.ts tests/melosKera.test.ts",
     "test:socialsafety2": "npx tsx --test tests/socialSafety2.test.ts",

@@ -128,8 +128,8 @@ function makeMaterials(furQuality: FurQuality) {
 }
 
 // ------------------------------------------------------------------ springs
-interface SpringSpec { stiffness: number; drag: number; maxDeg: number; animated: boolean }
-const SPRING_FOR = (name: string): SpringSpec | null => {
+export interface SpringSpec { stiffness: number; drag: number; maxDeg: number; animated: boolean }
+export const SPRING_FOR = (name: string): SpringSpec | null => {
   if (/^fin_[fb]\d+_0$/.test(name)) return { stiffness: 4.8, drag: 0.38, maxDeg: 20, animated: false };
   if (/^fin_[fb]\d+_1$/.test(name)) return { stiffness: 3.2, drag: 0.33, maxDeg: 26, animated: false };
   if (/^fin_[dt]\d+_0$/.test(name)) return { stiffness: 6.5, drag: 0.45, maxDeg: 12, animated: false };
@@ -141,7 +141,7 @@ const SPRING_FOR = (name: string): SpringSpec | null => {
   return null;
 };
 
-class SpringJoint {
+export class SpringJoint {
   bone: THREE.Bone; spec: SpringSpec; depth: number;
   localTail: THREE.Vector3; axis: THREE.Vector3; length = 0; restQ: THREE.Quaternion;
   cur = new THREE.Vector3(); prev = new THREE.Vector3(); ready = false;

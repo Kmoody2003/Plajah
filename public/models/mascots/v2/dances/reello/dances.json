@@ -1,0 +1,836 @@
+{
+ "fps": 30,
+ "bones": [
+  "hips",
+  "spine",
+  "chest",
+  "head",
+  "arm_L",
+  "arm_R",
+  "hand_L",
+  "hand_R",
+  "leg_L",
+  "leg_R",
+  "tail_1",
+  "tail_2",
+  "tail_3",
+  "tail_4",
+  "foot_L",
+  "foot_R"
+ ],
+ "perFrame": 67,
+ "posScale": 4000,
+ "quatScale": 32767,
+ "credit": "Data from mocap.cs.cmu.edu (funded by NSF EIA-0196217)",
+ "skeleton": "v2",
+ "character": "reello",
+ "clips": [
+  {
+   "id": "05_03",
+   "name": "Arabesque turn",
+   "styles": [
+    "ballet",
+    "zen"
+   ],
+   "frames": 107,
+   "duration": 3.57,
+   "energy": 1,
+   "beat": 1.167,
+   "beatConf": 0.41,
+   "offset": 0,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "05_05",
+   "name": "Jeté en tournant",
+   "styles": [
+    "ballet"
+   ],
+   "frames": 227,
+   "duration": 7.57,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 14338,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "05_07",
+   "name": "Small jetés & pirouette",
+   "styles": [
+    "ballet"
+   ],
+   "frames": 296,
+   "duration": 9.87,
+   "energy": 1,
+   "beat": 0.767,
+   "beatConf": 0.18,
+   "offset": 44756,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "05_09",
+   "name": "Glissade",
+   "styles": [
+    "ballet",
+    "zen"
+   ],
+   "frames": 285,
+   "duration": 9.5,
+   "energy": 0.56,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 84420,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "05_12",
+   "name": "Arms high, tendu",
+   "styles": [
+    "ballet",
+    "zen"
+   ],
+   "frames": 337,
+   "duration": 11.23,
+   "energy": 0.19,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 122610,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "05_17",
+   "name": "Grand jeté",
+   "styles": [
+    "ballet"
+   ],
+   "frames": 260,
+   "duration": 8.67,
+   "energy": 1,
+   "beat": 1.033,
+   "beatConf": 0.46,
+   "offset": 167768,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "49_09",
+   "name": "Side arabesque",
+   "styles": [
+    "zen",
+    "ballet"
+   ],
+   "frames": 478,
+   "duration": 15.93,
+   "energy": 0,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 202608,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "49_10",
+   "name": "Fold in, curl",
+   "styles": [
+    "zen"
+   ],
+   "frames": 354,
+   "duration": 11.8,
+   "energy": 0,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 266660,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "49_12",
+   "name": "Lean & arch arms",
+   "styles": [
+    "zen",
+    "ballet"
+   ],
+   "frames": 281,
+   "duration": 9.37,
+   "energy": 0,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 314096,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "49_22",
+   "name": "Balance, elbow by ear",
+   "styles": [
+    "zen"
+   ],
+   "frames": 320,
+   "duration": 10.67,
+   "energy": 0,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 351750,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "143_35",
+   "name": "Macarena",
+   "styles": [
+    "edm",
+    "groove"
+   ],
+   "frames": 318,
+   "duration": 10.6,
+   "energy": 0.53,
+   "beat": 0.233,
+   "beatConf": 0.66,
+   "offset": 394630,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "143_34",
+   "name": "Chicken dance",
+   "styles": [
+    "edm",
+    "groove"
+   ],
+   "frames": 195,
+   "duration": 6.5,
+   "energy": 0.82,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 437242,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "141_12",
+   "name": "The Twist",
+   "styles": [
+    "edm",
+    "rock",
+    "groove"
+   ],
+   "frames": 140,
+   "duration": 4.67,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 463372,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "90_28",
+   "name": "Breakdance",
+   "styles": [
+    "edm",
+    "rock"
+   ],
+   "frames": 192,
+   "duration": 6.4,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 482132,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "90_32",
+   "name": "Moonwalk",
+   "styles": [
+    "edm",
+    "groove"
+   ],
+   "frames": 180,
+   "duration": 6,
+   "energy": 0.92,
+   "beat": 1.6,
+   "beatConf": 0.05,
+   "offset": 507860,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "55_01",
+   "name": "Whirl",
+   "styles": [
+    "edm",
+    "ballet"
+   ],
+   "frames": 451,
+   "duration": 15.03,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 531980,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "143_08",
+   "name": "Jumping twists",
+   "styles": [
+    "edm",
+    "rock"
+   ],
+   "frames": 96,
+   "duration": 3.2,
+   "energy": 1,
+   "beat": 0.833,
+   "beatConf": 0.51,
+   "offset": 592414,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "143_09",
+   "name": "Jumping twists B",
+   "styles": [
+    "edm",
+    "rock"
+   ],
+   "frames": 135,
+   "duration": 4.5,
+   "energy": 1,
+   "beat": 1.133,
+   "beatConf": 0.35,
+   "offset": 605278,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "120_05",
+   "name": "Mickey dance",
+   "styles": [
+    "edm",
+    "groove"
+   ],
+   "frames": 337,
+   "duration": 11.23,
+   "energy": 0.64,
+   "beat": 1.167,
+   "beatConf": 0.44,
+   "offset": 623368,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "120_06",
+   "name": "Mickey dance B",
+   "styles": [
+    "edm",
+    "groove"
+   ],
+   "frames": 358,
+   "duration": 11.93,
+   "energy": 0.91,
+   "beat": 1.333,
+   "beatConf": 0.54,
+   "offset": 668526,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "79_18",
+   "name": "Air drums",
+   "styles": [
+    "rock"
+   ],
+   "frames": 199,
+   "duration": 6.63,
+   "energy": 0.46,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 716498,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "90_30",
+   "name": "Russian dance",
+   "styles": [
+    "rock",
+    "edm"
+   ],
+   "frames": 358,
+   "duration": 11.93,
+   "energy": 1,
+   "beat": 0.567,
+   "beatConf": 0.38,
+   "offset": 743164,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "120_21",
+   "name": "Robot",
+   "styles": [
+    "edm",
+    "rock"
+   ],
+   "frames": 777,
+   "duration": 25.9,
+   "energy": 0.17,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 791136,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "85_10",
+   "name": "Break finish",
+   "styles": [
+    "rock",
+    "edm"
+   ],
+   "frames": 193,
+   "duration": 6.43,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 895254,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "103_03",
+   "name": "Charleston",
+   "styles": [
+    "groove",
+    "rock"
+   ],
+   "frames": 110,
+   "duration": 3.67,
+   "energy": 1,
+   "beat": 0.333,
+   "beatConf": 0.52,
+   "offset": 921116,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "103_04",
+   "name": "Charleston side-by-side",
+   "styles": [
+    "groove"
+   ],
+   "frames": 125,
+   "duration": 4.17,
+   "energy": 1,
+   "beat": 0.667,
+   "beatConf": 0.41,
+   "offset": 935856,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "60_01",
+   "name": "Salsa",
+   "styles": [
+    "groove"
+   ],
+   "frames": 559,
+   "duration": 18.63,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 952606,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "60_05",
+   "name": "Salsa B",
+   "styles": [
+    "groove"
+   ],
+   "frames": 418,
+   "duration": 13.93,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 1027512,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "60_10",
+   "name": "Salsa C",
+   "styles": [
+    "groove"
+   ],
+   "frames": 298,
+   "duration": 9.93,
+   "energy": 1,
+   "beat": 0.7,
+   "beatConf": 0.11,
+   "offset": 1083524,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "61_03",
+   "name": "Salsa D",
+   "styles": [
+    "groove"
+   ],
+   "frames": 457,
+   "duration": 15.23,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 1123456,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "55_02",
+   "name": "Lambada",
+   "styles": [
+    "groove"
+   ],
+   "frames": 543,
+   "duration": 18.1,
+   "energy": 0.22,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 1184694,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "64_02",
+   "name": "Swing",
+   "styles": [
+    "groove",
+    "rock"
+   ],
+   "frames": 122,
+   "duration": 4.07,
+   "energy": 0.59,
+   "beat": 1.533,
+   "beatConf": 0.15,
+   "offset": 1257456,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "111_37",
+   "name": "Wave",
+   "styles": [
+    "greet"
+   ],
+   "frames": 80,
+   "duration": 2.67,
+   "energy": 0,
+   "beat": 1.633,
+   "beatConf": 0.21,
+   "offset": 1273804,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "141_16",
+   "name": "Wave hello",
+   "styles": [
+    "greet"
+   ],
+   "frames": 74,
+   "duration": 2.47,
+   "energy": 0.71,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 1284524,
+   "kind": "dance",
+   "srcStart": 0
+  },
+  {
+   "id": "120_04",
+   "name": "Conducting",
+   "styles": [
+    "zen",
+    "ballet"
+   ],
+   "frames": 840,
+   "duration": 28,
+   "energy": 0.87,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 1294440,
+   "kind": "dance",
+   "srcStart": 2.233
+  },
+  {
+   "id": "02_01",
+   "name": "Walk — easy",
+   "styles": [],
+   "frames": 33,
+   "duration": 1.1,
+   "energy": 1,
+   "beat": 0.55,
+   "beatConf": 0.9,
+   "offset": 1407000,
+   "kind": "walk",
+   "loop": true,
+   "gait": "walk",
+   "speed": 0.319,
+   "speedHuman": 0.552,
+   "cycleSec": 1.1,
+   "cycles": 1,
+   "stride": 0.351,
+   "yawDeg": -0.7,
+   "srcStart": 1.5
+  },
+  {
+   "id": "08_01",
+   "name": "Walk — brisk",
+   "styles": [],
+   "frames": 30,
+   "duration": 1,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0.9,
+   "offset": 1411422,
+   "kind": "walk",
+   "loop": true,
+   "gait": "walk",
+   "speed": 0.432,
+   "speedHuman": 0.745,
+   "cycleSec": 1,
+   "cycles": 1,
+   "stride": 0.432,
+   "yawDeg": -0.2,
+   "srcStart": 0.767
+  },
+  {
+   "id": "09_01",
+   "name": "Run",
+   "styles": [],
+   "frames": 22,
+   "duration": 0.73,
+   "energy": 1,
+   "beat": 0.367,
+   "beatConf": 0.9,
+   "offset": 1415442,
+   "kind": "run",
+   "loop": true,
+   "gait": "run",
+   "speed": 0.722,
+   "speedHuman": 1.649,
+   "cycleSec": 0.733,
+   "cycles": 1,
+   "stride": 0.529,
+   "yawDeg": -2.3,
+   "srcStart": 0.067
+  },
+  {
+   "id": "09_02",
+   "name": "Jog",
+   "styles": [],
+   "frames": 22,
+   "duration": 0.73,
+   "energy": 1,
+   "beat": 0.367,
+   "beatConf": 0.9,
+   "offset": 1418390,
+   "kind": "run",
+   "loop": true,
+   "gait": "run",
+   "speed": 0.724,
+   "speedHuman": 1.588,
+   "cycleSec": 0.733,
+   "cycles": 1,
+   "stride": 0.531,
+   "yawDeg": 1,
+   "srcStart": 0.067
+  },
+  {
+   "id": "102_01",
+   "name": "Run turn — right, wide",
+   "styles": [],
+   "frames": 66,
+   "duration": 2.2,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 1421338,
+   "kind": "turn",
+   "loop": false,
+   "gait": "run",
+   "speed": 0.531,
+   "speedHuman": 1.008,
+   "stride": 1.169,
+   "yawDeg": -15.5,
+   "speedStart": 0,
+   "speedEnd": 0.723,
+   "speedStartHuman": 0.105,
+   "speedEndHuman": 1.663,
+   "srcStart": 0.033
+  },
+  {
+   "id": "102_02",
+   "name": "Run turn — left, wide",
+   "styles": [],
+   "frames": 40,
+   "duration": 1.33,
+   "energy": 1,
+   "beat": 0.633,
+   "beatConf": 0.46,
+   "offset": 1430182,
+   "kind": "turn",
+   "loop": false,
+   "gait": "run",
+   "speed": 0.773,
+   "speedHuman": 1.41,
+   "stride": 1.031,
+   "yawDeg": 38.1,
+   "speedStart": 0.787,
+   "speedEnd": 0.719,
+   "speedStartHuman": 1.064,
+   "speedEndHuman": 1.634,
+   "srcStart": 0.033
+  },
+  {
+   "id": "102_33",
+   "name": "Run turn — right, tight",
+   "styles": [],
+   "frames": 51,
+   "duration": 1.7,
+   "energy": 1,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 1435542,
+   "kind": "turn",
+   "loop": false,
+   "gait": "run",
+   "speed": 0.228,
+   "speedHuman": 0.728,
+   "stride": 0.388,
+   "yawDeg": -36.2,
+   "speedStart": 0.139,
+   "speedEnd": 0.465,
+   "speedStartHuman": 0.068,
+   "speedEndHuman": 1.47,
+   "srcStart": 0.033
+  },
+  {
+   "id": "104_06",
+   "name": "Jog start",
+   "styles": [],
+   "frames": 81,
+   "duration": 2.7,
+   "energy": 1,
+   "beat": 0.4,
+   "beatConf": 0.51,
+   "offset": 1442376,
+   "kind": "run",
+   "loop": false,
+   "gait": "run",
+   "role": "start",
+   "speed": 0.432,
+   "speedHuman": 0.872,
+   "stride": 1.166,
+   "yawDeg": 0.2,
+   "speedStart": 0.001,
+   "speedEnd": 0.804,
+   "speedStartHuman": 0.045,
+   "speedEndHuman": 1.326,
+   "srcStart": 0.033
+  },
+  {
+   "id": "104_09",
+   "name": "Jog stop",
+   "styles": [],
+   "frames": 85,
+   "duration": 2.83,
+   "energy": 1,
+   "beat": 0.433,
+   "beatConf": 0.88,
+   "offset": 1453230,
+   "kind": "run",
+   "loop": false,
+   "gait": "run",
+   "role": "stop",
+   "speed": 0.317,
+   "speedHuman": 0.799,
+   "stride": 0.898,
+   "yawDeg": -11.5,
+   "speedStart": 0.672,
+   "speedEnd": 0.013,
+   "speedStartHuman": 1.429,
+   "speedEndHuman": 0.07,
+   "srcStart": 0.033
+  },
+  {
+   "id": "137_26",
+   "name": "Stand — calm",
+   "styles": [],
+   "frames": 135,
+   "duration": 4.5,
+   "energy": 0,
+   "beat": 0.5,
+   "beatConf": 0,
+   "offset": 1464620,
+   "kind": "stand",
+   "loop": true,
+   "gait": "walk",
+   "speed": 0,
+   "speedHuman": 0.001,
+   "stride": 0,
+   "yawDeg": 0.5,
+   "srcStart": 8.533
+  },
+  {
+   "id": "137_28",
+   "name": "Wait — weight shifts",
+   "styles": [],
+   "frames": 90,
+   "duration": 3,
+   "energy": 0.07,
+   "beat": 1.2,
+   "beatConf": 0.52,
+   "offset": 1482710,
+   "kind": "idle",
+   "loop": true,
+   "gait": "walk",
+   "speed": 0.023,
+   "speedHuman": 0.03,
+   "stride": 0.069,
+   "yawDeg": -1,
+   "srcStart": 26.1
+  },
+  {
+   "id": "137_29",
+   "name": "Walk — normal",
+   "styles": [],
+   "frames": 36,
+   "duration": 1.2,
+   "energy": 1,
+   "beat": 0.6,
+   "beatConf": 0.9,
+   "offset": 1494770,
+   "kind": "walk",
+   "loop": true,
+   "gait": "walk",
+   "speed": 0.318,
+   "speedHuman": 0.582,
+   "cycleSec": 1.2,
+   "cycles": 1,
+   "stride": 0.381,
+   "yawDeg": -0.6,
+   "srcStart": 1.467
+  }
+ ]
+}

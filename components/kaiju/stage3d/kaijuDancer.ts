@@ -7,6 +7,9 @@
 
 import * as THREE from 'three';
 import type { MascotRig } from '../../mascots/mascotRuntime';
+import type { KaijuV2Rig } from './kaijuV2Rig';
+import type { FaceDecalRig } from './kaijuFaceRig';
+import { decalsFromExpr, neutralDecalFace } from './kaijuFaceDecals';
 import { type DanceMeta, type Dances, danceTimeScale } from './kaijuDances';
 import { EXPRESSIONS, EmotionDirector, resolveFace, type EmotionInput, type Expr, type Personality } from './kaijuFace';
 
@@ -32,14 +35,19 @@ export function learnFace(clips: THREE.AnimationClip[]): FacePresets {
 }
 
 export class DancerController {
-  readonly rig: MascotRig;
+  /** The old vertex-colour rig (face = bone-scale toggles) or the v2 image-to-3D rig (face = decals, see setFace). */
+  readonly rig: MascotRig | KaijuV2Rig;
   dances: Dances | null;
+  /** v2 only: the decal face this controller drives from the EmotionDirector (null → bone-scale face / nothing). */
+  decals: FaceDecalRig | null = null;
+  private readonly decalFace = neutralDecalFace();
   private readonly face: FacePresets;
   /** every face bone this rig has (older GLBs only the basics, newer ones the full expression set) */
   readonly faceBones: Record<string, THREE.Bone> = {};
   private readonly faceRest: Record<string, THREE.Vector3> = {};
   readonly emotion: EmotionDirector;
   private lastExpr: Expr = 'grumpy';
+  readonly who: Personality;
   current: DanceMeta | null = null;
   private action: THREE.AnimationAction | null = null;
   private mode: 'idle' | 'dance' | 'cheer' = 'idle';
@@ -51,8 +59,8 @@ export class DancerController {
   /** extra yaw the stage may add (facing the partner / camera), radians. */
   readonly head = new THREE.Vector3();
 
-  constructor(rig: MascotRig, clips: THREE.AnimationClip[], dances: Dances | null, who: Personality = 'chora') {
-    this.rig = rig; this.dances = dances; this.face = learnFace(clips);
+  constructor(rig: MascotRig | KaijuV2Rig, clips: THREE.AnimationClip[], dances: Dances | null, who: Personality = 'chora') {
+    this.rig = rig; this.dances = dances; this.face = learnFace(clips); this.who = who;
     this.emotion = new EmotionDirector(who, who === 'chora' ? 1 : 7);
     for (const [n, b] of Object.entries(rig.bones)) if (FACE_RE.test(n)) { this.faceBones[n] = b; this.faceRest[n] = b.position.clone(); }
     // parts added after the original clips (eye_wide_L …) are not in any clip: borrow the shown/hidden scale convention of eye_L
@@ -77,6 +85,8 @@ export class DancerController {
 
   dance(meta: DanceMeta, bpm: number, fade = 0.45, startFrac?: number) {
     if (!this.dances) return;
+    const own = this.dances.byId.get(meta.id); if (!own) return;   // per-character bakes: always use THIS character's copy of the clip
+    meta = own;
     const clip = this.dances.clip(meta);
     const next = this.rig.mixer.clipAction(clip);
     if (next === this.action && this.mode === 'dance') return;
@@ -108,8 +118,13 @@ export class DancerController {
     if (this.mode === 'cheer' && this.clock >= this.cheerUntil && this.resumeAfterCheer) { const f = this.resumeAfterCheer; this.resumeAfterCheer = null; f(); }
     this.rig.update(dt);
     if (this.mode === 'cheer') this.emotion.emote('joy', 0.4);
-    this.applyFace(this.emotion.update({ ...inp, dt, t: this.clock }));
+    const e = this.emotion.update({ ...inp, dt, t: this.clock });
+    if (this.decals) { this.faceMode = e.expr; this.decals.apply(decalsFromExpr(e, this.decalFace)); this.decals.update(dt); }
+    else this.applyFace(e);
   }
+
+  /** Attach / detach the decal face (v2 rig). */
+  setFace(face: FaceDecalRig | null) { this.decals = face; }
 
   private applyFace(e: ReturnType<EmotionDirector['update']>) {
     this.faceMode = e.expr;
@@ -135,5 +150,5 @@ export class DancerController {
     }
   }
 
-  dispose() { this.rig.dispose(); }
+  dispose() { this.decals?.dispose(); this.decals = null; this.rig.dispose(); }
 }

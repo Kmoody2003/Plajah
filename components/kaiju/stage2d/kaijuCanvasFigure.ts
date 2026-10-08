@@ -69,7 +69,8 @@ export async function bakeKaijuSprites(kind: KaijuKind, flipTail: boolean, pxPer
   const root = createRoot(host);
   root.render(React.createElement(KaijuFigureSvg, { kind, flipTail }));
   let live = host.querySelector('svg') as SVGSVGElement | null;
-  for (let i = 0; !live && i < 60; i++) { await new Promise(r => requestAnimationFrame(() => r(null))); live = host.querySelector('svg') as SVGSVGElement | null; }
+  // rAF OR a 32 ms timer: rAF never fires in a hidden tab, and a bake started there must still finish
+  for (let i = 0; !live && i < 60; i++) { await new Promise(r => { const t = setTimeout(() => r(null), 32); requestAnimationFrame(() => { clearTimeout(t); r(null); }); }); live = host.querySelector('svg') as SVGSVGElement | null; }
   if (!live) { root.unmount(); host.remove(); throw new Error('kaiju sprite bake: figure did not render'); }
   const out: KaijuSprites = { kind, flipTail, pxPerUnit, parts: {} };
   try {

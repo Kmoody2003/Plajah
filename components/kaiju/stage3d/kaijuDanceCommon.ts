@@ -9,7 +9,15 @@ export interface DanceMeta {
   energy: number;
   /** Natural pulse of the dance in seconds (only trustworthy when beatConf ≥ 0.35). */
   beat: number; beatConf: number; offset: number;
+  /** v2 bakes only (all optional): what the clip is. Absent = a plain dance. */
+  kind?: 'dance' | 'walk' | 'run' | 'turn' | 'stand' | 'idle';
+  loop?: boolean; gait?: 'walk' | 'run'; role?: 'start' | 'stop';
+  /** planted ground speed, m/s (kaiju world) */
+  speed?: number; speedHuman?: number; stride?: number; cycleSec?: number; yawDeg?: number;
 }
+
+/** Only real dances (locomotion / stand / idle clips have styles: [] and would pollute the fallback pool). */
+export const isDance = (m: DanceMeta) => !m.kind || m.kind === 'dance';
 
 const clamp = (x: number, a: number, b: number) => Math.max(a, Math.min(b, x));
 
@@ -28,6 +36,7 @@ export function danceTimeScale(meta: DanceMeta, bpm: number): number {
 /** Choose the next dance: style-tagged, closest to the music's energy, never one of the recent few. */
 export function pickDance(metas: DanceMeta[], style: string, energy: number, recent: string[], rnd: () => number = Math.random): DanceMeta | null {
   const tag = (m: DanceMeta, s: string) => m.styles.includes(s as DanceStyle);
+  metas = metas.filter(isDance);
   let pool = metas.filter(m => tag(m, style));
   if (style === 'edm' || style === 'rock') pool = pool.concat(metas.filter(m => tag(m, 'groove') && !pool.includes(m)));
   if (pool.length < 3) pool = metas.filter(m => !tag(m, 'greet'));

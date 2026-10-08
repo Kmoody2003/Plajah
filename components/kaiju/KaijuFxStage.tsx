@@ -74,7 +74,7 @@ export const KaijuFxStage: React.FC<Props> = ({ preset = 0, analyser, isPlaying,
         <KaijuStage2D
           analyser={analyser ?? player.analyser ?? null} isPlaying={playing} getTime={getTime}
           lyrics={lyrics} lyricsTimed={timed} genre={track?.genre || album?.genre}
-          style={p.style} quality={quality} fpsCap={fpsCap} className={className}
+          style={p.style} quality={quality} fpsCap={fpsCap || undefined} className={className}
         />
       </React.Suspense>
     );
@@ -85,7 +85,7 @@ export const KaijuFxStage: React.FC<Props> = ({ preset = 0, analyser, isPlaying,
         <KaijuStage3D
           analyser={analyser ?? player.analyser ?? null} isPlaying={playing} getTime={getTime}
           lyrics={lyrics} lyricsTimed={timed} genre={track?.genre || album?.genre}
-          style={p.style} quality={quality} fpsCap={fpsCap} className={className}
+          style={p.style} quality={quality} fpsCap={fpsCap || undefined} className={className}
         />
       </React.Suspense>
     );

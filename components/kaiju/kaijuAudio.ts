@@ -14,6 +14,8 @@
 // It's heuristic MIR, tuned for "reads right and feels alive" rather than lab accuracy.
 
 import { clamp } from './kaijuPose';
+import { stepSynthBeat, synthKick } from '../../services/sideAudioSignal';
+import type { KaijuSignal } from './kaijuSignal';
 
 export type KaijuStyle = 'zen' | 'edm' | 'rock' | 'ballet';
 export type VocalMode = 'none' | 'sing' | 'rap' | 'sustain' | 'run';
@@ -91,6 +93,35 @@ export class KaijuAudio {
   private feat = { perc: new Ema(0.3), tonal: new Ema(0.3), flat: new Ema(0.3), bassR: new Ema(0.3), trebR: new Ema(0.2), midR: new Ema(0.3) };
   private style: KaijuStyle = 'ballet'; private challenger: KaijuStyle | null = null; private challengerSince = 0; private styleSince = -99;
   private silentFor = 0;
+
+  private srcKey: string | undefined;
+  private synth = { phase: 0, count: 0 };
+
+  /**
+   * sample() for a KaijuSignal: resets the beat flywheel when the audio SOURCE changes (main player
+   * <-> hover preview / ad audio), and when the signal has no readable analyser (`fallbackBpm`)
+   * returns a steady synthetic beat so the mascots still nod.
+   */
+  sampleSignal(sig: KaijuSignal, dt: number, hints: KaijuHints = {}, playing = sig.isPlaying): KaijuFeatures {
+    if (sig.key !== this.srcKey) { if (this.srcKey !== undefined) this.resetBeat(); this.srcKey = sig.key; }
+    if (!sig.fallbackBpm || !playing) return this.sample(sig.analyser, playing, dt, hints);
+    const base = this.sample(null, false, dt, hints);
+    const s = stepSynthBeat(this.synth, Math.min(0.1, Math.max(0.001, dt)), sig.fallbackBpm);
+    return {
+      ...base, silent: false, level: 0.7, bass: 0.7, mid: 0.5, treble: 0.4, intensity: 1,
+      kick: synthKick(s.phase), beat: s.beat, beatPhase: s.phase, beatCount: s.count, bpm: sig.fallbackBpm, beats: s.count + s.phase,
+      style: hints.forceStyle ?? 'edm',
+    };
+  }
+
+  /** Forget the beat grid / tempo history (new song or new audio source); style + vocal state carry on. */
+  resetBeat() {
+    this.kicks = []; this.onsets = []; this.lastKick = -1; this.lastOnset = -1; this.lastSyl = -1;
+    this.phase = 0; this.count = 0; this.beatsF = 0; this.bpmEma.v = 100; this.regularity.v = 0;
+    this.lowFlux = new Stat(); this.midFlux = new Stat(); this.allFlux = new Stat();
+    this.prev?.fill(0); this.synth = { phase: 0, count: 0 };
+    this.pk = { level: 0.25, bass: 0.25, mid: 0.25, treble: 0.25, harm: 0.05, voc: 0.2 };
+  }
 
   sample(an: AnalyserNode | null, playing: boolean, dt: number, hints: KaijuHints = {}): KaijuFeatures {
     dt = Math.min(0.1, Math.max(0.001, dt));

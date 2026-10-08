@@ -6,21 +6,24 @@
 // Dances are CMU motion-capture clips retargeted onto the kaiju skeleton (scripts/mocap/bakeKaijuDances.mjs).
 // Pure component like KaijuDanceStage: give it an AnalyserNode (+ optional song clock / lyrics).
 
-import React, { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import React, { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { Environment, Lightformer, useGLTF } from '@react-three/drei';
 import { Bloom, EffectComposer, ToneMapping, Vignette } from '@react-three/postprocessing';
 import { ToneMappingMode } from 'postprocessing';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { MascotRig } from '../../mascots/mascotRuntime';
+import { KaijuV2Rig } from './kaijuV2Rig';
+import { FaceDecalRig, extractHeadTris, readFaceAssets } from './kaijuFaceRig';
 import { MASCOT_URL, defaultFur, type MascotWho } from '../../mascots/PlajahMascot';
 import { KaijuAudio, type KaijuFeatures, type KaijuStyle, type VocalMode } from '../kaijuAudio';
 import { STYLE_META } from '../kaijuChoreo';
 import { DancerController } from './kaijuDancer';
 import { type Dances, loadDances, pickDance } from './kaijuDances';
 import { CameraDirector, StageDirector } from './kaijuStageDirector';
-import { BlobShadow, Confetti, DiscoBall, DiscoFloor, Dust, Lasers, LedWall, Lighting, MovingHeads, PALETTES, Speakers, type StageRuntime } from './KaijuSet';
+import { PerfGovernor, STAGE3D_LEVELS, startLevel } from '../kaijuPerfGovernor';
+import { BlobShadow, Confetti, DiscoBall, DiscoFloor, Dust, Lasers, LedWall, Lighting, MovingHeads, PALETTES, Precompile, Speakers, type StageRuntime } from './KaijuSet';
 
 export type LyricLine = { time: number; text: string };
 export interface KaijuStage3DProps {
@@ -33,12 +36,17 @@ export interface KaijuStage3DProps {
   style?: KaijuStyle | 'auto';
   forceVocal?: VocalMode | null;
   showHud?: boolean;
+  /** Frame-rate ceiling. Default 60 (so 120/144 Hz screens don't burn power); 0 = uncapped. */
   fpsCap?: number;
+  /** Let the stage trade resolution/effects to hold the frame rate (default true). `quality` is the starting point. */
+  adaptive?: boolean;
   className?: string;
   quality?: 'high' | 'medium' | 'low';
   onFeatures?: (f: KaijuFeatures) => void;
   /** Lock the stage to a tier for inspection ('auto' = follow the music). */
   forceTier?: 'auto' | 'quiet' | 'groove' | 'peak';
+  /** Which kaiju models: the new image-to-3D 'v2' (default, decal faces) or the 'old' vertex-colour rigs. `?rig=old` in the URL forces old too. */
+  rig?: 'v2' | 'old';
 }
 
 const DRACO = '/draco/';
@@ -47,10 +55,25 @@ const NAMES = ['Chora', 'Reello'] as const;
 const WHO: MascotWho[] = ['chora', 'reello'];
 const clamp = (x: number, a = 0, b = 1) => Math.max(a, Math.min(b, x));
 
-interface Slot { ctrl: DancerController | null; group: THREE.Group | null; head: THREE.Vector3; target: THREE.Vector3; recent: string[] }
+const paletteTarget = new THREE.Color();   // scratch — no per-frame allocation
+interface Slot { dances: Dances | null; ctrl: DancerController | null; group: THREE.Group | null; head: THREE.Vector3; target: THREE.Vector3; recent: string[] }
 
 // ---------------------------------------------------------------------------------------------- dancer
-function Dancer({ who, index, quality, slots }: { who: MascotWho; index: number; quality: 'high' | 'medium' | 'low'; slots: React.MutableRefObject<Slot[]> }) {
+type DancerProps = { who: MascotWho; index: number; quality: 'high' | 'medium' | 'low'; slots: React.MutableRefObject<Slot[]> };
+const V2_URL = (who: MascotWho) => `/models/mascots/v2/${who}.glb`;
+const wantOldRig = (p?: 'v2' | 'old') => p === 'old' || (typeof location !== 'undefined' && new URLSearchParams(location.search).get('rig') === 'old');
+
+function DancerFrame({ index, group, rootObj }: { index: number; group: React.RefObject<THREE.Group | null>; rootObj: THREE.Object3D }) {
+  return (
+    <group ref={group} position={[index ? 1.3 : -1.3, 0.03, 0]} rotation={[0, index ? -0.28 : 0.28, 0]} scale={SCALE}>
+      <primitive object={rootObj} />
+      <BlobShadow x={0} z={0} s={0.9} />
+    </group>
+  );
+}
+
+/** The old vertex-colour rig (bone-scale face). Kept as the fallback and behind `rig="old"`. */
+function DancerOld({ who, index, quality, slots }: DancerProps) {
   const gltf = useGLTF(MASCOT_URL(who), DRACO);
   const fur = quality === 'high' ? defaultFur() : quality === 'medium' ? 'low' : 'low';
   const rig = useMemo(() => new MascotRig({ scene: cloneSkinned(gltf.scene) as THREE.Object3D, animations: gltf.animations }, { fur, reducedMotion: false }), [gltf, fur]);
@@ -58,14 +81,39 @@ function Dancer({ who, index, quality, slots }: { who: MascotWho; index: number;
   const group = useRef<THREE.Group>(null);
   useEffect(() => {
     const s = slots.current[index]; s.ctrl = ctrl; s.group = group.current;
+    let on = true; loadDances(who, 'old').then(d => { if (on && d) ctrl.dances = d; });   // always the old skeleton's own bake
+    return () => { on = false; s.ctrl = null; ctrl.dispose(); };
+  }, [ctrl, index, slots, who]);
+  return <DancerFrame index={index} group={group} rootObj={rig.root} />;
+}
+
+/** The approved image-to-3D model: one textured skin, spring fins/horns, and a decal face (eyes / brows / mouth / extras). */
+function DancerV2({ who, index, slots }: DancerProps) {
+  const gltf = useGLTF(V2_URL(who), DRACO);
+  const assets = readFaceAssets(who);                       // suspends until the atlases are in, so the shader precompile sees the decals
+  const rig = useMemo(() => new KaijuV2Rig({ scene: cloneSkinned(gltf.scene) as THREE.Object3D, animations: gltf.animations }), [gltf]);
+  const face = useMemo(() => new FaceDecalRig(assets, rig.bones.head, extractHeadTris(rig.mesh!, rig.bones.head)), [rig, assets]);
+  const ctrl = useMemo(() => { const c = new DancerController(rig, gltf.animations, null, who); c.setFace(face); return c; }, [rig, gltf, who, face]);
+  const group = useRef<THREE.Group>(null);
+  useEffect(() => {
+    const s = slots.current[index]; s.ctrl = ctrl; s.group = group.current;
     return () => { s.ctrl = null; ctrl.dispose(); };
   }, [ctrl, index, slots]);
-  return (
-    <group ref={group} position={[index ? 1.3 : -1.3, 0.03, 0]} rotation={[0, index ? -0.28 : 0.28, 0]} scale={SCALE}>
-      <primitive object={rig.root} />
-      <BlobShadow x={0} z={0} s={0.9} />
-    </group>
-  );
+  return <DancerFrame index={index} group={group} rootObj={rig.root} />;
+}
+
+/** Catches a failed v2 load (missing GLB / atlases) and tells the parent to swap in the old rig. */
+class RigBoundary extends React.Component<{ onFail: (e: unknown) => void; children: React.ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(e: unknown) { console.warn('[kaiju] v2 rig failed to load, falling back to the old rig:', e); this.props.onFail(e); }
+  render() { return this.state.failed ? null : this.props.children; }
+}
+
+function Dancer(p: DancerProps & { rig?: 'v2' | 'old' }) {
+  const [fell, setFell] = useState(false);
+  if (fell || wantOldRig(p.rig)) return <DancerOld who={p.who} index={p.index} quality={p.quality} slots={p.slots} />;
+  return <RigBoundary onFail={() => setFell(true)}><DancerV2 who={p.who} index={p.index} quality={p.quality} slots={p.slots} /></RigBoundary>;
 }
 
 // ---------------------------------------------------------------------------------------------- brain
@@ -116,7 +164,7 @@ function Brain({ live, rt, slots, dancesRef, hudSet }: {
 
     // palette follows the style (crossfaded)
     const target = PALETTES[f.style];
-    for (let i = 0; i < 4; i++) rt.palette[i].lerp(new THREE.Color(target[i]), 1 - Math.exp(-dt * 2.5));
+    for (let i = 0; i < 4; i++) rt.palette[i].lerp(paletteTarget.setStyle(target[i]), 1 - Math.exp(-dt * 2.5));
 
     // ---- stage director (props) + optional forced tier for inspection
     const di = { dt, t: s.T, beats, beat: f.beat, kick: f.kick, onset: f.onset, level: f.level, bass: f.bass, treble: f.treble, intensity: f.intensity, bpm: f.bpm, silent: f.silent || !P.isPlaying, style: f.style, vocalMode: f.vocalMode };
@@ -137,7 +185,7 @@ function Brain({ live, rt, slots, dancesRef, hudSet }: {
     // ---- dancers
     const dances = dancesRef.current;
     const sl = slots.current;
-    if (dances && !s.hadDances) { s.hadDances = true; sl.forEach(x => { if (x.ctrl) x.ctrl.dances = dances; }); s.block = -1; }
+    if (dances && !s.hadDances) { s.hadDances = true; sl.forEach(x => { if (x.ctrl && !x.ctrl.dances) x.ctrl.dances = x.dances ?? dances; }); s.block = -1; }
     const blk = Math.floor(beats / 16);
     const newBlock = f.style !== s.style || blk !== s.block || (st.drop && st.tier === 'peak');
     if (dances && !di.silent && newBlock && s.hadDances) {
@@ -162,6 +210,7 @@ function Brain({ live, rt, slots, dancesRef, hudSet }: {
       x.group.rotation.y += (yawT - x.group.rotation.y) * (1 - Math.exp(-dt * 2));
       rt.foot[i].set(x.group.position.x, 0, x.group.position.z);
       if (x.ctrl) {
+        if (!x.ctrl.dances && s.hadDances) x.ctrl.dances = x.dances ?? dances;   // a dancer that finished loading after the dances did
         x.ctrl.update(dt, {
           tier: st.tier, silent: di.silent, asleep: di.silent && s.T > 12, singing: sing, vocalEnv: f.vocalEnv, sustain: f.vocalMode === 'sustain',
           kick: f.kick, beat: f.beat, beats, drop: st.drop, snapped: false, eFast: st.eFast,
@@ -187,7 +236,7 @@ function Brain({ live, rt, slots, dancesRef, hudSet }: {
     if (Math.abs(pc.fov - pose.fov) > 0.01) { pc.fov = pose.fov; pc.updateProjectionMatrix(); }
 
     // ---- HUD (throttled React state)
-    if (performance.now() - s.hudAt > 300) {
+    if (P.showHud !== false && performance.now() - s.hudAt > 300) {
       s.hudAt = performance.now();
       const who = di.silent ? 'Waiting for music' : vocalNow ? (duet ? 'Duet!' : `${NAMES[s.singer]} sings · ${NAMES[1 - s.singer]} dances`) : 'Both dancing';
       const props = (['ball', 'heads', 'lasers', 'speakers'] as const).filter(k => st.prop[k] > 0.5).join(' · ') || (st.spot > 0.5 ? 'follow-spot' : '—');
@@ -204,7 +253,7 @@ export const KaijuStage3D: React.FC<KaijuStage3DProps> = (props) => {
   const [hud, setHud] = useState<Hud>({ style: 'edm', tier: 'silent', who: 'Warming up…', dance: '', shot: 'wide', bpm: 0, prop: '—' });
   const [credit, setCredit] = useState('');
   const dancesRef = useRef<Dances | null>(null);
-  const slots = useRef<Slot[]>([0, 1].map(() => ({ ctrl: null, group: null, head: new THREE.Vector3(), target: new THREE.Vector3(), recent: [] })));
+  const slots = useRef<Slot[]>([0, 1].map(() => ({ dances: null, ctrl: null, group: null, head: new THREE.Vector3(), target: new THREE.Vector3(), recent: [] })));
   const rt = useMemo<StageRuntime>(() => ({
     f: null, bands: new Float32Array(32), style: 'edm', palette: PALETTES.edm.map(c => new THREE.Color(c)),
     foot: [new THREE.Vector3(-1.3, 0, 0), new THREE.Vector3(1.3, 0, 0)], featured: 0, spotAt: new THREE.Vector3(0, 0.5, 0),
@@ -212,27 +261,44 @@ export const KaijuStage3D: React.FC<KaijuStage3DProps> = (props) => {
     st: { tier: 'silent', eFast: 0, eSlow: 0, prop: { ball: 0, heads: 0, lasers: 0, speakers: 0, truss: 0, strobe: 0 }, dim: 0.8, spot: 0, drop: false, confetti: 0, flash: 0, special: null, floor: 0.35 },
   }), []);   // eslint-disable-line react-hooks/exhaustive-deps
   rt.quality = quality;
-  useEffect(() => { let on = true; loadDances().then(d => { if (on && d) { dancesRef.current = d; setCredit(d.credit); } }); return () => { on = false; }; }, []);
-
-  // optional frame-rate cap (TV / battery): drive the canvas on demand
-  const [tick, setTick] = useState(0);
   useEffect(() => {
-    const cap = props.fpsCap; if (!cap || cap <= 0) return;
-    const id = window.setInterval(() => setTick(t => t + 1), 1000 / cap); return () => window.clearInterval(id);
-  }, [props.fpsCap]);
+    // per-character bakes for the v2 rig (v1's shared bake for the old rig, or when a v2 bake is missing)
+    let on = true; const mode = wantOldRig(props.rig) ? 'old' : 'v2';
+    Promise.all(WHO.map(w => loadDances(w, mode))).then(ds => {
+      if (!on || !ds[0]) return;
+      ds.forEach((d, i) => { slots.current[i].dances = d; });
+      dancesRef.current = ds[0]; setCredit(ds[0].credit);
+    });
+    return () => { on = false; };
+  }, [props.rig]);   // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- frame pacing + adaptive quality: we own the render loop (frameloop="never" + advance()) so the cap is exact
+  // and every frame time feeds the governor, which walks STAGE3D_LEVELS down/up to hold the target frame rate.
+  const cap = props.fpsCap === undefined ? 60 : props.fpsCap;
+  const gov = useMemo(() => new PerfGovernor({ target: cap > 0 ? Math.min(60, cap) : 60, floor: 30, levels: STAGE3D_LEVELS.length, start: startLevel(quality, STAGE3D_LEVELS.length) }), []);   // eslint-disable-line react-hooks/exhaustive-deps
+  const [level, setLevel] = useState(gov.level);
+  const [warm, setWarm] = useState(false);          // all shader programs compiled → safe to start drawing
+  const adaptive = props.adaptive !== false;
+  const onFrameMs = useCallback((ms: number) => {
+    if (!adaptive) return;
+    const c = gov.push(ms); if (c !== null) setLevel(c);
+    if (import.meta.env.DEV) (window as any).__kaijuPerf = { level: gov.level, mean: gov.mean };
+  }, [gov, adaptive]);
+  const L = STAGE3D_LEVELS[level];
+  const dprNow = Math.min(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1, L.dpr);
 
   const meta = STYLE_META[hud.style];
-  const post = quality !== 'low';
+  const post = quality !== 'low' || L.bloom;
   return (
     <div className={props.className ?? 'w-full h-full relative'} style={{ background: '#050309', overflow: 'hidden', position: 'relative', width: '100%', height: '100%' }}>
       <Canvas
-        dpr={quality === 'high' ? [1, 1.75] : 1}
-        frameloop={props.fpsCap && props.fpsCap > 0 ? 'demand' : 'always'}
+        dpr={dprNow}
+        frameloop="never"
         gl={{ antialias: !post, powerPreference: 'high-performance', toneMapping: post ? THREE.NoToneMapping : THREE.NeutralToneMapping }}
         camera={{ fov: 38, position: [0, 1.6, 7.4], near: 0.05, far: 60 }}
         style={{ position: 'absolute', inset: 0 }}
       >
-        <FrameKick tick={tick} />
+        <FrameDriver cap={cap} enabled={warm} onFrameMs={onFrameMs} />
         <color attach="background" args={['#050309']} />
         <fog attach="fog" args={['#07040d', 14, 34]} />
         <Environment resolution={128} frames={1} background={false} environmentIntensity={0.55}>
@@ -243,7 +309,8 @@ export const KaijuStage3D: React.FC<KaijuStage3DProps> = (props) => {
         </Environment>
         <Lighting rt={rt} />
         <Suspense fallback={null}>
-          {WHO.map((w, i) => <Dancer key={w} who={w} index={i} quality={quality} slots={slots} />)}
+          {WHO.map((w, i) => <Dancer key={w} who={w} index={i} quality={quality} slots={slots} rig={props.rig} />)}
+          <Precompile onReady={() => setWarm(true)} />
         </Suspense>
         <DiscoFloor rt={rt} />
         <LedWall rt={rt} />
@@ -252,13 +319,13 @@ export const KaijuStage3D: React.FC<KaijuStage3DProps> = (props) => {
         <Lasers rt={rt} />
         <Speakers rt={rt} />
         <Confetti rt={rt} />
-        {quality !== 'low' && <Dust rt={rt} />}
+        {L.dust && quality !== 'low' && <Dust rt={rt} />}
         <Brain live={live} rt={rt} slots={slots} dancesRef={dancesRef} hudSet={setHud} />
         <Flash rt={rt} />
         {post && (
-          <EffectComposer multisampling={quality === 'high' ? 4 : 0} enableNormalPass={false}>
-            <Bloom mipmapBlur intensity={0.7} luminanceThreshold={0.9} luminanceSmoothing={0.2} radius={0.7} />
-            <Vignette eskil={false} offset={0.25} darkness={0.7} />
+          <EffectComposer multisampling={L.msaa} enableNormalPass={false}>
+            {L.bloom ? <Bloom mipmapBlur intensity={0.7} luminanceThreshold={0.9} luminanceSmoothing={0.2} radius={0.7} /> : <></>}
+            <Vignette eskil={false} offset={0.25} darkness={L.vignette ? 0.7 : 0.15} />
             <ToneMapping mode={ToneMappingMode.NEUTRAL} />
           </EffectComposer>
         )}
@@ -278,14 +345,27 @@ export const KaijuStage3D: React.FC<KaijuStage3DProps> = (props) => {
   );
 };
 
-/** Re-renders a demand-driven canvas whenever the throttle ticks. */
-function FrameKick({ tick }: { tick: number }) {
-  const inv = useFrameInvalidate();
-  useEffect(() => { inv(); }, [tick, inv]);
+/**
+ * Owns the render loop: rAF → advance() at an exact frame cap (accumulated, so 144 Hz screens settle on ~60 instead of
+ * aliasing to 48), reports each frame interval to the governor. Starts only once the shaders are warm.
+ */
+function FrameDriver({ cap, enabled, onFrameMs }: { cap: number; enabled: boolean; onFrameMs: (ms: number) => void }) {
+  const advance = useThree(s => s.advance);
+  useEffect(() => {
+    if (!enabled) return;
+    let raf = 0, last = 0, nextAt = 0; const interval = cap > 0 ? 1000 / cap : 0;
+    const loop = (t: number) => {
+      raf = requestAnimationFrame(loop);
+      if (interval && t < nextAt - 1) return;
+      if (interval) { nextAt = nextAt + interval; if (t - nextAt > interval) nextAt = t + interval * 0.5; }
+      if (last) onFrameMs(t - last);
+      last = t; advance(t / 1000, true);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, [advance, cap, enabled, onFrameMs]);
   return null;
 }
-import { useThree } from '@react-three/fiber';
-function useFrameInvalidate() { return useThree(s => s.invalidate); }
 
 /** Full-frame white flash on drops (kept off for reduced-motion users by the director). */
 function Flash({ rt }: { rt: StageRuntime }) {

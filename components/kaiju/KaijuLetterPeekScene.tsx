@@ -23,6 +23,7 @@ import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { useKaijuSignal } from './kaijuSignal';
+import { stepSynthBeat, synthKick } from '../../services/sideAudioSignal';
 import { atlasUV, type AtlasInfo } from './stage3d/kaijuFaceDecals';
 
 type Who = 'chora' | 'reello';
@@ -447,10 +448,11 @@ function readEnergy(an: AnalyserNode | null, buf: { a: Uint8Array | null }) {
 
 function SignalPump({ shared }: { shared: React.MutableRefObject<Shared> }) {
   const sig = useKaijuSignal();
-  const buf = useRef<{ a: Uint8Array | null }>({ a: null }); const env = useRef(0);
+  const buf = useRef<{ a: Uint8Array | null }>({ a: null }); const env = useRef(0); const syn = useRef({ phase: 0, count: 0 });
   useFrame((_, dt) => {
     const S = shared.current; S.playing = sig.isPlaying;
-    const e = sig.isPlaying ? readEnergy(sig.analyser, buf.current) : 0;
+    // no readable analyser (side audio on a CORS-less URL): bop to a steady synthetic beat
+    const e = !sig.isPlaying ? 0 : sig.fallbackBpm ? (stepSynthBeat(syn.current, dt, sig.fallbackBpm), 0.25 + 0.4 * synthKick(syn.current.phase)) : readEnergy(sig.analyser, buf.current);
     // fast attack, slow release → a bop envelope
     env.current = e > env.current ? env.current + (e - env.current) * Math.min(1, dt * 30) : env.current + (e - env.current) * Math.min(1, dt * 5);
     S.energy = Math.max(0, Math.min(1, (env.current - 0.25) * 1.8));

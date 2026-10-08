@@ -21,7 +21,7 @@ import { useKaijuSignal } from './kaijuSignal';
 
 // ── shared plumbing ──────────────────────────────────────────────────────────────────────────────
 
-/** Player signal from <KaijuGlobalSignal> when mounted; silent idle otherwise. */
+/** Player signal from <KaijuGlobalSignal> when mounted (side audio — hover previews, ad audio — takes over while audible); silent idle otherwise. */
 const usePlayerSignal = useKaijuSignal;
 
 function useReducedMotionPref() {
@@ -76,7 +76,8 @@ interface DuoProps {
 }
 
 export const KaijuLogoDuo: React.FC<DuoProps> = ({ className = 'h-10 sm:h-14 md:h-20 lg:h-40' }) => {
-  const { analyser, isPlaying } = usePlayerSignal();
+  const sig = usePlayerSignal();
+  const { isPlaying } = sig;
   const reduce = useReducedMotionPref();
   const rigs = [useRef<KaijuRig>(null), useRef<KaijuRig>(null)];
   const boxes = [useRef<HTMLButtonElement>(null), useRef<HTMLButtonElement>(null)];
@@ -94,7 +95,7 @@ export const KaijuLogoDuo: React.FC<DuoProps> = ({ className = 'h-10 sm:h-14 md:
 
   useLoop((t, dt) => {
     const S = st.current; S.t = t;
-    const f: KaijuFeatures = S.audio.sample(analyser, isPlaying, dt);
+    const f: KaijuFeatures = S.audio.sampleSignal(sig, dt);
     const grooving = isPlaying && !f.silent && !reduce;
     const amt = reduce ? 0.3 : 1;
     if (grooving && f.style !== 'zen' && t - S.lastSnap > 9 && f.beat && f.beatCount % 16 === 8) { S.snapAt = t; S.lastSnap = t; }
@@ -108,9 +109,11 @@ export const KaijuLogoDuo: React.FC<DuoProps> = ({ className = 'h-10 sm:h-14 md:
         const ph = f.beatPhase, hop = Math.sin(Math.PI * ph), side = Math.floor(f.beats) % 2 ? 1 : -1;
         const z = f.style === 'zen' || f.style === 'ballet';
         p = pose({
-          y: z ? -4 * Math.abs(Math.sin(t * 1.2)) : -10 * hop * (0.6 + 0.4 * f.level),
+          // the nod: head DIPS on each beat (headY + a tilt) while the body bobs down a touch, then both spring back
+          y: z ? -4 * Math.abs(Math.sin(t * 1.2)) : -10 * hop * (0.6 + 0.4 * f.level) + 4 * pulse(ph, 6),
           sy: 1 - 0.06 * pulse(ph, 9), sx: 1 + 0.05 * pulse(ph, 9),
-          headRot: (z ? 6 * Math.sin(t * 1.1 + i) : 7 * side * pulse(ph, 4)), rot: z ? 3 * Math.sin(t * 0.9 + i) : 3 * side,
+          headY: z ? 2 * Math.sin(t * 1.1 + i) : 12 * pulse(ph, 5) + 4 * f.kick,
+          headRot: (z ? 6 * Math.sin(t * 1.1 + i) : 10 * side * pulse(ph, 4)), rot: z ? 3 * Math.sin(t * 0.9 + i) : 3 * side,
           armL: z ? 70 + 40 * Math.sin(t * 1.1 + i) : 40 + 70 * hop, armR: z ? 70 + 40 * Math.sin(t * 1.1 + i + 1.4) : 40 + 70 * hop,
           happy: z ? 0 : 0.7, closed: z ? 0.85 : 0, smile: 0.7, blush: 0.5, tail: 14 * side, mane: 0.4 * f.kick,
         });
@@ -131,7 +134,7 @@ export const KaijuLogoDuo: React.FC<DuoProps> = ({ className = 'h-10 sm:h-14 md:
         p.y -= 34 * arc; p.armL = 160; p.armR = 160; p.happy = 1; p.mouth = 0.5 * arc; p.mane = arc;
         if (i === 0) p.book = 1;
       }
-      p.y *= amt; p.headRot *= amt;
+      p.y *= amt; p.headRot *= amt; p.headY *= amt;
       p.eyeOpen *= S.blink[i].eye(t);
       const n = follow(S.cur[i], p, dt, 16); n.eyeOpen = p.eyeOpen; n.mouth = p.mouth; n.camUp = p.camUp; S.cur[i] = n;
       rigs[i].current?.apply(i === 0 ? n : mirrorPose(n), i === 1 ? { flash: Math.max(flash, pk < 0.35 ? 1 - pk / 0.35 : 0) } : undefined);
@@ -226,13 +229,13 @@ export const KaijuEmptyState: React.FC<{ kind?: KaijuKind; title: string; subtit
 
 /** Drop inside a `relative` card. The kaiju rises above the top edge while music plays. */
 export const KaijuPeek: React.FC<{ kind?: KaijuKind; side?: 'left' | 'right'; size?: number; active?: boolean }> = ({ kind = 'lorik', side = 'right', size = 72, active }) => {
-  const { analyser, isPlaying } = usePlayerSignal();
-  const on = active ?? isPlaying;
+  const sig = usePlayerSignal();
+  const on = active ?? sig.isPlaying;
   const r = useRef<KaijuRig>(null), wrap = useRef<HTMLDivElement>(null);
   const S = useRef({ audio: new KaijuAudio(), rise: 0, cur: { ...REST } as Pose, bl: new Blinker() });
   useLoop((t, dt) => {
     const s = S.current;
-    const f = s.audio.sample(analyser, on, dt);
+    const f = s.audio.sampleSignal(sig, dt, {}, on);
     s.rise += ((on ? 1 : 0) - s.rise) * (1 - Math.exp(-dt * 6));
     const ph = f.silent ? (t * 1.8) % 1 : f.beatPhase, side2 = Math.floor(f.silent ? t * 1.8 : f.beats) % 2 ? 1 : -1;
     const p = pose({ armL: 150, armR: 150, headRot: 8 * side2 * pulse(ph, 4), y: -6 * Math.sin(Math.PI * ph), happy: 0.8, smile: 0.8, blush: 0.6, lookX: side === 'right' ? -0.6 : 0.6, eyeOpen: s.bl.eye(t), mane: 0.3 * f.kick });

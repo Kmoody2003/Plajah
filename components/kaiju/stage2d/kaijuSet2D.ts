@@ -18,6 +18,8 @@ export interface Set2DRuntime {
   feet: [{ x: number; y: number }, { x: number; y: number }];
   spot: { x: number; y: number };
   reduced: boolean;
+  /** 0 full · 1 lean · 2 minimal — fewer draw ops (see STAGE2D_LEVELS) */
+  detail?: number;
 }
 export type RGB = [number, number, number];
 
@@ -27,6 +29,7 @@ export const PALETTES: Record<KaijuStyle, RGB[]> = {
   ballet: [[255, 158, 199], [231, 176, 75], [201, 155, 255], [255, 233, 243]],
   zen: [[127, 224, 196], [156, 136, 232], [156, 214, 255], [255, 196, 221]],
 };
+const WHITE_RGB: RGB = [255, 255, 255];
 const BRAND: RGB[] = [[107, 0, 153], [212, 0, 85], [255, 140, 0]];
 
 const clamp = (x: number, a = 0, b = 1) => Math.max(a, Math.min(b, x));
@@ -98,6 +101,8 @@ export class KaijuSet2D {
     const prev = ctx.globalAlpha; ctx.globalAlpha = clamp(a); ctx.drawImage(t, x - r, y - r, r * 2, r * 2); ctx.globalAlpha = prev;
   }
   private tintCache = new Map<string, HTMLCanvasElement>();
+  private readonly bloom = new Float32Array(FLOOR.cols * FLOOR.rows * 8);
+  private readonly glints = new Float32Array(9 * 18 * 4);
 
   spawnConfetti(n: number, pal: RGB[]) {
     for (let k = 0; k < n; k++) {
@@ -132,7 +137,7 @@ export class KaijuSet2D {
   }
 
   private led(ctx: CanvasRenderingContext2D, rt: Set2DRuntime) {
-    const { st, bands, palette } = rt, N = 52, k = 1 - 0.9 * st.dim;
+    const { st, bands, palette } = rt, d = rt.detail ?? 0, N = d >= 2 ? 26 : 52, k = 1 - 0.9 * st.dim;
     const baseY = FLOOR.y0 - 6;
     for (let i = 0; i < N; i++) {
       const x = -60 + (i + 0.5) * ((W + 120) / N);
@@ -141,9 +146,11 @@ export class KaijuSet2D {
       const h = 36 + band * 330 * (0.5 + 0.5 * st.floor);
       const c = mixRGB(palette[i % palette.length], palette[(i + 1) % palette.length], 0.5);
       const a = (0.12 + band * 0.75) * k;
-      ctx.fillStyle = rgba(c, a, 1.0); ctx.fillRect(x - 11, baseY - h, 22, h);
+      const bw = d >= 2 ? 44 : 22;
+      ctx.fillStyle = rgba(c, a, 1.0); ctx.fillRect(x - bw / 2, baseY - h, bw, h);
+      if (d >= 1) continue;
       ctx.fillStyle = rgba(c, a * 0.35, 1.0); ctx.fillRect(x - 17, baseY - h - 6, 34, h + 6);       // cheap halo
-      ctx.fillStyle = rgba([255, 255, 255], a * 0.8, 1); ctx.fillRect(x - 11, baseY - h, 22, 4);    // bright cap
+      ctx.fillStyle = rgba(WHITE_RGB, a * 0.8, 1); ctx.fillRect(x - 11, baseY - h, 22, 4);    // bright cap
     }
   }
 
@@ -195,6 +202,7 @@ export class KaijuSet2D {
     ctx.fillStyle = base; ctx.fillRect(-400, FLOOR.y0 - 2, W + 800, H - FLOOR.y0 + 400);
     const cells = [floorCell(rt.feet[0].x, rt.feet[0].y), floorCell(rt.feet[1].x, rt.feet[1].y)];
     const pa = this.pat.a, pb = this.pat.b, m = this.pat.mix;
+    let nb = 0; const bl = this.bloom;   // deferred bloom rects: x, y, w, h, alpha, r, g, b
     for (let r = 0; r < R; r++) {
       const ya = rowY(r), yb = rowY(r + 1), wa = halfW(ya), wb = halfW(yb);
       const gapY = (yb - ya) * 0.045;
@@ -211,12 +219,16 @@ export class KaijuSet2D {
         const gx0 = (x1a - x0a) * 0.022, gx1 = (x1b - x0b) * 0.022;
         ctx.fillStyle = rgba(col, clamp(0.35 + lit * 0.65), clamp(lit, 0, 1.25) * 1.0);
         ctx.beginPath(); ctx.moveTo(x0a + gx0, ya + gapY); ctx.lineTo(x1a - gx0, ya + gapY); ctx.lineTo(x1b - gx1, yb - gapY); ctx.lineTo(x0b + gx1, yb - gapY); ctx.closePath(); ctx.fill();
-        if (v > 0.5) {   // lit tiles bloom upward a little
-          ctx.globalCompositeOperation = 'lighter';
-          ctx.fillStyle = rgba(col, (v - 0.5) * 0.28 * bright, 1); ctx.fillRect(x0a, ya - (yb - ya) * 0.35, x1a - x0a, (yb - ya) * 0.35);
-          ctx.globalCompositeOperation = 'source-over';
+        if (v > 0.5 && (rt.detail ?? 0) === 0) {   // lit tiles bloom upward a little (drawn after the loop in one additive pass)
+          const o = nb * 8; nb++;
+          bl[o] = x0a; bl[o + 1] = ya - (yb - ya) * 0.35; bl[o + 2] = x1a - x0a; bl[o + 3] = (yb - ya) * 0.35; bl[o + 4] = (v - 0.5) * 0.28 * bright; bl[o + 5] = col[0]; bl[o + 6] = col[1]; bl[o + 7] = col[2];
         }
       }
+    }
+    if (nb) {
+      ctx.globalCompositeOperation = 'lighter'; const c3: RGB = [0, 0, 0];
+      for (let i = 0; i < nb; i++) { const o = i * 8; c3[0] = bl[o + 5]; c3[1] = bl[o + 6]; c3[2] = bl[o + 7]; ctx.fillStyle = rgba(c3, bl[o + 4], 1); ctx.fillRect(bl[o], bl[o + 1], bl[o + 2], bl[o + 3]); }
+      ctx.globalCompositeOperation = 'source-over';
     }
     // horizon line glow
     ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = rgba(palette[1], 0.18 * (1 - st.dim * 0.8), 1); ctx.fillRect(-400, FLOOR.y0 - 3, W + 800, 6);
@@ -254,9 +266,10 @@ export class KaijuSet2D {
     ctx.globalAlpha = 1; ctx.strokeStyle = 'rgba(160,160,180,0.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx, -400); ctx.lineTo(cx, cy - R); ctx.stroke();
     this.blob(ctx, cx, cy, 240, [255, 255, 255], 0.18 * a);
     // facets: latitude rings × longitudes, shaded by a moving key light, glints on the ones facing it
-    const rows = 9, cols = 18;
+    const rows = (rt.detail ?? 0) >= 1 ? 7 : 9, cols = (rt.detail ?? 0) >= 1 ? 12 : 18;
     ctx.save(); ctx.translate(cx, cy);
     ctx.globalCompositeOperation = 'source-over';
+    let ng = 0; const gl = this.glints;
     ctx.fillStyle = '#17171f'; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
     for (let r = 0; r < rows; r++) {
       const lat0 = -Math.PI / 2 + (r / rows) * Math.PI, lat1 = -Math.PI / 2 + ((r + 1) / rows) * Math.PI;
@@ -272,12 +285,14 @@ export class KaijuSet2D {
         const col = mixRGB([150, 152, 170], tint, 0.25);
         ctx.fillStyle = rgba(col, 1, 0.35 + lit * 0.95);
         ctx.beginPath(); ctx.moveTo(p00[0], p00[1]); ctx.lineTo(p01[0], p01[1]); ctx.lineTo(p11[0], p11[1]); ctx.lineTo(p10[0], p10[1]); ctx.closePath(); ctx.fill();
-        if (lit > 0.85) { ctx.globalCompositeOperation = 'lighter'; this.blob(ctx, (p00[0] + p11[0]) / 2, (p00[1] + p11[1]) / 2, 16 + 10 * lit, [255, 255, 255], 0.9 * a); ctx.globalCompositeOperation = 'source-over'; }
+        if (lit > 0.85) { const o = ng * 4; ng++; gl[o] = (p00[0] + p11[0]) / 2; gl[o + 1] = (p00[1] + p11[1]) / 2; gl[o + 2] = 16 + 10 * lit; }
       }
     }
     // rim light
     const rim = ctx.createRadialGradient(0, 0, R * 0.7, 0, 0, R); rim.addColorStop(0, 'rgba(0,0,0,0)'); rim.addColorStop(1, 'rgba(0,0,0,0.55)');
     ctx.fillStyle = rim; ctx.beginPath(); ctx.arc(0, 0, R, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = 'lighter';   // all the glints in one additive pass (they sit in the ball's translated space)
+    for (let i = 0; i < ng; i++) this.blob(ctx, gl[i * 4], gl[i * 4 + 1], gl[i * 4 + 2], WHITE_RGB, 0.9 * a);
     ctx.restore();
     // the light dots it throws: rotating rings on the wall + the floor
     ctx.globalCompositeOperation = 'lighter';
