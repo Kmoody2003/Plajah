@@ -183,7 +183,7 @@ const GlobalPhotosView = retryLazy(() => import('./components/GlobalPhotosView')
 const NativePhotoViewer = retryLazy(() => import('./components/photo/NativePhotoViewer'));
 import { onMediaFileActivated, isWindowsApp, type WindowsPickedFile } from './services/windowsBridgeService';
 import { onLaunchMedia, onLaunchExperience } from './services/launchService';
-import { experienceView } from './src/lib/launchTarget';
+import { experienceView, LAUNCHED_VIA_SHARE, rememberResumeView, readResumeView } from './src/lib/launchTarget';
 import { MediaPlajahPlayer } from './components/player/MediaPlajahPlayer';
 
 // Pre-warm viewer chunks on Windows for near-instant boot and viewer opening
@@ -721,7 +721,12 @@ const App: React.FC = () => {
     return /^\/(profile|release|event|clubs|athlete|book|artist|reello|video)\//.test(window.location.pathname);
   })();
 
-  const [view, setViewInternal] = useState<AppView>(pitchInitialView);
+  // A browser reload resumes the screen the person was on (see launchTarget.readResumeView);
+  // a shared link and the Windows shell keep their own entry points.
+  const initialView: AppView = (pitchInitialView === 'LANDING' && !hasDeepLink && !getPlatformInfo().isTV && readResumeView()) || pitchInitialView;
+  const [view, setViewInternal] = useState<AppView>(initialView);
+  // Shared links must never flash the globe launch page while the shared item is fetched.
+  const [shareResolving, setShareResolving] = useState<boolean>(hasDeepLink);
   const [telaRequestedDocId, setTelaRequestedDocId] = useState<string | null>(null);
   // Which role the Demos corridor opened the tour at, so it skips its own role picker.
   const [demoRole, setDemoRole] = useState<'teacher' | 'parent' | 'student' | undefined>(undefined);
@@ -825,7 +830,7 @@ const App: React.FC = () => {
   // not a push). Lets goBack() return to the ACTUAL previous screen via the browser
   // history, and fall back to the Dashboard only when there's no in-app screen behind us.
   const navDepthRef = useRef(0);
-  const historyStackRef = useRef<AppView[]>([pitchInitialView]);
+  const historyStackRef = useRef<AppView[]>([initialView]);
 
   // Back must never strand a signed-in person on the sign-in page. The first history entry
   // this app writes is LANDING (the replaceState at boot), so walking Back far enough always
@@ -848,6 +853,7 @@ const App: React.FC = () => {
         window.history.pushState({ view: nextView }, '', path || window.location.pathname);
         navDepthRef.current += 1;
         historyStackRef.current.push(nextView);
+        rememberResumeView(nextView, !!auth.currentUser && !auth.currentUser.isAnonymous);
       }
       return nextView;
     });
@@ -2697,7 +2703,8 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           } catch { return true; }
         };
 
-        if (p && !p.hasCompletedOnboarding && firstTime('onboard')) {
+        // Arrived on a shared link: the first-run letter/tour waits for a normal launch.
+        if (p && !p.hasCompletedOnboarding && !LAUNCHED_VIA_SHARE && firstTime('onboard')) {
           // Onboarding is now the Welcome Package view (opened just below). The old
           // 7-persona Experience Picker + 8-slide tour are retired — Boarding Plajah's
           // gates are the direction pick and its itinerary is the tour. Just mark it done.
@@ -2709,7 +2716,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
           updateUserProfile(u.uid, { welcomeAchievementShown: true, totalPoints: (p.totalPoints || 0) + 100 } as any).catch(() => {});
         }
 
-        if (p && !p.hasCompletedOnboarding && firstTime('welcome_package')) {
+        if (p && !p.hasCompletedOnboarding && !LAUNCHED_VIA_SHARE && firstTime('welcome_package')) {
           // Brand-new account → open the Boarding Plajah welcome package live (letter →
           // Continue → onboarding), drop the "Love, Plajah" letter into the system inbox once,
           // and mark it notified so the existing-user campaign below never also nudges them.
@@ -3732,15 +3739,31 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
     return () => clearTimeout(t);
   }, [adSlotIdx, adSlots]);
 
-  if (isLoading && view !== 'LANDING') {
+  // A shared link keeps the loader up (never the globe launch page) until the shared item has
+  // taken over the screen: ends once something other than LANDING shows, or after 8s.
+  useEffect(() => {
+    if (!shareResolving) return;
+    if (view !== 'LANDING' || countdownAlbumId || activeLiveFeed) { setShareResolving(false); return; }
+    const t = setTimeout(() => setShareResolving(false), 8000);
+    return () => clearTimeout(t);
+  }, [shareResolving, view, countdownAlbumId, activeLiveFeed]);
+
+  const holdForShare = shareResolving && view === 'LANDING' && !countdownAlbumId && !activeLiveFeed;
+  if ((isLoading && view !== 'LANDING') || holdForShare) {
+    // Same look as the pre-mount splash in index.html (chevron + sliding bar) so the handoff is seamless.
     return (
-      <div className="min-h-screen bg-[#020202] flex flex-col items-center justify-center gap-6">
-        <div className="relative">
-          <div className="w-24 h-24 bg-gradient-to-br from-[#6B0099] via-[#D40055] to-[#FF8C00] rounded-[2.5rem] flex items-center justify-center shadow-[0_0_50px_rgba(107,0,153,0.3)]">
-            <Logo size={48} />
-          </div>
-        </div>
-        <p className="text-[10px] font-black uppercase tracking-[0.5em] text-small-orange">Synchronizing Front Row</p>
+      <div id="pj-load" role="status" aria-label="Loading Plajah">
+        <svg viewBox="0 0 100 100" width="88" height="88" aria-hidden="true">
+          <defs>
+            <linearGradient id="pjLoadGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#6B0099" />
+              <stop offset="50%" stopColor="#D40055" />
+              <stop offset="100%" stopColor="#FF8C00" />
+            </linearGradient>
+          </defs>
+          <path d="M30 20 L70 50 L30 80" fill="none" stroke="url(#pjLoadGrad)" strokeWidth="18" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <div id="pj-load-bar"><i /></div>
       </div>
     );
   }
@@ -7865,7 +7888,7 @@ const [archiveTab, setArchiveTab] = useState<'MUSIC' | 'VIDEO' | 'MOVIES_TV' | '
       {showStartRoom && <StartRoomModal user={user} onClose={() => setShowStartRoom(false)} />}
 
       {/* Smart Guide */}
-      {user && (
+      {user && !LAUNCHED_VIA_SHARE && (
         <SmartGuide
           view={view}
           enabled={smartGuideEnabled}

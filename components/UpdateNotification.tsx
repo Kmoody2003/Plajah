@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Rocket, Wrench, X, Sparkles, ArrowRight } from 'lucide-react';
 import { LATEST_ENTRY_ID, entriesSince, majorEntries, minorEntries, ChangelogEntry } from '../data/changelog';
 import { getPlatformInfo } from '../hooks/usePlatform';
+import { LAUNCHED_VIA_SHARE } from '../src/lib/launchTarget';
 
 // v2: we now store the newest changelog ENTRY id the user has acknowledged (not the hand-bumped
 // APP_BUILD string). Bumping the key name migrates everyone cleanly — a v1 build string can no
@@ -41,6 +42,9 @@ const UpdateNotification: React.FC<UpdateNotificationProps> = ({ onOpenChangelog
     // Never on a TV: this is a pointer-designed modal (click-to-dismiss, not D-pad focusable), and a
     // 10-foot viewer can't easily close it. The What's-New history stays reachable in Settings.
     try { if (getPlatformInfo().isTV) return; } catch { /* */ }
+    // Opened on a shared link: show the shared thing, not release notes. Not marked seen, so the
+    // panel still appears on the next normal launch.
+    if (LAUNCHED_VIA_SHARE) return;
     let lastSeen: string | null = null;
     // Read from BOTH stores; writes go to both — so a flaky localStorage can't make it recur.
     try { lastSeen = localStorage.getItem(LAST_SEEN_KEY); } catch { /* */ }
