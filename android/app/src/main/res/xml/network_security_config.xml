@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Plain http is allowed for the app's NATIVE requests so it can reach devices on the home network that
+  only speak http by IP address: Home Assistant (http://192.168.x.x:8123), cameras, lighting bridges.
+  Android cannot scope cleartext to "private addresses only" — it is all hosts or a list of names — and
+  LAN devices are usually addressed by IP, so it is permitted app-wide.
+  The WebView still loads https://plajah.com and still blocks mixed content on that page; this only
+  affects native networking (CapacitorHttp, plugins).
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

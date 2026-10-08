@@ -56,6 +56,17 @@ android {
             java.srcDirs += 'src/main/kotlin'
         }
     }
+
+    // Embedded Node hub: jniLibs/<abi>/libnode.so (~60 MB raw each, nodejs-mobile) — store native
+    // libs compressed in the APK and extract on install, instead of page-aligned uncompressed,
+    // which would add ~120 MB to the APK. Fetch them with scripts/fetchNodejsMobile.mjs.
+    packaging {
+        jniLibs {
+            useLegacyPackaging = true
+            // JNA ships dispatch libs for dead ABIs too
+            excludes += ['lib/armeabi/**', 'lib/mips/**', 'lib/mips64/**']
+        }
+    }
 }
 
 repositories {
@@ -126,6 +137,9 @@ dependencies {
 
     // AndroidX TvProvider — powers WatchNextPlugin (home-screen "continue watching" row)
     implementation "androidx.tvprovider:tvprovider:$tvProviderVersion"
+
+    // JNA — calls nodejs-mobile's node::Start from PlajahHubService without an NDK/CMake shim.
+    implementation 'net.java.dev.jna:jna:5.14.0@aar'
 
     // Capacitor
     implementation project(':capacitor-android')

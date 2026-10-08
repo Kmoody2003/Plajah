@@ -168,6 +168,17 @@ class MainActivity : BridgeActivity() {
         registerPlugin(PlajahSpeechPlugin::class.java)
         // PlajahLaunch: hands "Open with" files and experience-icon launches to the web layer.
         registerPlugin(PlajahLaunchPlugin::class.java)
+        // PlajahSpeakers: "Play on" — native Google Cast discovery of speakers + multi-room
+        // groups (the Web Cast SDK does not run in a WebView). Reports unsupported without GMS.
+        registerPlugin(PlajahSpeakersPlugin::class.java)
+        // PlajahMatter: Matter casting Content App bridge — forwards commands from the TV's Matter
+        // agent (MatterCommandReceiver) to the web layer and takes playback state back for
+        // attribute reads. Inert on TVs without a Matter agent.
+        registerPlugin(PlajahMatterPlugin::class.java)
+        // PlajahDevice: signage autostart-on-boot flag (BootReceiver) + overlay-permission check.
+        registerPlugin(PlajahDevicePlugin::class.java)
+        // PlajahHub: embedded Node.js smart-home hub (Matter controller) in the :hub process.
+        registerPlugin(PlajahHubPlugin::class.java)
 
         PlajahLaunchPlugin.pendingMediaJson = launchMedia
         val startPath = when {
@@ -298,19 +309,25 @@ class MainActivity : BridgeActivity() {
     /** Normalize vendor D-pad delivery before Android focus search can swallow a direction. */
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (televisionMode && event.action == KeyEvent.ACTION_DOWN) {
-            val key = when (event.keyCode) {
-                KeyEvent.KEYCODE_DPAD_UP -> "ArrowUp"
-                KeyEvent.KEYCODE_DPAD_DOWN -> "ArrowDown"
-                KeyEvent.KEYCODE_DPAD_LEFT -> "ArrowLeft"
-                KeyEvent.KEYCODE_DPAD_RIGHT -> "ArrowRight"
-                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> "Enter"
-                KeyEvent.KEYCODE_CHANNEL_UP -> "ChannelUp"
-                KeyEvent.KEYCODE_CHANNEL_DOWN -> "ChannelDown"
+            // key → DOM key name + the legacy keyCode web handlers also match on.
+            val mapped: Pair<String, Int>? = when (event.keyCode) {
+                KeyEvent.KEYCODE_DPAD_UP -> "ArrowUp" to 38
+                KeyEvent.KEYCODE_DPAD_DOWN -> "ArrowDown" to 40
+                KeyEvent.KEYCODE_DPAD_LEFT -> "ArrowLeft" to 37
+                KeyEvent.KEYCODE_DPAD_RIGHT -> "ArrowRight" to 39
+                KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> "Enter" to 13
+                KeyEvent.KEYCODE_CHANNEL_UP -> "ChannelUp" to 427
+                KeyEvent.KEYCODE_CHANNEL_DOWN -> "ChannelDown" to 428
                 else -> null
             }
-            if (key != null) {
+            if (mapped != null) {
+                val (key, code) = mapped
+                // The KeyboardEvent constructor ignores keyCode/which (they'd read 0), so define
+                // them on the instance — JS can then match on e.key OR e.keyCode/e.which.
                 bridge?.webView?.evaluateJavascript(
-                    "window.dispatchEvent(new KeyboardEvent('keydown',{key:'$key',bubbles:true,cancelable:true,repeat:${event.repeatCount > 0}}));",
+                    "(function(){var e=new KeyboardEvent('keydown',{key:'$key',bubbles:true,cancelable:true,repeat:${event.repeatCount > 0}});" +
+                        "try{Object.defineProperty(e,'keyCode',{get:function(){return $code}});Object.defineProperty(e,'which',{get:function(){return $code}});}catch(_){}" +
+                        "window.dispatchEvent(e);})();",
                     null
                 )
                 return true

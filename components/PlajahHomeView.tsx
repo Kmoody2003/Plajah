@@ -20,6 +20,7 @@ import LdLightingController from './home/LdLightingController';
 import VideoMeetDashboard from './home/VideoMeetDashboard';
 import CreatorSpotlight from './home/CreatorSpotlight';
 import HomeLayoutView from './home/HomeLayoutView';
+import HomeAssistantLink from './home/HomeAssistantLink';
 import realNetworkDiscoveryService, { RealDevice, DiscoveredRoomGroup } from '../services/home/realNetworkDiscoveryService';
 import { DetailedDeviceType } from '../services/home/deviceFingerprint';
 
@@ -1016,6 +1017,9 @@ export default function PlajahHomeView({ currentUser, onBack }: PlajahHomeViewPr
                 </div>
               </div>
             </motion.section>
+
+            {/* HOME ASSISTANT LINK: real thermostat + cameras for the TV ambient dash */}
+            <HomeAssistantLink />
 
             {/* 3-COLUMN COMMAND BRIDGE LAYOUT */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">

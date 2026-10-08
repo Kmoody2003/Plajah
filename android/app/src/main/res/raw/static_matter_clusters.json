@@ -1,0 +1,8 @@
+{
+  "clusters": [
+    { "identifier": 1290, "featureFlags": 3, "features": ["CS", "UP"] },
+    { "identifier": 1286, "featureFlags": 1, "features": ["AS"] },
+    { "identifier": 1289, "featureFlags": 7, "features": ["NV", "LK", "NK"] },
+    { "identifier": 1285 }
+  ]
+}

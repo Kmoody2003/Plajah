@@ -48,3 +48,7 @@
 
 # Facebook login is an optional dependency of the firebase-authentication plugin (intentionally not shipped).
 -dontwarn com.facebook.**
+
+# JNA (PlajahHubService -> nodejs-mobile libnode.so): JNA reflects on its own classes from native code.
+-keep class com.sun.jna.** { *; }
+-dontwarn java.awt.**
